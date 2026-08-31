@@ -1,13 +1,109 @@
 import { jobTabs } from "../../../../lib/demo-data";
 import { Icon } from "../../../../components/product/icon";
-import { Panel, Pill, ProgressRing, ScoreBar, SectionHeader, SkillChip, ToolbarButton, WorkspaceTabs, PersonAvatar } from "../../../../components/product/recruiting-ui";
+import {
+  DemoNotice,
+  Panel,
+  PersonAvatar,
+  Pill,
+  ProgressRing,
+  ScoreBar,
+  SectionHeader,
+  SkillChip,
+  ToolbarButton,
+  WorkspaceTabs,
+} from "../../../../components/product/recruiting-ui";
 
-export default function JobOverview(){return <div className="space-y-4"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="mb-2 flex items-center gap-2 text-[9px] text-slate-400">Jobs <span>/</span> Senior Backend Engineer</div><div className="flex items-center gap-3"><h1 className="text-[23px] font-semibold tracking-tight">Senior Backend Engineer</h1><Pill tone="green">● Open</Pill></div><div className="mt-2 flex flex-wrap gap-4 text-[9px] text-slate-500"><span className="inline-flex items-center gap-1"><Icon name="location" size={12}/>Tehran, Iran</span><span>● Remote</span><span>● Created 12 days ago</span><span>● Job ID: JB-2024-1042</span></div></div><div className="flex gap-2"><ToolbarButton icon="share">Share</ToolbarButton><ToolbarButton icon="more">More</ToolbarButton><ToolbarButton primary icon="candidates">Find Candidates</ToolbarButton></div></div><WorkspaceTabs tabs={jobTabs} active="Overview"/>
-<div className="grid gap-3 xl:grid-cols-[1.1fr_.95fr_.75fr]">
-<Panel><SectionHeader title="Job summary"/><div className="p-5 pt-3"><p className="text-[10px] leading-5 text-slate-600">We’re looking for a Senior Backend Engineer to design and build scalable backend systems, lead technical decisions, and mentor engineers.</p><div className="mt-5 grid grid-cols-2 gap-4 text-[9px]"><div><span className="text-slate-400">Department</span><div className="mt-1 font-semibold">Engineering</div></div><div><span className="text-slate-400">Experience</span><div className="mt-1 font-semibold">5–8 years</div></div><div><span className="text-slate-400">Employment</span><div className="mt-1 font-semibold">Full-time</div></div><div><span className="text-slate-400">Location</span><div className="mt-1 font-semibold">Tehran / Remote</div></div></div></div></Panel>
-<Panel><SectionHeader title="AI job analysis" subtitle="Based on job description and market signals"/><div className="flex items-center gap-5 p-5 pt-3"><ProgressRing value={92} label="job clarity"/><div className="flex-1 space-y-2"><ScoreBar label="Requirements match" value={96}/><ScoreBar label="Skills coverage" value={94}/><ScoreBar label="Market competitiveness" value={82} tone="indigo"/><ScoreBar label="Evaluation completeness" value={98}/></div></div></Panel>
-<Panel><SectionHeader title="Recent activity" action={<span className="text-[8px] font-semibold text-indigo-600">View all</span>}/><div className="space-y-3 p-5 pt-3">{[["AI found 23 new candidates","2h ago"],["Ali Rahimi completed interview","3h ago"],["New reply from Mohsen Karimi","5h ago"],["Hiring manager left feedback","Yesterday"]].map(([a,t],i)=><div key={a} className="flex gap-3"><div className="grid h-6 w-6 place-items-center rounded-full bg-indigo-50 text-indigo-600"><Icon name={i===0?"brain":i===1?"interviews":i===2?"message":"check"} size={12}/></div><div><div className="text-[9px] font-medium">{a}</div><div className="mt-0.5 text-[8px] text-slate-400">{t}</div></div></div>)}</div></Panel>
-</div>
-<Panel><SectionHeader title="Hiring pipeline"/><div className="grid gap-2 p-5 pt-3 sm:grid-cols-3 xl:grid-cols-6">{[["Applied",523,"100%"],["Screening",132,"25%"],["Interview",34,"6.5%"],["Finalist",12,"2.3%"],["Offered",3,"0.6%"],["Hired",1,"0.2%"]].map(([l,v,p])=><div key={l} className="rounded-[10px] border border-slate-100 p-3"><div className="text-[8px] text-slate-400">{l}</div><div className="mt-1 text-[17px] font-semibold">{v}</div><div className="mt-1 text-[8px] text-slate-400">{p}</div></div>)}</div></Panel>
-<div className="grid gap-3 xl:grid-cols-[1.25fr_.75fr]"><Panel><SectionHeader title="Top skills"/><div className="flex flex-wrap gap-2 p-5 pt-3">{[".NET","C#","SQL","Kubernetes","Azure","Microservices","Docker"].map(s=><SkillChip key={s}>{s}</SkillChip>)}</div></Panel><Panel><SectionHeader title="Hiring team"/><div className="flex items-center gap-3 p-5 pt-3"><PersonAvatar name="Sara Ahmadi"/><div><div className="text-[10px] font-semibold">Sara Ahmadi</div><div className="text-[8px] text-slate-400">Recruiter / You</div></div><div className="ml-auto flex -space-x-2"><PersonAvatar name="Amir Hosseini" size={28} tone={2}/><PersonAvatar name="Neda Farahani" size={28} tone={3}/></div></div></Panel></div>
-</div>}
+export default function JobOverview() {
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[9px] text-slate-400">
+            <span>Jobs</span><span>/</span><span>Senior Backend Engineer</span><DemoNotice />
+          </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[23px] font-semibold tracking-tight">Senior Backend Engineer</h1>
+            <Pill tone="green">● Open</Pill>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-[9px] text-slate-500">
+            <span className="inline-flex items-center gap-1"><Icon name="location" size={12} />Tehran, Iran</span>
+            <span>● Remote</span><span>● Created 12 days ago</span><span>● Job ID: JB-2024-1042</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <ToolbarButton icon="share">Share</ToolbarButton>
+          <ToolbarButton icon="more">More</ToolbarButton>
+          <ToolbarButton primary icon="candidates">Find Candidates</ToolbarButton>
+        </div>
+      </div>
+
+      <WorkspaceTabs tabs={jobTabs} active="Overview" />
+
+      <div className="grid gap-3 xl:grid-cols-[1.1fr_.95fr_.75fr]">
+        <Panel>
+          <SectionHeader title="Job summary" />
+          <div className="p-5 pt-3">
+            <p className="text-[10px] leading-5 text-slate-600">We’re looking for a Senior Backend Engineer to design and build scalable backend systems, lead technical decisions, and mentor engineers.</p>
+            <div className="mt-5 grid grid-cols-2 gap-4 text-[9px]">
+              <div><span className="text-slate-400">Department</span><div className="mt-1 font-semibold">Engineering</div></div>
+              <div><span className="text-slate-400">Experience</span><div className="mt-1 font-semibold">5–8 years</div></div>
+              <div><span className="text-slate-400">Employment</span><div className="mt-1 font-semibold">Full-time</div></div>
+              <div><span className="text-slate-400">Location</span><div className="mt-1 font-semibold">Tehran / Remote</div></div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel>
+          <SectionHeader title="AI job analysis" subtitle="Development analysis from the normalized job definition; external market feeds are not represented as connected production data." />
+          <div className="flex items-center gap-5 p-5 pt-3">
+            <ProgressRing value={92} label="job clarity" />
+            <div className="flex-1 space-y-2">
+              <ScoreBar label="Requirements match" value={96} />
+              <ScoreBar label="Skills coverage" value={94} />
+              <ScoreBar label="Market context" value={82} tone="indigo" />
+              <ScoreBar label="Evaluation completeness" value={98} />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel>
+          <SectionHeader title="Recent activity" action={<span className="text-[8px] font-semibold text-indigo-600">View all</span>} />
+          <div className="space-y-3 p-5 pt-3">
+            {[["AI sourcing run surfaced 23 candidates", "2h ago"], ["Ali Rahimi completed interview", "3h ago"], ["New reply from Mohsen Karimi", "5h ago"], ["Hiring manager left feedback", "Yesterday"]].map(([activity, time], index) => (
+              <div key={activity} className="flex gap-3">
+                <div className="grid h-6 w-6 place-items-center rounded-full bg-indigo-50 text-indigo-600"><Icon name={index === 0 ? "brain" : index === 1 ? "interviews" : index === 2 ? "message" : "check"} size={12} /></div>
+                <div><div className="text-[9px] font-medium">{activity}</div><div className="mt-0.5 text-[8px] text-slate-400">{time}</div></div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel>
+        <SectionHeader title="Hiring pipeline" subtitle="Development counts for layout and workflow validation; not customer production metrics." />
+        <div className="grid gap-2 p-5 pt-3 sm:grid-cols-3 xl:grid-cols-6">
+          {[["Applied", 523, "100%"], ["Screening", 132, "25%"], ["Interview", 34, "6.5%"], ["Finalist", 12, "2.3%"], ["Offered", 3, "0.6%"], ["Hired", 1, "0.2%"]].map(([label, value, percent]) => (
+            <div key={label} className="rounded-[10px] border border-slate-100 p-3">
+              <div className="text-[8px] text-slate-400">{label}</div><div className="mt-1 text-[17px] font-semibold">{value}</div><div className="mt-1 text-[8px] text-slate-400">{percent}</div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <div className="grid gap-3 xl:grid-cols-[1.25fr_.75fr]">
+        <Panel>
+          <SectionHeader title="Top skills" />
+          <div className="flex flex-wrap gap-2 p-5 pt-3">{[".NET", "C#", "SQL", "Kubernetes", "Azure", "Microservices", "Docker"].map((skill) => <SkillChip key={skill}>{skill}</SkillChip>)}</div>
+        </Panel>
+        <Panel>
+          <SectionHeader title="Hiring team" />
+          <div className="flex items-center gap-3 p-5 pt-3">
+            <PersonAvatar name="Sara Ahmadi" />
+            <div><div className="text-[10px] font-semibold">Sara Ahmadi</div><div className="text-[8px] text-slate-400">Recruiter / You</div></div>
+            <div className="ml-auto flex -space-x-2"><PersonAvatar name="Amir Hosseini" size={28} tone={2} /><PersonAvatar name="Neda Farahani" size={28} tone={3} /></div>
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
