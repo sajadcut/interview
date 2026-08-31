@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Ready to begin technical implementation  
-> **Version:** 0.3.0  
+> **Status:** M0 foundation implementation started  
+> **Version:** 0.4.0  
 > **Date:** 2026-08-31  
 > **Purpose:** Current execution state, locked decisions, milestones, risks, open decisions, and next engineering tickets.
 
@@ -15,8 +15,10 @@ Core technical architecture       ✅ Defined
 Interview architecture            ✅ Defined
 Self-hosted media constraint       ✅ Locked
 Production-readiness gates         ✅ Defined
+Local-native dev baseline          ✅ Locked
 Repository                         ✅ Created
-Implementation                     ⬜ Not started
+T001 repository bootstrap          🟡 In review / validation pending
+Implementation                     🟡 Started
 Calibration                        ⬜ Not started
 Shadow evaluation                  ⬜ Not started
 Pilot                              ⬜ Not started
@@ -29,7 +31,11 @@ Repository:
 https://github.com/sajadcut/interview
 ```
 
-The project is ready to enter M0 / foundation implementation.
+Active implementation branch:
+
+```text
+chore/t001-repository-bootstrap
+```
 
 ---
 
@@ -40,7 +46,7 @@ master.md
 → stable product + architecture contract
 
 projectstate.md
-→ this file; current execution status
+→ this file; current implementation state
 
 production-readiness.md
 → release gates for safe real-candidate autonomous interviewing
@@ -58,7 +64,7 @@ NestJS modular monolith for core business domains; specialized AI/media workers 
 
 ## A02 — PostgreSQL is primary system of record
 
-Use PostgreSQL + explicit relational modeling. Do not make MongoDB the primary domain store.
+Use PostgreSQL + explicit relational modeling. MongoDB is not the primary domain store.
 
 ## A03 — Candidate is organization-global
 
@@ -82,7 +88,7 @@ Track provider/model/prompt version/input refs/output/review state for consequen
 
 ## A08 — Provider abstraction
 
-Business modules do not directly depend on a single LLM/STT/TTS/avatar vendor.
+Business modules do not directly depend on a single LLM/STT/TTS/avatar/storage vendor.
 
 ## A09 — pgvector before external vector DB
 
@@ -96,13 +102,13 @@ Use Drizzle + explicit migrations/index control.
 
 Use generated typed clients between web/API.
 
-## A12 — Temporal for long-running automation
+## A12 — Temporal when long-running workflow complexity appears
 
-Adopt Temporal when outreach/scheduling workflows require waits/retries/human signals over days/weeks.
+Use Temporal for waits/retries/human signals over days/weeks. Do not require it during initial foundation work.
 
 ## A13 — No unsupported face/body psychological inference
 
-Do not score honesty, personality, confidence, emotion or suitability from face/gaze/body movement/accent.
+Do not score honesty, personality, confidence, emotion, or suitability from face/gaze/body movement/accent.
 
 ## A14 — Sourcing uses approved adapters
 
@@ -118,15 +124,15 @@ Use reusable primitives plus recruitment-specific components such as `EvidenceBl
 
 ## A17 — Dashboard is a Command Center
 
-Home surfaces attention, AI activity, pending review, risks and recommended actions—not merely KPI cards.
+Home surfaces attention, AI activity, pending review, risks, and recommended actions—not merely KPI cards.
 
 ## A18 — Candidate Profile is an Intelligence Workspace
 
-Candidate page unifies experience, skills, match, interview, evidence, assessment, communications and activity.
+Candidate page unifies experience, skills, match, interview, evidence, assessment, communications, and activity.
 
 ## A19 — Interview is a subsystem
 
-Candidate/recruiter interview UX, dialogue engine, realtime media, transcript, evidence, evaluation and review are separate concerns.
+Candidate/internal interview UX, dialogue engine, realtime media, transcript, evidence, evaluation, and review are separate concerns.
 
 ## A20 — Interview Brain is controlled
 
@@ -146,13 +152,11 @@ Avatar/media failures must not destroy interview state. Voice-only/reconnect/res
 
 ## A24 — No mandatory per-minute media SaaS
 
-The production architecture must have a self-hosted path for RTC/TURN/VAD/STT/TTS/avatar/recording.
+Production architecture must have a self-hosted path for RTC/TURN/VAD/STT/TTS/avatar/recording. Only the LLM API is expected to be a usage-based external vendor initially.
 
-Only the LLM API is expected to be a usage-based external vendor in the initial production path.
+## A25 — LiveKit OSS + coturn baseline for realtime production path
 
-## A25 — LiveKit OSS + coturn
-
-Use self-hosted LiveKit OSS and coturn as the baseline realtime transport infrastructure. Do not require LiveKit Cloud.
+Use self-hosted LiveKit OSS and coturn when realtime interview work requires them. Do not require LiveKit Cloud.
 
 ## A26 — Local VAD
 
@@ -164,11 +168,11 @@ Use `whisper.cpp` as the baseline to benchmark Persian/English and mixed Persian
 
 ## A28 — Local TTS
 
-TTS must sit behind `TTSProvider`. Benchmark commercially usable self-hosted Persian TTS; VITS-family is the baseline research path.
+TTS sits behind `TTSProvider`. Benchmark commercially usable self-hosted Persian TTS; VITS-family is the baseline research path.
 
 ## A29 — Local Avatar
 
-Avatar must sit behind `AvatarProvider`. Benchmark MuseTalk realtime first, but do not hard-lock exact model/weights before performance and license review.
+Avatar sits behind `AvatarProvider`. Benchmark MuseTalk realtime first; exact model/weights remain open until performance and license review.
 
 ## A30 — Actor assets are owned/licensed by us
 
@@ -177,6 +181,26 @@ Professional actor likeness/voice assets require explicit commercial consent and
 ## A31 — Production interview autonomy is gated
 
 An interview mode cannot be enabled for unsupervised real candidates until it passes `production-readiness.md`.
+
+## A32 — Laptop-first local-native development
+
+Current development is performed directly on a laptop, preferably in VS Code. Docker Desktop, Docker Compose, Kubernetes, and containerized local infrastructure are not required for day-to-day implementation.
+
+Tools are installed locally when the relevant milestone needs them.
+
+## A33 — Local PostgreSQL development baseline
+
+Install and run PostgreSQL directly on the development laptop. Add pgvector locally only when semantic matching work begins.
+
+## A34 — Local filesystem storage during development
+
+Do not require MinIO for M0/M1. Use a `StorageProvider` abstraction with a `LocalFilesystemStorageAdapter` during laptop development.
+
+Production/self-hosted deployment may later use S3, an S3-compatible service, or MinIO without changing domain code.
+
+## A35 — Deferred infrastructure tooling
+
+`infra/` remains a reserved boundary for future Docker/deployment assets. Empty infra folders do not imply Docker is part of the current critical path.
 
 ---
 
@@ -197,12 +221,11 @@ interview/
 │  ├─ validation/
 │  ├─ config/
 │  └─ api-client/
-├─ infra/
-│  ├─ docker/
-│  └─ compose/
+├─ infra/                  # reserved for future deployment assets
 ├─ master.md
 ├─ projectstate.md
 ├─ production-readiness.md
+├─ AGENTS.md
 ├─ package.json
 ├─ pnpm-workspace.yaml
 └─ turbo.json
@@ -214,7 +237,7 @@ interview/
 
 ## M0 — Foundation
 
-Status: `NOT STARTED`
+Status: `IN PROGRESS`
 
 Deliverables:
 
@@ -223,14 +246,13 @@ monorepo
 Node/pnpm/Turborepo baseline
 Next.js web shell
 NestJS API shell
-PostgreSQL
-Redis
-MinIO/S3-compatible local object storage
+local PostgreSQL
 Drizzle
 organization/user/membership model
 tenant context
 RBAC
 AuditEvent baseline
+local filesystem StorageProvider
 AI/provider interfaces
 shared validation/types
 Design System foundation
@@ -239,7 +261,20 @@ GitHub Actions CI
 observability baseline
 ```
 
-Exit condition: we can create an organization/user, call an authenticated/authorized API, persist tenant-safe data, produce an audit event, and run CI.
+Explicitly **not required merely to finish early M0**:
+
+```text
+Docker
+Docker Compose
+MinIO
+Kubernetes
+Temporal
+LiveKit
+coturn
+GPU/avatar runtime
+```
+
+Exit condition: create an organization/user, call an authenticated/authorized API, persist tenant-safe data in local PostgreSQL, store a development file through `StorageProvider`, produce an audit event, and run CI.
 
 ## M1 — Job → Candidate → Evidence vertical slice
 
@@ -255,7 +290,7 @@ Must-have / nice-to-have skills
 Seniority/experience
 Rubric + versioning
 Candidate
-Resume upload/object storage
+Resume upload through StorageProvider
 Resume parsing
 Application
 Candidate/job matching
@@ -268,7 +303,7 @@ Candidate compare
 Shortlist
 ```
 
-This is the first real product slice and is prioritized before video interview.
+This is the first real product slice and remains prioritized before production video interview work.
 
 ## M2 — Sourcing + Talent
 
@@ -304,25 +339,27 @@ Eligibility rules
 Calendar integration
 Interview scheduling
 Reminders
-Temporal workflows
+Temporal workflows when justified
 ```
 
 ## M4 — AI Interview
 
 Status: `NOT STARTED`
 
-### M4.0 Realtime Infrastructure
+### M4.0 Realtime infrastructure
 
 ```text
 LiveKit OSS self-hosted
 coturn
 room/token service
-candidate/recruiter room topology
+candidate/internal room topology
 recording strategy
 reconnect/resume behavior
 ```
 
-### M4.1 Local Speech
+These may be installed directly on suitable development hardware or moved to another machine later; containers are not required by architecture.
+
+### M4.1 Local speech
 
 ```text
 Silero VAD
@@ -372,11 +409,11 @@ independent Evaluator
 criterion scores
 ScoreEngine
 key moments/timestamps
-recruiter review
+internal review
 human override
 ```
 
-M4 definition of done includes this path:
+M4 definition of done includes:
 
 ```text
 Candidate speaks
@@ -385,50 +422,20 @@ Candidate speaks
 → Interview Brain + paid LLM
 → local TTS
 → local Avatar
-→ self-hosted LiveKit/coturn
+→ self-hosted realtime media
 → Candidate sees/hears interviewer
 → transcript/evidence stored
 ```
 
-It must run without credentials for hosted STT, hosted TTS, hosted avatar or LiveKit Cloud.
+It must run without mandatory hosted STT, hosted TTS, hosted avatar, or hosted RTC credentials.
 
 ## M5 — Assessments
 
 Status: `NOT STARTED`
 
-Deliverables:
-
-```text
-coding assessment UI
-isolated code runner
-test cases
-technical assessments
-system-design canvas
-assessment versioning
-AI evidence analysis
-risk/anti-cheating signals for human review
-```
-
-## M6 — Analytics + Enterprise Hardening
+## M6 — Analytics + Enterprise hardening
 
 Status: `NOT STARTED`
-
-Deliverables:
-
-```text
-recruitment events
-funnel analytics
-stage duration
-time-to-hire
-cost/source analytics
-AI quality/calibration analytics
-SSO/SCIM when required
-API/webhooks
-ATS/HRMS integrations
-retention workflows
-audit export
-enterprise governance
-```
 
 ---
 
@@ -436,7 +443,7 @@ enterprise governance
 
 ## T001 — Repository bootstrap
 
-Status: `NEXT`
+Status: `IN REVIEW`
 
 Acceptance:
 
@@ -448,33 +455,55 @@ Acceptance:
 - `services/media-worker` placeholder;
 - shared package skeletons;
 - root formatting/lint/typecheck scripts;
-- `.editorconfig`, `.gitignore`, `.env.example`.
+- `.editorconfig`, `.gitignore`, `.env.example`;
+- `AGENTS.md`.
 
-## T002 — Local infrastructure
+Current PR:
+
+```text
+PR #1 — T001: bootstrap repository monorepo
+```
+
+Pending before DONE:
+
+```text
+pnpm install
+lint
+typecheck
+build
+```
+
+## T002 — Local developer prerequisites
 
 Status: `BLOCKED BY T001`
 
-Add Docker Compose for:
+Replaces the previous Docker Compose infrastructure ticket.
+
+Install/configure only what is required for the next slice:
 
 ```text
-PostgreSQL
-Redis
-MinIO
+PostgreSQL local service
+local development database/user
+connection environment variables
+health/connectivity verification
+.local-data/storage directory convention
 ```
 
-Health checks and documented local credentials.
+Redis is deferred until a real feature requires it. MinIO is not part of T002.
 
 ## T003 — API baseline
 
 Status: `BLOCKED BY T001`
 
-NestJS app with health endpoint, structured config, validation, logging, correlation ID, error conventions and OpenAPI.
+NestJS app with health endpoint, structured config, validation, logging, correlation ID, error conventions, and OpenAPI.
 
 ## T004 — Database baseline
 
 Status: `BLOCKED BY T002/T003`
 
-Drizzle setup, migrations, extensions, timestamp/id conventions, organization/user/membership first tables.
+Drizzle setup, migrations, timestamp/id conventions, organization/user/membership first tables.
+
+pgvector extension may be deferred until matching/vector work starts.
 
 ## T005 — Tenant Context
 
@@ -494,11 +523,11 @@ Status: `BLOCKED BY T004/T006`
 
 `AuditEvent` model/service and hooks for consequential mutations.
 
-## T008 — Object storage
+## T008 — StorageProvider baseline
 
-Status: `BLOCKED BY T002/T003`
+Status: `BLOCKED BY T001/T003`
 
-MinIO/S3 adapter and secure metadata model.
+Define `StorageProvider` and implement `LocalFilesystemStorageAdapter` for laptop development. Do not require MinIO.
 
 ## T009 — AI Gateway interfaces
 
@@ -522,20 +551,18 @@ Generate typed client from OpenAPI and integrate with TanStack Query.
 
 Status: `BLOCKED BY T001`
 
-GitHub Actions for install, lint, typecheck, unit tests, build and migration validation.
+GitHub Actions for install, lint, typecheck, unit tests, build, and migration validation.
 
 ---
 
-# 7. Initial migration order
-
-Proposed sequence:
+# 7. Initial database migration order
 
 ```text
-001 extensions + base conventions
+001 base conventions
 002 users + organizations + memberships
 003 roles + permissions
 004 audit_events
-005 files/object metadata
+005 files/storage metadata
 006 jobs
 007 job requirements + skills
 008 rubrics + rubric versions + criteria
@@ -549,7 +576,7 @@ Proposed sequence:
 016 criterion evaluations + scorecards + overrides
 ```
 
-Do not create interview tables before the core candidate/application/evidence model is stable unless a spike specifically requires it.
+Do not create interview tables before the core candidate/application/evidence model is stable unless a spike specifically requires them.
 
 ---
 
@@ -578,17 +605,54 @@ This intentionally avoids building a dashboard full of fake KPI cards before rea
 
 ---
 
-# 9. Open decisions
+# 9. Local workstation baseline
 
-These remain intentionally open until benchmark/business input.
+Preferred current setup:
+
+```text
+Laptop
+VS Code
+Git
+Node.js 24 LTS
+pnpm 11
+PostgreSQL installed locally
+```
+
+Install later when required:
+
+```text
+Python
+Redis
+pgvector
+FFmpeg
+whisper.cpp
+LiveKit OSS
+coturn
+local TTS runtime
+avatar/GPU dependencies
+Temporal
+```
+
+Not required for current development:
+
+```text
+Docker Desktop
+Docker Compose
+MinIO
+Kubernetes
+```
+
+---
+
+# 10. Open decisions
 
 ## O01 — Initial target market / jurisdiction
 
-Impacts compliance, candidate notice, recording, retention and employment-AI controls.
+Impacts compliance, candidate notice, recording, retention, and employment-AI controls.
 
-## O02 — Production cloud and region
+## O02 — Production cloud/hosting and region
 
-Impacts data residency, GPU availability and infrastructure.
+Deferred. Current development is local-native.
 
 ## O03 — First customer authentication model
 
@@ -640,71 +704,66 @@ MuseTalk is benchmark baseline, not production lock.
 
 ## O15 — Whisper model/quantization
 
-Benchmark WER/latency on Persian, Persian-English technical code-switching and noisy consumer microphones.
+Benchmark WER/latency on Persian, Persian-English technical code-switching, and noisy consumer microphones.
 
 ---
 
-# 10. Risk register
+# 11. Risk register
 
 ## R01 — Persian speech quality
 
-Risk: STT/TTS may be noticeably worse for mixed Persian-English technical interviews.
-
-Mitigation: build evaluation dataset early; benchmark before polishing avatar.
+STT/TTS may be noticeably worse for mixed Persian-English technical interviews. Build an evaluation dataset early.
 
 ## R02 — Realtime latency
 
-Risk: STT + LLM + TTS + avatar creates unnatural pauses.
+STT + LLM + TTS + avatar may create unnatural pauses. Measure stages separately and degrade avatar before conversation quality.
 
-Mitigation: measure each stage separately; prewarm models; controlled brief acknowledgements; streaming where safe; degrade avatar before conversation quality.
+## R03 — Laptop resource limits
 
-## R03 — GPU cost/concurrency
+Local development hardware may not comfortably run database, STT, TTS, avatar, and realtime services concurrently.
 
-Risk: local avatar rendering can become expensive even with zero per-minute vendor fee.
+Mitigation:
 
-Mitigation: benchmark on target hardware; avatar quality tiers; voice-only fallback; GPU worker autoscaling later.
+```text
+install services only when needed
+run one heavy worker at a time during early development
+allow future worker placement on another machine
+preserve network/provider interfaces
+```
 
 ## R04 — AI evaluation trust
 
-Risk: plausible but poorly calibrated scorecards.
-
-Mitigation: evidence-first design, independent evaluator, deterministic scoring, shadow mode and human calibration.
+Use evidence-first design, independent evaluator, deterministic scoring, shadow mode, and human calibration.
 
 ## R05 — Candidate false rejection
 
-Risk: poor question/STT/evaluator causes capable candidates to rank too low.
-
-Mitigation: production gates, low-confidence routing, false-rejection measurement, human review.
+Use production gates, low-confidence routing, false-rejection measurement, and human review.
 
 ## R06 — Licensing
 
-Risk: OSS code license does not guarantee every model weight/dataset is suitable for commercial use.
-
-Mitigation: freeze exact code/model/weight licenses before production deployment.
+OSS code license does not guarantee every model weight/dataset is commercially suitable. Freeze licenses before production.
 
 ## R07 — Sourcing platform restrictions
 
-Risk: access/scraping policy changes.
-
-Mitigation: approved adapters and internal talent pool as first-class source.
+Use approved adapters; internal talent pool remains first-class.
 
 ## R08 — Privacy / candidate recordings
 
-Risk: sensitive CV/video/audio/transcript data.
-
-Mitigation: consent, encryption, tenant isolation, retention/deletion, access control, audit.
+Use consent, secure access, retention/deletion, tenant isolation, and audit.
 
 ## R09 — Overbuilding early
 
-Risk: building interview/avatar before candidate/evidence/scoring foundation.
+Do not build full interview/avatar before candidate/evidence/scoring foundation. Spikes are allowed only when isolated.
 
-Mitigation: M1 must precede M4 production work; spikes are allowed but do not redefine delivery priority.
+## R10 — Local/production environment drift
+
+Laptop-native development may differ from final production infrastructure.
+
+Mitigation: keep configuration externalized, capability interfaces explicit, filesystem/storage replaceable, database migrations reproducible, and containerization as a later deployment concern.
 
 ---
 
-# 11. Production status semantics
-
-Use these states for interview capabilities:
+# 12. Production status semantics
 
 ```text
 DEV_ONLY
@@ -720,26 +779,26 @@ No feature can claim `CONTROLLED_PRODUCTION` or higher unless the relevant appro
 
 ---
 
-# 12. Immediate next action
+# 13. Immediate next action
 
-Start `T001 — Repository bootstrap`.
+Finish validation of `T001 — Repository bootstrap`.
 
-Do not begin full AI Interview implementation yet. Small spikes for local STT/TTS/avatar feasibility are allowed in parallel only if they are isolated and documented.
-
-Current critical path:
+Then proceed to the revised local-native critical path:
 
 ```text
 T001 Repository Bootstrap
-→ T002 Local Infrastructure
+→ T002 Local PostgreSQL + workstation prerequisites
 → T003 API Baseline
 → T004 Database Baseline
 → T005 Tenant Context
 → T006 Authorization
 → T007 Audit
-→ T008 Object Storage
+→ T008 Local StorageProvider
 → T009 AI Gateway
 → T010 Web + Design System
 → T011 Typed API Client
 → T012 CI
 → M1 vertical slice
 ```
+
+Docker, MinIO, and production deployment work are intentionally outside the current critical path.
