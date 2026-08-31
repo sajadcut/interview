@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest captured API tests/build/runtime are green; candidate device check validated in Firefox; M4 now includes a persisted deterministic Interview Brain and internal engineering harness while realtime speech/media remains intentionally unimplemented  
-> **Version:** 0.11.6  
+> **Status:** M1–M6 implementation baseline materially advanced. The deterministic M4 Interview Brain is browser-validated end-to-end for a synthetic internal candidate. The next five M4 realtime-media foundation stages are coded: provider-neutral contracts, persistence, health-probed self-hosted provider boundary, preflight/lifecycle API, and product readiness/launch gating. The actual LiveKit/VAD/STT/TTS/avatar realtime loop is **not yet implemented or validated**.  
+> **Version:** 0.12.0  
 > **Date:** 2026-09-01  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -11,236 +11,392 @@
 # 1. Current state
 
 ```text
-Product architecture                     ✅ Defined in master.md
-Core technical architecture              ✅ Defined
-Interview architecture                   ✅ Defined
-Production-readiness gates               ✅ Defined
-Laptop-first dev baseline                ✅ Locked
-Node.js 25.9 runtime baseline             ✅ VALIDATED ON WINDOWS
-npm 11.6 workspaces                       ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
-PostgreSQL 17.11 client/server            ✅ CONNECTIVITY + AUTH VALIDATED
-Database                                 ✅ interview / role interview
-Migration runner                          ✅ TRANSACTIONAL / CHECKSUM-TRACKED
-Migrations 0001–0007                      ✅ APPLIED ON WORKSTATION
-Migration 0008                            ⚠️ COMPOSITE-FK FIX PUSHED / SUCCESSFUL RERUN RESULT NOT YET CAPTURED
-Migrations 0009–0013                      ⏳ EXECUTION RESULT NOT YET CAPTURED
-Migration 0014 M6 analytics/privacy       🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
-Migration contract validator              🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
-Development identity bootstrap            ✅ VALIDATED BEFORE LATEST DOMAIN SEED
-M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION RESULT NOT YET CAPTURED
-OpenAPI + typed client                    🟡 REGENERATION REQUIRED AFTER NEW M4 ENDPOINT
-Last captured API tests                   ✅ 27/27 PASS — PRE-BRAIN HEAD
-Last captured production build            ✅ SUCCESS — PRE-BRAIN HEAD
-Last captured Next.js static generation   ✅ 25/25 ROUTES — PRE-BRAIN HEAD
-Full-stack development runtime            ✅ STARTED SUCCESSFULLY ON WORKSTATION
-Executable browser review                 ✅ FOUR PASSES COMPLETED
-Deep M1–M6 desktop review                 ✅ 11 ROUTES REVIEWED
-Patched desktop representative recheck    ✅ 3 ROUTES PASSED
-Responsive source audit                   ✅ COMPLETED / MOBILE NAV FIX PUSHED
-RTL source audit                          ✅ COMPLETED / CANDIDATE DIRECTION FIX PUSHED
-UI functionalization pass                 🟡 PRIMARY ACTIONS WIRED / LATEST HEAD VALIDATION PENDING
-Fake interview media                      ✅ REMOVED FROM REVIEW SURFACE
-Interview recording player boundary       ✅ REAL <video> WHEN URL EXISTS / NO FAKE VIDEO OTHERWISE
-Candidate consent interaction             ✅ BROWSER-INTERACTIVE
-Candidate device check                    ✅ FIREFOX WORKSTATION VALIDATED
-Chrome camera recovery diagnostics        ✅ IMPLEMENTED
-Controlled Interview Brain                🟡 DETERMINISTIC STATE MACHINE CODED / WORKSTATION VALIDATION PENDING
-Interview Brain persistence               🟡 SESSION + TURN + TRANSCRIPT + MANUAL EVIDENCE HARNESS CODED
-Internal Interview Brain harness          🟡 /app/interviews/internal-test CODED / WORKSTATION VALIDATION PENDING
-Real-customer Brain execution             ✅ BLOCKED FROM DEVELOPMENT BRAIN ENDPOINT
-Realtime AI interview media loop          ⏳ NOT IMPLEMENTED
-LiveKit / coturn / VAD / STT / TTS/avatar ⏳ NOT IMPLEMENTED
-Latest M4 Brain HEAD lint                  ⏳ PENDING
-Latest M4 Brain HEAD typecheck             ⏳ PENDING
-Latest M4 Brain HEAD tests                 ⏳ PENDING
-Latest M4 Brain HEAD build                 ⏳ PENDING
-Visual/functional acceptance              ⚠️ NOT YET COMPLETE — SAME-HEAD BRAIN HARNESS + QUALITY RECHECK OPEN
-M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / FUNCTIONAL WIRING CONTINUES
-M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / API-TO-UI EXECUTION WIRING PENDING
-M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / WRITE-ACTION UI WIRING PENDING
-M4 AI Interview                           🟡 CONTROLLED BRAIN + CONSENT/DEVICE + PERSISTENCE CODED / REALTIME+CALIBRATION PENDING
-M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
-M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+ACTION WIRING PENDING
-package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
-T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
-Production approval                       ⬜ NOT APPROVED
+Product architecture                       ✅ Defined in master.md
+Core technical architecture                ✅ Defined
+Interview architecture                     ✅ Defined
+Production-readiness gates                 ✅ Defined
+Laptop-first dev baseline                  ✅ Locked
+Node.js 25.9 runtime baseline              ✅ VALIDATED ON WINDOWS
+npm 11.6 workspaces                        ✅ VALIDATED ON WINDOWS
+Dotin Nexus npm registry                    ✅ VERIFIED ON WORKSTATION
+PostgreSQL 17.11 client/server              ✅ CONNECTIVITY + AUTH VALIDATED
+Database                                   ✅ interview / role interview
+API bind                                   ✅ 127.0.0.1:4100 VALIDATED
+Root monorepo .env                          ✅ API + Web shared local source-of-truth
+CORS config                                ✅ allowlist or * from CORS_ORIGIN
+Same-origin Web→API proxy                  ✅ BROWSER/API VALIDATED
+Migration runner                           ✅ TRANSACTIONAL / CHECKSUM-TRACKED
+Migrations 0001–0007                       ✅ APPLIED ON WORKSTATION
+Migrations 0008–0014                       ⚠️ DOMAIN TABLES ARE RUNTIME-USABLE; COMPLETE MIGRATION-RUN LOG STILL NOT CAPTURED
+Migration 0015 realtime media              🟡 CODED / NOT YET APPLIED+VALIDATED ON WORKSTATION
+Migration contract validator               🟡 CODED / LATEST EXECUTION PENDING
+Development context                        ✅ /development/context READY=true VALIDATED
+M1–M5 development fixtures                 ✅ SUFFICIENT FOR VALIDATED M4 INTERNAL BRAIN FLOW
+OpenAPI + typed client                     🟡 REGENERATION REQUIRED AFTER NEW MEDIA ENDPOINTS
+Last captured pre-Brain API suite           ✅ 27/27 PASS
+Last captured pre-Brain production build    ✅ SUCCESS
+Latest HEAD lint                            ⏳ PENDING
+Latest HEAD typecheck                       ⏳ PENDING
+Latest HEAD tests                           ⏳ PENDING
+Latest HEAD build                           ⏳ PENDING
+package-lock.json                           ✅ PRESENT IN REPOSITORY / LATEST QUALITY PROVENANCE PENDING
+T012 CI                                     ⏳ QUALITY/PIPELINE FOLLOW-UP
+Production approval                         ⬜ NOT APPROVED
 ```
 
-The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. PostgreSQL 17.11 is the active local database baseline per ADR-0003.
+The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo and the required Dotin Nexus registry. PostgreSQL 17.11 remains the active local baseline per ADR-0003.
 
 ---
 
-# 2. Validated workstation evidence
+# 2. Validated workstation/browser evidence
+
+Validated on the workstation during the current M4 debugging/functional pass:
 
 ```text
-Node.js       v25.9.0
-npm           11.6.2
-Git           2.53.0.windows.3
-Registry      https://nexus3.dotin.ir/repository/Dotin-NPM/
-psql          PostgreSQL 17.11
-Database      interview
-Database user interview
-Candidate camera/microphone device check  Firefox validated
+API health
+GET http://127.0.0.1:4100/health
+→ status=ok, service=interview-api
+
+Development context
+GET http://127.0.0.1:4100/development/context
+→ ready=true with organization/user/application/plan/consent fixtures
+
+Same-origin proxy
+GET /api/backend/development/context
+→ HTTP 200
+
+Controlled Interview Brain browser flow
+→ synthetic interview session created
+→ first Brain turn persisted
+→ interviewer transcript persisted
+→ candidate answer persisted
+→ human-marked synthetic evidence persisted
+→ Backend engineering evidence coverage became 1
+→ Brain transitioned to System design
+→ session remained In progress
 ```
 
-`npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in supplied workstation logs.
+The internal harness screenshot and runtime logs therefore validate the deterministic Brain vertical slice through the real API/database path. This does **not** validate realtime speech/media.
 
-The full development stack has been reported as started successfully on the workstation. Candidate consent/device behavior was then exercised; Firefox successfully opened the camera/microphone path. Chrome previously returned `Could not start video source`, so the device check now probes camera and microphone independently and provides browser/device-specific recovery guidance rather than treating a camera failure as a microphone failure.
+Candidate device check was previously validated in Firefox. Chrome-specific camera-start recovery diagnostics remain implemented.
 
----
-
-# 3. Ten-stage implementation advance
-
-## Stage 1 — Migration contract validation
-
-`scripts/check-migrations.mjs` validates migration sequencing and tenant composite-FK parent availability. Root `npm run db:validate` exposes the check, and `npm run check` includes it before the JavaScript gate.
-
-## Stage 2 — Deterministic development domain seed
-
-Development bootstrap provides idempotent M1–M5 development data after domain migrations exist. `dev:bootstrap` continues to bootstrap organization/user/RBAC and conditionally seeds domain fixtures only when required tables are present.
-
-## Stage 3 — M1 DB-backed recruiting workspaces
-
-The API exposes tenant/RBAC-protected DB-backed job and candidate workspace reads including job list, job requirements/rubric/pipeline, organization candidate list, job-scoped candidate list, candidate skills/job applications, and the evidence-backed application intelligence path.
-
-## Stage 4 — M2 sourcing and talent persistence
-
-The API exposes internal talent, sourcing-run history and sourcing-run detail. Internal talent remains the first adapter. Retrieval score is explicitly labeled as a search signal and remains separate from pre-interview match and evidence-backed hiring scores.
-
-## Stage 5 — M3 grounded outreach persistence
-
-Outbound candidate messages validate supplied knowledge references against approved/current knowledge before persistence. Auto-send remains policy-gated; otherwise the message is persisted for human approval.
-
-## Stage 6 — M3 deterministic screening persistence
-
-Hard-minimum rules remain deterministic. Persisted screening sessions always route consequential outcomes to human review; failed hard minimums do not create silent generative rejection.
-
-## Stage 7 — M3 scheduling lifecycle
-
-Scheduling requests can be created, listed and confirmed with timezone/slot state. Confirmation validates ordered ISO timestamps and remains provider-independent for later calendar adapters.
-
-## Stage 8 — M4 controlled interview runtime
-
-Interview-session creation validates published plan/application compatibility, active consent, transcript permission and release-unit policy. Structured turns, transcript segments and evidence persist behind tenant/RBAC/audit boundaries.
-
-M4 now also contains `deterministic-state-machine-v1`, a controlled Interview Brain that:
-
-- selects uncovered rubric criteria rather than unconstrained chat topics;
-- emits only validated structured turns;
-- requires expected evidence for ask/probe actions;
-- respects clarification, interruption, silence, skip, refusal and reconnect intents;
-- routes candidate factual questions away from model improvisation and toward approved knowledge;
-- never converts silence/skip/refusal into positive evidence;
-- closes on evidence completion or time-budget exhaustion;
-- stores question IDs, reason, evidence coverage and Brain version in session checkpoint state;
-- refuses real-customer candidate sessions on the development Brain endpoint.
-
-`/app/interviews/internal-test` is an internal engineering harness that resolves the local development tenant/user, creates a synthetic session through the real API, persists Brain turns/transcript segments and allows the human tester to explicitly mark a synthetic answer as evidence. This is not a substitute for realtime speech/media and is never represented as a production candidate interview.
-
-## Stage 9 — M5 assessment boundary
-
-Assessment submissions persist without execution in the core API. Result ingestion rejects core-process runner identities and accepts only isolated-runner results; deterministic score normalization is retained.
-
-## Stage 10 — M6 analytics and enterprise governance
-
-Migration 0014 adds recruitment-event, retention-policy and privacy-request foundations. Analytics APIs expose funnel/source/review context while distinguishing operational/pre-interview signals from hiring scorecards. Privacy APIs support retention-policy management and reviewed access/deletion/consent-withdrawal requests without silently destroying candidate data.
+Port `4000` is occupied on the workstation by `TPVCGateway`; the Interview API local baseline is now explicit `127.0.0.1:4100` to avoid protocol/port collision.
 
 ---
 
-# 4. JavaScript validation evidence
+# 3. M1–M6 product implementation baseline
 
-The latest captured workstation execution before the responsive/functionalization/M4-Brain patches validates:
+## M1 — Job → Candidate → Evidence
+
+- tenant-safe jobs, requirements, rubrics, versions and criteria;
+- organization-global Candidate + job-specific Application model;
+- candidate identity/experience/skills;
+- evidence, criterion evaluation, scorecard and human override foundations;
+- deterministic evidence-backed scoring where missing evidence remains incomplete rather than being fabricated;
+- Candidate Intelligence Workspace and Job Workspace UI baselines.
+
+## M2 — Sourcing + Talent
+
+- source-adapter contract and internal talent pool adapter;
+- sourcing runs, discovered candidates and merge-review persistence;
+- internal talent first;
+- retrieval/search score kept distinct from Match Score and Hiring Score;
+- ambiguous dedupe remains reviewable rather than silently merged.
+
+## M3 — Outreach + Screening + Scheduling
+
+- approved recruiting knowledge and grounded candidate communication foundation;
+- deterministic hard-minimum screening with human review;
+- scheduling request/confirmation/reminder foundation;
+- no silent generative rejection path.
+
+## M4 — AI Interview
+
+Validated core:
+
+- consent/release units/plans/sessions/turns/transcript/evidence/evaluation/recording foundations;
+- lifecycle stages `DEV_ONLY → INTERNAL_TEST → SHADOW → SUPERVISED_PILOT → CONTROLLED_PRODUCTION → SCALED_PRODUCTION`, plus `SUSPENDED`;
+- deterministic `deterministic-state-machine-v1` Interview Brain;
+- structured actions `ask`, `probe`, `clarify`, `transition`, `close`, `escalate`;
+- explicit candidate intents including answer, clarification, skip, interruption, silence, reconnect, candidate factual question and policy refusal;
+- evidence-driven criterion movement;
+- time-budget closure;
+- reconnect/clarification/silence do not manufacture evidence;
+- skip/refusal leaves visible evidence gaps;
+- factual candidate questions route away from unsupported interviewer improvisation;
+- real-customer candidate execution remains blocked on the development Brain endpoint;
+- internal browser harness is now validated through persisted session/turn/transcript/evidence state.
+
+Realtime foundation newly coded in v0.12.0 is detailed in section 4.
+
+## M5 — Assessments
+
+- assessment sessions/submissions/results/evidence foundation;
+- core API does not execute candidate code;
+- isolated-runner abstraction and result-ingestion boundary;
+- real isolated execution worker still pending.
+
+## M6 — Analytics + Enterprise hardening
+
+- analytics/privacy/retention/event foundations;
+- RBAC/audit/tenant boundaries materially advanced;
+- production hardening, full action wiring and production approval remain incomplete.
+
+---
+
+# 4. Five-stage M4 realtime-media foundation advance
+
+These five stages are **CODED** on the latest HEAD. Unless explicitly marked otherwise, their latest workstation lint/typecheck/test/build/runtime validation is pending.
+
+## Stage 1 — Provider-neutral realtime contracts
+
+Added a vendor-neutral contract for:
 
 ```text
-npm run test   -> 27 tests, 27 pass, 0 fail
-npm run build  -> API TypeScript build successful
-npm run build  -> Next.js 16.3.3 production build successful
-Next.js        -> 25/25 static routes generated
-npm run dev    -> full-stack development runtime started successfully
+Modes:       audio | avatar
+Components:  transport | vad | stt | tts | avatar
+State:       configured + reachable + ready
 ```
 
-The Brain state-machine spec adds seven new deterministic tests, but they are **not** recorded as passing until the workstation reruns the suite. The new internal harness also adds a Next.js route, so the previous 25-route production-build evidence must not be attributed to the current HEAD.
+Audio mode requires transport + VAD + STT + TTS. Avatar mode additionally requires avatar health.
 
----
+A provider cannot be marked ready merely because a URL or credential is configured. Readiness requires health success.
 
-# 5. Functionalization + M4 Brain pass
-
-The product no longer treats polished appearance as equivalent to implemented behavior.
-
-Implemented now:
-
-- shared `ToolbarButton` supports real navigation targets and explicit disabled states;
-- Job Workspace `Find Candidates` navigates to Sourcing;
-- Candidate Workspace review/add-to-job navigation is wired where a real destination exists;
-- Sourcing evidence review navigates to candidate workspaces, while sourcing execution is explicit about missing write wiring;
-- Outreach thread/grounding navigation is wired; sequence creation remains explicit pending behavior;
-- Interview plan links to scorecards and now routes `Run controlled internal test` to a persisted Brain harness rather than the candidate consent page;
-- Scorecard review routes to interview evidence;
-- Assessment review routes into scorecard review;
-- global search, global Ask AI, notification center, share/more actions that are not implemented do not pretend to be functional;
-- Interview Review renders a real HTML `<video>` player only when a recording URL exists; otherwise it shows an explicit no-recording state;
-- Candidate consent is browser-interactive and gates progression;
-- Candidate device check uses `navigator.mediaDevices.getUserMedia` for local camera/microphone preview without upload/persistence and now diagnoses the two devices independently;
-- the candidate flow reaches Introduction, then explicitly blocks `Start AI interview` until realtime M4 speech/media is connected;
-- the controlled Brain endpoint persists state-machine turns through real interview tables and is audited;
-- the internal Brain harness persists transcript and human-marked synthetic evidence through the same domain APIs.
-
-This pass intentionally does **not** fake realtime media, STT, TTS, avatar, evaluator calibration or production interview approval.
-
----
-
-# 6. Browser review state
-
-Deep desktop review covered:
+Hard privacy invariants are explicit in the readiness model:
 
 ```text
-/app/jobs/senior-backend-engineer
-/app/jobs/senior-backend-engineer/sourcing
-/app/jobs/senior-backend-engineer/outreach
-/app/jobs/senior-backend-engineer/interviews
-/app/jobs/senior-backend-engineer/scorecards
-/app/candidates/ali-rahimi
-/app/candidates/ali-rahimi/assessments
-/app/interviews/ali-rahimi
-/app/analytics
-/app/settings
-/candidate
+candidateVideoAnalysis      = none
+biometricInferenceAllowed   = false
+rawMediaPersistedByApi      = false
+spokenTextOnlyToAvatar      = true
 ```
 
-Review 3 fixed fixture/customer-data provenance, interview recommendation decision-boundary visibility and candidate-surface width/hierarchy. Review 4 rechecked representative patched desktop routes successfully.
+Contract tests are coded but latest execution is pending.
 
-Candidate camera/microphone behavior has now also been validated successfully in Firefox. The new `/app/interviews/internal-test` route still requires executable workstation review on the current HEAD.
+## Stage 2 — Realtime media persistence
 
----
+Migration `0015_m4_realtime_media.sql` adds:
 
-# 7. Safety boundaries preserved
+### `interview_media_sessions`
+
+Persists only provider-neutral lifecycle metadata:
+
+- interview session reference;
+- audio/avatar mode;
+- lifecycle status;
+- transport provider;
+- opaque room reference;
+- provider/version snapshot;
+- readiness snapshot;
+- recording lifecycle state;
+- heartbeat/connected/ended/error metadata.
+
+### `interview_media_events`
+
+Ordered operational journal for:
+
+- preflight/provider health;
+- connecting/connected/disconnected/reconnected/degraded;
+- VAD boundaries;
+- finalized STT event marker;
+- Brain turn marker;
+- TTS/avatar lifecycle markers;
+- heartbeat/end/error.
+
+The media tables intentionally do not store provider credentials, room access tokens or raw audio/video. Candidate transcript and evidence remain in their dedicated domain tables.
+
+Migration 0015 is not yet claimed as applied until workstation `db:migrate` is rerun successfully.
+
+## Stage 3 — Self-hosted provider boundary + health probes
+
+Environment/config boundary added for:
 
 ```text
-Candidate remains organization-global; Application remains job-specific.
-Evidence precedes consequential score/recommendation.
-Final weighted score is deterministic domain code.
-Generative judgment cannot silently final-reject a candidate.
-Retrieval/vector-like signals are not hiring scores.
-External sourcing remains approved-adapter based; hidden scraping is not introduced.
-Candidate-facing facts require approved grounding.
-AI Interviewer and Evaluator remain logically separate.
-The development Interview Brain refuses real-customer candidate sessions.
-Real-candidate interview autonomy remains release-gated.
-Skip/refusal/silence never manufacture positive interview evidence.
-Candidate code never executes in the core API.
-Assessment integrity signals remain review aids.
-Unsupported face/body/accent personality/emotion/honesty/suitability inference remains prohibited.
-Privacy/retention actions remain reviewable and auditable.
+MEDIA_REALTIME_ENABLED
+MEDIA_PROVIDER_TIMEOUT_MS
+MEDIA_TRANSPORT_PROVIDER=disabled|livekit
+LIVEKIT_URL / LIVEKIT_HEALTH_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET
+TURN_URLS
+VAD_PROVIDER=disabled|silero-http
+VAD_BASE_URL
+STT_PROVIDER=disabled|whisper-http
+STT_BASE_URL
+TTS_PROVIDER=disabled|local-http
+TTS_BASE_URL
+AVATAR_PROVIDER=disabled|musetalk-http
+AVATAR_BASE_URL
 ```
+
+Realtime defaults to disabled.
+
+Provider status is generated without returning credentials. Disabled providers are not probed. Configured providers become `ready` only after their health endpoint returns success. Non-2xx means reachable but not ready. Probe timeout is bounded.
+
+No new npm dependency was introduced, preserving the Dotin Nexus/lockfile discipline.
+
+Actual LiveKit, coturn, Silero, Whisper, TTS and MuseTalk processes are **not** installed or claimed operational by this stage.
+
+## Stage 4 — Media preflight and lifecycle API
+
+New tenant/RBAC/audited media API boundary:
+
+```text
+GET  /v1/interviews/media/readiness?mode=audio|avatar
+POST /v1/interviews/:sessionId/media/preflight
+POST /v1/interviews/:sessionId/media/sessions
+GET  /v1/interviews/:sessionId/media/sessions/latest
+POST /v1/interviews/:sessionId/media/sessions/:mediaSessionId/events
+```
+
+`readiness` exposes provider health without credentials.
+
+`preflight` combines:
+
+- interview session state;
+- release lifecycle;
+- stored real/synthetic candidate release mode;
+- active server-side consent;
+- transcript permission;
+- requested audio/avatar mode;
+- provider health/readiness.
+
+A real-customer session cannot pass realtime preflight unless its stored release mode is supervised/autonomous according to the release policy.
+
+Media-session creation fails if preflight fails. It creates only lifecycle metadata and an opaque room reference; it deliberately returns `connectionCredentialsIssued=false`. LiveKit room/token issuance is a separate runtime transport step and is not fabricated.
+
+Operational event payloads recursively reject fields suggestive of raw audio/video/frame/blob/base64, transcript/text or credentials/tokens/secrets. Finalized transcript must continue through the transcript API rather than the operational event journal.
+
+## Stage 5 — Product readiness and candidate launch gating
+
+Internal engineering route `/app/interviews/internal-test` now includes a realtime readiness panel above the validated Brain harness. It:
+
+- reads the actual API provider status;
+- switches between audio and avatar requirements;
+- shows configured/reachable/ready separately;
+- shows launch blockers;
+- surfaces the privacy invariants;
+- does not represent an unconfigured provider as connected.
+
+The candidate surface gains an explicit realtime launch gate explaining that device readiness is insufficient: candidate auth/session isolation, server-side consent, release policy and the healthy self-hosted media pipeline must all pass before live interview launch.
+
+The actual candidate Start AI Interview path remains disabled. This is intentional and correct until the runtime connection slice exists and passes release validation.
 
 ---
 
-# 8. Next validation sequence
+# 5. Realtime architecture boundary
 
-Pull the M4 Brain pass and run:
+Target architecture remains:
+
+```text
+Candidate browser WebRTC
+  ↓
+LiveKit OSS + coturn
+  ↓
+Self-hosted VAD
+  ↓
+Self-hosted STT
+  ↓
+Finalized transcript persistence
+  ↓
+Interview Brain
+  ↓
+Validated structured turn
+  ↓ only spokenText
+Self-hosted TTS
+  ↓
+Optional AvatarProvider / MuseTalk-class renderer
+  ↓
+LiveKit audio/video
+  ↓
+Candidate browser
+```
+
+Ownership is strict:
+
+```text
+Interview Brain      owns interview strategy and next-turn decision
+Media worker         owns streaming/transport/speech/rendering mechanics
+Avatar               renders approved spoken text; never owns interview intelligence
+Evaluator            consumes persisted finalized evidence; never scores live video frames
+Core API             owns tenant/release/consent/audit/domain state
+```
+
+No candidate face/body/accent analysis may be introduced for honesty, personality, emotion, confidence or suitability.
+
+---
+
+# 6. Release posture
+
+```text
+DEV_ONLY               engineering only
+INTERNAL_TEST          internal validation
+SHADOW                 compare without autonomous candidate consequence
+SUPERVISED_PILOT       trained human supervisor required
+CONTROLLED_PRODUCTION  explicit production approval required
+SCALED_PRODUCTION      expanded approved deployment
+SUSPENDED              execution blocked
+```
+
+The deterministic development Brain still refuses real-customer candidate sessions. Realtime foundation code does not change that release posture.
+
+Final hiring/rejection authority remains human-controlled.
+
+---
+
+# 7. What is validated vs merely coded
+
+## VALIDATED
+
+- Node/npm/PostgreSQL local baseline;
+- DB connectivity/auth;
+- API on `127.0.0.1:4100`;
+- CORS wildcard/list configuration path;
+- same-origin Next API proxy;
+- `/health`;
+- `/development/context` ready state;
+- candidate device check in Firefox;
+- synthetic interview session creation;
+- deterministic Brain first/next turn persistence;
+- transcript persistence through browser harness;
+- manual synthetic evidence persistence;
+- evidence coverage update and rubric-criterion transition.
+
+## CODED, LATEST VALIDATION PENDING
+
+- realtime media contracts/tests;
+- migration 0015;
+- self-hosted provider descriptors/health probes/tests;
+- realtime readiness/preflight/media-session/event APIs;
+- media lifecycle tests/DTO validation tests;
+- internal realtime readiness UI;
+- candidate realtime launch-gate copy;
+- latest OpenAPI/client regeneration;
+- latest full lint/typecheck/test/build.
+
+## NOT IMPLEMENTED / NOT CLAIMED CONNECTED
+
+- running LiveKit OSS deployment in this repo slice;
+- coturn runtime;
+- browser LiveKit SDK connection;
+- provider room/token issuance;
+- media-worker executable process;
+- streaming VAD adapter;
+- streaming STT adapter;
+- streaming TTS adapter;
+- avatar runtime integration;
+- live reconnect/checkpoint integration;
+- recording runtime;
+- real candidate authentication/session isolation sufficient for realtime launch;
+- production calibration/approval.
+
+---
+
+# 8. Required latest validation sequence
+
+From the repository root:
 
 ```powershell
+cd D:\interview\interview
+git pull
 npm run db:validate
 npm run db:migrate
 npm run dev:bootstrap
@@ -252,10 +408,32 @@ npm run build
 npm run dev
 ```
 
-Then open `/app/jobs/senior-backend-engineer/interviews` and select **Run controlled internal test**. Start a synthetic session, submit answers/intents, and verify that persisted evidence causes the Brain to transition between rubric criteria. Real candidate `Start AI interview` remains disabled until the next M4 step connects the realtime media pipeline.
+Then inspect:
 
-The next M4 engineering slice is the self-hosted realtime boundary: media-worker foundation → LiveKit OSS/coturn transport → VAD/STT → controlled Brain transport adapter → TTS → AvatarProvider → checkpoint/reconnect integration. Production autonomy remains blocked throughout engineering validation.
+```text
+http://localhost:3000/app/interviews/internal-test
+```
 
-The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
+Expected default realtime state with `.env.example` semantics is **Launch blocked**, because realtime and all providers default to disabled. That is a successful safety behavior, not an error.
+
+The deterministic Brain harness below the readiness panel must continue working after migration 0015.
+
+Provider activation should be incremental. Configure and health-check each self-hosted provider; do not set the candidate surface live merely because environment values exist.
+
+---
+
+# 9. Next runtime implementation slice after validation
+
+Once the latest quality gate and migration are green, continue in this order:
+
+1. LiveKit OSS + coturn deployment/runbook and health integration.
+2. Secure room/token issuance scoped to one interview/candidate session.
+3. Browser transport connection with reconnect/checkpoint handling.
+4. Media-worker VAD + STT streaming path producing finalized transcript only.
+5. Brain transport adapter → TTS streaming response.
+6. Optional licensed/disclosed avatar rendering from `spokenText` only.
+7. Recording path only under explicit consent/policy.
+8. latency/failure injection, Persian/code-switching, interruption and reconnect validation.
+9. INTERNAL_TEST and SHADOW calibration before supervised real-candidate pilot consideration.
 
 No autonomous real-candidate interview mode is production-approved at this stage.
