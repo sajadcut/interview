@@ -53,9 +53,9 @@ A route is not visually complete merely because it has routing, a card, an empty
 
 ## Development fixtures
 
-Until the relevant domain endpoints and migrations are runtime-validated, the visual target may use deterministic development fixtures from `apps/web/lib/demo-data.ts` and route-local fixture constants.
+Until the relevant typed API reads are wired into each visual surface, deterministic development datasets may exercise real React/Next.js UI.
 
-Fixtures are allowed only to exercise real React/Next.js UI. They must not be described as persisted production data and must be replaced with typed API data as each domain slice lands.
+Fixtures are allowed only when their provenance is visible and they are not described as persisted customer production data. The shared development-data notice must remain subtle enough not to dominate the workflow while still preventing invented metrics from being mistaken for real customer metrics.
 
 The first visual implementation is English-content-first to match the approved visual references. English is therefore the default fixture locale. `NEXT_PUBLIC_DEFAULT_LOCALE=fa` explicitly enables the Persian shell for RTL review. Until complete Persian fixture copy is implemented, English fixture-backed product content remains LTR so tables and information hierarchy are not reversed merely because the shell is Persian.
 
@@ -102,7 +102,9 @@ Fresh screenshots of the same three routes showed a material improvement: readin
 
 Visual iteration 2 replaced the sidebar absolute footer with a flex/scroll-safe layout so navigation remains reachable and the profile card does not cover Settings.
 
-Review 2 still does not imply global visual acceptance. The deeper product surfaces below require executable review:
+### Review 3 — deep product surfaces
+
+Executable screenshots from the running Windows stack were reviewed for:
 
 ```text
 /app/jobs/senior-backend-engineer
@@ -118,8 +120,18 @@ Review 2 still does not imply global visual acceptance. The deeper product surfa
 /candidate
 ```
 
+The internal application now has a coherent enterprise hierarchy, stable active navigation, dense job/candidate/interview anatomy and visible safety boundaries. Sourcing clearly separates retrieval from hiring score, outreach shows grounding/approval state, interview planning shows DEV_ONLY release state, scorecards expose evidence coverage and human review, assessment integrity signals remain review aids, and governance pages expose RBAC/privacy/release policy.
+
+Review 3 also identified three concrete acceptance gaps and the repository has been patched accordingly:
+
+1. Development fixture metrics were still too easy to read as customer production data. The shared fixture banner was replaced with a small neutral provenance badge and added to the screenshot-reviewed fixture-backed deep workspaces.
+2. AI Interview Review showed a next-round recommendation without an equally visible human decision boundary. The recommendation card now states reviewer approval is required and final advance/rejection/hiring decisions remain human-controlled.
+3. The candidate-facing layout was accidentally clamped by an outer `max-w-3xl` layout, producing excessive whitespace and a floating duplicate candidate brand. The outer clamp/duplicate heading were removed; the candidate flow now owns a wider responsive layout with stronger interview/consent hierarchy.
+
+A fresh screenshot pass is required on the patched HEAD before these surfaces are marked visually accepted. Responsive and explicit RTL/Persian review are still open gates.
+
 ## Current implementation state
 
-The repository now contains executable UI anatomy spanning M1–M6, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, assessment evidence/runner boundaries, recruiting analytics and governance settings.
+The repository contains executable UI anatomy spanning M1–M6, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, assessment evidence/runner boundaries, recruiting analytics and governance settings.
 
-These new routes are **coded, not visually accepted**. The latest HEAD still requires migration validation, OpenAPI regeneration, lint/typecheck/test/build and executable browser screenshot review before the new surfaces can be marked validated.
+Deep-workspace desktop screenshots have now been reviewed once on the running stack and the resulting defects have been patched. **Global visual acceptance remains open** until the patched HEAD receives a fresh executable screenshot pass plus responsive/RTL review and the same-HEAD quality gate.
