@@ -22,6 +22,8 @@ Non-negotiable architecture rules:
 - Tenant boundaries, authorization, audit, consent, and retention are foundation requirements.
 - Current development is laptop-first/local-native; Docker/Compose/MinIO are not mandatory dev prerequisites.
 - Use `StorageProvider`; local development uses the filesystem adapter.
+- All pnpm/npm dependency resolution for this repository must use `https://nexus3.dotin.ir/repository/Dotin-NPM/` through the committed root `.npmrc`. Do not bypass it with the public npm registry during normal project development.
+- Never commit Nexus credentials, npm tokens, `_auth`, `_authToken`, passwords, or other package-registry secrets.
 
 Visual implementation rules:
 
@@ -36,4 +38,5 @@ Validation rules:
 
 - Never claim lint/typecheck/test/build/migration success unless the command actually ran successfully.
 - When execution is unavailable, record `*_VALIDATION_PENDING` rather than `DONE`.
+- Verify `pnpm registry:check` before dependency installation or dependency-sensitive validation on a new workstation.
 - Before completing a validated change run the available lint, typecheck, tests and build for the changed scope.
