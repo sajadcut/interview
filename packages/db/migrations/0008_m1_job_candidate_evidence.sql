@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS rubric_criteria (
   evidence_policy jsonb NOT NULL DEFAULT '{}'::jsonb,
   display_order integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, id),
   UNIQUE (rubric_version_id, criterion_key),
   FOREIGN KEY (organization_id, rubric_version_id) REFERENCES rubric_versions(organization_id, id) ON DELETE CASCADE
 );
