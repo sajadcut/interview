@@ -8,8 +8,9 @@ import postgres from "postgres";
 const rootEnv = fileURLToPath(new URL("../../../.env", import.meta.url));
 if (existsSync(rootEnv)) loadEnvFile(rootEnv);
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error("DATABASE_URL is required for migrations");
+const configuredDatabaseUrl = process.env.DATABASE_URL;
+if (!configuredDatabaseUrl) throw new Error("DATABASE_URL is required for migrations");
+const databaseUrl: string = configuredDatabaseUrl;
 
 const migrationsDirectory = fileURLToPath(new URL("../migrations/", import.meta.url));
 const migrationPattern = /^\d{4}_[a-z0-9_-]+\.sql$/i;
