@@ -29,14 +29,18 @@ export default function CandidateAssessmentsPage() {
             <div className="mt-1 text-[11px] text-slate-500">Senior Backend Engineer · assessment evidence</div>
           </div>
         </div>
-        <div className="flex gap-2"><Link href="/app/candidates/ali-rahimi"><ToolbarButton>Back to profile</ToolbarButton></Link><ToolbarButton primary icon="check">Review result</ToolbarButton></div>
+        <div className="flex gap-2">
+          <ToolbarButton href="/app/candidates/ali-rahimi">Back to profile</ToolbarButton>
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/scorecards" primary icon="check">Review in scorecard</ToolbarButton>
+        </div>
       </div>
 
       <div className="flex gap-6 overflow-x-auto border-b border-slate-200 text-[11px]">
         <Link href="/app/candidates/ali-rahimi" className="pb-3 text-slate-500">Overview</Link>
-        {["Experience", "Skills", "Job Matches", "Screening", "Interviews"].map((item) => <span key={item} className="pb-3 text-slate-500">{item}</span>)}
+        {["Experience", "Skills", "Job Matches", "Screening"].map((item) => <span key={item} className="pb-3 text-slate-400">{item}</span>)}
+        <Link href="/app/interviews/ali-rahimi" className="pb-3 text-slate-500 hover:text-slate-800">Interviews</Link>
         <span className="border-b-2 border-indigo-600 pb-3 font-semibold text-indigo-600">Assessments</span>
-        {["Communications", "Notes", "Activity"].map((item) => <span key={item} className="pb-3 text-slate-500">{item}</span>)}
+        {["Communications", "Notes", "Activity"].map((item) => <span key={item} className="pb-3 text-slate-400">{item}</span>)}
       </div>
 
       <div className="grid gap-3 xl:grid-cols-[1.1fr_.9fr]">
