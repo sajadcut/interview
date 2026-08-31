@@ -1,21 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCorsOrigins } from "./cors";
+import { buildCorsOrigin } from "./cors";
 
-test("development CORS includes configured and loopback web origins", () => {
-  const origins = buildCorsOrigins("https://example.test", "development");
-  assert.deepEqual(
-    new Set(origins),
-    new Set([
-      "https://example.test",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://[::1]:3000",
-    ]),
-  );
+test("CORS keeps only explicitly configured origins", () => {
+  const origin = buildCorsOrigin("http://localhost:3000, https://app.example.test, http://localhost:3000");
+  assert.deepEqual(origin, ["http://localhost:3000", "https://app.example.test"]);
 });
 
-test("production CORS keeps only explicitly configured origins", () => {
-  const origins = buildCorsOrigins("https://app.example.test, https://admin.example.test", "production");
-  assert.deepEqual(origins, ["https://app.example.test", "https://admin.example.test"]);
+test("CORS wildcard is supported from configuration", () => {
+  assert.equal(buildCorsOrigin("*"), "*");
+  assert.equal(buildCorsOrigin("https://app.example.test, *"), "*");
+});
+
+test("CORS rejects an empty configuration", () => {
+  assert.throws(() => buildCorsOrigin(" , "), /CORS_ORIGIN must contain at least one origin or \*/);
 });
