@@ -1,0 +1,25 @@
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+.env
+.env.local
+.env.*.local
+!.env.example
+
+.DS_Store
+.idea/
+.vscode/
+
+*.log
+pnpm-debug.log*
+
+# Local infrastructure data
+.data/
+minio-data/
+postgres-data/
+redis-data/
