@@ -4,21 +4,21 @@
     {
       "label": "web: dev",
       "type": "shell",
-      "command": "pnpm dev:web",
+      "command": "npm run dev:web",
       "isBackground": true,
       "problemMatcher": []
     },
     {
       "label": "api: dev",
       "type": "shell",
-      "command": "pnpm dev:api",
+      "command": "npm run dev:api",
       "isBackground": true,
       "problemMatcher": []
     },
     {
       "label": "quality: check",
       "type": "shell",
-      "command": "pnpm check",
+      "command": "npm run check",
       "problemMatcher": []
     }
   ]
