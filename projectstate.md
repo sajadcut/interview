@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests, production build and full-stack development runtime start validated on Windows; deep-workspace visual review 3 completed and fixes pushed  
-> **Version:** 0.11.3  
+> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests, production build and full-stack development runtime start validated on Windows; patched desktop visual recheck passed on representative surfaces; responsive/RTL fixes pushed and await screenshot + same-HEAD quality validation  
+> **Version:** 0.11.4  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -16,10 +16,10 @@ Core technical architecture              ✅ Defined
 Interview architecture                   ✅ Defined
 Production-readiness gates               ✅ Defined
 Laptop-first dev baseline                ✅ Locked
-Node.js 25.9 runtime baseline             ✅ VALIDATED ON WINDOWS
-npm 11.6 workspaces                       ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
-PostgreSQL 17.11 client/server            ✅ CONNECTIVITY + AUTH VALIDATED
+Node.js 25.9 runtime baseline            ✅ VALIDATED ON WINDOWS
+npm 11.6 workspaces                      ✅ VALIDATED ON WINDOWS
+Dotin Nexus npm registry                 ✅ VERIFIED ON WORKSTATION
+PostgreSQL 17.11 client/server           ✅ CONNECTIVITY + AUTH VALIDATED
 Database                                 ✅ interview / role interview
 Migration runner                          ✅ TRANSACTIONAL / CHECKSUM-TRACKED
 Migrations 0001–0007                      ✅ APPLIED ON WORKSTATION
@@ -27,25 +27,30 @@ Migration 0008                            ⚠️ COMPOSITE-FK FIX PUSHED / SUCCE
 Migrations 0009–0013                      ⏳ EXECUTION RESULT NOT YET CAPTURED
 Migration 0014 M6 analytics/privacy       🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
 Migration contract validator              🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
-Development identity bootstrap             ✅ VALIDATED BEFORE LATEST DOMAIN SEED
+Development identity bootstrap            ✅ VALIDATED BEFORE LATEST DOMAIN SEED
 M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION RESULT NOT YET CAPTURED
 OpenAPI + typed client                    🟡 REGENERATION RESULT ON LATEST HEAD NOT YET CAPTURED
-Last pre-wave lint                        ✅ 5/5 SUCCESS
-Latest M1–M6 API tests                    ✅ 27/27 PASS
-Latest HEAD typecheck                     ⏳ RESULT NOT INCLUDED IN LATEST LOG
-Latest HEAD production build              ✅ SUCCESS
-Latest Next.js static generation          ✅ 25/25 ROUTES
+Last pre-responsive API tests             ✅ 27/27 PASS
+Last pre-responsive production build      ✅ SUCCESS
+Last Next.js static generation            ✅ 25/25 ROUTES
 Full-stack development runtime            ✅ STARTED SUCCESSFULLY ON WORKSTATION
-Executable browser review                 ✅ THREE PASSES COMPLETED
+Executable browser review                 ✅ FOUR PASSES COMPLETED
 Deep M1–M6 desktop review                 ✅ 11 ROUTES REVIEWED
-Visual fixes from review 3                ✅ PUSHED / FRESH SCREENSHOTS PENDING
-Visual acceptance                         ⚠️ NOT YET COMPLETE — RESPONSIVE + RTL + PATCHED-HEAD RECHECK OPEN
-M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / VISUAL RECHECK PENDING
-M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / VISUAL RECHECK PENDING
-M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / VISUAL RECHECK PENDING
+Patched desktop representative recheck    ✅ 3 ROUTES PASSED
+Responsive source audit                   ✅ COMPLETED / MOBILE NAV FIX PUSHED
+RTL source audit                          ✅ COMPLETED / CANDIDATE DIRECTION FIX PUSHED
+Responsive screenshots                    ⏳ PENDING
+Persian-shell RTL screenshots             ⏳ PENDING
+Latest responsive/RTL HEAD lint           ⏳ PENDING
+Latest responsive/RTL HEAD typecheck      ⏳ PENDING
+Latest responsive/RTL HEAD build          ⏳ PENDING
+Visual acceptance                         ⚠️ NOT YET COMPLETE — RESPONSIVE + RTL + SAME-HEAD QUALITY OPEN
+M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / FINAL VISUAL GATE PENDING
+M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / FINAL VISUAL GATE PENDING
+M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / FINAL VISUAL GATE PENDING
 M4 AI Interview                           🟡 DEV_ONLY GATED RUNTIME PRIMITIVES CODED / REALTIME+CALIBRATION PENDING
 M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
-M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+VISUAL RECHECK PENDING
+M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+FINAL VISUAL GATE PENDING
 package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
 T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
 Production approval                       ⬜ NOT APPROVED
@@ -69,7 +74,7 @@ Database user interview
 
 `npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in supplied workstation logs.
 
-The full development stack has been reported as started successfully on the workstation after the latest build/test cycle. This validates process startup, but it does not by itself close browser-flow, API-behavior or visual acceptance gates.
+The full development stack has been reported as started successfully on the workstation. This validates process startup, but it does not by itself close database-migration, API-behavior or final visual acceptance gates.
 
 ---
 
@@ -117,9 +122,9 @@ Migration 0014 adds recruitment-event, retention-policy and privacy-request foun
 
 ---
 
-# 4. Latest M1–M6 JavaScript validation
+# 4. JavaScript validation evidence
 
-The latest supplied workstation execution validates:
+The latest captured workstation execution before the responsive/RTL patch validates:
 
 ```text
 npm run test   -> 27 tests, 27 pass, 0 fail
@@ -129,13 +134,13 @@ Next.js        -> 25/25 static routes generated
 npm run dev    -> full-stack development runtime started successfully
 ```
 
-The latest supplied logs do not yet contain the output of `db:validate`, the successful rerun of `db:migrate` through 0014, `dev:bootstrap`, `api:sync`, lint or typecheck on the post-review-3 HEAD, so those remain evidence-pending rather than inferred.
+Because the responsive/RTL fixes modify web source after that gate, lint/typecheck/build must be rerun before those newer commits are marked green.
 
 ---
 
-# 5. Browser review 3
+# 5. Browser review state
 
-Executable desktop screenshots from the running application were reviewed for:
+Deep desktop review covered:
 
 ```text
 /app/jobs/senior-backend-engineer
@@ -151,15 +156,24 @@ Executable desktop screenshots from the running application were reviewed for:
 /candidate
 ```
 
-The internal product surfaces now show coherent enterprise navigation, job/candidate/interview hierarchy, sourcing policy boundaries, evidence-first scoring, human review state, assessment isolation language and M6 governance anatomy.
+Review 3 fixed fixture/customer-data provenance, interview recommendation decision-boundary visibility and candidate-surface width/hierarchy.
 
-Review 3 produced and immediately fixed three concrete defects:
+Review 4 then rechecked representative patched desktop routes:
 
-- Fixture/customer-data ambiguity: the old `Fixture data · domain APIs replace this in M1` notice was stale and several deep pages had unlabeled deterministic metrics. The shared notice is now a small neutral `Development dataset · not production metrics` provenance badge and is applied to the reviewed fixture-backed deep surfaces.
-- Interview review decision boundary: the visible AI next-round recommendation now explicitly states reviewer approval is required and that final advance/rejection/hiring decisions remain human-controlled.
-- Candidate-facing width/hierarchy: an outer `max-w-3xl` layout was constraining the actual candidate page and adding a floating duplicate candidate brand. The clamp/duplicate heading were removed and the candidate flow now owns a wider responsive, sticky-progress consent layout.
+```text
+/app/jobs/senior-backend-engineer
+/app/interviews/ali-rahimi
+/candidate
+```
 
-A fresh screenshot pass on the patched HEAD is required before these pages can be marked visually accepted. Responsive behavior and explicit Persian/RTL review remain open.
+Those screenshots pass the defects found in Review 3: provenance is subtle but explicit, interview scoring/recommendation is clearly decision support rather than final authority, and the candidate consent surface has the intended wide hierarchy and internal/candidate separation.
+
+A source-level responsive and RTL audit found two additional implementation gaps and both are now patched:
+
+- below `lg`, the internal desktop sidebar was hidden with no replacement navigation; a sticky horizontally-scrollable mobile navigation bar is now provided and top actions collapse safely on narrow widths;
+- the English candidate fixture could inherit RTL from the root locale; it now explicitly declares `lang=en` and `dir=ltr` until Persian candidate copy exists.
+
+Responsive screenshots and a Persian-shell RTL screenshot remain required before global visual acceptance can close.
 
 ---
 
@@ -185,7 +199,7 @@ Privacy/retention actions remain reviewable and auditable.
 
 # 7. Next validation sequence
 
-Pull the review-3 fixes, rerun the same-HEAD quality gate and refresh screenshots for the patched candidate surface plus representative internal pages. Then perform responsive and Persian/RTL review.
+Pull the responsive/RTL fixes and run the same-HEAD web quality gate. Then capture representative narrow-screen internal/candidate screenshots and one Persian-shell RTL screenshot.
 
 The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
 
