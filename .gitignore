@@ -18,8 +18,9 @@ coverage/
 *.log
 pnpm-debug.log*
 
-# Local infrastructure data
-.data/
-minio-data/
+# Local development data and uploaded artifacts
+.local-data/
+
+# Optional local database/service scratch data if configured inside the repo
 postgres-data/
 redis-data/
