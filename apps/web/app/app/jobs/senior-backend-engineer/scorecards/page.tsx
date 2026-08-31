@@ -27,8 +27,8 @@ export default function JobScorecardsPage() {
           <p className="mt-1 text-[12px] text-slate-500">Evidence-backed criterion evaluation with deterministic weighted scoring and human override history.</p>
         </div>
         <div className="flex gap-2">
-          <ToolbarButton icon="columns">Compare candidates</ToolbarButton>
-          <ToolbarButton primary icon="check">Review pending scores</ToolbarButton>
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/candidates" icon="columns">Compare candidates</ToolbarButton>
+          <ToolbarButton href="/app/interviews/ali-rahimi" primary icon="check">Review pending score</ToolbarButton>
         </div>
       </div>
 
