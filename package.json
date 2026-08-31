@@ -28,7 +28,7 @@
     "api:sync": "pnpm openapi:export && pnpm api-client:generate"
   },
   "devDependencies": {
-    "@eslint/js": "^10.9.1",
+    "@eslint/js": "^10.0.1",
     "eslint": "^10.9.1",
     "prettier": "^3.9.6",
     "turbo": "^2.10.12",
