@@ -3,6 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+import { buildCorsOrigins } from "./common/http/cors";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
 import { getEnv } from "./config/env";
@@ -14,7 +15,20 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { logger });
 
   app.enableShutdownHooks();
-  app.enableCors({ origin: env.CORS_ORIGIN.split(",").map((origin) => origin.trim()) });
+  app.enableCors({
+    origin: buildCorsOrigins(env.CORS_ORIGIN, env.NODE_ENV),
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "content-type",
+      "authorization",
+      "x-organization-id",
+      "x-user-id",
+      "x-request-id",
+    ],
+    exposedHeaders: ["x-request-id"],
+    credentials: false,
+    maxAge: 600,
+  });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
