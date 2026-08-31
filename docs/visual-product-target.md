@@ -42,7 +42,7 @@ Until M1 domain endpoints exist, the visual target may use deterministic develop
 
 Fixtures are allowed only to exercise real React/Next.js UI. They must not be described as persisted production data and must be replaced with typed API data as each domain slice lands.
 
-The first visual implementation is English-content-first to match the approved visual references. Shell/navigation direction is locale-aware now; complete Persian copy for all new fixture-backed surfaces remains a dedicated localization pass and is not falsely marked complete.
+The first visual implementation is English-content-first to match the approved visual references. English is therefore the default fixture locale. `NEXT_PUBLIC_DEFAULT_LOCALE=fa` explicitly enables the Persian shell for RTL review. Until complete Persian fixture copy is implemented, English fixture-backed product content remains LTR so tables and information hierarchy are not reversed merely because the shell is Persian.
 
 ## Visual acceptance gate
 
@@ -64,6 +64,27 @@ route exists
 
 Static mock images generated outside the application do not satisfy this gate.
 
+## First executable browser review
+
+The first real Windows/Next.js screenshots were reviewed for:
+
+```text
+/app
+/app/jobs
+/app/candidates
+```
+
+The screenshots proved that the routes and enterprise shell render, but they did **not** pass visual acceptance. The review found these shared gaps:
+
+- defaulting to the Persian/RTL shell while the fixture content remained English reversed page hierarchy and table reading order;
+- no current-route state in the dark navigation;
+- typography and row density were too small for production recruiter use at the captured desktop viewport;
+- the development-fixture notice was too visually dominant;
+- metric cards, table toolbars and page headers needed stronger hierarchy and more consistent spacing;
+- the shell/topbar needed clearer enterprise action hierarchy.
+
+Visual iteration 1 was therefore pushed across the shared shell/design primitives plus Command Center, Jobs and Candidates. A new executable screenshot review is required; this iteration is not self-approved by code changes alone.
+
 ## Current implementation state
 
-The current `main` contains coded visual implementations for all nine target surfaces above. They are fixture-backed and require local runtime/build/screenshot validation before visual acceptance can be marked complete.
+The current `main` contains coded visual implementations for all nine target surfaces. The JavaScript quality gate has passed on the Windows workstation, and the first executable browser review has occurred for three core routes. Visual iteration 1 is coded and requires a fresh browser screenshot comparison before any visual surface is marked accepted.
