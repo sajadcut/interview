@@ -86,6 +86,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           create: "ایجاد موقعیت",
           automation: "اتوماسیون",
           recruiter: "استخدام‌کننده",
+          searchPending: "جستجوی سراسری هنوز به ایندکس دامنه متصل نشده است",
+          aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
+          notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
         }
       : {
           search: "Search candidates, jobs, interviews...",
@@ -93,6 +96,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           create: "Create Job",
           automation: "Automation",
           recruiter: "Recruiter",
+          searchPending: "Global search is not connected to the domain index yet",
+          aiPending: "The global AI assistant is not wired to this control yet",
+          notificationsPending: "Notification center is not wired yet",
         };
   const primary = copy.navigation.slice(0, 7);
   const secondary = copy.navigation.slice(7);
@@ -155,19 +161,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-w-0">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/90 bg-white/95 px-3 backdrop-blur sm:gap-3 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center">
-            <div className="relative hidden w-full max-w-[560px] md:block">
+            <div className="relative hidden w-full max-w-[560px] md:block" title={header.searchPending}>
               <Icon
                 name="search"
                 size={15}
-                className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-300"
               />
               <input
-                className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[12px] text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                readOnly
+                aria-disabled="true"
+                className="h-10 w-full cursor-not-allowed rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[12px] text-slate-400 outline-none placeholder:text-slate-400"
                 placeholder={header.search}
               />
             </div>
           </div>
-          <button className="hidden h-10 items-center gap-2 rounded-[10px] border border-indigo-100 bg-indigo-50 px-3.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-indigo-100 sm:inline-flex">
+          <button type="button" disabled title={header.aiPending} className="hidden h-10 cursor-not-allowed items-center gap-2 rounded-[10px] border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-400 sm:inline-flex">
             <Icon name="sparkles" size={14} />
             {header.ask}
           </button>
@@ -179,9 +187,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Icon name="plus" size={14} />
             <span className="hidden sm:inline">{header.create}</span>
           </Link>
-          <button className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50">
+          <button type="button" disabled title={header.notificationsPending} className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400">
             <Icon name="bell" size={15} />
-            <span className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
           </button>
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold">
             SN
