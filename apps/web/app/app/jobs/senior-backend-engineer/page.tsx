@@ -31,9 +31,9 @@ export default function JobOverview() {
           </div>
         </div>
         <div className="flex gap-2">
-          <ToolbarButton icon="share">Share</ToolbarButton>
-          <ToolbarButton icon="more">More</ToolbarButton>
-          <ToolbarButton primary icon="candidates">Find Candidates</ToolbarButton>
+          <ToolbarButton icon="share" disabled title="Share flow is not wired on the development dataset yet">Share</ToolbarButton>
+          <ToolbarButton icon="more" disabled title="Additional job actions are not wired yet">More</ToolbarButton>
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/sourcing" primary icon="candidates">Find Candidates</ToolbarButton>
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export default function JobOverview() {
         </Panel>
 
         <Panel>
-          <SectionHeader title="Recent activity" action={<span className="text-[8px] font-semibold text-indigo-600">View all</span>} />
+          <SectionHeader title="Recent activity" action={<span className="text-[8px] font-semibold text-slate-400">Development activity</span>} />
           <div className="space-y-3 p-5 pt-3">
             {[["AI sourcing run surfaced 23 candidates", "2h ago"], ["Ali Rahimi completed interview", "3h ago"], ["New reply from Mohsen Karimi", "5h ago"], ["Hiring manager left feedback", "Yesterday"]].map(([activity, time], index) => (
               <div key={activity} className="flex gap-3">
