@@ -1,3 +1,20 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-subtle: #f2f4f7;
+  --foreground: #15171a;
+  --muted: #667085;
+  --border: #e4e7ec;
+  --accent: #1f5eff;
+  --accent-foreground: #ffffff;
+  --success: #067647;
+  --warning: #b54708;
+  --danger: #b42318;
+  --radius: 12px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -6,39 +23,28 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 body {
-  background: #f7f7f8;
-  color: #19191b;
   font-family: Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
-.bootstrap-shell {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 32px;
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-.bootstrap-shell section {
-  max-width: 680px;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-.eyebrow {
-  color: #66666d;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 8px 0 12px;
-  font-size: clamp(36px, 7vw, 72px);
-  letter-spacing: -0.04em;
-}
-
-p {
-  line-height: 1.6;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
