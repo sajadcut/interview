@@ -51,7 +51,7 @@ const domainReady = runPsql(
 );
 
 if (domainReady === "true") {
-  const seedOutput = runPsql(["-f", resolve(root, "scripts/bootstrap-development-data.sql")], "Development domain seed");
+  const seedOutput = runPsql(["-f", resolve(root, "scripts/bootstrap-domain-fixtures.sql")], "Development domain seed");
   if (seedOutput) console.log(seedOutput);
   console.log("✓ M1-M5 deterministic development data seeded");
 } else {
