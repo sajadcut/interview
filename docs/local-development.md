@@ -5,11 +5,13 @@ The current development baseline is a laptop with VS Code and directly installed
 ## Required now
 
 - Git
-- Node.js 24 LTS
+- Node.js 22.14.0 or newer 22.x (`>=22.14.0 <23`)
 - pnpm 11
 - PostgreSQL 18.x
 - VS Code (preferred)
 - Access to the Dotin Nexus npm repository
+
+The runtime decision is recorded in `docs/architecture-decisions/ADR-0001-node-22-14-runtime.md` and supersedes only the Node.js 24 version statements in `master.md` v0.4.0.
 
 Run:
 
@@ -33,7 +35,7 @@ Before installing packages, verify both the effective pnpm configuration and Nex
 pnpm registry:check
 ```
 
-The repository `.npmrc` also applies conservative retry/timeout and reduced network-concurrency settings to make installs more resilient when the internal Nexus connection is unstable.
+`pnpm-workspace.yaml` contains the reviewed dependency-build policy plus conservative retry/timeout and reduced network-concurrency settings for the internal Nexus connection. Build scripts are denied by default under the strict dependency-build policy unless explicitly reviewed and allowed.
 
 If Nexus authentication is required in the developer environment, configure credentials only at the user/machine level or via environment variables. Never commit tokens, passwords, `_auth`, or `_authToken` values to this repository.
 
@@ -63,6 +65,7 @@ postgresql://interview:CHANGE_ME@localhost:5432/interview
 ```bash
 pnpm registry:check
 pnpm install
+pnpm workstation:check
 pnpm dev:web
 pnpm dev:api
 ```
