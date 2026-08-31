@@ -232,9 +232,9 @@ export function EmptyChart({ label = "trend" }: { label?: string }) {
 
 export function DemoNotice() {
   return (
-    <div className="inline-flex max-w-max items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/70 px-3 py-1.5 text-[10px] font-medium text-indigo-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-      Fixture data · domain APIs replace this in M1
+    <div className="inline-flex max-w-max items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[9px] font-medium text-slate-500 shadow-sm">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+      Development dataset · not production metrics
     </div>
   );
 }
