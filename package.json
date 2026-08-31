@@ -17,7 +17,10 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "check": "pnpm lint && pnpm typecheck && pnpm build",
-    "workstation:check": "node scripts/check-workstation.mjs"
+    "workstation:check": "node scripts/check-workstation.mjs",
+    "db:generate": "pnpm --filter @interview/db db:generate",
+    "db:migrate": "pnpm --filter @interview/db db:migrate",
+    "db:studio": "pnpm --filter @interview/db db:studio"
   },
   "devDependencies": {
     "@eslint/js": "^10.9.1",
