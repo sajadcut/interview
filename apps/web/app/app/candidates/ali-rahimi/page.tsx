@@ -87,25 +87,27 @@ export default function CandidateDetail() {
           <div className="space-y-2 border-t border-slate-100 p-5"><ScoreBar label="Backend engineering" value={94} /><ScoreBar label="Cloud / DevOps" value={86} tone="indigo" /><ScoreBar label="System design" value={89} /></div>
         </Panel>
 
-        <Panel id="activity">
-          <SectionHeader title="Recent activity" />
-          <div className="space-y-4 p-5 pt-3">
-            {[
-              ["AI interview completed","Today, 10:30 AM"],
-              ["Technical assessment completed","Yesterday"],
-              ["Screening completed","2 days ago"],
-              ["Replied to outreach email","3 days ago"],
-              ["Added to pipeline","5 days ago"],
-            ].map(([item, time], index) => (
-              <div key={item} className="flex gap-3"><div className="grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-indigo-600"><Icon name={index === 0 ? "interviews" : index === 1 ? "target" : index === 2 ? "check" : "message"} size={12} /></div><div><div className="text-[10px] font-medium">{item}</div><div className="mt-0.5 text-[9px] text-slate-400">{time}</div></div></div>
-            ))}
-          </div>
-        </Panel>
+        <div id="activity">
+          <Panel>
+            <SectionHeader title="Recent activity" />
+            <div className="space-y-4 p-5 pt-3">
+              {[
+                ["AI interview completed","Today, 10:30 AM"],
+                ["Technical assessment completed","Yesterday"],
+                ["Screening completed","2 days ago"],
+                ["Replied to outreach email","3 days ago"],
+                ["Added to pipeline","5 days ago"],
+              ].map(([item, time], index) => (
+                <div key={item} className="flex gap-3"><div className="grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-indigo-600"><Icon name={index === 0 ? "interviews" : index === 1 ? "target" : index === 2 ? "check" : "message"} size={12} /></div><div><div className="text-[10px] font-medium">{item}</div><div className="mt-0.5 text-[9px] text-slate-400">{time}</div></div></div>
+              ))}
+            </div>
+          </Panel>
+        </div>
       </div>
 
       <div id="screening" className="grid gap-3 xl:grid-cols-3">
         <Panel><SectionHeader title="Screening" /><div className="space-y-2 p-5 pt-3 text-[10px]"><div className="flex justify-between"><span>Work authorization</span><Pill tone="green">Pass</Pill></div><div className="flex justify-between"><span>Relevant experience</span><Pill tone="green">Pass</Pill></div><div className="flex justify-between"><span>Human review</span><Pill tone="blue">Completed</Pill></div></div></Panel>
-        <Panel><SectionHeader title="Job matches" /><div className="p-5 pt-3"><div className="text-[12px] font-semibold">Senior Backend Engineer</div><div className="mt-1 text-[10px] text-slate-500">Active application · Interview stage</div><div className="mt-3"><Pill tone="green">91% pre-interview match</Pill></div></div></Panel>
+        <div id="job-matches"><Panel><SectionHeader title="Job matches" /><div className="p-5 pt-3"><div className="text-[12px] font-semibold">Senior Backend Engineer</div><div className="mt-1 text-[10px] text-slate-500">Active application · Interview stage</div><div className="mt-3"><Pill tone="green">91% pre-interview match</Pill></div></div></Panel></div>
         <Panel><SectionHeader title="Assessment evidence" /><div className="p-5 pt-3"><div className="text-[12px] font-semibold">Backend production exercise</div><div className="mt-1 text-[10px] text-slate-500">29 / 32 tests · isolated runner</div><Link href="/app/candidates/ali-rahimi/assessments" className="mt-3 inline-block text-[10px] font-semibold text-indigo-600">Open assessment evidence →</Link></div></Panel>
       </div>
     </div>
