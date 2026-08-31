@@ -27,7 +27,7 @@ export default function JobInterviewsPage() {
         </div>
         <div className="flex gap-2">
           <ToolbarButton href="/app/jobs/senior-backend-engineer/scorecards" icon="columns">Rubric & scorecards</ToolbarButton>
-          <ToolbarButton href="/candidate" primary icon="play">Open internal candidate test</ToolbarButton>
+          <ToolbarButton href="/app/interviews/internal-test" primary icon="play">Run controlled internal test</ToolbarButton>
         </div>
       </div>
 
