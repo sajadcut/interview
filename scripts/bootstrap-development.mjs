@@ -26,9 +26,14 @@ args.push("-f", resolve(root, "scripts/bootstrap-development.sql"));
 
 const result = spawnSync("psql", args, {
   encoding: "utf8",
-  shell: process.platform === "win32",
+  shell: false,
   stdio: ["inherit", "pipe", "pipe"],
 });
+
+if (result.error) {
+  console.error(result.error.message);
+  process.exit(1);
+}
 
 if (result.status !== 0) {
   console.error((result.stderr || result.stdout || "Development bootstrap failed").trim());
