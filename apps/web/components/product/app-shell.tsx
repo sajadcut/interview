@@ -57,6 +57,23 @@ function NavItem({
   );
 }
 
+function MobileNavItem({ label, href, active }: { label: string; href: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[9px] px-3 text-[11px] font-semibold transition ${
+        active
+          ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
+          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+      }`}
+    >
+      <Icon name={iconByHref[href] ?? "home"} size={14} />
+      <span>{label}</span>
+    </Link>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const locale = getDefaultLocale();
@@ -136,7 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="min-w-0">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200/90 bg-white/95 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/90 bg-white/95 px-3 backdrop-blur sm:gap-3 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center">
             <div className="relative hidden w-full max-w-[560px] md:block">
               <Icon
@@ -156,19 +173,29 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <Link
             href="/app/jobs/new"
-            className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-indigo-600 px-3.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            aria-label={header.create}
+            className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"
           >
             <Icon name="plus" size={14} />
-            {header.create}
+            <span className="hidden sm:inline">{header.create}</span>
           </Link>
-          <button className="relative grid h-10 w-10 place-items-center rounded-[10px] border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50">
+          <button className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50">
             <Icon name="bell" size={15} />
             <span className="absolute end-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
           </button>
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold">
             SN
           </div>
         </header>
+
+        <nav
+          className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden"
+          aria-label={copy.mobileNavigationLabel}
+        >
+          {copy.navigation.map(([label, href]) => (
+            <MobileNavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />
+          ))}
+        </nav>
 
         <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir="ltr">
           {children}
