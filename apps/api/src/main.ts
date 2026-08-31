@@ -38,9 +38,9 @@ async function bootstrap(): Promise<void> {
   const document = buildOpenApiDocument(app);
   SwaggerModule.setup("docs", app, document, { jsonDocumentUrl: "openapi.json" });
 
-  await app.listen(env.API_PORT);
+  await app.listen(env.API_PORT, env.API_HOST);
   logger.log(
-    `API listening on http://localhost:${env.API_PORT} · CORS_ORIGIN=${
+    `API listening on http://${env.API_HOST}:${env.API_PORT} · CORS_ORIGIN=${
       corsOrigin === "*" ? "*" : corsOrigin.join(",")
     }`,
     "Bootstrap",
