@@ -1,16 +1,29 @@
 import { spawnSync } from "node:child_process";
 
 const expectedRegistry = "https://nexus3.dotin.ir/repository/Dotin-NPM/";
-const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
-const configResult = spawnSync(npmCommand, ["config", "get", "registry"], {
-  encoding: "utf8",
-  shell: false,
-});
+function runNpm(args, options = {}) {
+  const npmExecPath = process.env.npm_execpath;
+  if (npmExecPath) {
+    return spawnSync(process.execPath, [npmExecPath, ...args], {
+      encoding: "utf8",
+      ...options,
+    });
+  }
+
+  return spawnSync("npm", args, {
+    encoding: "utf8",
+    shell: process.platform === "win32",
+    ...options,
+  });
+}
+
+const configResult = runNpm(["config", "get", "registry"]);
 
 if (configResult.status !== 0) {
   console.error("Unable to read npm registry configuration.");
   console.error((configResult.stderr || configResult.stdout || "").trim());
+  if (configResult.error) console.error(configResult.error.message);
   process.exit(1);
 }
 
@@ -23,19 +36,15 @@ if (configuredRegistry !== expectedRegistry) {
 
 console.log(`✓ npm registry: ${configuredRegistry}`);
 
-const probeResult = spawnSync(
-  npmCommand,
+const probeResult = runNpm(
   ["view", "@eslint/js", "version", "--registry", expectedRegistry],
-  {
-    encoding: "utf8",
-    shell: false,
-    timeout: 120_000,
-  },
+  { timeout: 120_000 },
 );
 
 if (probeResult.status !== 0) {
   console.error("✗ Dotin Nexus is configured but the package probe failed.");
   console.error((probeResult.stderr || probeResult.stdout || "").trim());
+  if (probeResult.error) console.error(probeResult.error.message);
   process.exit(probeResult.status ?? 1);
 }
 
