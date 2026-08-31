@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 JavaScript foundation validated on Windows; second executable visual review completed; visual iteration 2 pushed and awaiting re-validation; database validation pending  
-> **Version:** 0.9.6  
+> **Status:** M0 JavaScript foundation validated on Windows; M1–M5 architecture/code baseline implemented; PostgreSQL 17.11 installed and database authentication validation in progress  
+> **Version:** 0.10.0  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -15,33 +15,36 @@ Product architecture                     ✅ Defined
 Core technical architecture              ✅ Defined
 Interview architecture                   ✅ Defined
 Production-readiness gates               ✅ Defined
-Laptop-first dev baseline                 ✅ Locked
-Node.js 25.9 runtime baseline             ✅ VALIDATED ON WINDOWS
-npm 11.6 workspaces                       ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
-Clean npm install                         ✅ SUCCESS (320 packages)
-Workspace metadata check                  ✅ SUCCESS (8 workspaces)
-JavaScript workstation check              ✅ NODE/NPM/GIT VERIFIED
-Last pre-visual lint                      ✅ SUCCESS
-Last pre-visual typecheck                 ✅ SUCCESS
-Last pre-visual API tests                 ✅ 16/16 PASS
-Last pre-visual production build          ✅ SUCCESS
-Last pre-visual Next.js generation        ✅ 20/20 STATIC PAGES
-Executable browser review 1               ✅ REVIEWED / MAJOR GAPS FOUND
-Visual iteration 1                        ✅ PUSHED / RE-REVIEWED
-Executable browser review 2               ✅ /app, /app/jobs, /app/candidates REVIEWED
-Visual iteration 2                        ✅ SIDEBAR VIEWPORT FIX PUSHED / RE-VALIDATION PENDING
-Visual acceptance                         ⚠️ NOT YET COMPLETE
-package-lock.json                         🟡 GENERATED LOCALLY / COMMIT PENDING
-PostgreSQL client                         ⏳ NOT INSTALLED / DB VALIDATION PENDING
-T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
-M1 domain vertical slice                  ⬜ NOT STARTED
-Production approval                       ⬜ NOT APPROVED
+Laptop-first dev baseline                ✅ Locked
+Node.js 25.9 runtime baseline            ✅ VALIDATED ON WINDOWS
+npm 11.6 workspaces                      ✅ VALIDATED ON WINDOWS
+Dotin Nexus npm registry                 ✅ VERIFIED ON WORKSTATION
+Clean npm install                        ✅ SUCCESS (320 packages)
+Workspace metadata check                 ✅ SUCCESS (8 workspaces)
+JavaScript workstation check             ✅ NODE/NPM/GIT VERIFIED
+Last validated lint                      ✅ SUCCESS
+Last validated typecheck                 ✅ SUCCESS
+Last validated API tests                 ✅ 16/16 PASS
+Last validated production build          ✅ SUCCESS
+Last validated Next.js generation        ✅ 20/20 STATIC PAGES
+Executable browser review                ✅ TWO PASSES COMPLETED
+Visual acceptance                        ⚠️ NOT YET COMPLETE
+PostgreSQL 17.11 client                  ✅ INSTALLED / psql VERIFIED
+PostgreSQL application authentication    ⚠️ IN PROGRESS — interview role password mismatch
+Database migrations 0001–0013            ⏳ NOT YET EXECUTED SUCCESSFULLY ON WORKSTATION
+M1 Job → Candidate → Evidence             🟡 CODED / DB+API+VISUAL VALIDATION PENDING
+M2 Sourcing + Talent                     🟡 CODED / DB+API+VISUAL VALIDATION PENDING
+M3 Outreach + Screening + Scheduling     🟡 CODED / DB+API+VISUAL VALIDATION PENDING
+M4 AI Interview                          🟡 DEV_ONLY CONTRACTS CODED / REALTIME+CALIBRATION PENDING
+M5 Assessments                           🟡 CONTRACTS CODED / ISOLATED RUNNER PENDING
+package-lock.json                        🟡 GENERATED LOCALLY / COMMIT PENDING
+T012 CI                                  ⏳ AFTER CANONICAL LOCKFILE
+Production approval                      ⬜ NOT APPROVED
 ```
 
-The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 supersedes ADR-0001.
+The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 is the active Node/npm decision.
 
-The last full JavaScript quality gate passed on the Windows workstation before the visual iterations. Because visual iteration 2 changes executable web code, the latest `main` must be linted, typechecked, tested and built again before those checks are attributed to the new HEAD.
+The active local database baseline is PostgreSQL 17.11 per ADR-0003. PostgreSQL remains the primary system of record. The previous 18.x local-version requirement is superseded only for the local development baseline; database architecture and migration policy are unchanged.
 
 ---
 
@@ -52,15 +55,16 @@ Node.js     v25.9.0
 npm         11.6.2
 Git         2.53.0.windows.3
 Registry    https://nexus3.dotin.ir/repository/Dotin-NPM/
+psql        PostgreSQL 17.11
 ```
 
-Dotin Nexus validation succeeded and resolved `@eslint/js 10.0.1`. A clean npm recovery removed stale root/workspace dependency trees and installed 320 packages. The workspace checker validated all 8 npm workspace manifests and exact internal `@interview/*` versions.
+`npm run db:check` currently reaches the local PostgreSQL server but fails authentication for role `interview`. This proves the client, server address and port are reachable; the next database action is to align the local `interview` role password with the ignored `.env` `DATABASE_URL`, then rerun `npm run db:check`.
 
 ---
 
 # 3. Last validated JavaScript quality gate
 
-Before the visual iterations, the workstation reported:
+The workstation reported:
 
 ```text
 npm run lint       -> 5/5 tasks successful
@@ -70,104 +74,61 @@ npm run build      -> API TypeScript build + Next.js production build successful
 Next.js            -> 20/20 static pages generated
 ```
 
-These results remain valid evidence for the foundation/toolchain, but the modified web HEAD requires a fresh quality-gate run.
+These results predate the latest M1–M5 implementation commits. The new HEAD must run lint/typecheck/test/build again before those gates are attributed to the M1–M5 code.
 
 ---
 
-# 4. Executable visual reviews
+# 4. M1–M5 implementation state
 
-## Review 1
+## M1 — Job → Candidate → Evidence
 
-Real browser screenshots for `/app`, `/app/jobs`, and `/app/candidates` proved the product was executing but exposed material visual problems:
+Coded baseline includes Job/Requirement/Rubric/RubricVersion/Candidate/Application/Evidence/CriterionEvaluation/Scorecard/Override persistence contracts and a deterministic evidence-backed score engine. Missing evidence prevents a consequential overall score.
 
-- Persian/RTL shell mixed with English fixture content and reversed reading hierarchy;
-- no active-route state in the sidebar;
-- typography and table density were too small;
-- fixture notice was too prominent;
-- metric cards, page headers, toolbars and topbar needed stronger hierarchy.
+## M2 — Sourcing + Talent
 
-Visual iteration 1 addressed those issues by making English/LTR the default fixture presentation, keeping explicit Persian support behind `NEXT_PUBLIC_DEFAULT_LOCALE=fa`, adding active navigation, refining shell spacing/actions, increasing table/readability density, and improving the three reviewed routes.
+Coded baseline includes adapter-based sourcing contracts, internal-talent-first retrieval, sourcing runs, discovered candidates and separation of retrieval score from hiring score. External source adapters remain integration work and hidden/unapproved scraping is not part of the architecture.
 
-## Review 2
+## M3 — Outreach + Screening + Scheduling
 
-Fresh executable screenshots for the same three routes showed a substantial improvement:
+Coded baseline includes approved-knowledge grounding, candidate conversation state, deterministic hard-minimum screening, human review boundaries and scheduling state. Generative judgment does not silently reject candidates.
 
-- English/LTR hierarchy and table reading order are now correct;
-- active route state is clear;
-- topbar search/actions and page headers read as one enterprise shell;
-- Jobs and Candidates tables are materially more legible;
-- Command Center information hierarchy is much closer to the approved target.
+## M4 — AI Interview
 
-One concrete shell defect remained at the captured desktop height: the fixed profile card at the bottom of the sidebar overlapped the `Settings` navigation row. Visual iteration 2 fixes this structurally rather than hiding an item: the sidebar is now a flex column, navigation owns a bounded scroll region, the profile card participates in layout, and nav rows are slightly tightened for shorter desktop viewports.
+Coded baseline includes release units, lifecycle state, consent, interview plan/session/turn/transcript/evidence/evaluator/recording contracts, structured turn policy and Interviewer/Evaluator separation. The release state remains DEV_ONLY until production-readiness gates are evidenced. Realtime LiveKit/STT/TTS/avatar implementation is still pending.
 
-Visual acceptance is still not complete because the new HEAD requires fresh quality validation, the sidebar fix needs an executable re-check, and the remaining approved product surfaces still need browser review.
+## M5 — Assessments
+
+Coded baseline includes assessment/session/submission/result/evidence contracts and an AssessmentRunner boundary. Candidate code is not permitted to execute inside the core NestJS API process. A real isolated runner remains pending.
 
 ---
 
-# 5. Source of truth
+# 5. Visual state
 
-- `master.md` — stable product and architecture contract including Node 25/npm workspaces.
-- `docs/architecture-decisions/ADR-0002-node-25-npm-runtime.md` — active runtime/package-manager decision.
+Executable screenshots have been reviewed for `/app`, `/app/jobs`, and `/app/candidates`. Directionality and enterprise shell hierarchy improved materially over the first review. The latest sidebar viewport fix and the newer M1–M5 surfaces still require fresh executable screenshots and quality validation.
+
+---
+
+# 6. Source of truth
+
+- `master.md` — stable product/architecture contract.
+- `docs/architecture-decisions/ADR-0002-node-25-npm-runtime.md` — active Node/npm decision.
+- `docs/architecture-decisions/ADR-0003-postgresql-17-11-local-baseline.md` — active local PostgreSQL version decision.
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `AGENTS.md` — implementation rules.
-- `docs/visual-product-target.md` — visual implementation acceptance contract.
+- `docs/visual-product-target.md` — executable UI acceptance contract.
 
 ---
 
-# 6. Workstation vs database prerequisites
+# 7. Next real engineering actions
 
-The JavaScript workstation is validated. PostgreSQL remains intentionally separate. Missing `psql` does not invalidate frontend lint/typecheck/test/build, but PostgreSQL 18.x is still required before migrations, tenant/RBAC persistence, API persistence and full-stack M0 validation are complete.
+1. Align the local PostgreSQL `interview` role password with `.env` and make `npm run db:check` pass.
+2. Run `npm run db:migrate` and validate migrations 0001–0013 on PostgreSQL 17.11.
+3. Run `npm run dev:bootstrap` and capture the generated development organization/user identifiers.
+4. Run `npm run api:sync` so the typed client reflects the current API.
+5. Run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` on the latest M1–M5 HEAD and fix any failures.
+6. Run the full stack and perform browser review of Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Candidate Consent and Assessment surfaces.
+7. Commit the workstation-generated `package-lock.json` only after the dependency/quality gate remains green.
+8. Implement T012 CI with Nexus connectivity and the canonical npm lockfile.
 
-Later database sequence:
-
-```powershell
-Copy-Item .env.example .env -Force
-npm run db:check
-npm run db:migrate
-npm run dev:bootstrap
-npm run api:sync
-npm run dev
-```
-
----
-
-# 7. T001–T012 actual status
-
-| Ticket | Actual status |
-|---|---|
-| T001 Repository bootstrap | `NPM_WORKSPACE_RUNTIME_VALIDATED / LOCKFILE_COMMIT_PENDING` |
-| T002 Local prerequisites | `NODE_NPM_GIT_VALIDATED / LOCAL_POSTGRES_PENDING` |
-| T003 API baseline | `BUILD_VALIDATED / DB_RUNTIME_PENDING` |
-| T004 Database baseline | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
-| T005 Tenant context | `UNIT_VALIDATED / DB_INTEGRATION_PENDING` |
-| T006 Authorization | `UNIT_VALIDATED / DB_INTEGRATION_PENDING` |
-| T007 Audit foundation | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
-| T008 StorageProvider | `UNIT_VALIDATED / FS+DB_INTEGRATION_PENDING` |
-| T009 AI Gateway | `UNIT_VALIDATED / PROVIDER_INTEGRATION_PENDING` |
-| T010 Web / Design System | `EXECUTABLE_REVIEW_2_COMPLETE / VISUAL_ITERATION_2_REVALIDATION_PENDING` |
-| T011 Typed API client | `TYPECHECK_VALIDATED / GENERATION_VALIDATION_PENDING` |
-| T012 CI | `NOT STARTED / WAITING FOR PACKAGE-LOCK` |
-
----
-
-# 8. Lockfile policy
-
-`package-lock.json` is the canonical JavaScript lockfile. The validated Windows install generated it using Node 25.9.x + npm 11.6.x + Dotin Nexus, but it is not yet present on `main`.
-
-Commit the real workstation-generated lockfile; do not fabricate or GitHub-edit it, and do not commit `pnpm-lock.yaml`.
-
----
-
-# 9. Next real engineering actions
-
-1. Pull visual iteration 2.
-2. Re-run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` against the new HEAD.
-3. Run `npm run dev:web` and confirm the sidebar profile card no longer overlaps `Settings` at the same viewport height.
-4. Continue browser review with `/app/jobs/senior-backend-engineer`, `/app/jobs/new`, `/app/candidates/ali-rahimi`, and `/app/interviews/ali-rahimi`.
-5. Commit and push the validated local `package-lock.json`.
-6. Implement T012 CI with Node 25.9.x, npm 11.6.x, Dotin Nexus connectivity and `npm ci`.
-7. Install/configure PostgreSQL 18.x and complete DB/API runtime validation.
-8. Start M1 Job → Candidate → Evidence vertical slice and replace fixtures route-by-route with typed APIs.
-
-No later interview/media milestone should bypass these gates.
+No M4 autonomous real-candidate mode is production-approved at this stage.
