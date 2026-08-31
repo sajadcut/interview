@@ -5,10 +5,11 @@ import { AuthorizationModule } from "./auth/authorization.module";
 import { correlationIdMiddleware } from "./common/http/correlation-id.middleware";
 import { DatabaseModule } from "./database/database.module";
 import { HealthController } from "./health/health.controller";
+import { StorageModule } from "./storage/storage.module";
 import { TenantModule } from "./tenant/tenant.module";
 
 @Module({
-  imports: [DatabaseModule, TenantModule, AuthorizationModule, AuditModule],
+  imports: [DatabaseModule, TenantModule, AuthorizationModule, AuditModule, StorageModule],
   controllers: [AppController, HealthController],
 })
 export class AppModule implements NestModule {
