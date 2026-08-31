@@ -15,6 +15,20 @@ function atLeast(version, minimum) {
   return version.patch >= minimum.patch;
 }
 
+function runNpm(args) {
+  const npmExecPath = process.env.npm_execpath;
+  if (npmExecPath) {
+    return spawnSync(process.execPath, [npmExecPath, ...args], {
+      encoding: "utf8",
+    });
+  }
+
+  return spawnSync("npm", args, {
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
+}
+
 let failed = false;
 const nodeVersion = parseVersion(process.versions.node);
 const nodeSupported = nodeVersion?.major === 25 && atLeast(nodeVersion, requiredNode);
@@ -26,30 +40,36 @@ if (nodeSupported) {
   console.error(`✗ Node.js: ${process.version}; required >=25.9.0 <26`);
 }
 
+const npmResult = runNpm(["--version"]);
+const npmOutput = (npmResult.stdout || npmResult.stderr || "").trim();
+const npmVersion = parseVersion(npmOutput);
+if (npmResult.status === 0 && npmVersion?.major === 11 && atLeast(npmVersion, requiredNpm)) {
+  console.log(`✓ npm 11.6.2+: ${npmOutput}`);
+} else {
+  failed = true;
+  console.error(
+    npmResult.status === 0
+      ? `✗ npm: unsupported version '${npmOutput}'`
+      : `✗ npm: command was not available${npmResult.error ? ` (${npmResult.error.message})` : ""}`,
+  );
+}
+
 const commands = [
-  [process.platform === "win32" ? "npm.cmd" : "npm", ["--version"], "npm 11.6.2+", (value) => {
-    const version = parseVersion(value);
-    return Boolean(version && version.major === 11 && atLeast(version, requiredNpm));
-  }],
-  ["git", ["--version"], "Git", () => true],
-  ["psql", ["--version"], "PostgreSQL client", () => true],
+  ["git", ["--version"], "Git"],
+  ["psql", ["--version"], "PostgreSQL client"],
 ];
 
-for (const [command, args, label, validate] of commands) {
+for (const [command, args, label] of commands) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
-    shell: false,
+    shell: process.platform === "win32",
   });
   const output = (result.stdout || result.stderr || "").trim();
-  if (result.status === 0 && validate(output)) {
+  if (result.status === 0) {
     console.log(`✓ ${label}: ${output}`);
   } else {
     failed = true;
-    console.error(
-      result.status === 0
-        ? `✗ ${label}: unsupported version '${output}'`
-        : `✗ ${label}: command '${command}' was not available`,
-    );
+    console.error(`✗ ${label}: command '${command}' was not available`);
   }
 }
 
