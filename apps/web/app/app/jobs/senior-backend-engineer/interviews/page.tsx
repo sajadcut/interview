@@ -25,7 +25,10 @@ export default function JobInterviewsPage() {
           <h1 className="text-[26px] font-semibold tracking-tight">AI interview plan & release boundary</h1>
           <p className="mt-1 text-[12px] text-slate-500">Controlled question strategy, evidence coverage, consent/recovery requirements and explicit production lifecycle.</p>
         </div>
-        <div className="flex gap-2"><ToolbarButton icon="columns">Rubric v3</ToolbarButton><ToolbarButton primary icon="play">Internal test</ToolbarButton></div>
+        <div className="flex gap-2">
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/scorecards" icon="columns">Rubric & scorecards</ToolbarButton>
+          <ToolbarButton href="/candidate" primary icon="play">Open internal candidate test</ToolbarButton>
+        </div>
       </div>
 
       <WorkspaceTabs tabs={jobTabs} active="Interviews" />
