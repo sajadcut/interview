@@ -8,6 +8,7 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `docs/visual-product-target.md` — approved visual implementation target.
+- `docs/architecture-decisions/ADR-0003-postgresql-17-11-local-baseline.md` — active local PostgreSQL version decision.
 - `AGENTS.md` — engineering rules.
 
 ## Development baseline
@@ -21,7 +22,7 @@ Required JavaScript toolchain:
 - Git
 - VS Code (preferred)
 
-PostgreSQL 18.x is required for database/API persistence work, but it is validated separately from the JavaScript workstation so frontend and static quality validation are not blocked by a missing `psql` client.
+PostgreSQL 17.11 is the active local database baseline for database/API persistence work. It is validated separately from the JavaScript workstation so frontend and static quality validation are not blocked by a missing `psql` client.
 
 The repository is an npm workspaces + Turborepo monorepo. `package.json` is the workspace manifest. `pnpm-workspace.yaml` is intentionally not used.
 
@@ -74,7 +75,7 @@ npm run api:sync
 npm run dev
 ```
 
-For UI/static validation, `npm run workstation:check`, lint, typecheck, tests, build and `npm run dev:web` can be run before PostgreSQL is installed. Database/API persistence commands require PostgreSQL and `DATABASE_URL`.
+For UI/static validation, `npm run workstation:check`, lint, typecheck, tests, build and `npm run dev:web` can be run before PostgreSQL is installed. Database/API persistence commands require PostgreSQL 17.11 and `DATABASE_URL`.
 
 Web: `http://localhost:3000`  
 API: `http://localhost:4000`  
@@ -95,7 +96,7 @@ OpenAPI: `http://localhost:4000/docs`
 /app/interviews/ali-rahimi                AI Interview Review
 ```
 
-These surfaces are real Next.js code. Until M1 APIs are implemented they use deterministic development fixtures from `apps/web/lib/demo-data.ts`; those fixtures are not production data.
+These surfaces are real Next.js code. Deterministic development fixtures may still exist on routes whose domain/API slice has not yet been wired; fixtures are not production data.
 
 ## Quality gate
 
