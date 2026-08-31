@@ -12,6 +12,9 @@
     "packages/*"
   ],
   "scripts": {
+    "preinstall": "node scripts/check-workspaces.mjs",
+    "workspace:check": "node scripts/check-workspaces.mjs",
+    "install:clean": "node scripts/clean-npm-install.mjs",
     "dev": "turbo run dev --parallel",
     "dev:web": "npm run dev --workspace=@interview/web",
     "dev:api": "npm run dev --workspace=@interview/api",
