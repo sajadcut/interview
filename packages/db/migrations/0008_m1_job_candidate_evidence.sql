@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS candidates (
   display_name varchar(240) NOT NULL,
   primary_email varchar(320),
   primary_phone varchar(80),
-  current_role varchar(240),
+  "current_role" varchar(240),
   current_company varchar(240),
   location varchar(240),
   preferred_language varchar(16),
