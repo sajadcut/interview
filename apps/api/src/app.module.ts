@@ -2,8 +2,10 @@ import { MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { correlationIdMiddleware } from "./common/http/correlation-id.middleware";
 import { HealthController } from "./health/health.controller";
+import { TenantModule } from "./tenant/tenant.module";
 
 @Module({
+  imports: [TenantModule],
   controllers: [AppController, HealthController],
 })
 export class AppModule implements NestModule {
