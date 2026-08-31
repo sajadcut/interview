@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 JavaScript foundation validated on Windows; first executable visual review completed; visual iteration 1 pushed and awaiting re-validation; database validation pending  
-> **Version:** 0.9.5  
+> **Status:** M0 JavaScript foundation validated on Windows; second executable visual review completed; visual iteration 2 pushed and awaiting re-validation; database validation pending  
+> **Version:** 0.9.6  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -22,24 +22,26 @@ Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
 Clean npm install                         ✅ SUCCESS (320 packages)
 Workspace metadata check                  ✅ SUCCESS (8 workspaces)
 JavaScript workstation check              ✅ NODE/NPM/GIT VERIFIED
-Last pre-visual lint                       ✅ SUCCESS
-Last pre-visual typecheck                  ✅ SUCCESS
-Last pre-visual API tests                  ✅ 16/16 PASS
-Last pre-visual production build           ✅ SUCCESS
-Last pre-visual Next.js generation         ✅ 20/20 STATIC PAGES
-First executable browser review            ✅ /app, /app/jobs, /app/candidates REVIEWED
-Visual acceptance                          ⚠️ NOT ACCEPTED — GAPS FOUND
-Visual iteration 1                         ✅ PUSHED TO MAIN / RE-VALIDATION PENDING
-package-lock.json                          🟡 GENERATED LOCALLY / COMMIT PENDING
-PostgreSQL client                          ⏳ NOT INSTALLED / DB VALIDATION PENDING
-T012 CI                                    ⏳ AFTER CANONICAL LOCKFILE
-M1 domain vertical slice                   ⬜ NOT STARTED
-Production approval                        ⬜ NOT APPROVED
+Last pre-visual lint                      ✅ SUCCESS
+Last pre-visual typecheck                 ✅ SUCCESS
+Last pre-visual API tests                 ✅ 16/16 PASS
+Last pre-visual production build          ✅ SUCCESS
+Last pre-visual Next.js generation        ✅ 20/20 STATIC PAGES
+Executable browser review 1               ✅ REVIEWED / MAJOR GAPS FOUND
+Visual iteration 1                        ✅ PUSHED / RE-REVIEWED
+Executable browser review 2               ✅ /app, /app/jobs, /app/candidates REVIEWED
+Visual iteration 2                        ✅ SIDEBAR VIEWPORT FIX PUSHED / RE-VALIDATION PENDING
+Visual acceptance                         ⚠️ NOT YET COMPLETE
+package-lock.json                         🟡 GENERATED LOCALLY / COMMIT PENDING
+PostgreSQL client                         ⏳ NOT INSTALLED / DB VALIDATION PENDING
+T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
+M1 domain vertical slice                  ⬜ NOT STARTED
+Production approval                       ⬜ NOT APPROVED
 ```
 
 The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 supersedes ADR-0001.
 
-The last full JavaScript quality gate passed on the Windows workstation before visual iteration 1. Because visual iteration 1 changes executable web code, the latest `main` must be linted, typechecked, tested and built again before those checks are attributed to the new HEAD.
+The last full JavaScript quality gate passed on the Windows workstation before the visual iterations. Because visual iteration 2 changes executable web code, the latest `main` must be linted, typechecked, tested and built again before those checks are attributed to the new HEAD.
 
 ---
 
@@ -58,7 +60,7 @@ Dotin Nexus validation succeeded and resolved `@eslint/js 10.0.1`. A clean npm r
 
 # 3. Last validated JavaScript quality gate
 
-Before visual iteration 1, the workstation reported:
+Before the visual iterations, the workstation reported:
 
 ```text
 npm run lint       -> 5/5 tasks successful
@@ -72,36 +74,33 @@ These results remain valid evidence for the foundation/toolchain, but the modifi
 
 ---
 
-# 4. First executable visual review
+# 4. Executable visual reviews
 
-Real browser screenshots were reviewed for:
+## Review 1
 
-```text
-/app
-/app/jobs
-/app/candidates
-```
+Real browser screenshots for `/app`, `/app/jobs`, and `/app/candidates` proved the product was executing but exposed material visual problems:
 
-They proved the application shell and target routes execute, but did not meet the visual acceptance contract. Shared findings:
+- Persian/RTL shell mixed with English fixture content and reversed reading hierarchy;
+- no active-route state in the sidebar;
+- typography and table density were too small;
+- fixture notice was too prominent;
+- metric cards, page headers, toolbars and topbar needed stronger hierarchy.
 
-- the default Persian/RTL shell was being combined with English fixture content, reversing page hierarchy and table reading order;
-- the sidebar lacked active-route state;
-- typography and table density were too small at the captured desktop viewport;
-- the fixture notice was too visually prominent;
-- metric cards, page headers and toolbars needed stronger hierarchy;
-- the shell/topbar needed clearer enterprise action structure.
+Visual iteration 1 addressed those issues by making English/LTR the default fixture presentation, keeping explicit Persian support behind `NEXT_PUBLIC_DEFAULT_LOCALE=fa`, adding active navigation, refining shell spacing/actions, increasing table/readability density, and improving the three reviewed routes.
 
-Visual iteration 1 therefore changed shared shell/design primitives plus Command Center, Jobs and Candidates:
+## Review 2
 
-- English is now the default fixture locale; `NEXT_PUBLIC_DEFAULT_LOCALE=fa` explicitly enables the Persian shell;
-- English fixture-backed main content remains LTR until complete Persian product copy exists;
-- active navigation states were added;
-- topbar/sidebar spacing and action hierarchy were refined;
-- table typography and row density were increased for production readability;
-- shared panels, pills, metrics, tabs, avatars and fixture notice were refined;
-- `/app`, `/app/jobs`, and `/app/candidates` received route-level hierarchy/table refinements.
+Fresh executable screenshots for the same three routes showed a substantial improvement:
 
-No visual route is marked accepted until new executable screenshots are reviewed.
+- English/LTR hierarchy and table reading order are now correct;
+- active route state is clear;
+- topbar search/actions and page headers read as one enterprise shell;
+- Jobs and Candidates tables are materially more legible;
+- Command Center information hierarchy is much closer to the approved target.
+
+One concrete shell defect remained at the captured desktop height: the fixed profile card at the bottom of the sidebar overlapped the `Settings` navigation row. Visual iteration 2 fixes this structurally rather than hiding an item: the sidebar is now a flex column, navigation owns a bounded scroll region, the profile card participates in layout, and nav rows are slightly tightened for shorter desktop viewports.
+
+Visual acceptance is still not complete because the new HEAD requires fresh quality validation, the sidebar fix needs an executable re-check, and the remaining approved product surfaces still need browser review.
 
 ---
 
@@ -112,7 +111,7 @@ No visual route is marked accepted until new executable screenshots are reviewed
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `AGENTS.md` — implementation rules.
-- `docs/visual-product-target.md` — visual implementation acceptance contract and first executable review findings.
+- `docs/visual-product-target.md` — visual implementation acceptance contract.
 
 ---
 
@@ -146,7 +145,7 @@ npm run dev
 | T007 Audit foundation | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
 | T008 StorageProvider | `UNIT_VALIDATED / FS+DB_INTEGRATION_PENDING` |
 | T009 AI Gateway | `UNIT_VALIDATED / PROVIDER_INTEGRATION_PENDING` |
-| T010 Web / Design System | `EXECUTABLE_REVIEW_1_COMPLETE / VISUAL_ITERATION_1_REVIEW_PENDING` |
+| T010 Web / Design System | `EXECUTABLE_REVIEW_2_COMPLETE / VISUAL_ITERATION_2_REVALIDATION_PENDING` |
 | T011 Typed API client | `TYPECHECK_VALIDATED / GENERATION_VALIDATION_PENDING` |
 | T012 CI | `NOT STARTED / WAITING FOR PACKAGE-LOCK` |
 
@@ -162,10 +161,10 @@ Commit the real workstation-generated lockfile; do not fabricate or GitHub-edit 
 
 # 9. Next real engineering actions
 
-1. Pull visual iteration 1.
+1. Pull visual iteration 2.
 2. Re-run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` against the new HEAD.
-3. Run `npm run dev:web` and capture fresh screenshots for `/app`, `/app/jobs`, and `/app/candidates`.
-4. Compare the new executable screenshots against `docs/visual-product-target.md` and continue closing visual gaps.
+3. Run `npm run dev:web` and confirm the sidebar profile card no longer overlaps `Settings` at the same viewport height.
+4. Continue browser review with `/app/jobs/senior-backend-engineer`, `/app/jobs/new`, `/app/candidates/ali-rahimi`, and `/app/interviews/ali-rahimi`.
 5. Commit and push the validated local `package-lock.json`.
 6. Implement T012 CI with Node 25.9.x, npm 11.6.x, Dotin Nexus connectivity and `npm ci`.
 7. Install/configure PostgreSQL 18.x and complete DB/API runtime validation.
