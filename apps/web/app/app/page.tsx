@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { aiActivity, attentionItems, recommendedActions } from "../../lib/demo-data";
 import { Icon } from "../../components/product/icon";
-import { DemoNotice, MetricCard, Panel, PersonAvatar, SectionHeader, TinyTrend } from "../../components/product/recruiting-ui";
+import { DemoNotice, MetricCard, Panel, SectionHeader, TinyTrend } from "../../components/product/recruiting-ui";
 
 export default function CommandCenterPage(){return <div className="space-y-4">
   <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="text-[24px] font-semibold tracking-tight text-slate-950">Good morning, Sara 👋</h1><p className="mt-1 text-[11px] text-slate-500">Here’s what’s happening with your hiring today.</p></div><DemoNotice/></div>
