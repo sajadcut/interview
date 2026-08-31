@@ -1,6 +1,7 @@
 import { jobTabs } from "../../../../../lib/demo-data";
 import { Icon } from "../../../../../components/product/icon";
 import {
+  DemoNotice,
   Panel,
   Pill,
   SectionHeader,
@@ -20,11 +21,9 @@ export default function JobInterviewsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 text-[10px] font-medium text-indigo-600">Senior Backend Engineer · Interview subsystem</div>
+          <div className="mb-2 flex flex-wrap items-center gap-3"><span className="text-[10px] font-medium text-indigo-600">Senior Backend Engineer · Interview subsystem</span><DemoNotice /></div>
           <h1 className="text-[26px] font-semibold tracking-tight">AI interview plan & release boundary</h1>
-          <p className="mt-1 text-[12px] text-slate-500">
-            Controlled question strategy, evidence coverage, consent/recovery requirements and explicit production lifecycle.
-          </p>
+          <p className="mt-1 text-[12px] text-slate-500">Controlled question strategy, evidence coverage, consent/recovery requirements and explicit production lifecycle.</p>
         </div>
         <div className="flex gap-2"><ToolbarButton icon="columns">Rubric v3</ToolbarButton><ToolbarButton primary icon="play">Internal test</ToolbarButton></div>
       </div>
@@ -61,7 +60,7 @@ export default function JobInterviewsPage() {
             <SectionHeader title="Brain / media separation" />
             <div className="p-5 pt-4">
               <div className="flex flex-wrap items-center gap-2 text-[10px] font-medium text-slate-600">
-                {['Interview Brain','spoken_text','TTSProvider','AvatarProvider','Candidate'].map((item, index) => <div key={item} className="contents"><span className="rounded-[9px] border border-slate-100 bg-slate-50 px-3 py-2">{item}</span>{index < 4 ? <Icon name="arrow" size={13} className="text-slate-300" /> : null}</div>)}
+                {["Interview Brain", "spoken_text", "TTSProvider", "AvatarProvider", "Candidate"].map((item, index) => <div key={item} className="contents"><span className="rounded-[9px] border border-slate-100 bg-slate-50 px-3 py-2">{item}</span>{index < 4 ? <Icon name="arrow" size={13} className="text-slate-300" /> : null}</div>)}
               </div>
               <p className="mt-4 text-[10px] leading-5 text-slate-500">Avatar presentation never owns interview intelligence. Only approved structured-turn spoken text reaches TTS/avatar.</p>
             </div>
