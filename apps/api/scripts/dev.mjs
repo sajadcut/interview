@@ -24,8 +24,8 @@ function startServer() {
 }
 
 const compiler = spawn(
-  isWindows ? "pnpm.cmd" : "pnpm",
-  ["exec", "tsc", "-p", "tsconfig.build.json", "--watch", "--preserveWatchOutput"],
+  isWindows ? "npm.cmd" : "npm",
+  ["exec", "--", "tsc", "-p", "tsconfig.build.json", "--watch", "--preserveWatchOutput"],
   {
     cwd: process.cwd(),
     stdio: ["inherit", "pipe", "pipe"],
