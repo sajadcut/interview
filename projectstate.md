@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests and production build validated on Windows; DB/runtime/browser validation continues  
-> **Version:** 0.11.1  
+> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests, production build and full-stack development runtime start validated on Windows; browser validation continues  
+> **Version:** 0.11.2  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -30,19 +30,20 @@ Migration contract validator              🟡 CODED / EXECUTION RESULT NOT YET 
 Development identity bootstrap             ✅ VALIDATED BEFORE LATEST DOMAIN SEED
 M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION RESULT NOT YET CAPTURED
 OpenAPI + typed client                    🟡 REGENERATION RESULT ON LATEST HEAD NOT YET CAPTURED
-Latest pre-wave lint                      ✅ 5/5 SUCCESS
+Last pre-wave lint                        ✅ 5/5 SUCCESS
 Latest M1–M6 API tests                    ✅ 27/27 PASS
 Latest HEAD typecheck                     ⏳ RESULT NOT INCLUDED IN LATEST LOG
 Latest HEAD production build              ✅ SUCCESS
 Latest Next.js static generation          ✅ 25/25 ROUTES
+Full-stack development runtime            ✅ STARTED SUCCESSFULLY ON WORKSTATION
 Executable browser review                 ✅ TWO PASSES COMPLETED
 Visual acceptance                         ⚠️ NOT YET COMPLETE
-M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
-M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
-M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
+M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / BROWSER VALIDATION PENDING
+M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / BROWSER VALIDATION PENDING
+M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / BROWSER VALIDATION PENDING
 M4 AI Interview                           🟡 DEV_ONLY GATED RUNTIME PRIMITIVES CODED / REALTIME+CALIBRATION PENDING
 M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
-M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+RUNTIME+VISUAL VALIDATION PENDING
+M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / BROWSER+DB VALIDATION PENDING
 package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
 T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
 Production approval                       ⬜ NOT APPROVED
@@ -64,7 +65,9 @@ Database      interview
 Database user interview
 ```
 
-`npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository now adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in the supplied workstation logs.
+`npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in supplied workstation logs.
+
+The full development stack has now also been reported as started successfully on the workstation after the latest build/test cycle. This validates process startup, but it does not by itself close browser-flow, API-behavior or visual acceptance gates.
 
 ---
 
@@ -72,7 +75,7 @@ Database user interview
 
 ## Stage 1 — Migration contract validation
 
-`scripts/check-migrations.mjs` validates migration sequencing and tenant composite-FK parent availability. Root `npm run db:validate` exposes the check, and `npm run check` now includes it before the JavaScript gate.
+`scripts/check-migrations.mjs` validates migration sequencing and tenant composite-FK parent availability. Root `npm run db:validate` exposes the check, and `npm run check` includes it before the JavaScript gate.
 
 ## Stage 2 — Deterministic development domain seed
 
@@ -121,19 +124,36 @@ npm run test   -> 27 tests, 27 pass, 0 fail
 npm run build  -> API TypeScript build successful
 npm run build  -> Next.js 16.3.3 production build successful
 Next.js        -> 25/25 static routes generated
+npm run dev    -> full-stack development runtime started successfully
 ```
 
 The generated route set includes the added M1–M6 product surfaces for sourcing, outreach, interviews, scorecards, candidate assessments, analytics, settings and the candidate-facing flow.
 
-The latest supplied log does not include the output of `db:validate`, `db:migrate`, `dev:bootstrap`, `api:sync`, lint or typecheck on this exact HEAD, so those are not marked newly validated here.
+The latest supplied logs do not yet contain the output of `db:validate`, the successful rerun of `db:migrate` through 0014, `dev:bootstrap`, `api:sync`, lint or typecheck on this exact HEAD, so those remain evidence-pending rather than inferred.
 
 ---
 
 # 5. Frontend state
 
-The enterprise visual target now spans 15 surfaces. `/app/analytics` and `/app/settings` are no longer generic placeholders and contain recruiting analytics, AI governance, RBAC, retention, privacy-request and release-unit anatomy.
+The enterprise visual target spans 15 surfaces. `/app/analytics` and `/app/settings` are no longer generic placeholders and contain recruiting analytics, AI governance, RBAC, retention, privacy-request and release-unit anatomy.
 
-These and the previously implemented M1–M5 surfaces remain **coded, not visually accepted** until executable browser screenshots are reviewed on a green validated HEAD.
+The current full-stack runtime is ready for the next executable browser review. These surfaces remain **coded and runnable, not visually accepted** until screenshots from the running application are reviewed.
+
+Priority browser review routes:
+
+```text
+/app/jobs/senior-backend-engineer
+/app/jobs/senior-backend-engineer/sourcing
+/app/jobs/senior-backend-engineer/outreach
+/app/jobs/senior-backend-engineer/interviews
+/app/jobs/senior-backend-engineer/scorecards
+/app/candidates/ali-rahimi
+/app/candidates/ali-rahimi/assessments
+/app/interviews/ali-rahimi
+/app/analytics
+/app/settings
+/candidate
+```
 
 ---
 
@@ -159,19 +179,7 @@ Privacy/retention actions remain reviewable and auditable.
 
 # 7. Next validation sequence
 
-```powershell
-npm run db:validate
-npm run db:migrate
-npm run dev:bootstrap
-npm run api:sync
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-npm run dev
-```
-
-After the remaining gate is green, review executable browser surfaces including Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Assessments, Analytics, Settings and the candidate consent/readiness flow.
+With the full stack running, the next gate is executable browser review of the priority routes above, followed by any UI/runtime fixes found in that review.
 
 The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
 
