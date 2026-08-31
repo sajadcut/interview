@@ -20,5 +20,8 @@ Non-negotiable implementation rules:
 - Do not add hidden/unapproved scraping as a core sourcing dependency.
 - Do not infer personality, honesty, emotion, confidence, or suitability from face/body/accent.
 - Tenant boundaries, authorization, audit, consent, and retention are product requirements, not cleanup tasks.
+- Current development is laptop-first and local-native; do not introduce Docker/Compose/MinIO as mandatory development prerequisites.
+- Use `StorageProvider` abstractions; development storage uses a local filesystem adapter until production object storage is intentionally introduced.
+- Install infrastructure/tools only when the active milestone requires them.
 
 Before completing implementation work, run the available lint, typecheck, tests, and build checks for the changed scope. Update `projectstate.md` only when the repository state truly changed.
