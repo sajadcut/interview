@@ -16,9 +16,26 @@ Laptop-first/local-native. Docker, Docker Compose, Kubernetes and MinIO are not 
 
 Required: Node.js 24 LTS, pnpm 11, Git, PostgreSQL 18.x and preferably VS Code.
 
+### Required npm registry
+
+All Node/pnpm dependency resolution for this repository must use the Dotin Nexus registry committed in `.npmrc`:
+
+```text
+https://nexus3.dotin.ir/repository/Dotin-NPM/
+```
+
+Do not bypass this registry with `registry.npmjs.org` for normal project development. Authentication secrets, if the Nexus requires them, belong in developer/user-level npm configuration or environment variables and must never be committed.
+
+Verify the effective registry and connectivity before installing dependencies:
+
+```bash
+pnpm registry:check
+```
+
 ## Start
 
 ```bash
+pnpm registry:check
 pnpm install
 cp .env.example .env
 pnpm workstation:check
