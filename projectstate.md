@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; migrations 0008–0014 and latest JavaScript quality gate require workstation re-validation  
-> **Version:** 0.11.0  
+> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests and production build validated on Windows; DB/runtime/browser validation continues  
+> **Version:** 0.11.1  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -23,17 +23,18 @@ PostgreSQL 17.11 client/server            ✅ CONNECTIVITY + AUTH VALIDATED
 Database                                 ✅ interview / role interview
 Migration runner                          ✅ TRANSACTIONAL / CHECKSUM-TRACKED
 Migrations 0001–0007                      ✅ APPLIED ON WORKSTATION
-Migration 0008                            ⚠️ COMPOSITE-FK FIX PUSHED / RERUN PENDING
-Migrations 0009–0013                      ⏳ WAITING FOR 0008 SUCCESS
-Migration 0014 M6 analytics/privacy       🟡 CODED / EXECUTION PENDING
-Migration contract validator              🟡 CODED / EXECUTION PENDING
+Migration 0008                            ⚠️ COMPOSITE-FK FIX PUSHED / RERUN RESULT NOT YET CAPTURED
+Migrations 0009–0013                      ⏳ EXECUTION RESULT NOT YET CAPTURED
+Migration 0014 M6 analytics/privacy       🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
+Migration contract validator              🟡 CODED / EXECUTION RESULT NOT YET CAPTURED
 Development identity bootstrap             ✅ VALIDATED BEFORE LATEST DOMAIN SEED
-M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION PENDING
-OpenAPI + typed client                    🟡 REGENERATION REQUIRED ON LATEST HEAD
-Last pre-wave lint                        ✅ 5/5 SUCCESS
-Last pre-wave API tests                   ✅ 27/27 PASS
-Latest HEAD typecheck                     ⏳ VALIDATION PENDING
-Latest HEAD production build              ⏳ VALIDATION PENDING
+M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION RESULT NOT YET CAPTURED
+OpenAPI + typed client                    🟡 REGENERATION RESULT ON LATEST HEAD NOT YET CAPTURED
+Latest pre-wave lint                      ✅ 5/5 SUCCESS
+Latest M1–M6 API tests                    ✅ 27/27 PASS
+Latest HEAD typecheck                     ⏳ RESULT NOT INCLUDED IN LATEST LOG
+Latest HEAD production build              ✅ SUCCESS
+Latest Next.js static generation          ✅ 25/25 ROUTES
 Executable browser review                 ✅ TWO PASSES COMPLETED
 Visual acceptance                         ⚠️ NOT YET COMPLETE
 M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
@@ -41,7 +42,7 @@ M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / RU
 M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
 M4 AI Interview                           🟡 DEV_ONLY GATED RUNTIME PRIMITIVES CODED / REALTIME+CALIBRATION PENDING
 M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
-M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / VALIDATION PENDING
+M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+RUNTIME+VISUAL VALIDATION PENDING
 package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
 T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
 Production approval                       ⬜ NOT APPROVED
@@ -63,7 +64,7 @@ Database      interview
 Database user interview
 ```
 
-`npm run db:check` succeeds. The last supplied migration run skipped the applied 0001–0007 migrations and stopped in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository now adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration.
+`npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository now adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in the supplied workstation logs.
 
 ---
 
@@ -75,19 +76,19 @@ Database user interview
 
 ## Stage 2 — Deterministic development domain seed
 
-`scripts/bootstrap-domain-fixtures.sql` provides idempotent M1–M5 development data after domain migrations exist. `dev:bootstrap` continues to bootstrap organization/user/RBAC and conditionally seeds domain fixtures only when the required tables are present.
+Development bootstrap provides idempotent M1–M5 development data after domain migrations exist. `dev:bootstrap` continues to bootstrap organization/user/RBAC and conditionally seeds domain fixtures only when required tables are present.
 
 ## Stage 3 — M1 DB-backed recruiting workspaces
 
-The API now exposes tenant/RBAC-protected DB-backed job and candidate workspace reads including job list, job requirements/rubric/pipeline, organization candidate list, job-scoped candidate list, candidate skills/job applications, and the existing evidence-backed application intelligence path.
+The API exposes tenant/RBAC-protected DB-backed job and candidate workspace reads including job list, job requirements/rubric/pipeline, organization candidate list, job-scoped candidate list, candidate skills/job applications, and the evidence-backed application intelligence path.
 
 ## Stage 4 — M2 sourcing and talent persistence
 
-The API now exposes internal talent, sourcing-run history and sourcing-run detail. Internal talent remains the first adapter. Retrieval score is explicitly labeled as a search signal and remains separate from pre-interview match and evidence-backed hiring scores.
+The API exposes internal talent, sourcing-run history and sourcing-run detail. Internal talent remains the first adapter. Retrieval score is explicitly labeled as a search signal and remains separate from pre-interview match and evidence-backed hiring scores.
 
 ## Stage 5 — M3 grounded outreach persistence
 
-Outbound candidate messages validate every supplied knowledge reference against approved/current knowledge before persistence. Auto-send remains policy-gated; otherwise the message is persisted for human approval.
+Outbound candidate messages validate supplied knowledge references against approved/current knowledge before persistence. Auto-send remains policy-gated; otherwise the message is persisted for human approval.
 
 ## Stage 6 — M3 deterministic screening persistence
 
@@ -111,15 +112,32 @@ Migration 0014 adds recruitment-event, retention-policy and privacy-request foun
 
 ---
 
-# 4. Frontend state
+# 4. Latest M1–M6 JavaScript validation
 
-The enterprise visual target now spans 15 surfaces. `/app/analytics` and `/app/settings` are no longer generic placeholders and now contain recruiting analytics, AI governance, RBAC, retention, privacy-request and release-unit anatomy.
+The latest supplied workstation execution validates:
 
-These and the previously implemented M1–M5 surfaces remain **coded, not visually accepted** until executable browser screenshots and the quality gate are reviewed on the same HEAD.
+```text
+npm run test   -> 27 tests, 27 pass, 0 fail
+npm run build  -> API TypeScript build successful
+npm run build  -> Next.js 16.3.3 production build successful
+Next.js        -> 25/25 static routes generated
+```
+
+The generated route set includes the added M1–M6 product surfaces for sourcing, outreach, interviews, scorecards, candidate assessments, analytics, settings and the candidate-facing flow.
+
+The latest supplied log does not include the output of `db:validate`, `db:migrate`, `dev:bootstrap`, `api:sync`, lint or typecheck on this exact HEAD, so those are not marked newly validated here.
 
 ---
 
-# 5. Safety boundaries preserved
+# 5. Frontend state
+
+The enterprise visual target now spans 15 surfaces. `/app/analytics` and `/app/settings` are no longer generic placeholders and contain recruiting analytics, AI governance, RBAC, retention, privacy-request and release-unit anatomy.
+
+These and the previously implemented M1–M5 surfaces remain **coded, not visually accepted** until executable browser screenshots are reviewed on a green validated HEAD.
+
+---
+
+# 6. Safety boundaries preserved
 
 ```text
 Candidate remains organization-global; Application remains job-specific.
@@ -139,7 +157,7 @@ Privacy/retention actions remain reviewable and auditable.
 
 ---
 
-# 6. Next validation sequence
+# 7. Next validation sequence
 
 ```powershell
 npm run db:validate
@@ -153,7 +171,7 @@ npm run build
 npm run dev
 ```
 
-After the gate is green, review executable browser surfaces including Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Assessments, Analytics, Settings and the candidate consent/readiness flow.
+After the remaining gate is green, review executable browser surfaces including Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Assessments, Analytics, Settings and the candidate consent/readiness flow.
 
 The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
 
