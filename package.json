@@ -1,6 +1,6 @@
 {
   "name": "interview-platform",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@11.13.1",
   "engines": {
@@ -11,6 +11,7 @@
     "dev": "turbo run dev --parallel",
     "dev:web": "pnpm --filter @interview/web dev",
     "dev:api": "pnpm --filter @interview/api dev",
+    "dev:bootstrap": "node scripts/bootstrap-development.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -20,7 +21,6 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "workstation:check": "node scripts/check-workstation.mjs",
     "db:check": "node scripts/check-database.mjs",
-    "db:generate": "pnpm --filter @interview/db db:generate",
     "db:migrate": "pnpm --filter @interview/db db:migrate",
     "db:studio": "pnpm --filter @interview/db db:studio",
     "openapi:export": "pnpm --filter @interview/api openapi:export",

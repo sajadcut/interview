@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ButtonHTMLAttributes } from "react";
-import { cn } from "../../lib/cn";
+import { cn } from "./lib/cn";
 
 const buttonVariants = cva(
   "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50",
@@ -8,7 +8,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-[var(--accent)] text-[var(--accent-foreground)] hover:opacity-90",
-        secondary: "border border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface-subtle)]",
+        secondary: "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-subtle)]",
         ghost: "text-[var(--foreground)] hover:bg-[var(--surface-subtle)]",
         danger: "bg-[var(--danger)] text-white hover:opacity-90",
       },

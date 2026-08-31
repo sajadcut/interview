@@ -1,4 +1,4 @@
-import { Card } from "../ui/card";
+import { Card } from "./card";
 
 export interface EvidenceItem {
   source: string;
@@ -6,12 +6,20 @@ export interface EvidenceItem {
   excerpt: string;
 }
 
-export function EvidenceBlock({ title, items }: { title: string; items: EvidenceItem[] }) {
+export function EvidenceBlock({
+  title,
+  items,
+  countLabel = (count) => `${count} evidence`,
+}: {
+  title: string;
+  items: EvidenceItem[];
+  countLabel?: (count: number) => string;
+}) {
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-bold">{title}</h3>
-        <span className="text-xs text-[var(--muted)]">{items.length} شاهد</span>
+        <span className="text-xs text-[var(--muted)]">{countLabel(items.length)}</span>
       </div>
       <div className="mt-4 divide-y divide-[var(--border)]">
         {items.map((item) => (
