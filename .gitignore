@@ -18,7 +18,9 @@ coverage/
 !.vscode/tasks.json
 
 *.log
+npm-debug.log*
 pnpm-debug.log*
+pnpm-lock.yaml
 
 # Local development data and uploaded artifacts
 .local-data/
