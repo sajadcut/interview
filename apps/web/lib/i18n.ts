@@ -2,7 +2,7 @@ export const supportedLocales = ["fa", "en"] as const;
 export type AppLocale = (typeof supportedLocales)[number];
 
 export function getDefaultLocale(): AppLocale {
-  return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "en" ? "en" : "fa";
+  return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "fa" ? "fa" : "en";
 }
 
 export function directionFor(locale: AppLocale): "rtl" | "ltr" {
