@@ -4,74 +4,60 @@ AI Recruiter platform for job definition, candidate discovery, screening, adapti
 
 ## Source of truth
 
-Read these before making architectural changes:
+- `master.md` — product and architecture contract.
+- `projectstate.md` — current implementation state.
+- `production-readiness.md` — release gates for autonomous real-candidate interviews.
+- `AGENTS.md` — engineering rules.
 
-- `master.md` — stable product and architecture contract.
-- `projectstate.md` — current implementation state and engineering tickets.
-- `production-readiness.md` — release gates for real-candidate autonomous interviewing.
-- `AGENTS.md` — implementation rules for humans and coding agents.
+## Current development baseline
 
-## Repository layout
+Laptop-first, local-native development. Docker, Docker Compose, Kubernetes and MinIO are not required.
 
-```text
-apps/web                 Next.js company/candidate web surfaces
-apps/api                 NestJS core API
-services/ai-worker       AI/evaluation worker boundary
-services/media-worker    realtime speech/avatar worker boundary
-packages/ui              shared product UI package
-packages/db              database package boundary
-packages/types           shared domain types
-packages/validation      shared validation contracts
-packages/config          shared configuration contracts
-packages/api-client      generated/typed API client boundary
-```
+Required now:
 
-Deployment/container assets are intentionally deferred and will be added under `infra/` only when deployment work actually begins.
-
-## Current development model
-
-Development is **laptop-first and local-native**. VS Code is the preferred IDE.
-
-Initial prerequisites:
-
-- Git
 - Node.js 24 LTS
 - pnpm 11
-- PostgreSQL installed locally when T002 begins
+- Git
+- PostgreSQL 18.x
+- VS Code (preferred)
 
-Install later only when the active milestone requires them:
-
-- Python
-- Redis
-- pgvector
-- FFmpeg
-- LiveKit OSS
-- coturn
-- whisper.cpp
-- local TTS/avatar dependencies
-- Temporal
-
-Docker Desktop, Docker Compose, Kubernetes, and MinIO are **not required for the current development phase**.
-
-## Local bootstrap
+## Start
 
 ```bash
 pnpm install
+cp .env.example .env
+pnpm workstation:check
+pnpm db:check
+pnpm db:migrate
 pnpm dev
 ```
 
 Web: `http://localhost:3000`  
-API: `http://localhost:4000`
+API: `http://localhost:4000`  
+OpenAPI UI: `http://localhost:4000/docs`
 
-## Quality commands
+## Quality
 
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm build
-pnpm format
+pnpm check
 ```
 
-Development file uploads will use `LocalFilesystemStorageAdapter` under `.local-data/`. Production object storage remains behind `StorageProvider` and is intentionally deferred.
+## OpenAPI client sync
 
-Authentication, database modeling, RBAC, audit, AI gateway, and the production design system are not part of T001.
+```bash
+pnpm api:sync
+```
+
+This exports `openapi/openapi.json` from NestJS and regenerates `packages/api-client/src/generated/schema.ts`.
+
+## Local storage
+
+Development artifacts are stored via `LocalFilesystemStorageAdapter` under `.local-data/storage/`. Production object storage remains behind the same `StorageProvider` interface.
+
+## Implemented foundation
+
+T001–T011 establish the repository, local development baseline, API conventions, PostgreSQL/Drizzle schema, tenant context, RBAC, audit, local storage, AI gateway, web/candidate surfaces, design-system primitives, and the typed OpenAPI client.

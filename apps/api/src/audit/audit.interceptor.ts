@@ -24,12 +24,16 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(() => {
-        void this.audit.record({
-          action: metadata.action,
-          entityType: metadata.entityType,
-          ...(entityId ? { entityId } : {}),
-          metadata: { method: request.method, path: request.originalUrl },
-        });
+        void this.audit
+          .record({
+            action: metadata.action,
+            entityType: metadata.entityType,
+            ...(entityId ? { entityId } : {}),
+            metadata: { method: request.method, path: request.originalUrl },
+          })
+          .catch((error: unknown) => {
+            console.error("Audit write failed", error);
+          });
       }),
     );
   }
