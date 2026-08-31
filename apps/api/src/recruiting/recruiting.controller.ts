@@ -17,7 +17,7 @@ export class RecruitingController {
 
   @Post("applications/:applicationId/scorecards/preview")
   @RequirePermissions(Permissions.CandidateScore)
-  previewScorecard(@Param("applicationId") _applicationId: string, @Body() body: unknown) {
+  previewScorecard(@Body() body: unknown) {
     return this.recruiting.previewScorecard(body);
   }
 }
