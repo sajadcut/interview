@@ -10,6 +10,13 @@ export const InterviewLifecycleStages = [
 
 export type InterviewLifecycleStage = (typeof InterviewLifecycleStages)[number];
 
+export function parseInterviewLifecycleStage(value: unknown): InterviewLifecycleStage {
+  if (typeof value !== "string") throw new Error("Interview lifecycle stage must be a string");
+  const stage = InterviewLifecycleStages.find((candidate) => candidate === value);
+  if (!stage) throw new Error(`Unsupported interview lifecycle stage: ${value}`);
+  return stage;
+}
+
 export interface InterviewReleaseDecisionInput {
   lifecycleStage: InterviewLifecycleStage;
   productionApprovedAt: string | null;
@@ -31,7 +38,7 @@ export function evaluateInterviewRelease(input: InterviewReleaseDecisionInput): 
 
   if (!input.candidateIsRealCustomerCandidate) {
     return {
-      allowed: input.lifecycleStage !== "SUSPENDED",
+      allowed: true,
       mode: input.lifecycleStage === "SHADOW" ? "shadow" : "development",
       reasons: ["Synthetic/internal candidate path is permitted for engineering validation"],
     };
