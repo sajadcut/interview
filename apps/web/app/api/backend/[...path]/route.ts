@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { loadRootEnvironment } from "../../../../lib/root-env";
+
+loadRootEnvironment();
 
 const FORWARDED_REQUEST_HEADERS = [
   "accept",
