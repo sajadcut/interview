@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/main.ts",
+    "dev": "node scripts/dev.mjs",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test src/**/*.spec.ts",
-    "openapi:export": "tsx src/scripts/export-openapi.ts"
+    "openapi:export": "tsc -p tsconfig.build.json && node dist/scripts/export-openapi.js"
   },
   "dependencies": {
     "@nestjs/common": "12.0.1",
