@@ -3,8 +3,9 @@ packages:
   - "services/*"
   - "packages/*"
 
-# The architecture baseline is Node.js 24 LTS. Fail early on unsupported
-# runtimes instead of allowing hard-to-diagnose install/build differences.
+# The active architecture decision pins local/CI runtime to Node.js 22.14+
+# and below 23. Fail early on unsupported runtimes instead of allowing
+# hard-to-diagnose install/build differences.
 engineStrict: true
 
 # pnpm 11 dependency-build policy. Keep this explicit: unknown dependency
