@@ -4,9 +4,12 @@ import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
+import { InterviewBrainService } from "./interview-brain.service";
 import {
   AppendInterviewTurnDto,
   CreateInterviewSessionDto,
+  InterviewBrainNextTurnInputDto,
+  InterviewBrainTurnDto,
   InterviewEvidenceDto,
   InterviewEvidenceInputDto,
   InterviewSessionStartDto,
@@ -20,7 +23,10 @@ import { InterviewsService } from "./interviews.service";
 @Controller("v1")
 @RequireTenant()
 export class InterviewsController {
-  constructor(private readonly interviews: InterviewsService) {}
+  constructor(
+    private readonly interviews: InterviewsService,
+    private readonly interviewBrain: InterviewBrainService,
+  ) {}
 
   @Post("interviews/sessions")
   @RequirePermissions(Permissions.InterviewManage)
@@ -28,6 +34,17 @@ export class InterviewsController {
   @ApiOkResponse({ type: InterviewSessionStartDto })
   createSession(@Body() body: CreateInterviewSessionDto) {
     return this.interviews.createSession(body);
+  }
+
+  @Post("interviews/:sessionId/brain/next-turn")
+  @RequirePermissions(Permissions.InterviewManage)
+  @AuditedAction("interview.brain.next_turn", "interview_session")
+  @ApiOkResponse({ type: InterviewBrainTurnDto })
+  nextBrainTurn(
+    @Param("sessionId") sessionId: string,
+    @Body() body: InterviewBrainNextTurnInputDto,
+  ) {
+    return this.interviewBrain.nextTurn(sessionId, body);
   }
 
   @Post("interviews/:sessionId/turns")
