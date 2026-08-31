@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@interview/api-client": "workspace:*",
-    "@interview/ui": "workspace:*",
+    "@interview/api-client": "0.1.0",
+    "@interview/ui": "0.1.0",
     "@tanstack/react-query": "5.102.8",
     "next": "16.3.3",
     "react": "^19.2.8",
@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "^24.0.0",
+    "@types/node": "25.9.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "4.3.3",
