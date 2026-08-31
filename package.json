@@ -1,16 +1,20 @@
 {
   "name": "interview-platform",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "packageManager": "pnpm@11.13.1",
+  "packageManager": "npm@11.6.2",
   "engines": {
-    "node": ">=22.14.0 <23",
-    "pnpm": ">=11 <12"
+    "node": ">=25.9.0 <26",
+    "npm": ">=11.6.2 <12"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "dev:web": "pnpm --filter @interview/web dev",
-    "dev:api": "pnpm --filter @interview/api dev",
+    "dev:web": "npm run dev --workspace=@interview/web",
+    "dev:api": "npm run dev --workspace=@interview/api",
     "dev:bootstrap": "node scripts/bootstrap-development.mjs",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -18,15 +22,18 @@
     "test": "turbo run test",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "workstation:check": "node scripts/check-workstation.mjs",
     "registry:check": "node scripts/check-registry.mjs",
     "db:check": "node scripts/check-database.mjs",
-    "db:migrate": "pnpm --filter @interview/db db:migrate",
-    "db:studio": "pnpm --filter @interview/db db:studio",
-    "openapi:export": "pnpm --filter @interview/api openapi:export",
-    "api-client:generate": "pnpm --filter @interview/api-client generate",
-    "api:sync": "pnpm openapi:export && pnpm api-client:generate"
+    "db:migrate": "npm run db:migrate --workspace=@interview/db",
+    "db:studio": "npm run db:studio --workspace=@interview/db",
+    "openapi:export": "npm run openapi:export --workspace=@interview/api",
+    "api-client:generate": "npm run generate --workspace=@interview/api-client",
+    "api:sync": "npm run openapi:export && npm run api-client:generate"
+  },
+  "scarfSettings": {
+    "enabled": false
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
