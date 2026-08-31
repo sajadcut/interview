@@ -28,7 +28,7 @@ export class RecruitingService {
         j.title AS job_title,
         c.id AS candidate_id,
         c.display_name AS candidate_name,
-        c.current_role,
+        c."current_role",
         c.current_company
       FROM applications a
       JOIN jobs j
