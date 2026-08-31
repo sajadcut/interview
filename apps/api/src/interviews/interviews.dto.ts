@@ -1,4 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from "class-validator";
 
 const candidateIntentValues = [
   "ANSWER",
@@ -11,12 +23,29 @@ const candidateIntentValues = [
   "POLICY_REFUSAL",
 ] as const;
 
+const interviewActionValues = ["ask", "probe", "clarify", "transition", "close", "escalate"] as const;
+const transcriptSpeakerValues = ["candidate", "interviewer", "system"] as const;
+
 export class CreateInterviewSessionDto {
-  @ApiProperty() applicationId!: string;
-  @ApiProperty() interviewPlanId!: string;
-  @ApiProperty() consentRecordId!: string;
-  @ApiProperty({ default: false }) candidateIsRealCustomerCandidate!: boolean;
-  @ApiProperty({ default: false }) synchronousHumanSupervisorPresent!: boolean;
+  @ApiProperty()
+  @IsUUID()
+  applicationId!: string;
+
+  @ApiProperty()
+  @IsUUID()
+  interviewPlanId!: string;
+
+  @ApiProperty()
+  @IsUUID()
+  consentRecordId!: string;
+
+  @ApiProperty({ default: false })
+  @IsBoolean()
+  candidateIsRealCustomerCandidate!: boolean;
+
+  @ApiProperty({ default: false })
+  @IsBoolean()
+  synchronousHumanSupervisorPresent!: boolean;
 }
 
 export class InterviewSessionStartDto {
@@ -29,13 +58,31 @@ export class InterviewSessionStartDto {
 }
 
 export class AppendInterviewTurnDto {
-  @ApiProperty({ enum: ["ask", "probe", "clarify", "transition", "close", "escalate"] })
+  @ApiProperty({ enum: interviewActionValues })
+  @IsIn(interviewActionValues)
   action!: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
-  @ApiPropertyOptional() criterion?: string | null;
-  @ApiProperty() objective!: string;
-  @ApiProperty() spokenText!: string;
-  @ApiProperty({ type: [String] }) expectedEvidence!: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  criterion?: string | null;
+
+  @ApiProperty()
+  @IsString()
+  objective!: string;
+
+  @ApiProperty()
+  @IsString()
+  spokenText!: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  expectedEvidence!: string[];
+
   @ApiPropertyOptional({ enum: candidateIntentValues })
+  @IsOptional()
+  @IsIn(candidateIntentValues)
   candidateIntent?: string;
 }
 
@@ -48,12 +95,20 @@ export class InterviewTurnDto extends AppendInterviewTurnDto {
 
 export class InterviewBrainNextTurnInputDto {
   @ApiPropertyOptional({ description: "Latest finalized candidate transcript text for state/context only." })
+  @IsOptional()
+  @IsString()
   latestCandidateText?: string;
 
   @ApiPropertyOptional({ enum: candidateIntentValues })
+  @IsOptional()
+  @IsIn(candidateIntentValues)
   candidateIntent?: string;
 
   @ApiPropertyOptional({ minimum: 0, maximum: 600, default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(600)
   elapsedSeconds?: number;
 }
 
@@ -62,18 +117,40 @@ export class InterviewBrainTurnDto extends InterviewTurnDto {
   @ApiProperty() brainVersion!: string;
   @ApiProperty() brainReason!: string;
   @ApiProperty() remainingSeconds!: number;
-  @ApiProperty({ type: Object, additionalProperties: { type: "number" } })
+  @ApiProperty({ type: Object })
   evidenceCoverage!: Record<string, number>;
   @ApiProperty() releaseMode!: string;
 }
 
 export class TranscriptSegmentInputDto {
-  @ApiProperty({ enum: ["candidate", "interviewer", "system"] }) speaker!: string;
-  @ApiProperty({ minimum: 0 }) startMs!: number;
-  @ApiProperty({ minimum: 0 }) endMs!: number;
-  @ApiProperty() text!: string;
-  @ApiProperty({ default: true }) isFinal!: boolean;
-  @ApiPropertyOptional({ minimum: 0, maximum: 1 }) sttConfidence?: number;
+  @ApiProperty({ enum: transcriptSpeakerValues })
+  @IsIn(transcriptSpeakerValues)
+  speaker!: string;
+
+  @ApiProperty({ minimum: 0 })
+  @IsInt()
+  @Min(0)
+  startMs!: number;
+
+  @ApiProperty({ minimum: 0 })
+  @IsInt()
+  @Min(0)
+  endMs!: number;
+
+  @ApiProperty()
+  @IsString()
+  text!: string;
+
+  @ApiProperty({ default: true })
+  @IsBoolean()
+  isFinal!: boolean;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  sttConfidence?: number;
 }
 
 export class TranscriptSegmentDto extends TranscriptSegmentInputDto {
@@ -82,11 +159,31 @@ export class TranscriptSegmentDto extends TranscriptSegmentInputDto {
 }
 
 export class InterviewEvidenceInputDto {
-  @ApiPropertyOptional() criterionId?: string;
-  @ApiPropertyOptional() turnId?: string;
-  @ApiProperty({ type: [String] }) transcriptSegmentIds!: string[];
-  @ApiProperty() summary!: string;
-  @ApiPropertyOptional({ minimum: 0, maximum: 1 }) confidence?: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  criterionId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  turnId?: string;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  transcriptSegmentIds!: string[];
+
+  @ApiProperty()
+  @IsString()
+  summary!: string;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 1 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  confidence?: number;
 }
 
 export class InterviewEvidenceDto extends InterviewEvidenceInputDto {
