@@ -63,10 +63,12 @@ Installation analytics from Scarf are disabled at the root package level.
 
 ## Clean npm recovery
 
-A previous pnpm checkout, or a workspace manifest change after an npm lockfile was generated, can leave a stale local dependency graph. A known symptom is npm reporting:
+A previous pnpm checkout, or a workspace manifest change after an npm lockfile was generated, can leave a stale local dependency graph. Known symptoms include:
 
 ```text
 npm error Invalid Version:
+Cannot find module '<workspace>\\node_modules\\typescript\\bin\\tsc'
+Cannot find module '<workspace>\\node_modules\\tsx\\dist\\cli.mjs'
 ```
 
 Use the repository recovery command:
@@ -78,9 +80,10 @@ npm run install:clean
 The command:
 
 1. validates workspace metadata;
-2. removes the local `node_modules` directory;
-3. removes the local `package-lock.json`;
-4. runs a fresh `npm install` using the committed Dotin Nexus configuration.
+2. removes root `node_modules`;
+3. removes every `apps/*/node_modules` and `packages/*/node_modules` tree left by a previous package-manager/install state;
+4. removes the local `package-lock.json`;
+5. runs a fresh `npm install` using the committed Dotin Nexus configuration.
 
 If a clean install still fails, do not keep deleting state repeatedly. Preserve the npm debug log and fix the dependency/version problem in the repository.
 
@@ -96,6 +99,8 @@ Node.js 25 -> dist/main.js
 ```
 
 Development watch is implemented by `apps/api/scripts/dev.mjs`, which runs the local TypeScript compiler through npm and restarts the compiled API after a clean compilation.
+
+The shared ESLint rule requiring type-only imports is intentionally not applied to Nest API source files as a blanket rule: constructor-injected Nest classes must remain runtime value imports so emitted decorator metadata can preserve DI tokens. Do not auto-fix those imports to `import type` without verifying the injection token is explicit.
 
 Do not re-add `@nestjs/cli` or `@nestjs/schematics` without first validating Node 25 compatibility.
 
@@ -139,6 +144,8 @@ npm install
 npm run workstation:check
 npm run dev:web
 ```
+
+Or use `npm run install:clean` instead of `npm install` when recovering from a stale dependency tree.
 
 Full local stack after PostgreSQL is configured:
 
