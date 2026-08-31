@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 foundation + enterprise visual target implemented statically; Node 25.9/npm 11.6 workspace migration active; npm lock recovery added; quality/runtime validation in progress  
-> **Version:** 0.9.2  
+> **Status:** M0 foundation + enterprise visual target implemented statically; Node 25.9/npm 11.6 workspace migration active; Windows quality-gate failures identified and repository fixes pushed; re-validation pending  
+> **Version:** 0.9.3  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -23,21 +23,23 @@ Nest CLI/schematics Node-25 dependency    ✅ Removed from active toolchain
 Initial clean npm install on Windows      ✅ SUCCESS (320 packages installed)
 Registry checker Windows bug              ✅ FIXED / RE-RUN SUCCESSFUL
 Workspace metadata checker                ✅ ADDED
-Stale npm lock recovery                   ✅ ADDED (`npm run install:clean`)
-Second npm reconciliation                 ⚠️ STALE LOCAL LOCK FAILED (`Invalid Version:`)
+Nested workspace npm recovery             ✅ FIXED IN REPO / RE-RUN PENDING
 JavaScript workstation check              ✅ NODE/NPM/GIT VERIFIED
 PostgreSQL client                         ⏳ NOT INSTALLED / DB VALIDATION PENDING
-package-lock.json                         🟡 REGENERATION REQUIRED
-Lint / typecheck / test / build           ⏳ PENDING
+Lint                                      ⚠️ FAILED ON API / FIXES PUSHED / RE-RUN PENDING
+Typecheck                                 ⚠️ FAILED ON STALE WORKSPACE BIN LINKS / CLEAN RE-RUN PENDING
+Tests                                     ⚠️ FAILED ON STALE WORKSPACE TSX LINK / CLEAN RE-RUN PENDING
+Build                                     ⏳ NOT YET VALIDATED
+package-lock.json                         🟡 REGENERATION REQUIRED AFTER CLEAN INSTALL
 Executable browser screenshot review      ⏳ PENDING
 T012 CI                                   ➡️ NEXT after local validation
 M1 domain vertical slice                  ⬜ Not started
 Production approval                       ⬜ Not approved
 ```
 
-Workstation evidence confirms Node.js `v25.9.0`, npm `11.6.2`, Git, and the effective registry `https://nexus3.dotin.ir/repository/Dotin-NPM/`. `npm run registry:check` now succeeds against Dotin Nexus.
+Workstation evidence confirms Node.js `v25.9.0`, npm `11.6.2`, Git, and the effective registry `https://nexus3.dotin.ir/repository/Dotin-NPM/`. `npm run registry:check` succeeds against Dotin Nexus.
 
-The first npm install after migration completed successfully with 320 packages. A later `npm install` after the UI React peer metadata changed failed with bare `Invalid Version:`. The prior install log had recorded `react@undefined` for the UI peer state, so the repository now treats the local lock/tree as stale and provides an explicit clean-install recovery path. No lint/typecheck/test/build success is claimed yet.
+The first npm install after migration completed successfully with 320 packages. Subsequent quality-gate execution exposed two separate issues: stale workspace-local `node_modules` trees from previous package-manager states, and real API lint configuration/source issues. Repository fixes are now pushed; no lint/typecheck/test/build success is claimed until the workstation reruns them successfully.
 
 The active JavaScript baseline is `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 supersedes ADR-0001.
 
@@ -77,15 +79,46 @@ Repository-side migration completed:
 - npm subprocess invocation uses `npm_execpath` when available so Windows does not depend on directly spawning `npm.cmd`;
 - `@interview/ui` carries a matching React development dependency while retaining React as a peer dependency;
 - `scripts/check-workspaces.mjs` validates all workspace package names, semantic versions, and internal dependency version alignment;
-- `npm run install:clean` validates workspace metadata, removes stale local `node_modules` and `package-lock.json`, and performs a fresh install against Dotin Nexus.
+- `npm run install:clean` now removes root and every `apps/*/node_modules` / `packages/*/node_modules` tree before regenerating `package-lock.json` and reinstalling from Dotin Nexus.
 
 The clean-install command is a recovery mechanism for stale local dependency graphs, not a substitute for fixing a reproducible dependency error.
 
 ---
 
-# 4. Workstation vs database prerequisites
+# 4. Quality-gate findings from Windows
 
-`npm run workstation:check` now validates only the JavaScript development workstation:
+## 4.1 Lint
+
+`npm run lint` reached the real workspace code and failed in `@interview/api` with 43 errors.
+
+Repository fixes pushed:
+
+- Node globals are declared for `.mjs` linting, fixing `process`, `console`, `setTimeout`, etc.;
+- the unused disabled-LLM request parameter was removed;
+- the blanket `consistent-type-imports` rule is carved out for Nest API source because constructor-injected class imports are runtime values required by emitted decorator metadata. The rule remains enabled for the rest of the TypeScript repository.
+
+The lint command must be rerun before it can be marked successful.
+
+## 4.2 Typecheck and tests
+
+`npm run typecheck` and `npm run test` failed before compiling project code because npm scripts resolved stale workspace-local binary links such as:
+
+```text
+packages/api-client/node_modules/typescript/bin/tsc
+packages/ui/node_modules/typescript/bin/tsc
+packages/db/node_modules/typescript/bin/tsc
+apps/api/node_modules/tsx/dist/cli.mjs
+```
+
+Those files were absent because prior pnpm/npm states left workspace-local `node_modules` directories while only the root dependency tree had been cleaned.
+
+`npm run install:clean` now removes all workspace-local dependency trees as well as the root tree and lockfile. Typecheck/tests must be rerun after that clean install before any code-level TypeScript/test failures are inferred.
+
+---
+
+# 5. Workstation vs database prerequisites
+
+`npm run workstation:check` validates only the JavaScript development workstation:
 
 ```text
 Node.js
@@ -99,13 +132,13 @@ PostgreSQL 18.x remains required for database/API persistence validation before 
 
 ---
 
-# 5. T001–T011 actual status
+# 6. T001–T011 actual status
 
 | Ticket | Actual status |
 |---|---|
-| T001 Repository bootstrap | `NPM_WORKSPACE_MIGRATED / LOCK_REGENERATION_PENDING` |
+| T001 Repository bootstrap | `NPM_WORKSPACE_MIGRATED / CLEAN_REVALIDATION_PENDING` |
 | T002 Local prerequisites | `NODE_NPM_GIT_VERIFIED / LOCAL_POSTGRES_PENDING` |
-| T003 API baseline | `STATIC_COMPLETE / NODE25_RUNTIME_VALIDATION_PENDING` |
+| T003 API baseline | `LINT_FIXES_PUSHED / NODE25_RUNTIME_VALIDATION_PENDING` |
 | T004 Database baseline | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
 | T005 Tenant context | `STATIC_COMPLETE / DB_INTEGRATION_PENDING` |
 | T006 Authorization | `STATIC_COMPLETE / DB_INTEGRATION_PENDING` |
@@ -120,7 +153,7 @@ T010 is explicitly not considered DONE merely because UI primitives exist. See `
 
 ---
 
-# 6. Coded visual surfaces
+# 7. Coded visual surfaces
 
 ```text
 /app
@@ -158,7 +191,7 @@ The visual pages currently use deterministic development fixtures. This is real 
 
 ---
 
-# 7. Current local validation sequence
+# 8. Current local validation sequence
 
 On the current Windows workstation:
 
@@ -166,13 +199,14 @@ On the current Windows workstation:
 cd D:\interview\interview
 
 git pull
-node -v
-npm -v
-npm config get registry
 npm run registry:check
 npm run workspace:check
 npm run install:clean
 npm run workstation:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
 ```
 
 Expected baseline:
@@ -183,16 +217,7 @@ npm       11.6.2 or newer 11.x, below 12
 registry  https://nexus3.dotin.ir/repository/Dotin-NPM/
 ```
 
-After the clean install succeeds, execute the quality gate without waiting for PostgreSQL:
-
-```powershell
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-```
-
-Frontend visual review can then start with:
+Frontend visual review can start after the JavaScript quality gate with:
 
 ```powershell
 npm run dev:web
@@ -215,27 +240,26 @@ Any failure reopens the relevant ticket.
 
 ---
 
-# 8. Lockfile policy
+# 9. Lockfile policy
 
 `package-lock.json` is required for reproducible npm CI. It must come from the real Node 25.9/npm 11.6/Dotin Nexus install, not from manual editing.
 
-The currently generated local lockfile must be discarded because npm later failed to reconcile it after workspace peer metadata changed. `npm run install:clean` is the canonical one-time recovery for this state.
+The current local lock/dependency graph must be regenerated once more using the enhanced `npm run install:clean` because stale workspace-local dependency trees were confirmed by failed binary resolution.
 
 After a fresh install succeeds and lint/typecheck/test/build pass, commit the resulting `package-lock.json` to `main`. The old `pnpm-lock.yaml` must not be committed.
 
 ---
 
-# 9. Next real engineering action
+# 10. Next real engineering action
 
-1. Pull the workspace-check / clean-install / workstation-check fixes.
-2. Run `npm run workspace:check`.
-3. Run `npm run install:clean` to regenerate the dependency graph and lockfile from Dotin Nexus.
-4. Execute lint, typecheck, test and build; fix every real failure.
-5. Commit the validated `package-lock.json`.
-6. Run `npm run dev:web` and capture browser screenshots from Next.js even before PostgreSQL is installed.
-7. Compare executable screenshots against the approved visual target and close visual gaps.
-8. Install/configure PostgreSQL and complete DB/API validation.
-9. Implement T012 CI using Node 25.9.x + npm 11.6.x and `npm ci`.
-10. Start M1 Job → Candidate → Evidence vertical slice and replace development fixtures route-by-route with typed APIs.
+1. Pull the nested-workspace clean-install and API lint fixes.
+2. Run `npm run install:clean` once.
+3. Rerun lint, typecheck, test and build and fix every remaining real code failure.
+4. Commit the validated `package-lock.json`.
+5. Run `npm run dev:web` and capture browser screenshots from Next.js even before PostgreSQL is installed.
+6. Compare executable screenshots against the approved visual target and close visual gaps.
+7. Install/configure PostgreSQL and complete DB/API validation.
+8. Implement T012 CI using Node 25.9.x + npm 11.6.x and `npm ci`.
+9. Start M1 Job → Candidate → Evidence vertical slice and replace development fixtures route-by-route with typed APIs.
 
 No later interview/media milestone should bypass this sequence.
