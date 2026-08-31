@@ -50,13 +50,14 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
   try {
     const method = request.method.toUpperCase();
     const hasBody = !["GET", "HEAD"].includes(method);
-    const response = await fetch(target, {
+    const init: RequestInit = {
       method,
       headers: forwardedHeaders(request),
-      body: hasBody ? await request.arrayBuffer() : undefined,
       cache: "no-store",
       redirect: "manual",
-    });
+      ...(hasBody ? { body: await request.arrayBuffer() } : {}),
+    };
+    const response = await fetch(target, init);
 
     const responseHeaders = new Headers();
     for (const name of ["content-type", "cache-control", "location", "x-request-id"] as const) {
