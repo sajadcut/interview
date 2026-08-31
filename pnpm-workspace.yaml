@@ -2,3 +2,20 @@ packages:
   - "apps/*"
   - "services/*"
   - "packages/*"
+
+# pnpm 11 dependency-build policy. Keep this explicit: unknown dependency
+# lifecycle scripts fail installation until reviewed.
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true
+  "@scarf/scarf": false
+
+# Dotin Nexus can be slower than the public registry; keep bounded retries
+# without weakening TLS. The registry URL itself stays in .npmrc.
+strictSsl: true
+networkConcurrency: 4
+fetchRetries: 5
+fetchRetryFactor: 2
+fetchRetryMintimeout: 10000
+fetchRetryMaxtimeout: 60000
+fetchTimeout: 120000
