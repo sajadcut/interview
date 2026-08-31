@@ -9,6 +9,7 @@ test("score engine refuses a consequential score when evidence is missing", () =
   ]);
 
   assert.equal(result.status, "incomplete");
+  if (result.status !== "incomplete") assert.fail("expected incomplete score result");
   assert.equal(result.overallScore, null);
   assert.deepEqual(result.missingEvidenceCriterionIds, ["debugging"]);
 });
@@ -20,6 +21,7 @@ test("score engine calculates the final score deterministically from rubric weig
   ]);
 
   assert.equal(result.status, "complete");
+  if (result.status !== "complete") assert.fail("expected complete score result");
   assert.equal(result.overallScore, 85);
   assert.equal(result.recommendation, "strong_recommend");
   assert.equal(result.algorithmVersion, "weighted-evidence-v1");
