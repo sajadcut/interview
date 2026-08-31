@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 JavaScript foundation validated on Windows; M1–M5 architecture/code baseline implemented; PostgreSQL 17.11 connectivity validated; M1 migration and generated-client type fixes pushed for re-validation  
-> **Version:** 0.10.1  
+> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; migrations 0008–0014 and latest JavaScript quality gate require workstation re-validation  
+> **Version:** 0.11.0  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -11,46 +11,47 @@
 # 1. Current state
 
 ```text
-Product architecture                     ✅ Defined
+Product architecture                     ✅ Defined in master.md
 Core technical architecture              ✅ Defined
 Interview architecture                   ✅ Defined
 Production-readiness gates               ✅ Defined
 Laptop-first dev baseline                ✅ Locked
-Node.js 25.9 runtime baseline            ✅ VALIDATED ON WINDOWS
-npm 11.6 workspaces                      ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                 ✅ VERIFIED ON WORKSTATION
-Clean npm install                        ✅ SUCCESS (320 packages)
-Workspace metadata check                 ✅ SUCCESS (8 workspaces)
-JavaScript workstation check             ✅ NODE/NPM/GIT VERIFIED
-PostgreSQL 17.11 client                  ✅ INSTALLED / psql VERIFIED
-PostgreSQL application authentication    ✅ VALIDATED AS interview@interview
-Database migration runner                ✅ TRANSACTIONAL / CHECKSUM-TRACKED
-Database migrations 0001–0013            ⚠️ 0008 FAILED ON RESERVED current_role / FIX PUSHED / RERUN PENDING
-Development bootstrap                    ✅ SUCCESS
-OpenAPI + typed client sync              ✅ SUCCESS LOCALLY / RERUN AFTER HEALTH FIX PENDING
-Latest M1–M5 lint                        ✅ SUCCESS
-Latest M1–M5 typecheck                   ⚠️ WEB HEALTH GENERATED TYPE FAILURE / FIX PUSHED
-Latest M1–M5 API tests                   ✅ 27/27 PASS
-Latest M1–M5 production build            ⏳ RESULT NOT YET CAPTURED
-Executable browser review                ✅ TWO PASSES COMPLETED
-Visual acceptance                        ⚠️ NOT YET COMPLETE
-M1 Job → Candidate → Evidence             🟡 CODED / DB RERUN + API + VISUAL VALIDATION PENDING
-M2 Sourcing + Talent                     🟡 CODED / DB+API+VISUAL VALIDATION PENDING
-M3 Outreach + Screening + Scheduling     🟡 CODED / DB+API+VISUAL VALIDATION PENDING
-M4 AI Interview                          🟡 DEV_ONLY CONTRACTS CODED / REALTIME+CALIBRATION PENDING
-M5 Assessments                           🟡 CONTRACTS CODED / ISOLATED RUNNER PENDING
-package-lock.json                        🟡 GENERATED LOCALLY / COMMIT PENDING
-T012 CI                                  ⏳ AFTER CANONICAL LOCKFILE
-Production approval                      ⬜ NOT APPROVED
+Node.js 25.9 runtime baseline             ✅ VALIDATED ON WINDOWS
+npm 11.6 workspaces                       ✅ VALIDATED ON WINDOWS
+Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
+PostgreSQL 17.11 client/server            ✅ CONNECTIVITY + AUTH VALIDATED
+Database                                 ✅ interview / role interview
+Migration runner                          ✅ TRANSACTIONAL / CHECKSUM-TRACKED
+Migrations 0001–0007                      ✅ APPLIED ON WORKSTATION
+Migration 0008                            ⚠️ COMPOSITE-FK FIX PUSHED / RERUN PENDING
+Migrations 0009–0013                      ⏳ WAITING FOR 0008 SUCCESS
+Migration 0014 M6 analytics/privacy       🟡 CODED / EXECUTION PENDING
+Migration contract validator              🟡 CODED / EXECUTION PENDING
+Development identity bootstrap             ✅ VALIDATED BEFORE LATEST DOMAIN SEED
+M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION PENDING
+OpenAPI + typed client                    🟡 REGENERATION REQUIRED ON LATEST HEAD
+Last pre-wave lint                        ✅ 5/5 SUCCESS
+Last pre-wave API tests                   ✅ 27/27 PASS
+Latest HEAD typecheck                     ⏳ VALIDATION PENDING
+Latest HEAD production build              ⏳ VALIDATION PENDING
+Executable browser review                 ✅ TWO PASSES COMPLETED
+Visual acceptance                         ⚠️ NOT YET COMPLETE
+M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
+M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
+M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / RUNTIME+VISUAL VALIDATION PENDING
+M4 AI Interview                           🟡 DEV_ONLY GATED RUNTIME PRIMITIVES CODED / REALTIME+CALIBRATION PENDING
+M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
+M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / VALIDATION PENDING
+package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
+T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
+Production approval                       ⬜ NOT APPROVED
 ```
 
-The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 is the active Node/npm decision.
-
-The active local database baseline is PostgreSQL 17.11 per ADR-0003. PostgreSQL remains the primary system of record.
+The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. PostgreSQL 17.11 is the active local database baseline per ADR-0003.
 
 ---
 
-# 2. Validated workstation and database evidence
+# 2. Validated workstation evidence
 
 ```text
 Node.js       v25.9.0
@@ -62,110 +63,98 @@ Database      interview
 Database user interview
 ```
 
-`npm run db:check` now succeeds and reports `current_database = interview` and `current_user = interview`.
-
-The first real M1–M5 migration execution successfully applied the earlier foundation migrations and then stopped at `0008_m1_job_candidate_evidence.sql` with `syntax error at or near "current_role"`. The migration runner executes each migration inside a transaction and records its checksum only after success, so the failed `0008` did not leave a partial M1 migration or a false applied record.
-
-The repository fix quotes the PostgreSQL-reserved `current_role` identifier consistently in the M1 schema and the affected recruiting/sourcing queries. A fresh `npm run db:migrate` is required to validate 0008–0013.
+`npm run db:check` succeeds. The last supplied migration run skipped the applied 0001–0007 migrations and stopped in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository now adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration.
 
 ---
 
-# 3. Bootstrap and API contract evidence
+# 3. Ten-stage implementation advance
 
-`npm run dev:bootstrap` succeeded and created/updated the local development organization, user, active membership and organization-admin role/permissions. The bootstrap emitted Node DEP0190 because Windows used `shell: true` for `psql`; the repository now invokes `psql` directly with `shell: false` and handles spawn errors explicitly.
+## Stage 1 — Migration contract validation
 
-`npm run api:sync` also completed successfully locally. The generated client then exposed a health-response typing regression: `/health` was inferred as `{}` in the local generated contract, causing `system-health-card.tsx` to fail on `service` and `timestamp`. The API now publishes an explicit OpenAPI object schema with required `status`, `service`, and `timestamp`; `api:sync` must be rerun before typecheck.
+`scripts/check-migrations.mjs` validates migration sequencing and tenant composite-FK parent availability. Root `npm run db:validate` exposes the check, and `npm run check` now includes it before the JavaScript gate.
+
+## Stage 2 — Deterministic development domain seed
+
+`scripts/bootstrap-domain-fixtures.sql` provides idempotent M1–M5 development data after domain migrations exist. `dev:bootstrap` continues to bootstrap organization/user/RBAC and conditionally seeds domain fixtures only when the required tables are present.
+
+## Stage 3 — M1 DB-backed recruiting workspaces
+
+The API now exposes tenant/RBAC-protected DB-backed job and candidate workspace reads including job list, job requirements/rubric/pipeline, organization candidate list, job-scoped candidate list, candidate skills/job applications, and the existing evidence-backed application intelligence path.
+
+## Stage 4 — M2 sourcing and talent persistence
+
+The API now exposes internal talent, sourcing-run history and sourcing-run detail. Internal talent remains the first adapter. Retrieval score is explicitly labeled as a search signal and remains separate from pre-interview match and evidence-backed hiring scores.
+
+## Stage 5 — M3 grounded outreach persistence
+
+Outbound candidate messages validate every supplied knowledge reference against approved/current knowledge before persistence. Auto-send remains policy-gated; otherwise the message is persisted for human approval.
+
+## Stage 6 — M3 deterministic screening persistence
+
+Hard-minimum rules remain deterministic. Persisted screening sessions always route consequential outcomes to human review; failed hard minimums do not create silent generative rejection.
+
+## Stage 7 — M3 scheduling lifecycle
+
+Scheduling requests can be created, listed and confirmed with timezone/slot state. Confirmation validates ordered ISO timestamps and remains provider-independent for later calendar adapters.
+
+## Stage 8 — M4 controlled interview runtime
+
+Interview-session creation validates published plan/application compatibility, active consent, transcript permission and release-unit policy. Structured turns, transcript segments and evidence can be persisted behind tenant/RBAC/audit boundaries. DEV_ONLY continues to block autonomous real-candidate interviewing.
+
+## Stage 9 — M5 assessment boundary
+
+Assessment submissions persist without execution in the core API. Result ingestion rejects core-process runner identities and accepts only isolated-runner results; deterministic score normalization is retained.
+
+## Stage 10 — M6 analytics and enterprise governance
+
+Migration 0014 adds recruitment-event, retention-policy and privacy-request foundations. Analytics APIs expose funnel/source/review context while distinguishing operational/pre-interview signals from hiring scorecards. Privacy APIs support retention-policy management and reviewed access/deletion/consent-withdrawal requests without silently destroying candidate data.
 
 ---
 
-# 4. Latest M1–M5 JavaScript quality evidence
+# 4. Frontend state
 
-## Lint
+The enterprise visual target now spans 15 surfaces. `/app/analytics` and `/app/settings` are no longer generic placeholders and now contain recruiting analytics, AI governance, RBAC, retention, privacy-request and release-unit anatomy.
+
+These and the previously implemented M1–M5 surfaces remain **coded, not visually accepted** until executable browser screenshots and the quality gate are reviewed on the same HEAD.
+
+---
+
+# 5. Safety boundaries preserved
 
 ```text
-npm run lint -> 5/5 tasks successful
+Candidate remains organization-global; Application remains job-specific.
+Evidence precedes consequential score/recommendation.
+Final weighted score is deterministic domain code.
+Generative judgment cannot silently final-reject a candidate.
+Retrieval/vector-like signals are not hiring scores.
+External sourcing remains approved-adapter based; hidden scraping is not introduced.
+Candidate-facing facts require approved grounding.
+AI Interviewer and Evaluator remain logically separate.
+Real-candidate interview autonomy remains release-gated.
+Candidate code never executes in the core API.
+Assessment integrity signals remain review aids.
+Unsupported face/body/accent personality/emotion/honesty/suitability inference remains prohibited.
+Privacy/retention actions remain reviewable and auditable.
 ```
 
-## Typecheck
+---
 
-The latest typecheck reached all major workspaces. API, DB, UI and API client passed; Web failed only on the generated `/health` response type used by `SystemHealthCard`. The source fix is pushed and requires a fresh `api:sync` plus typecheck.
+# 6. Next validation sequence
 
-## Tests
-
-```text
-tests  27
-pass   27
-fail   0
+```powershell
+npm run db:validate
+npm run db:migrate
+npm run dev:bootstrap
+npm run api:sync
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run dev
 ```
 
-The expanded suite now covers the foundation plus M1–M5 safety/domain rules including:
+After the gate is green, review executable browser surfaces including Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Assessments, Analytics, Settings and the candidate consent/readiness flow.
 
-- evidence-backed deterministic scoring;
-- grounded candidate reply policy;
-- deterministic hard-minimum screening and human review routing;
-- interview structured-turn evidence objectives;
-- DEV_ONLY real-candidate autonomy blocking and production approval checks;
-- assessment score normalization;
-- refusal to execute candidate code inside the core API;
-- authorization, tenant isolation and storage boundaries.
+The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
 
-## Build
-
-The supplied workstation log ends immediately after `npm run build`; no result was captured. Build is therefore still validation-pending for the current M1–M5 HEAD.
-
----
-
-# 5. M1–M5 implementation state
-
-## M1 — Job → Candidate → Evidence
-
-Coded baseline includes Job/Requirement/Rubric/RubricVersion/Candidate/Application/Evidence/CriterionEvaluation/Scorecard/Override persistence contracts and a deterministic evidence-backed score engine. Missing evidence prevents a consequential overall score.
-
-## M2 — Sourcing + Talent
-
-Coded baseline includes adapter-based sourcing contracts, internal-talent-first retrieval, sourcing runs, discovered candidates and separation of retrieval score from hiring score. External source adapters remain integration work and hidden/unapproved scraping is not part of the architecture.
-
-## M3 — Outreach + Screening + Scheduling
-
-Coded baseline includes approved-knowledge grounding, candidate conversation state, deterministic hard-minimum screening, human review boundaries and scheduling state. Generative judgment does not silently reject candidates.
-
-## M4 — AI Interview
-
-Coded baseline includes release units, lifecycle state, consent, interview plan/session/turn/transcript/evidence/evaluator/recording contracts, structured turn policy and Interviewer/Evaluator separation. The release state remains DEV_ONLY until production-readiness gates are evidenced. Realtime LiveKit/STT/TTS/avatar implementation is still pending.
-
-## M5 — Assessments
-
-Coded baseline includes assessment/session/submission/result/evidence contracts and an AssessmentRunner boundary. Candidate code is not permitted to execute inside the core NestJS API process. A real isolated runner remains pending.
-
----
-
-# 6. Visual state
-
-Executable screenshots have been reviewed for `/app`, `/app/jobs`, and `/app/candidates`. Directionality and enterprise shell hierarchy improved materially over the first review. The latest sidebar viewport fix and the newer M1–M5 surfaces still require fresh executable screenshots and quality validation.
-
----
-
-# 7. Source of truth
-
-- `master.md` — stable product/architecture contract.
-- `docs/architecture-decisions/ADR-0002-node-25-npm-runtime.md` — active Node/npm decision.
-- `docs/architecture-decisions/ADR-0003-postgresql-17-11-local-baseline.md` — active local PostgreSQL version decision.
-- `projectstate.md` — actual execution status.
-- `production-readiness.md` — autonomous interview release gates.
-- `AGENTS.md` — implementation rules.
-- `docs/visual-product-target.md` — executable UI acceptance contract.
-
----
-
-# 8. Next real engineering actions
-
-1. Pull the migration/OpenAPI/bootstrap fixes.
-2. Run `npm run db:check` and then `npm run db:migrate`; validate 0008–0013 successfully.
-3. Rerun `npm run dev:bootstrap` to verify the warning-free direct `psql` invocation is idempotent.
-4. Run `npm run api:sync` to regenerate the OpenAPI document and typed client from the explicit health schema.
-5. Run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` and fix any new failures.
-6. Run the full stack and perform browser review of Job Workspace, Sourcing, Outreach, Candidate Intelligence, Interview Review, Candidate Consent and Assessment surfaces.
-7. Commit the workstation-generated `package-lock.json`, regenerated `openapi/openapi.json`, and `packages/api-client/src/generated/schema.ts` only after the quality gate is green and the generated diffs are reviewed.
-8. Implement T012 CI with Nexus connectivity and the canonical npm lockfile.
-
-No M4 autonomous real-candidate mode is production-approved at this stage.
+No autonomous real-candidate interview mode is production-approved at this stage.
