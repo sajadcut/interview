@@ -1,6 +1,6 @@
 {
   "name": "interview-platform",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.13.1",
   "engines": {
@@ -9,12 +9,15 @@
   },
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @interview/web dev",
+    "dev:api": "pnpm --filter @interview/api dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "check": "pnpm lint && pnpm typecheck && pnpm build"
+    "check": "pnpm lint && pnpm typecheck && pnpm build",
+    "workstation:check": "node scripts/check-workstation.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.9.1",
