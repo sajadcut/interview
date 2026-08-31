@@ -1,6 +1,6 @@
 import { Controller, Get, NotFoundException } from "@nestjs/common";
-import { DatabaseService } from "./database/database.service";
 import { getEnv } from "./config/env";
+import { DatabaseService } from "./database/database.service";
 
 @Controller()
 export class AppController {
@@ -26,6 +26,7 @@ export class AppController {
         u.id AS user_id,
         a.id AS application_id,
         p.id AS interview_plan_id,
+        p.rubric_version_id,
         c.id AS consent_record_id
       FROM organizations o
       JOIN users u ON u.email = ${userEmail}
@@ -57,6 +58,15 @@ export class AppController {
       };
     }
 
+    const criterionRows = await this.database.sql`
+      SELECT id, criterion_key, label, display_order
+      FROM rubric_criteria
+      WHERE organization_id = ${String(row.organization_id)}::uuid
+        AND rubric_version_id = ${String(row.rubric_version_id)}::uuid
+        AND required = true
+      ORDER BY display_order, criterion_key
+    `;
+
     return {
       ready: true,
       organizationId: String(row.organization_id),
@@ -65,6 +75,11 @@ export class AppController {
         applicationId: String(row.application_id),
         interviewPlanId: String(row.interview_plan_id),
         consentRecordId: String(row.consent_record_id),
+        criteria: criterionRows.map((criterion) => ({
+          id: String(criterion.id),
+          key: String(criterion.criterion_key),
+          label: String(criterion.label),
+        })),
       },
     };
   }
