@@ -13,10 +13,11 @@ async function bootstrap(): Promise<void> {
   const env = getEnv();
   const logger = new JsonLogger();
   const app = await NestFactory.create(AppModule, { logger });
+  const corsOrigin = buildCorsOrigin(env.CORS_ORIGIN);
 
   app.enableShutdownHooks();
   app.enableCors({
-    origin: buildCorsOrigin(env.CORS_ORIGIN),
+    origin: corsOrigin,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "content-type",
@@ -38,7 +39,12 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup("docs", app, document, { jsonDocumentUrl: "openapi.json" });
 
   await app.listen(env.API_PORT);
-  logger.log(`API listening on http://localhost:${env.API_PORT}`, "Bootstrap");
+  logger.log(
+    `API listening on http://localhost:${env.API_PORT} · CORS_ORIGIN=${
+      corsOrigin === "*" ? "*" : corsOrigin.join(",")
+    }`,
+    "Bootstrap",
+  );
 }
 
 void bootstrap();
