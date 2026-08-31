@@ -5,7 +5,13 @@ import { Reflector } from "@nestjs/core";
 import type { TenantAccessService } from "../auth/tenant-access.service";
 import { RequireTenantGuard } from "./require-tenant.guard";
 
-const context = {} as ExecutionContext;
+class TestController {}
+function testHandler() {}
+
+const context = {
+  getHandler: () => testHandler,
+  getClass: () => TestController,
+} as unknown as ExecutionContext;
 
 function reflector(required: boolean): Reflector {
   return { getAllAndOverride: () => required } as unknown as Reflector;
