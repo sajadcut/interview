@@ -21,7 +21,7 @@ export class SourcingService {
         t.tags,
         t.updated_at,
         c.display_name,
-        c."current_role" AS current_role,
+        c."current_role" AS "current_role",
         c.current_company,
         COALESCE(array_agg(DISTINCT cs.skill_label) FILTER (WHERE cs.skill_label IS NOT NULL), '{}') AS skills
       FROM talent_pool_entries t
