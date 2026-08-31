@@ -13,7 +13,9 @@ coverage/
 
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/tasks.json
 
 *.log
 pnpm-debug.log*

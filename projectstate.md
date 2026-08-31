@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 foundation implemented through T011; local runtime validation pending  
-> **Version:** 0.5.0  
+> **Status:** M0 foundation + enterprise visual target implemented statically; local runtime validation pending  
+> **Version:** 0.7.0  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -11,141 +11,114 @@
 # 1. Current state
 
 ```text
-Product architecture              ✅ Defined
-Core technical architecture       ✅ Defined
-Interview architecture            ✅ Defined
-Self-hosted media constraint       ✅ Locked
-Production-readiness gates         ✅ Defined
-Laptop-first dev baseline          ✅ Locked
-T001 repository bootstrap          ✅ Implemented / merged
-T002 local dev prerequisites       ✅ Repo-side setup implemented
-T003 API baseline                  ✅ Implemented
-T004 database baseline             ✅ Implemented
-T005 tenant context                ✅ Implemented
-T006 authorization                 ✅ Implemented
-T007 audit foundation              ✅ Implemented
-T008 local StorageProvider         ✅ Implemented
-T009 AI Gateway                    ✅ Implemented
-T010 web/design-system shell       ✅ Implemented
-T011 typed API client              ✅ Implemented
-T012 CI                            ➡️ NEXT
-M1 product vertical slice          ⬜ Not started
-Calibration                        ⬜ Not started
-Shadow evaluation                  ⬜ Not started
-Pilot                              ⬜ Not started
-Production approval                ⬜ Not approved
+Product architecture                     ✅ Defined
+Core technical architecture              ✅ Defined
+Interview architecture                   ✅ Defined
+Production-readiness gates               ✅ Defined
+Laptop-first dev baseline                 ✅ Locked
+Foundation audit                          ✅ Completed statically
+Enterprise visual product target          ✅ Coded on main
+Local install / build / DB validation     ⏳ PENDING
+Executable browser screenshot review      ⏳ PENDING
+T012 CI                                   ➡️ NEXT after local validation
+M1 domain vertical slice                  ⬜ Not started
+Production approval                       ⬜ Not approved
 ```
 
-`T002` includes repository scripts/docs for local PostgreSQL. Installing/running PostgreSQL itself happens on the development laptop and cannot be performed through GitHub.
+No runtime/build/test success is claimed until commands are executed on the development laptop or CI.
 
 ---
 
 # 2. Source of truth
 
+- `master.md` — stable product and architecture contract.
+- `projectstate.md` — actual execution status.
+- `production-readiness.md` — autonomous-interview release gates.
+- `AGENTS.md` — implementation rules.
+- `docs/visual-product-target.md` — visual implementation acceptance contract.
+
+---
+
+# 3. Foundation audit corrections already implemented
+
+The audit found and corrected material gaps in environment loading, database migration execution, tenant/RBAC trust boundaries, tenant-safe storage retrieval, AI structured-output validation, shared UI packaging, and regression-test coverage.
+
+Important constraints remain locked: Candidate organization-global, Application job-specific, Evidence before score, deterministic final score, human consequential decisions, approved sourcing adapters only, provider abstractions, no unsupported biometric/personality inference, and local-native laptop development.
+
+---
+
+# 4. T001–T011 actual status
+
+| Ticket | Actual status |
+|---|---|
+| T001 Repository bootstrap | `STATIC_COMPLETE / RUNTIME_VALIDATION_PENDING` |
+| T002 Local prerequisites | `REPO_COMPLETE / LOCAL_POSTGRES_PENDING` |
+| T003 API baseline | `STATIC_COMPLETE / RUNTIME_VALIDATION_PENDING` |
+| T004 Database baseline | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
+| T005 Tenant context | `STATIC_COMPLETE / DB_INTEGRATION_PENDING` |
+| T006 Authorization | `STATIC_COMPLETE / DB_INTEGRATION_PENDING` |
+| T007 Audit foundation | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
+| T008 StorageProvider | `STATIC_COMPLETE / FS+DB_VALIDATION_PENDING` |
+| T009 AI Gateway | `STATIC_COMPLETE / UNIT_RUNTIME_PENDING` |
+| T010 Web / Design System | `VISUAL_TARGET_CODED / BROWSER_BUILD_REVIEW_PENDING` |
+| T011 Typed API client | `SETUP_COMPLETE / GENERATION_VALIDATION_PENDING` |
+| T012 CI | `NOT STARTED` |
+
+T010 is explicitly not considered DONE merely because UI primitives exist. See `docs/visual-product-target.md`.
+
+---
+
+# 5. Coded visual surfaces
+
 ```text
-master.md
-→ stable product + architecture contract
+/app
+→ Enterprise Command Center
 
-projectstate.md
-→ current execution state
+/app/jobs
+→ Jobs table
 
-production-readiness.md
-→ release gates for real-candidate autonomous interviews
+/app/jobs/new
+→ AI Job Description Builder
 
-AGENTS.md
-→ implementation constraints for humans and coding agents
+/app/jobs/senior-backend-engineer
+→ Job Workspace Overview
+
+/app/jobs/senior-backend-engineer/candidates
+→ Job candidate table
+
+/app/jobs/senior-backend-engineer/pipeline
+→ Pipeline / Kanban
+
+/app/candidates
+→ Organization-wide Candidates table
+
+/app/candidates/ali-rahimi
+→ Candidate Intelligence Workspace
+
+/app/interviews
+→ Interview Hub list
+
+/app/interviews/ali-rahimi
+→ AI Interview Review / evidence-score surface
 ```
 
----
-
-# 3. Locked implementation baseline
-
-- Modular monolith first; specialized AI/media workers remain separate boundaries.
-- PostgreSQL is the primary system of record.
-- Candidate is organization-global; Job lifecycle is owned by `Application`.
-- Evidence precedes consequential scores/recommendations.
-- Final weighted scoring remains deterministic domain code.
-- Human review/override remains available for consequential employment decisions.
-- AI provenance is mandatory through `AIExecution`.
-- Provider abstractions are required for LLM, storage, STT, TTS, avatar and media.
-- Tenant context and authorization are foundation concerns.
-- No hidden/unapproved scraping dependency.
-- No unsupported face/body/accent psychological inference.
-- Current development is laptop-first with VS Code; Docker/MinIO are deferred.
-- Development storage uses `LocalFilesystemStorageAdapter`.
-- Realtime interview media must retain a self-hosted production path.
-
-Full architectural decisions remain in `master.md`.
+The visual pages currently use deterministic development fixtures. This is a real React/Next implementation, not a generated screenshot, but the data is not yet domain-persisted.
 
 ---
 
-# 4. Implemented repository foundation
+# 6. Visual target rules
 
-```text
-apps/web
-├─ internal company surface `/app`
-├─ candidate surface `/candidate`
-├─ app shell/navigation
-├─ Tailwind design tokens
-├─ UI primitives
-├─ recruitment-aware components
-└─ TanStack Query + typed API client
+The approved direction is an information-dense Enterprise AI Recruiter, not a generic admin dashboard.
 
-apps/api
-├─ NestJS bootstrap
-├─ environment validation
-├─ JSON logger
-├─ correlation ID
-├─ HTTP error envelope
-├─ OpenAPI/Swagger
-├─ health endpoint
-├─ tenant AsyncLocalStorage context
-├─ permission guard/decorators
-├─ audit service/interceptor
-├─ local StorageProvider
-├─ database service
-└─ AI Gateway
+Required patterns include navigation hierarchy, advanced tables, tabs, filters, job workspaces, candidate intelligence, pipeline/kanban, score breakdowns, evidence-oriented interview review, compact recruiter actions, and AI assistance clearly separated from human decision authority.
 
-packages/db
-├─ Drizzle/PostgreSQL config
-├─ organizations/users/memberships
-├─ roles/permissions
-├─ audit_events
-├─ files
-├─ ai_executions
-└─ SQL migrations 0001–0005
-
-packages/api-client
-├─ OpenAPI schema input
-├─ generated TypeScript paths
-├─ openapi-fetch client
-└─ web integration
-```
+A screenshot generated independently from the application never counts as UI implementation acceptance.
 
 ---
 
-# 5. M0 ticket status
+# 7. Local validation gate
 
-| Ticket | Status | Result |
-|---|---|---|
-| T001 | DONE | pnpm/Turborepo monorepo and app/package boundaries |
-| T002 | IMPLEMENTED | workstation checks, local PostgreSQL docs/connectivity script |
-| T003 | DONE | Nest API baseline, config, logging, errors, correlation ID, OpenAPI |
-| T004 | DONE | Drizzle, PostgreSQL schema, migrations, organization/user/membership |
-| T005 | DONE | tenant context and tenant repository guardrails |
-| T006 | DONE | roles/permissions model, decorators, guard and unit tests |
-| T007 | DONE | AuditEvent persistence model/service/interceptor |
-| T008 | DONE | StorageProvider + LocalFilesystemStorageAdapter + metadata |
-| T009 | DONE | LLMProvider abstraction + AIExecution provenance + compatible adapter |
-| T010 | DONE | internal/candidate surfaces and design-system foundation |
-| T011 | DONE | OpenAPI export/generation and TanStack Query typed client |
-| T012 | NEXT | GitHub Actions install/lint/typecheck/test/build/migration validation |
-
----
-
-# 6. Local validation checklist
-
-Run on the development laptop after cloning/pulling `main`:
+Run after pulling `main`:
 
 ```bash
 pnpm install
@@ -153,107 +126,41 @@ cp .env.example .env
 pnpm workstation:check
 pnpm db:check
 pnpm db:migrate
+pnpm dev:bootstrap
 pnpm api:sync
 pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm dev
 ```
 
-Any failure here reopens the relevant T001–T011 ticket before M1 implementation proceeds.
+Then review at minimum desktop screenshots for:
+
+```text
+/app
+/app/jobs/senior-backend-engineer
+/app/jobs/senior-backend-engineer/candidates
+/app/jobs/senior-backend-engineer/pipeline
+/app/jobs/new
+/app/candidates
+/app/candidates/ali-rahimi
+/app/interviews/ali-rahimi
+```
+
+Repeat visual review with `NEXT_PUBLIC_DEFAULT_LOCALE=fa` and `en` for directionality issues.
+
+Any failure reopens the relevant ticket.
 
 ---
 
-# 7. Current database migration order
+# 8. Next real engineering action
 
-```text
-0001_foundation.sql
-→ organizations
-→ users
-→ memberships
+1. Execute the local validation gate.
+2. Fix every compile/runtime/visual issue found.
+3. Capture screenshots from the running Next.js application and compare against the approved visual target.
+4. Commit the generated `pnpm-lock.yaml` after a real install.
+5. Implement T012 CI using the validated commands.
+6. Start M1 Job → Candidate → Evidence vertical slice and replace development fixtures route-by-route with typed APIs.
 
-0002_authorization.sql
-→ roles
-→ permissions
-→ role_permissions
-→ membership_roles
-
-0003_audit.sql
-→ audit_events
-
-0004_files.sql
-→ files
-
-0005_ai_executions.sql
-→ ai_executions
-```
-
-pgvector is intentionally deferred until semantic candidate matching is implemented.
-
----
-
-# 8. Next engineering action
-
-## T012 — CI
-
-Add GitHub Actions for:
-
-```text
-pnpm install
-lint
-typecheck
-unit tests
-build
-OpenAPI/client drift check
-migration/schema validation
-```
-
-After T012, start M1:
-
-```text
-Job
-→ Rubric
-→ Candidate
-→ Resume
-→ Application
-→ Matching
-→ Evidence
-→ Pipeline
-→ Scorecard
-→ Human Review
-→ Compare
-→ Shortlist
-```
-
----
-
-# 9. Deferred infrastructure
-
-Not required for current laptop development:
-
-```text
-Docker
-Docker Compose
-MinIO
-Kubernetes
-Temporal
-LiveKit
-coturn
-Redis
-pgvector
-GPU/avatar runtime
-```
-
-These are introduced only when the corresponding product milestone requires them.
-
----
-
-# 10. Production status
-
-No autonomous interview capability is production-approved yet.
-
-```text
-Interview production status: DEV_ONLY
-```
-
-Promotion beyond `DEV_ONLY` follows `production-readiness.md` and requires calibration, reliability, security, fairness and pilot gates.
+No later interview/media milestone should bypass this sequence.

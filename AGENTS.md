@@ -4,11 +4,11 @@ Before implementing a ticket:
 
 1. Read `master.md`.
 2. Read `projectstate.md`.
-3. Read `production-readiness.md` when the work touches candidate interviews, scoring, security, privacy, or production rollout.
-4. Implement only the requested ticket and its explicit prerequisites.
-5. Do not violate a LOCKED architecture decision without recording and approving a replacement decision first.
+3. Read `docs/visual-product-target.md` for internal recruiter UI work.
+4. Read `production-readiness.md` when work touches interviews, scoring, security, privacy, or rollout.
+5. Implement only the requested scope and explicit prerequisites.
 
-Non-negotiable implementation rules:
+Non-negotiable architecture rules:
 
 - Keep `Candidate` organization-global; job-specific lifecycle belongs to `Application`.
 - Evidence precedes consequential scores and recommendations.
@@ -16,12 +16,24 @@ Non-negotiable implementation rules:
 - Candidate-facing and internal-company experiences are separate security/UX surfaces.
 - AI Interviewer and AI Evaluator are logically separate.
 - Avatar/media presentation does not own interview intelligence.
-- Do not add mandatory per-minute hosted STT, TTS, avatar, or RTC dependencies.
+- Do not add mandatory hosted STT/TTS/avatar/RTC dependencies.
 - Do not add hidden/unapproved scraping as a core sourcing dependency.
 - Do not infer personality, honesty, emotion, confidence, or suitability from face/body/accent.
-- Tenant boundaries, authorization, audit, consent, and retention are product requirements, not cleanup tasks.
-- Current development is laptop-first and local-native; do not introduce Docker/Compose/MinIO as mandatory development prerequisites.
-- Use `StorageProvider` abstractions; development storage uses a local filesystem adapter until production object storage is intentionally introduced.
-- Install infrastructure/tools only when the active milestone requires them.
+- Tenant boundaries, authorization, audit, consent, and retention are foundation requirements.
+- Current development is laptop-first/local-native; Docker/Compose/MinIO are not mandatory dev prerequisites.
+- Use `StorageProvider`; local development uses the filesystem adapter.
 
-Before completing implementation work, run the available lint, typecheck, tests, and build checks for the changed scope. Update `projectstate.md` only when the repository state truly changed.
+Visual implementation rules:
+
+- Do not mark a route complete because it has a page title, card, route, or empty state.
+- Internal product UI must meet the enterprise information-density target in `docs/visual-product-target.md`.
+- Use real React/Next components. Generated mock images do not count as implementation.
+- Deterministic fixtures are permitted before domain APIs exist, but must be clearly development-only and replaced during the relevant vertical slice.
+- Keep layout primitives RTL/LTR capable; prefer logical CSS properties (`start/end`, `ps/pe`, `border-e`) over hard-coded left/right where direction matters.
+- A UI ticket cannot be DONE until executable browser screenshots are reviewed against the approved target.
+
+Validation rules:
+
+- Never claim lint/typecheck/test/build/migration success unless the command actually ran successfully.
+- When execution is unavailable, record `*_VALIDATION_PENDING` rather than `DONE`.
+- Before completing a validated change run the available lint, typecheck, tests and build for the changed scope.
