@@ -6,7 +6,14 @@ import { PermissionsGuard } from "./permissions.guard";
 import { Permissions, type Permission } from "./permissions";
 import type { TenantAccessService } from "./tenant-access.service";
 
-const context = {} as ExecutionContext;
+class TestController {}
+function testHandler() {}
+
+const context = {
+  getHandler: () => testHandler,
+  getClass: () => TestController,
+} as unknown as ExecutionContext;
+
 const organizationId = "22222222-2222-4222-8222-222222222222";
 const userId = "11111111-1111-4111-8111-111111111111";
 const membershipId = "33333333-3333-4333-8333-333333333333";
