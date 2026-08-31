@@ -16,22 +16,32 @@ Read these before making architectural changes:
 ```text
 apps/web                 Next.js company/candidate web surfaces
 apps/api                 NestJS core API
-services/ai-worker       AI/evaluation worker boundary (placeholder in T001)
-services/media-worker    realtime speech/avatar worker boundary (placeholder in T001)
+services/ai-worker       AI/evaluation worker boundary
+services/media-worker    realtime speech/avatar worker boundary
 packages/ui              shared product UI package
 packages/db              database package boundary
 packages/types           shared domain types
 packages/validation      shared validation contracts
 packages/config          shared configuration contracts
 packages/api-client      generated/typed API client boundary
-infra/docker             container assets
-infra/compose            local compose assets
 ```
 
-## Prerequisites
+Deployment/container assets are intentionally deferred. They will be added under `infra/` when deployment work actually begins.
 
+## Current development model
+
+Development is laptop-first and local-native. VS Code is the preferred IDE.
+
+Initial prerequisites:
+
+- Git
 - Node.js 24 LTS
 - pnpm 11
+- PostgreSQL installed locally when T002 begins
+
+Tools such as Python, Redis, pgvector, FFmpeg, LiveKit, coturn, whisper.cpp, local TTS, and avatar dependencies are installed only when the relevant milestone needs them.
+
+Docker Desktop, Docker Compose, Kubernetes, and MinIO are **not required for the current development phase**.
 
 ## Local bootstrap
 
@@ -52,4 +62,6 @@ pnpm build
 pnpm format
 ```
 
-Infrastructure is intentionally deferred to T002. Authentication, database, RBAC, audit, AI gateway, and the production design system are not part of T001.
+Local uploaded/test files will eventually use a development `LocalFilesystemStorageAdapter` under `.local-data/`; production object storage remains behind `StorageProvider` and is deferred.
+
+Authentication, database modeling, RBAC, audit, AI gateway, and the production design system are not part of T001.
