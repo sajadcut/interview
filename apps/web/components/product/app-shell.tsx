@@ -39,7 +39,7 @@ function NavItem({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[12px] font-medium transition ${
+      className={`group relative flex h-[38px] items-center gap-3 rounded-[10px] px-3 text-[12px] font-medium transition ${
         active
           ? "bg-white/[.09] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.045)]"
           : "text-slate-300 hover:bg-white/[.055] hover:text-white"
@@ -85,8 +85,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[236px_minmax(0,1fr)]"
       dir={directionFor(locale)}
     >
-      <aside className="hidden min-h-screen bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:block lg:h-screen">
-        <div className="mb-6 flex items-center gap-3 px-2 py-1">
+      <aside className="hidden bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0 lg:flex-col">
+        <div className="mb-5 flex shrink-0 items-center gap-3 px-2 py-1">
           <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30">
             <Icon name="sparkles" size={17} />
           </div>
@@ -96,32 +96,34 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className="space-y-1" aria-label={copy.navigationLabel}>
-          {primary.map(([label, href]) => {
-            const count = href === "/app/inbox" ? "8" : undefined;
-            return (
-              <NavItem
-                key={href}
-                label={label}
-                href={href}
-                active={isActivePath(pathname, href)}
-                {...(count ? { count } : {})}
-              />
-            );
-          })}
-        </nav>
+        <div className="min-h-0 flex-1 overflow-y-auto pe-1">
+          <nav className="space-y-1" aria-label={copy.navigationLabel}>
+            {primary.map(([label, href]) => {
+              const count = href === "/app/inbox" ? "8" : undefined;
+              return (
+                <NavItem
+                  key={href}
+                  label={label}
+                  href={href}
+                  active={isActivePath(pathname, href)}
+                  {...(count ? { count } : {})}
+                />
+              );
+            })}
+          </nav>
 
-        <div className="my-4 border-t border-white/10" />
-        <div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">
-          {header.automation}
+          <div className="my-4 border-t border-white/10" />
+          <div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">
+            {header.automation}
+          </div>
+          <nav className="space-y-1" aria-label={`${copy.navigationLabel} · ${header.automation}`}>
+            {secondary.map(([label, href]) => (
+              <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />
+            ))}
+          </nav>
         </div>
-        <nav className="space-y-1">
-          {secondary.map(([label, href]) => (
-            <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />
-          ))}
-        </nav>
 
-        <div className="absolute inset-x-3.5 bottom-4 flex items-center gap-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3">
+        <div className="mt-3 flex shrink-0 items-center gap-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3 shadow-[0_8px_28px_rgba(2,6,23,.18)]">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">
             SN
           </div>
