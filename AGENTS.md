@@ -30,6 +30,8 @@ Non-negotiable architecture rules:
 - Never commit Nexus credentials, npm tokens, `_auth`, `_authToken`, passwords, or other package-registry secrets.
 - Root `scarfSettings.enabled=false` is intentional; do not silently re-enable install analytics.
 - `package-lock.json` is the canonical JavaScript dependency lockfile. Do not commit `pnpm-lock.yaml`.
+- Every workspace must have a valid semantic `version`, a unique `@interview/*` name, and exact versions for internal workspace dependencies. Keep `npm run workspace:check` green.
+- `npm run install:clean` is only for recovering a stale local dependency graph/lockfile after verified manifest changes; do not use repeated deletion to conceal a reproducible dependency failure.
 
 Visual implementation rules:
 
@@ -45,6 +47,6 @@ Validation rules:
 - Never claim install/lint/typecheck/test/build/migration success unless the command actually ran successfully.
 - When execution is unavailable, record `*_VALIDATION_PENDING` rather than `DONE`.
 - Verify `node -v` satisfies `>=25.9.0 <26` and `npm -v` satisfies `>=11.6.2 <12` on the active workstation.
-- Run `npm run registry:check` before dependency installation or dependency-sensitive validation on a new workstation.
-- Run `npm run workstation:check` after install and before declaring the workstation ready.
+- Run `npm run registry:check` and `npm run workspace:check` before dependency-sensitive validation on a new workstation or after package-manifest changes.
+- `npm run workstation:check` validates the JavaScript workstation only (Node/npm/Git). PostgreSQL readiness is a separate `npm run db:check` gate and must not block frontend/static validation.
 - Before completing a validated change run the available lint, typecheck, tests and build for the changed scope.
