@@ -1,17 +1,21 @@
 # AI Recruiter Platform — MASTER
 
 > **Status:** Architecture baseline approved for implementation  
-> **Version:** 0.3.0  
+> **Version:** 0.4.0  
 > **Date:** 2026-08-31  
-> **Purpose:** Single source of truth for product boundaries, engineering architecture, UX principles, AI behavior, security, data model, interview architecture, and delivery order.
+> **Purpose:** Single source of truth for product boundaries, engineering architecture, UX principles, AI behavior, security, data model, interview architecture, development environment, and delivery order.
 
 ---
 
 ## 0. How to use this document
 
-This file is the stable contract for the project. Fast-changing execution state belongs in `projectstate.md`. Production release gates and the boundary for autonomous interviewing belong in `production-readiness.md`.
+This file is the stable architecture contract for the project.
 
-Any major architectural change must be reflected here and in `projectstate.md`.
+- `master.md` defines stable product and technical architecture.
+- `projectstate.md` defines current execution state, tickets, risks, and open decisions.
+- `production-readiness.md` defines the gates for safe real-candidate autonomous interviewing.
+
+Major architecture changes must be reflected here and in `projectstate.md`.
 
 ---
 
@@ -37,16 +41,16 @@ Job definition
 → Talent pool
 ```
 
-The product is not just an ATS and not just a video interview tool. The differentiator is an AI recruiting agent that can execute the workflow up to a defensible shortlist while preserving human review for consequential decisions.
+The product is not only an ATS and not only a video-interview tool. The differentiator is an AI recruiting agent that can execute the workflow up to a defensible shortlist while preserving human review for consequential employment decisions.
 
 ## 1.2 Primary outcomes
 
 1. Reduce recruiter manual work.
 2. Find relevant candidates faster.
-3. Reuse internal/previous candidates.
+3. Reuse internal and previous candidates.
 4. Make screening and interviews consistent and job-specific.
-5. Validate claimed skills using interview/assessment evidence.
-6. Produce traceable candidate evaluation.
+5. Validate claimed skills using resume, interview, and assessment evidence.
+6. Produce traceable candidate evaluations.
 7. Reduce time-to-hire.
 8. Keep consequential employment decisions human-reviewable.
 9. Support Persian and English.
@@ -54,7 +58,7 @@ The product is not just an ATS and not just a video interview tool. The differen
 
 ---
 
-# 2. Non-negotiable principles
+# 2. Non-negotiable product principles
 
 ## 2.1 Job-centric, candidate-global
 
@@ -99,40 +103,40 @@ Observation / answer / resume claim / assessment result
 → Recommendation
 ```
 
-A score without evidence is incomplete.
+A consequential score without evidence is incomplete.
 
 ## 2.4 Deterministic final scoring
 
-LLMs can propose criterion-level evaluations. Final weighted scores are calculated by domain code from a versioned rubric. The LLM does not invent the final fit percentage.
+LLMs may propose criterion-level evaluations. Final weighted scores are calculated by domain code from a versioned rubric. The LLM does not invent the final fit percentage.
 
 ## 2.5 Human-in-the-loop by default
 
-- AI can suggest rejection, but generative judgment alone cannot silently reject a candidate.
-- Hard eligibility filters may be automated only if explicitly configured and auditable.
-- AI recommendations are reviewable/overridable.
-- Score overrides require actor + reason + timestamp.
+- AI may suggest rejection, but generative judgment alone cannot silently reject a candidate.
+- Hard eligibility filters may be automated only when explicitly configured and auditable.
+- AI recommendations must be reviewable and overridable.
+- Score overrides require actor, reason, previous value, new value, and timestamp.
 - Final hiring decisions remain human-controlled.
 
-## 2.6 No unsupported psychological/biometric inference
+## 2.6 No unsupported psychological or biometric inference
 
 Do not infer personality, honesty, emotional state, mental traits, confidence, or job suitability from facial appearance, gaze, body movement, accent, or other weak/non-defensible biometric signals.
 
-Video is used for the interview experience, recording/replay, timestamped evidence, and session integrity where lawful—not pseudoscientific personality scoring.
+Video is used for interview experience, recording/replay, timestamped evidence, and session integrity where lawful—not pseudoscientific personality scoring.
 
 ## 2.7 Candidate experience is first-class
 
-Candidate-facing flows require clear consent, device checks, recording disclosure, accessibility, understandable next steps, multilingual support, error recovery, and privacy information.
+Candidate-facing flows require clear consent, recording disclosure, device checks, accessibility, understandable next steps, multilingual support, error recovery, and privacy information.
 
 ## 2.8 Interview automation has a release boundary
 
-No interview mode is considered production-safe merely because the realtime demo works.
+No interview mode is production-safe merely because a realtime demo works.
 
-Autonomous interviewing is enabled only after the relevant combination of job family + language + rubric + interview mode passes `production-readiness.md`.
+Autonomous interviewing is enabled only after the relevant combination of job family, language, rubric, and interview mode passes `production-readiness.md`.
 
-Every autonomous interview mode needs:
+Every autonomous interview mode requires:
 
 - versioned interview plan and rubric;
-- explicit allowed/forbidden behaviors;
+- explicit allowed and forbidden behaviors;
 - structured turn outputs;
 - independent evaluator;
 - evidence-linked criterion scoring;
@@ -152,7 +156,7 @@ The core interview path must have a commercially usable self-hosted implementati
 - STT;
 - TTS;
 - realtime digital-human/avatar rendering;
-- recording/object storage.
+- recording/storage.
 
 Target variable vendor cost:
 
@@ -164,7 +168,7 @@ Avatar API         not required
 RTC/media SaaS     not required
 ```
 
-Infrastructure still has CPU/GPU, bandwidth, storage, hosting and operations cost.
+Infrastructure still has CPU/GPU, bandwidth, storage, hosting, and operations cost.
 
 ## 2.10 Interview Brain and Digital Human are separate
 
@@ -184,50 +188,63 @@ Avatar Renderer
 Candidate
 ```
 
-The Interview Brain owns state, question strategy, follow-ups, evidence coverage, timing and policy. Avatar rendering only presents approved speech.
+The Interview Brain owns state, question strategy, follow-ups, evidence coverage, timing, and policy. Avatar rendering only presents approved speech.
 
-The Interviewer and Evaluator are also logically separate. The Interviewer optimizes the conversation. The Evaluator scores evidence against the rubric.
+The AI Interviewer and AI Evaluator are logically separate. The Interviewer optimizes the conversation. The Evaluator scores evidence against the rubric.
 
 ---
 
-# 3. Human roles
+# 3. Human roles and product surfaces
 
 | Role | Main responsibility |
 |---|---|
 | Recruiter | Jobs, sourcing, outreach, screening, pipeline, candidate review |
 | HR Manager | Policy, approvals, oversight, reporting |
 | Hiring Manager | Requirements, shortlist, comparison, final feedback |
-| Interviewer | Assigned interviews/scorecards/evidence review |
+| Interviewer | Assigned interviews, scorecards, evidence review |
 | Organization Admin | Members, roles, integrations, privacy/settings |
 | Candidate | Screening, scheduling, interview, assessment, consent |
 
-AI actions must be represented as explicit machine actors in audit logs.
+AI actions are represented as explicit machine actors in audit logs.
+
+## 3.1 Internal company application
+
+Recruiter, HR Manager, Hiring Manager, Interviewer, and Admin share one internal application. Navigation and available actions depend on role and permission.
+
+```text
+Internal App
+├─ Home / Command Center
+├─ Jobs
+├─ Candidates
+├─ Talent
+├─ Interviews
+├─ Inbox / Outreach
+├─ Analytics
+├─ Automations
+├─ Integrations
+└─ Settings
+```
+
+## 3.2 Candidate experience
+
+Candidate-facing flows are a separate security and UX surface.
+
+Typical entry:
+
+```text
+Secure invitation / magic link
+→ identity verification when required
+→ consent
+→ device check
+→ screening / interview / assessment
+→ completion
+```
+
+Candidate users do not enter the internal HR application.
 
 ---
 
 # 4. Product architecture
-
-Top-level product areas:
-
-```text
-Home / Command Center
-Jobs
-Candidates
-Talent
-Interviews
-Inbox / Outreach
-Analytics
-Automations
-Integrations
-Settings
-```
-
-Contextual capabilities should not pollute top-level navigation. Examples:
-
-- Sourcing belongs inside Job workspace.
-- Skill gap belongs in Candidate intelligence.
-- Transcript/evidence belongs inside Interview/Candidate.
-- Rubric belongs inside Job/Interview configuration.
 
 ## 4.1 Job Workspace
 
@@ -244,6 +261,8 @@ Job
 ├─ Activity
 └─ Settings
 ```
+
+Sourcing is contextual to a Job rather than a top-level navigation explosion.
 
 ## 4.2 Candidate Intelligence Workspace
 
@@ -278,7 +297,7 @@ Invite
 → Feedback
 ```
 
-Recruiter side:
+Internal review side:
 
 ```text
 Interview Plan
@@ -296,25 +315,85 @@ Decision support
 
 # 5. Technical architecture
 
-## 5.1 Deployment model
+## 5.1 Architecture style
 
 Start as a modular monolith plus specialized workers.
 
 ```text
-apps/web            Next.js / React / TypeScript
-apps/api            NestJS modular monolith
-services/ai-worker  AI/evaluation workloads
-services/media-worker realtime speech/avatar/media workloads
-packages/*          shared UI/types/validation/config/db clients
-infra/*             docker/compose/deployment assets
+apps/web                Next.js / React / TypeScript
+apps/api                NestJS modular monolith
+services/ai-worker      AI/evaluation workloads
+services/media-worker   realtime speech/avatar/media workloads
+packages/*              shared UI/types/validation/config/db clients
 ```
 
 Do not start with microservices.
 
-## 5.2 Core stack
+## 5.2 Development environment — LOCAL NATIVE BASELINE
+
+**Current development is laptop-first and local-native. Docker is not required for day-to-day development.**
+
+The intended workstation flow is:
+
+```text
+Laptop
+└─ VS Code
+   ├─ Node.js 24 LTS
+   ├─ pnpm 11
+   ├─ Git
+   ├─ PostgreSQL installed locally
+   ├─ Python installed locally when AI/media work begins
+   ├─ Redis installed locally only when a feature actually requires it
+   ├─ pgvector installed when candidate semantic matching begins
+   └─ project processes started directly from terminals/tasks
+```
+
+Development commands should work without Docker Desktop, Docker Compose, Kubernetes, or MinIO.
+
+### Local development principles
+
+1. Prefer direct installation of required developer tools on the laptop.
+2. Do not introduce Docker solely for convenience during the current implementation stage.
+3. Add a local service only when the current milestone requires it.
+4. Keep service interfaces deployment-independent so local implementations can later be replaced by production implementations.
+5. Development simplicity must not leak laptop-specific assumptions into domain code.
+
+### Intended local process layout
+
+```text
+VS Code
+├─ Terminal: pnpm dev:web       → Next.js
+├─ Terminal: pnpm dev:api       → NestJS
+├─ PostgreSQL local service
+├─ Redis local service          → only when needed
+├─ Python ai-worker             → when needed
+└─ Python media-worker          → when interview work begins
+```
+
+VS Code is the preferred IDE for the current development phase, but the repository must not depend on editor-specific proprietary behavior.
+
+## 5.3 Production/deployment portability
+
+Docker/containerization is **deferred**, not rejected.
+
+When deployment work begins, the architecture may add:
+
+```text
+Dockerfiles
+Docker Compose for reproducible environments where useful
+container registry
+production process manager/orchestrator
+GPU worker containers
+cloud deployment definitions
+```
+
+These are deployment concerns and are not prerequisites for current laptop development.
+
+## 5.4 Core stack
 
 ```text
 Runtime              Node.js 24 LTS
+Package manager      pnpm 11
 Frontend             Next.js 16.3 line + React + TypeScript
 Styling              Tailwind CSS
 UI primitives         shadcn/ui-based internal design system
@@ -324,27 +403,82 @@ Forms                 React Hook Form + Zod
 Small client state    Zustand
 Backend               NestJS 12
 AI/media workers      Python where advantageous
-Database              PostgreSQL 18.x
+Database              PostgreSQL 18.x, local during development
 ORM                   Drizzle ORM
-Vector                pgvector
-Cache/ephemeral       Redis
-Workflow              Temporal
-Object storage        S3-compatible / MinIO
-Realtime media        LiveKit OSS self-hosted
-TURN                   coturn
-VAD                    Silero VAD
+Vector                pgvector, introduced when matching requires it
+Cache/ephemeral       Redis, introduced when feature requirements justify it
+Workflow              Temporal, introduced when long-running workflows require it
+Object storage        StorageProvider abstraction; local filesystem in development
+Realtime media        LiveKit OSS self-hosted when realtime interview work begins
+TURN                   coturn when remote WebRTC/NAT traversal requires it
+VAD                    Silero VAD baseline
 STT                    whisper.cpp baseline
 TTS                    self-hosted provider interface; VITS-family benchmark baseline
 Avatar                 self-hosted AvatarProvider; MuseTalk benchmark baseline
-Observability          OpenTelemetry + structured logs + Sentry-compatible error tracking
+Observability          OpenTelemetry + structured logs; error tracking added as needed
 CI/CD                  GitHub Actions
+IDE                    VS Code preferred for current local development
 ```
 
-Exact model versions are pinned only after performance/license review.
+Exact model versions are pinned only after performance and license review.
 
 ---
 
-# 6. Backend bounded modules
+# 6. Storage architecture
+
+## 6.1 StorageProvider abstraction
+
+Business modules must not depend directly on MinIO, AWS S3, or the local filesystem.
+
+Use a capability interface conceptually similar to:
+
+```text
+StorageProvider
+├─ put(file, metadata)
+├─ get(key)
+├─ delete(key)
+├─ exists(key)
+└─ createReadReference(key)
+```
+
+## 6.2 Development storage
+
+For the current laptop development phase:
+
+```text
+LocalFilesystemStorageAdapter
+→ .local-data/storage/
+```
+
+Examples stored locally during development:
+
+- sample CVs;
+- candidate attachments;
+- test audio;
+- test video;
+- generated interview artifacts.
+
+The local storage directory is ignored by Git.
+
+Do not require MinIO for M0/M1 development.
+
+## 6.3 Production storage
+
+Production will use a durable object-storage implementation behind the same interface, such as:
+
+```text
+S3StorageAdapter
+or
+S3CompatibleStorageAdapter
+```
+
+MinIO remains an optional S3-compatible implementation for future self-hosted environments; it is **not the current development baseline**.
+
+Production storage must support retention/deletion policy, access control, encryption strategy, auditability, and large video/audio objects.
+
+---
+
+# 7. Backend bounded modules
 
 Initial NestJS modules:
 
@@ -377,11 +511,11 @@ privacy
 ai
 ```
 
-Business modules call capability interfaces. They must not directly lock the domain to a model/media vendor.
+Business modules call capability interfaces. They must not directly lock the domain to a model, storage, media, or infrastructure vendor.
 
 ---
 
-# 7. Repository shape
+# 8. Repository shape
 
 ```text
 interview/
@@ -398,20 +532,21 @@ interview/
 │  ├─ validation/
 │  ├─ config/
 │  └─ api-client/
-├─ infra/
-│  ├─ docker/
-│  └─ compose/
+├─ infra/                  reserved for future deployment assets
 ├─ master.md
 ├─ projectstate.md
 ├─ production-readiness.md
+├─ AGENTS.md
 ├─ package.json
 ├─ pnpm-workspace.yaml
 └─ turbo.json
 ```
 
+`infra/` may remain empty during the local-native development phase. Docker/Compose files are not required to satisfy repository foundation work.
+
 ---
 
-# 8. Core data model
+# 9. Core data model
 
 Primary entities:
 
@@ -471,11 +606,11 @@ Notification
 RecruitmentEvent
 ```
 
-## 8.1 Candidate identity
+## 9.1 Candidate identity
 
-Candidate identity resolution may use email, phone, LinkedIn/profile URL where lawfully available, name/company/history and other signals. Ambiguous merges require review.
+Candidate identity resolution may use email, phone, LinkedIn/profile URL where lawfully available, name/company/history, and other signals. Ambiguous merges require review.
 
-## 8.2 Application
+## 9.2 Application
 
 `Application` is the relationship between Candidate and Job and owns job-specific lifecycle state:
 
@@ -493,21 +628,23 @@ final decision state
 
 ---
 
-# 9. Resume ingestion and matching
+# 10. Resume ingestion and matching
 
 Resume pipeline:
 
 ```text
 Upload
-→ secure object storage
+→ StorageProvider
 → text extraction
 → structured parsing
 → experience/skills extraction
 → chunks
-→ embeddings
+→ embeddings when enabled
 → evidence candidates
 → candidate profile update
 ```
+
+During laptop development, uploaded documents may be stored through `LocalFilesystemStorageAdapter`.
 
 Candidate matching is not cosine similarity converted into a percentage.
 
@@ -524,7 +661,7 @@ Vector search is a retrieval signal, not the final business score.
 
 ---
 
-# 10. Evidence architecture
+# 11. Evidence architecture
 
 Evidence is first-class.
 
@@ -545,7 +682,7 @@ Evidence should support deep links to source material and timestamps where possi
 
 ---
 
-# 11. Scoring architecture
+# 12. Scoring architecture
 
 ```text
 Rubric Version
@@ -561,11 +698,11 @@ Recommendation
 Human Review / Override
 ```
 
-Every override records previous value, new value, actor, reason and timestamp.
+Every override records previous value, new value, actor, reason, and timestamp.
 
 ---
 
-# 12. Sourcing
+# 13. Sourcing architecture
 
 All sourcing is adapter-based:
 
@@ -577,24 +714,27 @@ CandidateSourceAdapter
 └─ ApprovedExternalSourceAdapter
 ```
 
-Do not make unapproved platform scraping a core dependency.
+Do not make hidden or unapproved platform scraping a core dependency.
 
 Sourcing flow:
 
 ```text
 Job
 → AI search strategy
+→ query expansion
 → human/policy approval where required
-→ adapters
+→ source adapters
 → normalization
-→ deduplication
+→ identity resolution / deduplication
 → matching
 → ranked discovered candidates
 ```
 
+Vector retrieval, keyword search, and structured filters may contribute to discovery, but business fit is computed separately.
+
 ---
 
-# 13. Outreach and candidate conversation
+# 14. Outreach and candidate conversation
 
 Core entities:
 
@@ -607,7 +747,7 @@ Campaign
 CandidateContact
 ```
 
-Candidate-facing answers about salary, remote policy, benefits, process, etc. must be grounded in approved company/job knowledge.
+Candidate-facing answers about salary, remote policy, benefits, process, and similar facts must be grounded in approved company/job knowledge.
 
 ```text
 Candidate question
@@ -620,9 +760,9 @@ Candidate question
 
 ---
 
-# 14. Workflow orchestration
+# 15. Workflow orchestration
 
-Use Temporal for long-running workflows such as:
+Temporal is intended for long-running workflows such as:
 
 ```text
 Candidate found
@@ -637,13 +777,15 @@ Candidate found
 → manager review
 ```
 
+Temporal is **not required during the first repository/database foundation steps**. Introduce it when real multi-step waits, retries, and human signals appear.
+
 Do not model multi-day orchestration as fragile cron chains and boolean flags.
 
 ---
 
-# 15. AI Interview architecture
+# 16. AI Interview architecture
 
-## 15.1 Core loop
+## 16.1 Core loop
 
 ```text
 Candidate microphone
@@ -662,7 +804,9 @@ Candidate microphone
 
 No mandatory hosted STT/TTS/avatar/media provider credentials are required.
 
-## 15.2 Interview Planner
+During early development, individual interview components may be run directly on the laptop without containers. GPU-heavy avatar work may later move to a dedicated machine while preserving the same interfaces.
+
+## 16.2 Interview Planner
 
 Builds an interview plan from:
 
@@ -690,7 +834,7 @@ Evidence objectives:
 - failure recovery
 ```
 
-## 15.3 Dialogue Engine
+## 16.3 Dialogue Engine
 
 Questions form a controlled graph/state machine, not a static list and not a free LLM chat.
 
@@ -715,7 +859,7 @@ SKIP
 CLOSE
 ```
 
-## 15.4 Structured turn contract
+## 16.4 Structured turn contract
 
 The LLM should return structured output similar to:
 
@@ -732,7 +876,7 @@ The LLM should return structured output similar to:
 
 Only approved `spoken_text` is sent to TTS/avatar.
 
-## 15.5 Interview state
+## 16.5 Interview state
 
 Track at least:
 
@@ -748,7 +892,7 @@ candidate intent
 session/reconnect state
 ```
 
-## 15.6 Interviewer vs Evaluator
+## 16.6 Interviewer vs Evaluator
 
 ```text
 AI Interviewer
@@ -758,493 +902,309 @@ AI Evaluator
 → independently evaluates collected evidence against rubric
 ```
 
-Separate prompts/traces/roles.
+Separate prompts/traces/roles are required for meaningful production evaluation.
 
-## 15.7 Avatar strategy
+## 16.7 Digital human
 
-Do not pre-record one MP4 per question.
-
-Baseline approach:
+Avatar is presentation only.
 
 ```text
-professionally recorded actor idle/listening assets
-+ local generated speech
-+ realtime lip-sync/avatar rendering
-→ live digital interviewer
+Interview Brain
+→ spoken_text
+→ TTSProvider
+→ AvatarProvider
+→ media output
 ```
 
-The actor likeness/voice requires explicit commercial rights and consent.
+Baseline research path:
 
-`AvatarProvider` abstraction must allow replacing MuseTalk if benchmarks or licensing require it.
+- professionally recorded actor assets;
+- commercially licensed/owned likeness and voice rights;
+- local TTS;
+- MuseTalk-family realtime lip-sync benchmark;
+- voice-only fallback.
 
-## 15.8 Failure behavior
-
-Avatar is not a single point of failure.
-
-```text
-avatar fails      → continue voice-only
-TTS failure       → retry / fallback local engine
-LLM timeout       → retry / safe controlled fallback
-STT low confidence→ ask candidate to repeat
-WebRTC disconnect → reconnect and resume checkpoint
-browser crash     → resume session when policy allows
-```
+Do not architect the interview as `question → prerecorded mp4`.
 
 ---
 
-# 16. Assessments
+# 17. Assessments
 
-Coding assessment:
+Coding assessment architecture:
 
 ```text
 Question
-→ browser code editor
-→ submission
+→ Web editor
+→ Submission
 → isolated runner
-→ test cases
-→ static/runtime signals
+→ tests
+→ structured result
 → AI evidence analysis
 → rubric score
 ```
 
-Never execute untrusted candidate code inside the core API process.
+Candidate code must never execute directly inside the core API process.
 
-System-design assessments may use a node/edge canvas and structured explanation.
+System-design and role-specific assessments use versioned prompts/tasks and versioned rubrics.
 
 ---
 
-# 17. Analytics
+# 18. Analytics
 
-Primary recruitment events:
+Recruiting activity emits domain events such as:
 
 ```text
 candidate.discovered
 candidate.contacted
-candidate.responded
 candidate.screened
 candidate.interviewed
-candidate.assessed
-candidate.shortlisted
 candidate.rejected
 candidate.hired
 ```
 
-Initial analytics can use PostgreSQL. Add a dedicated analytical store only when measured load justifies it.
+Initial analytics may use PostgreSQL. Introduce a dedicated analytics store only after measured volume justifies it.
 
-Metrics include funnel conversion, stage duration, time-to-hire, source quality, recruiter workload, interview load, AI quality/calibration, and cost.
+Core metrics include:
 
----
-
-# 18. Security, privacy and governance
-
-Required from the beginning:
-
-- tenant isolation;
-- RBAC/permission checks;
-- least privilege;
-- encrypted transport;
-- secure object storage;
-- consent records;
-- recording policy;
-- retention/deletion policy;
-- audit trails;
-- AI provenance;
-- secrets management;
-- log redaction for sensitive data;
-- deletion of derived artifacts/vector representations when policy requires it.
-
-Audit examples:
-
-```text
-candidate.stage_changed
-candidate.score_overridden
-candidate.rejected
-job.rubric_changed
-interview.started
-interview.completed
-ai.recommendation_reviewed
-consent.recorded
-retention.deletion_executed
-```
+- pipeline conversion;
+- stage duration;
+- time-to-hire;
+- source quality;
+- outreach response;
+- interview completion;
+- human/AI calibration;
+- low-confidence rate;
+- false-rejection analysis.
 
 ---
 
-# 19. UI/UX architecture
+# 19. Security, privacy, and governance
 
-The UI is not an admin-template card grid.
+Foundation requirements:
 
-Design for data-dense enterprise workflows using:
+- organization/tenant isolation;
+- RBAC and explicit permissions;
+- audit log for consequential actions;
+- candidate consent records;
+- video/audio recording disclosure;
+- configurable retention/deletion;
+- secure storage access;
+- AI execution provenance;
+- human override history;
+- no unsupported biometric/personality scoring.
 
-- advanced tables;
-- master-detail/split views;
-- contextual side panels;
-- saved views;
-- advanced filters;
-- bulk actions;
-- inline editing;
-- command/search patterns;
-- pipeline views;
-- timelines;
-- compare mode;
-- evidence blocks;
-- sticky contextual actions.
-
-The Home page is a Command Center, not just KPI cards.
-
-Candidate Profile is a Candidate Intelligence Workspace.
-
-AI UI patterns must consistently show what AI did, why, evidence, confidence where meaningful, approval state, and override controls.
+Production secret management must not rely on committed `.env` files. Local `.env` files are acceptable for laptop development and must be ignored by Git.
 
 ---
 
-# 20. Design system
+# 20. Frontend and Design System principles
 
-Primitive components:
+The UI must not become a generic admin template or card grid.
+
+Use reusable primitives plus domain components.
+
+Primitives include:
 
 ```text
 Button
-IconButton
 Input
-Textarea
-Select
 Combobox
-MultiSelect
-Badge
-StatusBadge
-Avatar
-Tooltip
 Dialog
 Drawer
 Popover
-Dropdown
 Tabs
-SegmentControl
-Table/DataGrid
-EmptyState
-Skeleton
-Pagination
-SearchBar
+DataTable
 FilterBuilder
 SavedView
-PageHeader
-WorkspaceHeader
-SidePanel
 SplitView
 Timeline
-ActivityItem
+EmptyState
+Skeleton
 ```
 
-Domain components:
+Product-aware components include:
 
 ```text
 CandidateRow
-CandidateCard
+CandidateHeader
 JobHeader
 MatchScore
-SkillChip
 SkillMatrix
-CandidateStage
-AIRecommendation
 EvidenceBlock
+AIRecommendation
 Scorecard
 InterviewMoment
 PipelineColumn
-PipelineCandidate
-ConfidenceIndicator
-RiskBadge
+ActivityItem
+RiskPanel
 ```
+
+Candidate and Job workflows should favor data-dense patterns such as advanced tables, split views, contextual side panels, saved filters, bulk actions, and evidence drill-down.
 
 ---
 
 # 21. API conventions
 
-- REST + OpenAPI first.
-- Generate typed API clients.
-- Validate inputs at boundaries.
-- Use stable IDs.
-- Cursor pagination for large collections where appropriate.
-- Every consequential mutation performs authorization + audit.
-- Idempotency for externally retried operations.
-- Domain services own business invariants.
-
----
-
-# 22. Testing
-
-Required layers:
+Baseline:
 
 ```text
-unit
-integration
-API contract
-database migration
-permission/tenant isolation
-AI structured-output tests
-prompt/evaluation regression
-browser E2E
-realtime interview integration
-failure/reconnect tests
-load tests
-security tests
+REST
+OpenAPI
+versioned endpoint conventions
+typed API client
+Zod/shared validation where appropriate
+structured errors
+correlation/request ID
+tenant context
+authorization at service boundary
 ```
 
-AI tests must include fixed evaluation datasets rather than relying only on manual prompting.
+Do not expose database records directly as uncontrolled API contracts.
 
 ---
 
-# 23. Observability
+# 22. Testing strategy
 
-Track:
+Minimum layers:
 
 ```text
-request latency/error rate
-workflow failures
-LLM latency/cost/fallback
-STT latency/confidence
-TTS latency
-avatar render latency
-realtime reconnects
-interview completion rate
-transcription failure rate
-GPU utilization
-TURN bandwidth
-object-storage growth
+unit tests
+service/domain tests
+authorization tests
+tenant-isolation tests
+API integration tests
+critical browser flows
+AI contract/evaluation tests
+interview reliability tests
 ```
 
-All significant workflows use correlation IDs.
+For AI behavior, deterministic fixtures and evaluation datasets are more important than only snapshotting prose.
+
+Persian interview testing must include mixed Persian-English technical speech.
 
 ---
 
-# 24. Delivery milestones
+# 23. Local developer setup strategy
 
-## M0 — Foundation
-
-- monorepo bootstrap;
-- local Docker infrastructure;
-- web/API baseline;
-- PostgreSQL/Redis/object storage;
-- organization/user/RBAC;
-- tenant context;
-- audit foundation;
-- AI Gateway interfaces;
-- design tokens/app shell;
-- CI.
-
-## M1 — Job → Candidate → Evidence vertical slice
-
-- Job creation + AI Job Builder;
-- requirements/skills/seniority;
-- versioned rubric;
-- candidate + CV ingestion;
-- resume parsing;
-- Application;
-- matching;
-- evidence records;
-- pipeline;
-- deterministic scoring;
-- human review;
-- candidate compare/shortlist.
-
-## M2 — Sourcing + Talent
-
-- source adapters;
-- sourcing runs;
-- deduplication;
-- internal talent rediscovery;
-- talent pools.
-
-## M3 — Outreach + Screening + Scheduling
-
-- inbox/conversations;
-- templates/sequences;
-- approved knowledge answers;
-- structured screening;
-- eligibility rules;
-- calendar integration;
-- Temporal workflows.
-
-## M4 — AI Interview
-
-- candidate invite/consent/device check;
-- LiveKit OSS + coturn;
-- Silero VAD;
-- local STT benchmark/integration;
-- local Persian/English TTS benchmark/integration;
-- actor/avatar asset pipeline and rights checklist;
-- self-hosted AvatarProvider benchmark;
-- Interview Planner + Dialogue Engine;
-- structured turn contract;
-- interruption/clarification handling;
-- separate Interviewer/Evaluator;
-- transcript/recording/evidence/key moments;
-- recruiter review UI;
-- latency/load benchmark;
-- no paid media/STT/TTS/avatar credentials required.
-
-## M5 — Assessments
-
-- coding environment + isolated runner;
-- system-design canvas;
-- domain assessments;
-- assessment versioning;
-- anti-cheating/risk signals for human review.
-
-## M6 — Analytics + enterprise hardening
-
-- funnel analytics;
-- time/cost/source KPIs;
-- AI quality analytics;
-- SSO/SCIM as required;
-- API/webhooks;
-- ATS/HRMS integrations;
-- retention/governance;
-- enterprise audit export.
-
----
-
-# 25. Explicit early non-goals
-
-Do not block early milestones on:
-
-- unapproved LinkedIn scraping;
-- photorealistic full-generative avatar;
-- facial emotion/personality analysis;
-- full HRMS;
-- analytics warehouse;
-- microservices/Kubernetes;
-- custom vector database;
-- every ATS integration;
-- native mobile apps.
-
----
-
-# 26. Baseline ADRs
-
-## ADR-001 — Modular monolith first
-NestJS modular monolith for business API; specialized workers separate.
-
-## ADR-002 — PostgreSQL is system of record
-Highly relational domain requires transactions and auditability.
-
-## ADR-003 — pgvector before separate vector DB
-Use PostgreSQL FTS + pgvector until measured scale requires otherwise.
-
-## ADR-004 — Drizzle ORM
-Type-safe PostgreSQL access with explicit SQL/index/vector control.
-
-## ADR-005 — Evidence-backed evaluation
-Evidence is first-class and important AI evaluation should reference it.
-
-## ADR-006 — Deterministic final score
-Final weighted scoring occurs in domain code, not generative output.
-
-## ADR-007 — Provider abstractions
-Business modules call capability interfaces rather than model/media vendors directly.
-
-## ADR-008 — LiveKit OSS for realtime interview media
-Self-hosted realtime media foundation.
-
-## ADR-009 — Temporal for long-running recruiting workflows
-Use durable workflows for days/weeks of waits, retries and human signals.
-
-## ADR-010 — REST + OpenAPI first
-Typed REST contract with generated client.
-
-## ADR-011 — No unsupported biometric/personality inference
-Raw appearance/body cues are not used for psychological suitability scoring.
-
-## ADR-012 — No unapproved source scraping
-Sourcing occurs through explicit organization-approved source adapters.
-
-## ADR-013 — No mandatory usage-metered media SaaS
-Self-host RTC/TURN/VAD/STT/TTS/avatar; paid LLM API allowed initially.
-
-## ADR-014 — Interview Brain independent from AvatarProvider
-Question strategy/state cannot depend on digital-human vendor.
-
-## ADR-015 — Interviewer and Evaluator are separate logical agents
-Conversation and scoring are independently testable and traceable.
-
-## ADR-016 — Initial self-hosted realtime baseline
-Benchmark LiveKit OSS + coturn + Silero VAD + whisper.cpp + self-hosted VITS-family TTS + MuseTalk. Pin exact models only after performance/license review.
-
-## ADR-017 — Autonomous interviewing is gated
-Internal test → shadow evaluation → supervised pilot → controlled production → scaled production. `production-readiness.md` is the release authority.
-
----
-
-# 27. Feature Definition of Done
-
-A feature is not done because the happy-path page renders.
-
-Verify:
-
-- role + permission behavior;
-- tenant isolation;
-- loading/empty/error/processing/success states;
-- audit where consequential;
-- AI provenance/evidence where applicable;
-- human override where applicable;
-- notifications/workflow triggers;
-- analytics events;
-- privacy/retention impact;
-- accessibility;
-- Persian/English/RTL-LTR implications;
-- responsive behavior;
-- API contract;
-- automated tests;
-- observability;
-- documentation.
-
----
-
-# 28. Open product/business decisions
-
-1. Initial target market/jurisdiction.
-2. Production cloud/region and data residency.
-3. Identity provider / first-release SSO requirements.
-4. Approved external candidate/job-board sources.
-5. Outbound communication channels.
-6. Default candidate-data retention.
-7. Recording mandatory/optional/configurable policy.
-8. First job families for launch.
-9. Default Persian/English and RTL/LTR strategy.
-10. Compensation-data policy for candidate AI chat.
-11. Target GPU and expected concurrent interviews.
-12. Final Persian TTS model.
-13. Actor voice/likeness commercial contract.
-14. Final avatar model/version.
-15. Final Whisper model/quantization.
-
----
-
-# 29. Project control documents
+## 23.1 Required initially
 
 ```text
-master.md
-→ stable product + architecture contract
-
-projectstate.md
-→ current execution state + milestones + decisions
-
-production-readiness.md
-→ evidence required before real customers can safely delegate interviews
+VS Code
+Git
+Node.js 24 LTS
+pnpm 11
+PostgreSQL
 ```
 
-A feature can be technically complete while not production-approved.
+## 23.2 Installed when milestone requires it
+
+```text
+Python
+Redis
+pgvector
+FFmpeg
+whisper.cpp toolchain
+LiveKit server
+coturn
+TTS runtime
+Avatar/GPU dependencies
+Temporal
+```
+
+Do not install all infrastructure on day one merely because it may be needed later.
+
+## 23.3 Not required for current development
+
+```text
+Docker Desktop
+Docker Compose
+Kubernetes
+MinIO
+cloud deployment account
+hosted STT/TTS/avatar services
+```
 
 ---
 
-# 30. Final implementation rule
-
-When speed conflicts with foundation, protect these first:
+# 24. Delivery order
 
 ```text
-1. Tenant isolation
-2. Evidence provenance
-3. Versioned rubrics/scoring
-4. Human review + audit
-5. Candidate/application identity integrity
+M0 Foundation
+→ M1 Job → Candidate → Evidence vertical slice
+→ M2 Sourcing + Talent
+→ M3 Outreach + Screening + Scheduling
+→ M4 AI Interview
+→ M5 Assessments
+→ M6 Analytics + Enterprise hardening
 ```
 
-Visual polish, extra automation and integrations can iterate later. Corrupting these foundations is expensive to repair.
+### M0 local-native interpretation
+
+M0 should establish:
+
+```text
+monorepo
+web shell
+API shell
+local PostgreSQL
+Drizzle
+organization/user/membership
+RBAC
+audit
+local filesystem StorageProvider
+AI provider interfaces
+Design System foundation
+typed API client
+CI
+```
+
+Redis, MinIO, Docker, Temporal, and realtime media are not required merely to complete early foundation work unless a specific feature makes them necessary.
+
+---
+
+# 25. Architecture decision summary
+
+Locked decisions:
+
+```text
+Modular monolith first
+Candidate organization-global; Application job-specific
+PostgreSQL primary system of record
+Drizzle ORM
+Evidence first
+Deterministic final scoring
+Human review for consequential decisions
+Provider abstractions
+pgvector before external vector DB
+REST + OpenAPI first
+Approved sourcing adapters
+Audit from foundation
+No unsupported biometric/personality inference
+Candidate-facing and internal surfaces separated
+Controlled Interview Brain
+Interviewer/Evaluator separation
+Avatar presentation-only
+No mandatory per-minute media SaaS
+Self-hosted interview media path
+Local-native laptop development baseline
+VS Code preferred development IDE
+No Docker requirement during current implementation phase
+Local filesystem storage during development
+MinIO/S3 deferred behind StorageProvider
+```
+
+---
+
+# 26. Change policy
+
+Any future proposal that changes one of the locked decisions should document:
+
+1. the problem;
+2. the proposed change;
+3. alternatives considered;
+4. migration impact;
+5. security/privacy impact;
+6. cost impact;
+7. whether `projectstate.md` or `production-readiness.md` must also change.
+
+The goal is not to preserve decisions forever. The goal is to prevent accidental architecture drift.
