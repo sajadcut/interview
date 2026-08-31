@@ -1,9 +1,9 @@
-import { existsSync, rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const nodeModules = resolve(root, "node_modules");
+const workspaceRoots = ["apps", "packages"];
 const lockfile = resolve(root, "package-lock.json");
 
 const workspaceCheck = spawnSync(process.execPath, [resolve(root, "scripts/check-workspaces.mjs")], {
@@ -13,9 +13,22 @@ const workspaceCheck = spawnSync(process.execPath, [resolve(root, "scripts/check
 });
 if (workspaceCheck.status !== 0) process.exit(workspaceCheck.status ?? 1);
 
-if (existsSync(nodeModules)) {
-  console.log("Removing node_modules from the previous dependency graph...");
-  rmSync(nodeModules, { recursive: true, force: true, maxRetries: 3, retryDelay: 250 });
+const nodeModulesDirectories = [resolve(root, "node_modules")];
+for (const workspaceRoot of workspaceRoots) {
+  const absoluteRoot = resolve(root, workspaceRoot);
+  if (!existsSync(absoluteRoot)) continue;
+
+  for (const entry of readdirSync(absoluteRoot)) {
+    const workspaceDirectory = join(absoluteRoot, entry);
+    if (!statSync(workspaceDirectory).isDirectory()) continue;
+    nodeModulesDirectories.push(join(workspaceDirectory, "node_modules"));
+  }
+}
+
+for (const directory of nodeModulesDirectories) {
+  if (!existsSync(directory)) continue;
+  console.log(`Removing stale dependency tree: ${directory}`);
+  rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
 }
 
 if (existsSync(lockfile)) {
