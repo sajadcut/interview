@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../product/icon";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const apiUrl = "/api/backend";
 
 const intents = [
   "ANSWER",
