@@ -26,11 +26,11 @@ packages/config          shared configuration contracts
 packages/api-client      generated/typed API client boundary
 ```
 
-Deployment/container assets are intentionally deferred. They will be added under `infra/` when deployment work actually begins.
+Deployment/container assets are intentionally deferred and will be added under `infra/` only when deployment work actually begins.
 
 ## Current development model
 
-Development is laptop-first and local-native. VS Code is the preferred IDE.
+Development is **laptop-first and local-native**. VS Code is the preferred IDE.
 
 Initial prerequisites:
 
@@ -39,7 +39,17 @@ Initial prerequisites:
 - pnpm 11
 - PostgreSQL installed locally when T002 begins
 
-Tools such as Python, Redis, pgvector, FFmpeg, LiveKit, coturn, whisper.cpp, local TTS, and avatar dependencies are installed only when the relevant milestone needs them.
+Install later only when the active milestone requires them:
+
+- Python
+- Redis
+- pgvector
+- FFmpeg
+- LiveKit OSS
+- coturn
+- whisper.cpp
+- local TTS/avatar dependencies
+- Temporal
 
 Docker Desktop, Docker Compose, Kubernetes, and MinIO are **not required for the current development phase**.
 
@@ -62,6 +72,6 @@ pnpm build
 pnpm format
 ```
 
-Local uploaded/test files will eventually use a development `LocalFilesystemStorageAdapter` under `.local-data/`; production object storage remains behind `StorageProvider` and is deferred.
+Development file uploads will use `LocalFilesystemStorageAdapter` under `.local-data/`. Production object storage remains behind `StorageProvider` and is intentionally deferred.
 
 Authentication, database modeling, RBAC, audit, AI gateway, and the production design system are not part of T001.
