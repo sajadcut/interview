@@ -5,6 +5,10 @@ import { Icon } from "../product/icon";
 
 type CandidateStage = "consent" | "device" | "introduction";
 type DeviceState = "idle" | "checking" | "ready" | "error";
+type ProbeResult = {
+  stream: MediaStream | null;
+  message: string;
+};
 
 const steps = [
   ["Invitation", "Verified invite", "complete"],
@@ -20,14 +24,64 @@ function stageIndex(stage: CandidateStage): number {
   return stage === "consent" ? 1 : stage === "device" ? 2 : 3;
 }
 
+function mediaErrorMessage(kind: "camera" | "microphone", error: unknown): string {
+  const label = kind === "camera" ? "Camera" : "Microphone";
+  if (!(error instanceof DOMException)) {
+    return `${label} could not be started.`;
+  }
+
+  switch (error.name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return `${label} permission is blocked. Allow it for localhost in the browser site settings, then retry.`;
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return `No ${kind} device was detected by the browser.`;
+    case "NotReadableError":
+    case "TrackStartError":
+      return `${label} was detected but could not start. Close apps that may be using it (Teams, Zoom, Camera, Meet), then retry.`;
+    case "OverconstrainedError":
+    case "ConstraintNotSatisfiedError":
+      return `${label} is present but cannot satisfy the requested browser constraints.`;
+    case "SecurityError":
+      return `${label} access is blocked by the browser security context or policy.`;
+    case "AbortError":
+      return `${label} startup was interrupted. Retry the device check.`;
+    default:
+      return error.message ? `${label}: ${error.message}` : `${label} could not be started.`;
+  }
+}
+
+async function probeDevice(kind: "camera" | "microphone"): Promise<ProbeResult> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(
+      kind === "camera" ? { video: true, audio: false } : { video: false, audio: true },
+    );
+    const live = (kind === "camera" ? stream.getVideoTracks() : stream.getAudioTracks()).some(
+      (track) => track.readyState === "live",
+    );
+    if (!live) {
+      stream.getTracks().forEach((track) => track.stop());
+      return { stream: null, message: `${kind === "camera" ? "Camera" : "Microphone"} stream opened without a live track.` };
+    }
+    return { stream, message: `${kind === "camera" ? "Camera" : "Microphone"} is ready.` };
+  } catch (error) {
+    return { stream: null, message: mediaErrorMessage(kind, error) };
+  }
+}
+
 export function CandidateInterviewExperience() {
   const [stage, setStage] = useState<CandidateStage>("consent");
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [deviceState, setDeviceState] = useState<DeviceState>("idle");
   const [deviceMessage, setDeviceMessage] = useState("Camera and microphone have not been checked yet.");
+  const [cameraMessage, setCameraMessage] = useState("Not checked");
+  const [microphoneMessage, setMicrophoneMessage] = useState("Not checked");
   const [hasCamera, setHasCamera] = useState(false);
   const [hasMicrophone, setHasMicrophone] = useState(false);
+  const [cameraCount, setCameraCount] = useState<number | null>(null);
+  const [microphoneCount, setMicrophoneCount] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -45,31 +99,65 @@ export function CandidateInterviewExperience() {
     }
 
     setDeviceState("checking");
-    setDeviceMessage("Requesting camera and microphone permission…");
+    setDeviceMessage("Checking camera and microphone independently…");
+    setCameraMessage("Checking…");
+    setMicrophoneMessage("Checking…");
+    setHasCamera(false);
+    setHasMicrophone(false);
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    let devices: MediaDeviceInfo[] = [];
     try {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      streamRef.current = stream;
-      const camera = stream.getVideoTracks().some((track) => track.readyState === "live");
-      const microphone = stream.getAudioTracks().some((track) => track.readyState === "live");
-      setHasCamera(camera);
-      setHasMicrophone(microphone);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
-      }
-      if (camera && microphone) {
-        setDeviceState("ready");
-        setDeviceMessage("Camera and microphone are available for the development device check.");
-      } else {
-        setDeviceState("error");
-        setDeviceMessage("Camera or microphone is missing from the granted media stream.");
-      }
-    } catch (error) {
-      setHasCamera(false);
-      setHasMicrophone(false);
-      setDeviceState("error");
-      setDeviceMessage(error instanceof Error ? error.message : "Camera/microphone permission was not granted.");
+      devices = await navigator.mediaDevices.enumerateDevices();
+      setCameraCount(devices.filter((device) => device.kind === "videoinput").length);
+      setMicrophoneCount(devices.filter((device) => device.kind === "audioinput").length);
+    } catch {
+      setCameraCount(null);
+      setMicrophoneCount(null);
+    }
+
+    const [cameraResult, microphoneResult] = await Promise.all([
+      probeDevice("camera"),
+      probeDevice("microphone"),
+    ]);
+
+    const cameraReady = Boolean(cameraResult.stream);
+    const microphoneReady = Boolean(microphoneResult.stream);
+    setHasCamera(cameraReady);
+    setHasMicrophone(microphoneReady);
+    setCameraMessage(cameraResult.message);
+    setMicrophoneMessage(microphoneResult.message);
+
+    const tracks = [
+      ...(cameraResult.stream?.getVideoTracks() ?? []),
+      ...(microphoneResult.stream?.getAudioTracks() ?? []),
+    ];
+    const combinedStream = tracks.length > 0 ? new MediaStream(tracks) : null;
+    streamRef.current = combinedStream;
+
+    if (videoRef.current && cameraResult.stream) {
+      videoRef.current.srcObject = new MediaStream(cameraResult.stream.getVideoTracks());
+      await videoRef.current.play().catch(() => undefined);
+    }
+
+    if (cameraReady && microphoneReady) {
+      setDeviceState("ready");
+      setDeviceMessage("Camera and microphone are ready. The preview stays local to this browser session.");
+      return;
+    }
+
+    setDeviceState("error");
+    if (!cameraReady && microphoneReady) {
+      setDeviceMessage("Microphone is ready, but the camera could not start. Resolve the camera issue below and retry.");
+    } else if (cameraReady && !microphoneReady) {
+      setDeviceMessage("Camera is ready, but the microphone could not start. Resolve the microphone issue below and retry.");
+    } else {
+      setDeviceMessage("Neither camera nor microphone could be started. Check browser permissions and whether another app is using the devices.");
     }
   }
 
@@ -151,7 +239,7 @@ export function CandidateInterviewExperience() {
               <>
                 <div className="flex items-start gap-3">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-indigo-50 text-indigo-600"><Icon name="interviews" size={17} /></div>
-                  <div><div className="text-[11px] font-medium text-indigo-600">Device check</div><h2 className="mt-1 text-[26px] font-semibold tracking-tight">Check camera and microphone</h2><p className="mt-2 max-w-2xl text-[12px] leading-6 text-slate-500">This check uses the browser media-device API on localhost. It does not upload or persist the preview stream.</p></div>
+                  <div><div className="text-[11px] font-medium text-indigo-600">Device check</div><h2 className="mt-1 text-[26px] font-semibold tracking-tight">Check camera and microphone</h2><p className="mt-2 max-w-2xl text-[12px] leading-6 text-slate-500">This check uses the browser media-device API on localhost. It probes camera and microphone independently and does not upload or persist the preview stream.</p></div>
                 </div>
 
                 <div className="mt-7 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
@@ -160,11 +248,14 @@ export function CandidateInterviewExperience() {
                   </div>
                   <div className="space-y-3">
                     <div className="rounded-[12px] border border-slate-100 p-4">
-                      <div className="flex items-center justify-between text-[11px]"><span>Camera</span><span className={hasCamera ? "font-semibold text-emerald-600" : "text-slate-400"}>{hasCamera ? "Ready" : "Not ready"}</span></div>
-                      <div className="mt-3 flex items-center justify-between text-[11px]"><span>Microphone</span><span className={hasMicrophone ? "font-semibold text-emerald-600" : "text-slate-400"}>{hasMicrophone ? "Ready" : "Not ready"}</span></div>
+                      <div className="flex items-start justify-between gap-4 text-[11px]"><span>Camera{cameraCount !== null ? ` (${cameraCount} detected)` : ""}</span><span className={hasCamera ? "font-semibold text-emerald-600" : "text-slate-400"}>{hasCamera ? "Ready" : "Not ready"}</span></div>
+                      <div className={`mt-1 text-[9px] leading-4 ${hasCamera ? "text-emerald-600" : "text-slate-500"}`}>{cameraMessage}</div>
+                      <div className="mt-4 flex items-start justify-between gap-4 text-[11px]"><span>Microphone{microphoneCount !== null ? ` (${microphoneCount} detected)` : ""}</span><span className={hasMicrophone ? "font-semibold text-emerald-600" : "text-slate-400"}>{hasMicrophone ? "Ready" : "Not ready"}</span></div>
+                      <div className={`mt-1 text-[9px] leading-4 ${hasMicrophone ? "text-emerald-600" : "text-slate-500"}`}>{microphoneMessage}</div>
                     </div>
                     <div className={`rounded-[12px] border p-4 text-[10px] leading-5 ${deviceState === "error" ? "border-rose-100 bg-rose-50 text-rose-700" : deviceState === "ready" ? "border-emerald-100 bg-emerald-50 text-emerald-700" : "border-slate-100 bg-slate-50 text-slate-600"}`}>{deviceMessage}</div>
-                    <button type="button" onClick={runDeviceCheck} disabled={deviceState === "checking"} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-indigo-200 bg-white px-4 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"><Icon name="play" size={14} />{deviceState === "checking" ? "Checking devices…" : "Run device check"}</button>
+                    <button type="button" onClick={runDeviceCheck} disabled={deviceState === "checking"} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border border-indigo-200 bg-white px-4 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60"><Icon name="play" size={14} />{deviceState === "checking" ? "Checking devices…" : "Retry camera + microphone"}</button>
+                    <div className="rounded-[10px] bg-slate-50 p-3 text-[9px] leading-4 text-slate-500">If Chrome reports “Could not start video source”, close Windows Camera, Teams, Zoom, Meet tabs, OBS or virtual-camera software, then retry. The browser console “unload” permission-policy warning is unrelated to camera startup.</div>
                   </div>
                 </div>
 
