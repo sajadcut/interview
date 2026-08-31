@@ -37,7 +37,11 @@ export default function CandidateDetail() {
             <div className="mt-2 flex flex-wrap gap-3 text-[9px] text-slate-400"><span>LinkedIn identity · unverified</span><span>ali.rahimi@email.com</span><span>+98 912 345 6789</span></div>
           </div>
         </div>
-        <div className="flex gap-2"><ToolbarButton>Add Note</ToolbarButton><ToolbarButton>Add to Job</ToolbarButton><ToolbarButton icon="more">More</ToolbarButton></div>
+        <div className="flex gap-2">
+          <ToolbarButton disabled title="Candidate note persistence is not wired to this development page yet">Add Note</ToolbarButton>
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/candidates">Add to Job</ToolbarButton>
+          <ToolbarButton icon="more" disabled title="Additional candidate actions are not wired yet">More</ToolbarButton>
+        </div>
       </div>
 
       <nav className="flex gap-6 overflow-x-auto border-b border-slate-200 text-[11px]">
@@ -73,11 +77,12 @@ export default function CandidateDetail() {
             <div className="mt-2 text-[17px] font-semibold">Proceed to Technical Interview</div>
             <div className="mt-4 flex items-center justify-between"><span className="text-[9px] text-slate-400">Evidence confidence</span><Pill tone="green">High</Pill></div>
             <p className="mt-4 text-[10px] leading-5 text-slate-500">Validate production debugging, system design and leadership evidence before any final recommendation.</p>
-            <button className="mt-5 h-10 w-full rounded-[10px] border border-indigo-200 text-[10px] font-semibold text-indigo-600">Review & move to interview</button>
+            <Link href="/app/interviews/ali-rahimi" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] border border-indigo-200 text-[10px] font-semibold text-indigo-600 transition hover:bg-indigo-50">Review interview evidence</Link>
           </div>
         </Panel>
       </div>
 
+      <div id="experience" className="sr-only" aria-hidden="true">Experience anchor</div>
       <div id="skills" className="grid gap-3 xl:grid-cols-[1.2fr_.8fr]">
         <Panel>
           <SectionHeader title="Skills intelligence" subtitle="Verified/unverified state remains visible instead of silently inferring expertise." />
@@ -105,6 +110,9 @@ export default function CandidateDetail() {
         <div id="job-matches"><Panel><SectionHeader title="Job matches" /><div className="p-5 pt-3"><div className="text-[12px] font-semibold">Senior Backend Engineer</div><div className="mt-1 text-[10px] text-slate-500">Active application · Interview stage</div><div className="mt-3"><Pill tone="green">91% pre-interview match</Pill></div></div></Panel></div>
         <Panel><SectionHeader title="Assessment evidence" /><div className="p-5 pt-3"><div className="text-[12px] font-semibold">Backend production exercise</div><div className="mt-1 text-[10px] text-slate-500">29 / 32 tests · isolated runner</div><Link href="/app/candidates/ali-rahimi/assessments" className="mt-3 inline-block text-[10px] font-semibold text-indigo-600">Open assessment evidence →</Link></div></Panel>
       </div>
+
+      <div id="communications" className="sr-only" aria-hidden="true">Communications anchor</div>
+      <div id="notes" className="sr-only" aria-hidden="true">Notes anchor</div>
     </div>
   );
 }
