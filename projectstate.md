@@ -1,8 +1,8 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests, production build and full-stack development runtime start validated on Windows; patched desktop visual recheck passed on representative surfaces; responsive/RTL fixes pushed and await screenshot + same-HEAD quality validation  
-> **Version:** 0.11.4  
-> **Date:** 2026-08-31  
+> **Status:** M1–M6 implementation baseline materially advanced; PostgreSQL connectivity validated; latest API tests, production build and full-stack development runtime start validated on Windows; functionalization pass now wires primary navigation actions, makes unsupported controls explicit, and replaces fake interview media with a real media boundary  
+> **Version:** 0.11.5  
+> **Date:** 2026-09-01  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
 
@@ -16,10 +16,10 @@ Core technical architecture              ✅ Defined
 Interview architecture                   ✅ Defined
 Production-readiness gates               ✅ Defined
 Laptop-first dev baseline                ✅ Locked
-Node.js 25.9 runtime baseline            ✅ VALIDATED ON WINDOWS
-npm 11.6 workspaces                      ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                 ✅ VERIFIED ON WORKSTATION
-PostgreSQL 17.11 client/server           ✅ CONNECTIVITY + AUTH VALIDATED
+Node.js 25.9 runtime baseline             ✅ VALIDATED ON WINDOWS
+npm 11.6 workspaces                       ✅ VALIDATED ON WINDOWS
+Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
+PostgreSQL 17.11 client/server            ✅ CONNECTIVITY + AUTH VALIDATED
 Database                                 ✅ interview / role interview
 Migration runner                          ✅ TRANSACTIONAL / CHECKSUM-TRACKED
 Migrations 0001–0007                      ✅ APPLIED ON WORKSTATION
@@ -30,27 +30,31 @@ Migration contract validator              🟡 CODED / EXECUTION RESULT NOT YET 
 Development identity bootstrap            ✅ VALIDATED BEFORE LATEST DOMAIN SEED
 M1–M5 deterministic domain seed           🟡 CODED / DB EXECUTION RESULT NOT YET CAPTURED
 OpenAPI + typed client                    🟡 REGENERATION RESULT ON LATEST HEAD NOT YET CAPTURED
-Last pre-responsive API tests             ✅ 27/27 PASS
-Last pre-responsive production build      ✅ SUCCESS
-Last Next.js static generation            ✅ 25/25 ROUTES
+Last captured API tests                   ✅ 27/27 PASS
+Last captured production build            ✅ SUCCESS
+Last captured Next.js static generation   ✅ 25/25 ROUTES
 Full-stack development runtime            ✅ STARTED SUCCESSFULLY ON WORKSTATION
 Executable browser review                 ✅ FOUR PASSES COMPLETED
 Deep M1–M6 desktop review                 ✅ 11 ROUTES REVIEWED
 Patched desktop representative recheck    ✅ 3 ROUTES PASSED
 Responsive source audit                   ✅ COMPLETED / MOBILE NAV FIX PUSHED
 RTL source audit                          ✅ COMPLETED / CANDIDATE DIRECTION FIX PUSHED
-Responsive screenshots                    ⏳ PENDING
-Persian-shell RTL screenshots             ⏳ PENDING
-Latest responsive/RTL HEAD lint           ⏳ PENDING
-Latest responsive/RTL HEAD typecheck      ⏳ PENDING
-Latest responsive/RTL HEAD build          ⏳ PENDING
-Visual acceptance                         ⚠️ NOT YET COMPLETE — RESPONSIVE + RTL + SAME-HEAD QUALITY OPEN
-M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / FINAL VISUAL GATE PENDING
-M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / FINAL VISUAL GATE PENDING
-M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / FINAL VISUAL GATE PENDING
-M4 AI Interview                           🟡 DEV_ONLY GATED RUNTIME PRIMITIVES CODED / REALTIME+CALIBRATION PENDING
+UI functionalization pass                 🟡 PRIMARY ACTIONS WIRED / LATEST HEAD VALIDATION PENDING
+Fake interview media                      ✅ REMOVED FROM REVIEW SURFACE
+Interview recording player boundary       ✅ REAL <video> WHEN URL EXISTS / NO FAKE VIDEO OTHERWISE
+Candidate consent interaction             🟡 BROWSER-INTERACTIVE / SERVER PERSISTENCE PENDING
+Candidate device check                    🟡 getUserMedia PREVIEW CODED / WORKSTATION VALIDATION PENDING
+Realtime AI interview media loop          ⏳ NOT IMPLEMENTED
+Latest functionalization HEAD lint        ⏳ PENDING
+Latest functionalization HEAD typecheck   ⏳ PENDING
+Latest functionalization HEAD build       ⏳ PENDING
+Visual acceptance                         ⚠️ NOT YET COMPLETE — SAME-HEAD FUNCTIONAL/QUALITY RECHECK OPEN
+M1 Job → Candidate → Evidence             🟡 DB-BACKED API BASELINE CODED / FUNCTIONAL WIRING CONTINUES
+M2 Sourcing + Talent                      🟡 PERSISTED API BASELINE CODED / API-TO-UI EXECUTION WIRING PENDING
+M3 Outreach + Screening + Scheduling      🟡 PERSISTED WORKFLOW BASELINE CODED / WRITE-ACTION UI WIRING PENDING
+M4 AI Interview                           🟡 DEV_ONLY DOMAIN + CONSENT/DEVICE UX / REALTIME+CALIBRATION PENDING
 M5 Assessments                            🟡 SUBMISSION+ISOLATED-RUNNER INGEST CODED / REAL RUNNER PENDING
-M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+FINAL VISUAL GATE PENDING
+M6 Analytics + Enterprise hardening       🟡 ANALYTICS+PRIVACY+RETENTION BASELINE CODED / DB+ACTION WIRING PENDING
 package-lock.json                         🟡 REAL WORKSTATION LOCKFILE COMMIT PENDING
 T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
 Production approval                       ⬜ NOT APPROVED
@@ -74,7 +78,7 @@ Database user interview
 
 `npm run db:check` succeeds. The last captured migration failure was in 0008 because a tenant-safe foreign key referenced `rubric_criteria(organization_id,id)` before that composite key was unique. The repository adds the missing composite uniqueness in 0008. Because 0008 failed transactionally and was never checksum-recorded as applied, the correction does not alter an applied migration. A successful rerun of 0008–0014 has not yet been captured in supplied workstation logs.
 
-The full development stack has been reported as started successfully on the workstation. This validates process startup, but it does not by itself close database-migration, API-behavior or final visual acceptance gates.
+The full development stack has been reported as started successfully on the workstation. This validates process startup, but it does not by itself close database-migration, API-behavior or final functional acceptance gates.
 
 ---
 
@@ -124,7 +128,7 @@ Migration 0014 adds recruitment-event, retention-policy and privacy-request foun
 
 # 4. JavaScript validation evidence
 
-The latest captured workstation execution before the responsive/RTL patch validates:
+The latest captured workstation execution before the responsive/functionalization patches validates:
 
 ```text
 npm run test   -> 27 tests, 27 pass, 0 fail
@@ -134,11 +138,35 @@ Next.js        -> 25/25 static routes generated
 npm run dev    -> full-stack development runtime started successfully
 ```
 
-Because the responsive/RTL fixes modify web source after that gate, lint/typecheck/build must be rerun before those newer commits are marked green.
+Because responsive/RTL and functionalization commits modify web source after that gate, lint/typecheck/build must be rerun before the newer HEAD is marked green.
 
 ---
 
-# 5. Browser review state
+# 5. Functionalization pass
+
+The latest UI pass explicitly addresses the gap between polished screens and actual behavior.
+
+Implemented now:
+
+- shared `ToolbarButton` supports real navigation targets and explicit disabled states;
+- Job Workspace `Find Candidates` navigates to Sourcing;
+- Candidate Workspace review/add-to-job navigation is wired where a real destination exists;
+- Sourcing evidence review navigates to candidate workspaces, while sourcing execution is explicitly disabled until authenticated API-to-UI wiring is implemented;
+- Outreach thread/grounding navigation is wired; sequence creation remains explicit pending behavior;
+- Interview plan links to scorecards and the candidate internal test surface;
+- Scorecard review routes to interview evidence;
+- Assessment review routes into scorecard review;
+- global search, global Ask AI, notification center, share/more actions that are not implemented no longer pretend to be functional;
+- Interview Review no longer displays a decorative digital-human image as if it were video. A real HTML `<video>` player is rendered only when a recording URL exists; otherwise an explicit no-recording state is shown;
+- Candidate consent is browser-interactive and gates progression;
+- Candidate device check uses `navigator.mediaDevices.getUserMedia` for local camera/microphone preview without upload/persistence;
+- the candidate flow reaches Introduction, then explicitly blocks `Start AI interview` until the realtime M4 media/brain runtime is connected.
+
+This pass intentionally does **not** fake backend writes or interview media. Unsupported actions are disabled and labeled rather than silently no-op.
+
+---
+
+# 6. Browser review state
 
 Deep desktop review covered:
 
@@ -156,28 +184,13 @@ Deep desktop review covered:
 /candidate
 ```
 
-Review 3 fixed fixture/customer-data provenance, interview recommendation decision-boundary visibility and candidate-surface width/hierarchy.
+Review 3 fixed fixture/customer-data provenance, interview recommendation decision-boundary visibility and candidate-surface width/hierarchy. Review 4 rechecked representative patched desktop routes successfully.
 
-Review 4 then rechecked representative patched desktop routes:
-
-```text
-/app/jobs/senior-backend-engineer
-/app/interviews/ali-rahimi
-/candidate
-```
-
-Those screenshots pass the defects found in Review 3: provenance is subtle but explicit, interview scoring/recommendation is clearly decision support rather than final authority, and the candidate consent surface has the intended wide hierarchy and internal/candidate separation.
-
-A source-level responsive and RTL audit found two additional implementation gaps and both are now patched:
-
-- below `lg`, the internal desktop sidebar was hidden with no replacement navigation; a sticky horizontally-scrollable mobile navigation bar is now provided and top actions collapse safely on narrow widths;
-- the English candidate fixture could inherit RTL from the root locale; it now explicitly declares `lang=en` and `dir=ltr` until Persian candidate copy exists.
-
-Responsive screenshots and a Persian-shell RTL screenshot remain required before global visual acceptance can close.
+The new functionalization pass requires a fresh same-HEAD workstation validation, especially the browser media permission flow and the updated navigation/disabled states.
 
 ---
 
-# 6. Safety boundaries preserved
+# 7. Safety boundaries preserved
 
 ```text
 Candidate remains organization-global; Application remains job-specific.
@@ -197,9 +210,19 @@ Privacy/retention actions remain reviewable and auditable.
 
 ---
 
-# 7. Next validation sequence
+# 8. Next validation sequence
 
-Pull the responsive/RTL fixes and run the same-HEAD web quality gate. Then capture representative narrow-screen internal/candidate screenshots and one Persian-shell RTL screenshot.
+Pull the functionalization pass and run:
+
+```powershell
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run dev
+```
+
+Then validate the candidate consent/device flow on localhost and the primary navigation actions. After that, the next engineering priority is real API-to-UI mutation wiring for M1–M3 and the M4 realtime media/Interview Brain loop.
 
 The real workstation-generated `package-lock.json` must be committed only after the dependency/quality gate is green. T012 CI remains gated on that canonical lockfile and must use Node 25.9.x, npm 11.6.x, Dotin Nexus and `npm ci` without committed registry credentials.
 
