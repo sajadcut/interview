@@ -1,36 +1,19 @@
 # ADR-0001 — Node.js 22.14.0 runtime baseline
 
-> Status: APPROVED
+> Status: SUPERSEDED by `ADR-0002-node-25-npm-runtime.md`  
 > Date: 2026-08-31
 
-## Context
+## Historical context
 
-`master.md` v0.4.0 selected Node.js 24 LTS. The active development baseline is now Node.js 22.14.0 with pnpm 11.13.1 and the required Dotin Nexus registry.
+`master.md` v0.4.0 selected Node.js 24 LTS. This ADR temporarily changed the active development baseline to Node.js 22.14.0 with pnpm 11.13.1.
 
-## Decision
+That decision was later replaced after the development workstation moved to Node.js 25.9.0 and npm 11.6.2 and the repository was migrated to npm workspaces.
 
-The effective repository runtime is:
+## Historical decision
 
 ```text
 Node.js >=22.14.0 <23
 pnpm 11.x
 ```
 
-The repository enforces this through `package.json`, `.nvmrc`, `pnpm-workspace.yaml` engine strictness, and `scripts/check-workstation.mjs`.
-
-This ADR supersedes only Node.js 24 runtime-version statements in `master.md` v0.4.0. All other architecture decisions remain unchanged. A future master revision should fold this runtime decision into the canonical document.
-
-## Alternatives
-
-- Upgrade the workstation to Node.js 24: not selected for the current path.
-- Support both Node.js 22 and 24: deferred until CI validates a runtime matrix.
-- Ignore engine mismatch warnings: rejected because the development environment should be deterministic.
-
-## Migration impact
-
-- Local development and T012 CI use Node.js 22.14+ and below 23.
-- Any local lockfile must be validated under Node.js 22.14.0 before commit.
-
-## Other impact
-
-No product, data-model, tenant, authorization, storage, AI, privacy, or deployment architecture changes result from this decision.
+Do not use this ADR as the current runtime/package-manager contract. See ADR-0002 and the current `master.md` / `projectstate.md`.
