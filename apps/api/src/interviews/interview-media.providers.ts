@@ -7,7 +7,7 @@ export interface MediaProviderDescriptor {
   configured: boolean;
   healthUrl: string | null;
   version?: string;
-  configurationReason?: string;
+  configurationReason: string | undefined;
 }
 
 export type MediaHealthFetcher = (url: string, init?: RequestInit) => Promise<Response>;
