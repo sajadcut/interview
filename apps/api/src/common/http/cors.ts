@@ -1,16 +1,17 @@
-export function buildCorsOrigins(configuredOrigins: string, nodeEnv: string): string[] {
-  const origins = new Set(
+export type CorsOriginConfig = "*" | string[];
+
+export function buildCorsOrigin(configuredOrigins: string): CorsOriginConfig {
+  const origins = [...new Set(
     configuredOrigins
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
-  );
+  )];
 
-  if (nodeEnv !== "production") {
-    origins.add("http://localhost:3000");
-    origins.add("http://127.0.0.1:3000");
-    origins.add("http://[::1]:3000");
+  if (origins.includes("*")) return "*";
+  if (origins.length === 0) {
+    throw new Error("CORS_ORIGIN must contain at least one origin or *");
   }
 
-  return [...origins];
+  return origins;
 }
