@@ -7,9 +7,7 @@ This document prevents a recurrence of treating a generic application shell as a
 
 ## Principle
 
-A route is not considered visually implemented merely because it has routing, a card component, an empty state, or a page title.
-
-For the internal recruiter product, visual completion requires production-grade information architecture and interaction density comparable to the approved product references supplied by the product owner.
+A route is not visually complete merely because it has routing, a card, an empty state, or a page title. Visual completion requires production-grade information architecture and interaction density comparable to the product references approved by the product owner.
 
 ## Current approved target surfaces
 
@@ -27,14 +25,14 @@ For the internal recruiter product, visual completion requires production-grade 
 
 - dark enterprise navigation with clear hierarchy and active states;
 - persistent top actions/search where appropriate;
-- information-dense B2B layout, not a card gallery;
+- information-dense B2B layout, not a generic card gallery;
 - compact typography and spacing appropriate for recruiter workflows;
 - tables, tabs, filters, saved-view affordances and contextual actions;
-- visible AI provenance/recommendation language without presenting AI as final authority;
+- visible AI recommendation/provenance language without presenting AI as final authority;
 - evidence/score structures that can later connect to domain APIs;
 - clear internal-app vs candidate-app separation;
 - responsive behavior;
-- RTL/LTR capable layout primitives;
+- direction-aware RTL/LTR layout primitives;
 - no unsupported psychological/biometric visualizations;
 - no invented production metrics presented as real customer data.
 
@@ -43,6 +41,8 @@ For the internal recruiter product, visual completion requires production-grade 
 Until M1 domain endpoints exist, the visual target may use deterministic development fixtures from `apps/web/lib/demo-data.ts`.
 
 Fixtures are allowed only to exercise real React/Next.js UI. They must not be described as persisted production data and must be replaced with typed API data as each domain slice lands.
+
+The first visual implementation is English-content-first to match the approved visual references. Shell/navigation direction is locale-aware now; complete Persian copy for all new fixture-backed surfaces remains a dedicated localization pass and is not falsely marked complete.
 
 ## Visual acceptance gate
 
@@ -55,7 +55,8 @@ route exists
 + empty/loading/error states considered
 + desktop layout reviewed
 + responsive behavior reviewed
-+ RTL/LTR reviewed where applicable
++ RTL/LTR direction reviewed
++ Persian/English copy reviewed where in scope
 + screenshot taken from executable application
 + screenshot compared to approved target
 + lint/typecheck/build pass
