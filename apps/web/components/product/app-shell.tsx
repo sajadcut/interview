@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return <div className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[224px_minmax(0,1fr)]" dir={directionFor(locale)}>
     <aside className="hidden min-h-screen bg-[#101827] px-3 py-4 text-white lg:sticky lg:top-0 lg:block lg:h-screen">
       <div className="mb-6 flex items-center gap-3 px-2"><div className="grid h-9 w-9 place-items-center rounded-[10px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30"><Icon name="sparkles" size={17}/></div><div><div className="text-[13px] font-semibold">AI Recruiter</div><div className="text-[9px] text-slate-400">{copy.subtitle}</div></div></div>
-      <nav className="space-y-1">{primary.map(([label,href])=><NavItem key={href} label={label} href={href} count={href==="/app/inbox"?"8":undefined}/>)}</nav>
+      <nav className="space-y-1">{primary.map(([label,href])=>href==="/app/inbox"?<NavItem key={href} label={label} href={href} count="8"/>:<NavItem key={href} label={label} href={href}/>)}</nav>
       <div className="my-4 border-t border-white/10"/>
       <div className="mb-2 px-3 text-[8px] font-semibold uppercase tracking-[.18em] text-slate-500">{header.automation}</div>
       <nav className="space-y-1">{secondary.map(([label,href])=><NavItem key={href} label={label} href={href}/>)}</nav>
