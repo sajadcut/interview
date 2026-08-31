@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M0 JavaScript foundation validated on Windows; enterprise visual target builds successfully; browser review and database validation pending  
-> **Version:** 0.9.4  
+> **Status:** M0 JavaScript foundation validated on Windows; first executable visual review completed; visual iteration 1 pushed and awaiting re-validation; database validation pending  
+> **Version:** 0.9.5  
 > **Date:** 2026-08-31  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -22,28 +22,28 @@ Dotin Nexus npm registry                  ✅ VERIFIED ON WORKSTATION
 Clean npm install                         ✅ SUCCESS (320 packages)
 Workspace metadata check                  ✅ SUCCESS (8 workspaces)
 JavaScript workstation check              ✅ NODE/NPM/GIT VERIFIED
-Lint                                      ✅ SUCCESS
-Typecheck                                 ✅ SUCCESS
-API tests                                 ✅ 16/16 PASS
-Production build                          ✅ SUCCESS
-Next.js route generation                  ✅ 20/20 STATIC PAGES
-package-lock.json                         🟡 GENERATED LOCALLY / COMMIT PENDING
-Frontend executable browser review        ➡️ NEXT
-PostgreSQL client                         ⏳ NOT INSTALLED / DB VALIDATION PENDING
-T012 CI                                   ⏳ AFTER CANONICAL LOCKFILE
-M1 domain vertical slice                  ⬜ NOT STARTED
-Production approval                       ⬜ NOT APPROVED
+Last pre-visual lint                       ✅ SUCCESS
+Last pre-visual typecheck                  ✅ SUCCESS
+Last pre-visual API tests                  ✅ 16/16 PASS
+Last pre-visual production build           ✅ SUCCESS
+Last pre-visual Next.js generation         ✅ 20/20 STATIC PAGES
+First executable browser review            ✅ /app, /app/jobs, /app/candidates REVIEWED
+Visual acceptance                          ⚠️ NOT ACCEPTED — GAPS FOUND
+Visual iteration 1                         ✅ PUSHED TO MAIN / RE-VALIDATION PENDING
+package-lock.json                          🟡 GENERATED LOCALLY / COMMIT PENDING
+PostgreSQL client                          ⏳ NOT INSTALLED / DB VALIDATION PENDING
+T012 CI                                    ⏳ AFTER CANONICAL LOCKFILE
+M1 domain vertical slice                   ⬜ NOT STARTED
+Production approval                        ⬜ NOT APPROVED
 ```
 
-The active JavaScript baseline is `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 supersedes ADR-0001.
+The active JavaScript baseline remains `Node.js >=25.9.0 <26` with `npm >=11.6.2 <12`, npm workspaces, Turborepo, and the required Dotin Nexus registry. ADR-0002 supersedes ADR-0001.
 
-The Windows workstation has now successfully completed the repository JavaScript quality gate. This is based on real local execution, not static inspection.
+The last full JavaScript quality gate passed on the Windows workstation before visual iteration 1. Because visual iteration 1 changes executable web code, the latest `main` must be linted, typechecked, tested and built again before those checks are attributed to the new HEAD.
 
 ---
 
 # 2. Validated workstation evidence
-
-The workstation reported:
 
 ```text
 Node.js     v25.9.0
@@ -52,97 +52,75 @@ Git         2.53.0.windows.3
 Registry    https://nexus3.dotin.ir/repository/Dotin-NPM/
 ```
 
-Registry validation succeeded against Dotin Nexus and resolved `@eslint/js 10.0.1`.
-
-A clean npm recovery removed stale root/workspace dependency trees and completed successfully with 320 packages installed. The workspace checker validated all 8 npm workspace manifests and exact internal `@interview/*` versions.
+Dotin Nexus validation succeeded and resolved `@eslint/js 10.0.1`. A clean npm recovery removed stale root/workspace dependency trees and installed 320 packages. The workspace checker validated all 8 npm workspace manifests and exact internal `@interview/*` versions.
 
 ---
 
-# 3. JavaScript quality gate — validated
+# 3. Last validated JavaScript quality gate
 
-## Lint
-
-`npm run lint` succeeded across all workspaces that define lint tasks.
+Before visual iteration 1, the workstation reported:
 
 ```text
-Tasks: 5 successful, 5 total
+npm run lint       -> 5/5 tasks successful
+npm run typecheck  -> 5/5 tasks successful
+npm run test       -> 16 tests, 16 pass, 0 fail
+npm run build      -> API TypeScript build + Next.js production build successful
+Next.js            -> 20/20 static pages generated
 ```
 
-## Typecheck
+These results remain valid evidence for the foundation/toolchain, but the modified web HEAD requires a fresh quality-gate run.
 
-`npm run typecheck` succeeded across API, web, DB, UI and API client workspaces.
+---
 
-```text
-Tasks: 5 successful, 5 total
-```
+# 4. First executable visual review
 
-## Tests
-
-`npm run test` executed the API test suite successfully:
+Real browser screenshots were reviewed for:
 
 ```text
-tests     16
-pass      16
-fail      0
-```
-
-Coverage includes AI structured-output validation, database-derived tenant authorization, permission guards, tenant guards, local storage traversal protection and tenant-scoped storage retrieval.
-
-## Build
-
-`npm run build` succeeded for both executable applications:
-
-```text
-@interview/api  -> tsc -p tsconfig.build.json      ✅
-@interview/web  -> Next.js 16.3.3 production build ✅
-Tasks: 2 successful, 2 total
-```
-
-Next.js compiled successfully, completed TypeScript validation, generated all 20 static pages, and finalized page optimization.
-
-Validated routes include:
-
-```text
-/
 /app
-/app/analytics
-/app/automations
-/app/candidates
-/app/candidates/ali-rahimi
-/app/inbox
-/app/integrations
-/app/interviews
-/app/interviews/ali-rahimi
 /app/jobs
-/app/jobs/new
-/app/jobs/senior-backend-engineer
-/app/jobs/senior-backend-engineer/candidates
-/app/jobs/senior-backend-engineer/pipeline
-/app/settings
-/app/talent
-/candidate
+/app/candidates
 ```
+
+They proved the application shell and target routes execute, but did not meet the visual acceptance contract. Shared findings:
+
+- the default Persian/RTL shell was being combined with English fixture content, reversing page hierarchy and table reading order;
+- the sidebar lacked active-route state;
+- typography and table density were too small at the captured desktop viewport;
+- the fixture notice was too visually prominent;
+- metric cards, page headers and toolbars needed stronger hierarchy;
+- the shell/topbar needed clearer enterprise action structure.
+
+Visual iteration 1 therefore changed shared shell/design primitives plus Command Center, Jobs and Candidates:
+
+- English is now the default fixture locale; `NEXT_PUBLIC_DEFAULT_LOCALE=fa` explicitly enables the Persian shell;
+- English fixture-backed main content remains LTR until complete Persian product copy exists;
+- active navigation states were added;
+- topbar/sidebar spacing and action hierarchy were refined;
+- table typography and row density were increased for production readability;
+- shared panels, pills, metrics, tabs, avatars and fixture notice were refined;
+- `/app`, `/app/jobs`, and `/app/candidates` received route-level hierarchy/table refinements.
+
+No visual route is marked accepted until new executable screenshots are reviewed.
 
 ---
 
-# 4. Source of truth
+# 5. Source of truth
 
 - `master.md` — stable product and architecture contract including Node 25/npm workspaces.
 - `docs/architecture-decisions/ADR-0002-node-25-npm-runtime.md` — active runtime/package-manager decision.
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `AGENTS.md` — implementation rules.
-- `docs/visual-product-target.md` — visual implementation acceptance contract.
+- `docs/visual-product-target.md` — visual implementation acceptance contract and first executable review findings.
 
 ---
 
-# 5. Workstation vs database prerequisites
+# 6. Workstation vs database prerequisites
 
-The JavaScript workstation is now validated.
+The JavaScript workstation is validated. PostgreSQL remains intentionally separate. Missing `psql` does not invalidate frontend lint/typecheck/test/build, but PostgreSQL 18.x is still required before migrations, tenant/RBAC persistence, API persistence and full-stack M0 validation are complete.
 
-PostgreSQL remains intentionally separate. Missing `psql` does not invalidate frontend build/lint/typecheck/tests, but PostgreSQL 18.x remains required before database migrations, tenant/RBAC persistence, API persistence and full-stack M0 validation can be considered complete.
-
-Database validation sequence later:
+Later database sequence:
 
 ```powershell
 Copy-Item .env.example .env -Force
@@ -155,7 +133,7 @@ npm run dev
 
 ---
 
-# 6. T001–T012 actual status
+# 7. T001–T012 actual status
 
 | Ticket | Actual status |
 |---|---|
@@ -168,38 +146,29 @@ npm run dev
 | T007 Audit foundation | `STATIC_COMPLETE / DATABASE_EXECUTION_PENDING` |
 | T008 StorageProvider | `UNIT_VALIDATED / FS+DB_INTEGRATION_PENDING` |
 | T009 AI Gateway | `UNIT_VALIDATED / PROVIDER_INTEGRATION_PENDING` |
-| T010 Web / Design System | `BUILD_VALIDATED / EXECUTABLE_BROWSER_REVIEW_PENDING` |
+| T010 Web / Design System | `EXECUTABLE_REVIEW_1_COMPLETE / VISUAL_ITERATION_1_REVIEW_PENDING` |
 | T011 Typed API client | `TYPECHECK_VALIDATED / GENERATION_VALIDATION_PENDING` |
 | T012 CI | `NOT STARTED / WAITING FOR PACKAGE-LOCK` |
 
-T010 is not DONE until executable browser screenshots are reviewed against `docs/visual-product-target.md`.
+---
+
+# 8. Lockfile policy
+
+`package-lock.json` is the canonical JavaScript lockfile. The validated Windows install generated it using Node 25.9.x + npm 11.6.x + Dotin Nexus, but it is not yet present on `main`.
+
+Commit the real workstation-generated lockfile; do not fabricate or GitHub-edit it, and do not commit `pnpm-lock.yaml`.
 
 ---
 
-# 7. Lockfile policy
+# 9. Next real engineering actions
 
-`package-lock.json` is the canonical JavaScript lockfile.
-
-The validated Windows clean install has generated the correct local lockfile using:
-
-```text
-Node 25.9.x + npm 11.6.x + Dotin Nexus
-```
-
-The lockfile is not yet present on `main`. It must be committed from the workstation that produced the successful install before T012 CI can use `npm ci` reproducibly.
-
-Do not manually fabricate or GitHub-edit the lockfile. Do not commit `pnpm-lock.yaml`.
-
----
-
-# 8. Next real engineering actions
-
-1. Commit and push the validated local `package-lock.json`.
-2. Run `npm run dev:web` and review the executable product at `http://localhost:3000/app`.
-3. Capture real browser screenshots for the approved target routes and compare them with `docs/visual-product-target.md`.
-4. Fix any visual/responsive/RTL gaps found in the executable application.
-5. Implement T012 CI with Node 25.9.x, npm 11.6.x, Dotin Nexus connectivity and `npm ci`.
-6. Install/configure PostgreSQL 18.x and complete DB/API runtime validation.
-7. Start M1 Job → Candidate → Evidence vertical slice and replace development fixtures route-by-route with typed APIs.
+1. Pull visual iteration 1.
+2. Re-run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build` against the new HEAD.
+3. Run `npm run dev:web` and capture fresh screenshots for `/app`, `/app/jobs`, and `/app/candidates`.
+4. Compare the new executable screenshots against `docs/visual-product-target.md` and continue closing visual gaps.
+5. Commit and push the validated local `package-lock.json`.
+6. Implement T012 CI with Node 25.9.x, npm 11.6.x, Dotin Nexus connectivity and `npm ci`.
+7. Install/configure PostgreSQL 18.x and complete DB/API runtime validation.
+8. Start M1 Job → Candidate → Evidence vertical slice and replace fixtures route-by-route with typed APIs.
 
 No later interview/media milestone should bypass these gates.
