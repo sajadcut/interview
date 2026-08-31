@@ -7,10 +7,12 @@ export class HealthController {
   @Get()
   @ApiOkResponse({
     schema: {
-      example: {
-        status: "ok",
-        service: "interview-api",
-        timestamp: "2026-08-31T00:00:00.000Z",
+      type: "object",
+      required: ["status", "service", "timestamp"],
+      properties: {
+        status: { type: "string", enum: ["ok"] },
+        service: { type: "string", example: "interview-api" },
+        timestamp: { type: "string", format: "date-time", example: "2026-08-31T00:00:00.000Z" },
       },
     },
   })
