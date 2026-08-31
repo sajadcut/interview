@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 
-const isWindows = process.platform === "win32";
 let server = null;
 let shuttingDown = false;
 let stdoutBuffer = "";
@@ -23,15 +22,27 @@ function startServer() {
   });
 }
 
-const compiler = spawn(
-  isWindows ? "npm.cmd" : "npm",
-  ["exec", "--", "tsc", "-p", "tsconfig.build.json", "--watch", "--preserveWatchOutput"],
-  {
-    cwd: process.cwd(),
-    stdio: ["inherit", "pipe", "pipe"],
-    env: process.env,
-  },
-);
+const npmExecPath = process.env.npm_execpath;
+const compiler = npmExecPath
+  ? spawn(
+      process.execPath,
+      [npmExecPath, "exec", "--", "tsc", "-p", "tsconfig.build.json", "--watch", "--preserveWatchOutput"],
+      {
+        cwd: process.cwd(),
+        stdio: ["inherit", "pipe", "pipe"],
+        env: process.env,
+      },
+    )
+  : spawn(
+      "npm",
+      ["exec", "--", "tsc", "-p", "tsconfig.build.json", "--watch", "--preserveWatchOutput"],
+      {
+        cwd: process.cwd(),
+        stdio: ["inherit", "pipe", "pipe"],
+        env: process.env,
+        shell: process.platform === "win32",
+      },
+    );
 
 compiler.stdout.setEncoding("utf8");
 compiler.stderr.setEncoding("utf8");
