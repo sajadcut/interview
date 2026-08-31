@@ -149,21 +149,38 @@ export function ToolbarButton({
   children,
   primary = false,
   icon,
+  href,
+  disabled = false,
+  title,
 }: {
   children: ReactNode;
   primary?: boolean;
   icon?: IconName;
+  href?: string;
+  disabled?: boolean;
+  title?: string;
 }) {
-  return (
-    <button
-      className={`inline-flex h-10 items-center gap-2 rounded-[10px] px-3.5 text-[11px] font-semibold transition ${
-        primary
-          ? "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
-          : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-      }`}
-    >
+  const className = `inline-flex h-10 items-center gap-2 rounded-[10px] px-3.5 text-[11px] font-semibold transition ${
+    disabled
+      ? "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400"
+      : primary
+        ? "bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
+        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+  }`;
+  const content = (
+    <>
       {icon ? <Icon name={icon} size={15} /> : null}
       {children}
+    </>
+  );
+
+  if (href && !disabled) {
+    return <Link href={href} className={className} title={title}>{content}</Link>;
+  }
+
+  return (
+    <button type="button" disabled={disabled} className={className} title={title}>
+      {content}
     </button>
   );
 }
