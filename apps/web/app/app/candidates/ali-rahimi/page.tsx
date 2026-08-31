@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Icon } from "../../../../components/product/icon";
 import {
+  DemoNotice,
   Panel,
   PersonAvatar,
   Pill,
@@ -31,7 +32,7 @@ export default function CandidateDetail() {
         <div className="flex items-center gap-3">
           <PersonAvatar name="Ali Rahimi" size={48} />
           <div>
-            <div className="flex items-center gap-2"><h1 className="text-[23px] font-semibold tracking-tight">Ali Rahimi</h1><Pill tone="green">91% pre-interview match</Pill></div>
+            <div className="flex flex-wrap items-center gap-2"><h1 className="text-[23px] font-semibold tracking-tight">Ali Rahimi</h1><Pill tone="green">91% pre-interview match</Pill><DemoNotice /></div>
             <div className="mt-1 text-[11px] text-slate-500">Senior Backend Engineer @ Digikala · Tehran, Iran</div>
             <div className="mt-2 flex flex-wrap gap-3 text-[9px] text-slate-400"><span>LinkedIn identity · unverified</span><span>ali.rahimi@email.com</span><span>+98 912 345 6789</span></div>
           </div>
@@ -58,7 +59,7 @@ export default function CandidateDetail() {
         <Panel>
           <SectionHeader title="Evidence-backed strengths" />
           <div className="grid gap-2 p-5 pt-3 text-[10px]">
-            {["Strong .NET and C# delivery history","Microservices architecture experience","Kubernetes and containerization evidence","Production problem-solving examples"].map((item) => (
+            {["Strong .NET and C# delivery history", "Microservices architecture experience", "Kubernetes and containerization evidence", "Production problem-solving examples"].map((item) => (
               <div key={item} className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Icon name="check" size={10} /></span>{item}</div>
             ))}
           </div>
@@ -81,8 +82,8 @@ export default function CandidateDetail() {
         <Panel>
           <SectionHeader title="Skills intelligence" subtitle="Verified/unverified state remains visible instead of silently inferring expertise." />
           <div className="grid gap-5 p-5 pt-3 md:grid-cols-2">
-            <div><div className="mb-3 text-[9px] font-semibold text-slate-400">Verified / evidenced</div><div className="flex flex-wrap gap-2">{[".NET","C#","SQL","Kubernetes","Azure"].map((item) => <SkillChip key={item} verified>{item}</SkillChip>)}</div></div>
-            <div><div className="mb-3 text-[9px] font-semibold text-slate-400">Needs validation</div><div className="flex flex-wrap gap-2">{["Redis","Leadership","System Design"].map((item) => <SkillChip key={item}>{item}</SkillChip>)}</div></div>
+            <div><div className="mb-3 text-[9px] font-semibold text-slate-400">Verified / evidenced</div><div className="flex flex-wrap gap-2">{[".NET", "C#", "SQL", "Kubernetes", "Azure"].map((item) => <SkillChip key={item} verified>{item}</SkillChip>)}</div></div>
+            <div><div className="mb-3 text-[9px] font-semibold text-slate-400">Needs validation</div><div className="flex flex-wrap gap-2">{["Redis", "Leadership", "System Design"].map((item) => <SkillChip key={item}>{item}</SkillChip>)}</div></div>
           </div>
           <div className="space-y-2 border-t border-slate-100 p-5"><ScoreBar label="Backend engineering" value={94} /><ScoreBar label="Cloud / DevOps" value={86} tone="indigo" /><ScoreBar label="System design" value={89} /></div>
         </Panel>
@@ -91,13 +92,7 @@ export default function CandidateDetail() {
           <Panel>
             <SectionHeader title="Recent activity" />
             <div className="space-y-4 p-5 pt-3">
-              {[
-                ["AI interview completed","Today, 10:30 AM"],
-                ["Technical assessment completed","Yesterday"],
-                ["Screening completed","2 days ago"],
-                ["Replied to outreach email","3 days ago"],
-                ["Added to pipeline","5 days ago"],
-              ].map(([item, time], index) => (
+              {[["AI interview completed", "Today, 10:30 AM"], ["Technical assessment completed", "Yesterday"], ["Screening completed", "2 days ago"], ["Replied to outreach email", "3 days ago"], ["Added to pipeline", "5 days ago"]].map(([item, time], index) => (
                 <div key={item} className="flex gap-3"><div className="grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-indigo-600"><Icon name={index === 0 ? "interviews" : index === 1 ? "target" : index === 2 ? "check" : "message"} size={12} /></div><div><div className="text-[10px] font-medium">{item}</div><div className="mt-0.5 text-[9px] text-slate-400">{time}</div></div></div>
               ))}
             </div>
