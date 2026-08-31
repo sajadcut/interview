@@ -3,7 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
-import { buildCorsOrigins } from "./common/http/cors";
+import { buildCorsOrigin } from "./common/http/cors";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
 import { getEnv } from "./config/env";
@@ -16,7 +16,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
   app.enableCors({
-    origin: buildCorsOrigins(env.CORS_ORIGIN, env.NODE_ENV),
+    origin: buildCorsOrigin(env.CORS_ORIGIN),
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "content-type",
