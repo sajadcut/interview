@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { jobTabs } from "../../../../../lib/demo-data";
 import { Icon } from "../../../../../components/product/icon";
 import {
@@ -24,7 +25,10 @@ export default function JobOutreachPage() {
           <h1 className="text-[26px] font-semibold tracking-tight">Outreach, screening & scheduling</h1>
           <p className="mt-1 text-[12px] text-slate-500">Personalized candidate communication grounded in approved knowledge, deterministic hard minimums and recoverable scheduling state.</p>
         </div>
-        <div className="flex gap-2"><ToolbarButton icon="columns">Templates</ToolbarButton><ToolbarButton primary icon="message">Create sequence</ToolbarButton></div>
+        <div className="flex gap-2">
+          <ToolbarButton href="/app/inbox" icon="columns">Open Inbox</ToolbarButton>
+          <ToolbarButton primary icon="message" disabled title="Sequence creation persistence is not wired to this fixture page yet">Create sequence</ToolbarButton>
+        </div>
       </div>
 
       <WorkspaceTabs tabs={jobTabs} active="Outreach" />
@@ -39,24 +43,29 @@ export default function JobOutreachPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3"><div className="text-[12px] font-semibold">{item.candidate}</div><Pill tone={item.tone}>{item.state}</Pill></div>
                   <div className="mt-1 text-[10px] text-slate-500">{item.note}</div>
-                  <div className="mt-3 flex gap-3 text-[10px] font-semibold text-indigo-600"><button>Open thread</button><button>View grounding</button></div>
+                  <div className="mt-3 flex gap-3 text-[10px] font-semibold text-indigo-600">
+                    <Link href="/app/inbox" className="hover:text-indigo-800">Open thread</Link>
+                    <Link href="#approved-knowledge" className="hover:text-indigo-800">View grounding</Link>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </Panel>
 
-        <Panel>
-          <SectionHeader title="Approved knowledge" subtitle="Only approved and in-date content may ground factual candidate responses." />
-          <div className="space-y-2 p-5 pt-4">
-            {["Remote & hybrid policy · v4", "Benefits & insurance · v3", "Hiring process · v2", "Role salary range · v1"].map((item, index) => (
-              <div key={item} className="flex items-center justify-between rounded-[10px] border border-slate-100 px-3.5 py-3">
-                <div><div className="text-[11px] font-semibold">{item}</div><div className="mt-1 text-[9px] text-slate-400">Approved by HR Policy · {index + 1} month{index ? "s" : ""} ago</div></div>
-                <Pill tone="green">Approved</Pill>
-              </div>
-            ))}
-          </div>
-        </Panel>
+        <div id="approved-knowledge">
+          <Panel>
+            <SectionHeader title="Approved knowledge" subtitle="Only approved and in-date content may ground factual candidate responses." />
+            <div className="space-y-2 p-5 pt-4">
+              {["Remote & hybrid policy · v4", "Benefits & insurance · v3", "Hiring process · v2", "Role salary range · v1"].map((item, index) => (
+                <div key={item} className="flex items-center justify-between rounded-[10px] border border-slate-100 px-3.5 py-3">
+                  <div><div className="text-[11px] font-semibold">{item}</div><div className="mt-1 text-[9px] text-slate-400">Approved by HR Policy · {index + 1} month{index ? "s" : ""} ago</div></div>
+                  <Pill tone="green">Approved</Pill>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </div>
       </div>
 
       <div className="grid gap-3 xl:grid-cols-3">
