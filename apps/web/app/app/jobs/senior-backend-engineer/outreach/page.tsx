@@ -1,6 +1,7 @@
 import { jobTabs } from "../../../../../lib/demo-data";
 import { Icon } from "../../../../../components/product/icon";
 import {
+  DemoNotice,
   Panel,
   Pill,
   SectionHeader,
@@ -19,11 +20,9 @@ export default function JobOutreachPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="mb-2 text-[10px] font-medium text-indigo-600">Senior Backend Engineer · Candidate engagement</div>
+          <div className="mb-2 flex flex-wrap items-center gap-3"><span className="text-[10px] font-medium text-indigo-600">Senior Backend Engineer · Candidate engagement</span><DemoNotice /></div>
           <h1 className="text-[26px] font-semibold tracking-tight">Outreach, screening & scheduling</h1>
-          <p className="mt-1 text-[12px] text-slate-500">
-            Personalized candidate communication grounded in approved knowledge, deterministic hard minimums and recoverable scheduling state.
-          </p>
+          <p className="mt-1 text-[12px] text-slate-500">Personalized candidate communication grounded in approved knowledge, deterministic hard minimums and recoverable scheduling state.</p>
         </div>
         <div className="flex gap-2"><ToolbarButton icon="columns">Templates</ToolbarButton><ToolbarButton primary icon="message">Create sequence</ToolbarButton></div>
       </div>
