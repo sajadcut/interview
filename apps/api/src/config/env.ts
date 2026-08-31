@@ -17,6 +17,16 @@ function loadLocalEnvironment(): void {
 
 loadLocalEnvironment();
 
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().url().optional(),
+);
+
+const booleanFlag = z
+  .enum(["true", "false"])
+  .default("false")
+  .transform((value) => value === "true");
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -31,7 +41,24 @@ const envSchema = z
     LLM_PROVIDER: z.enum(["disabled", "openai-compatible"]).default("disabled"),
     LLM_MODEL: z.string().default(""),
     LLM_API_KEY: z.string().default(""),
-    LLM_BASE_URL: z.string().url().optional(),
+    LLM_BASE_URL: optionalUrl,
+
+    MEDIA_REALTIME_ENABLED: booleanFlag,
+    MEDIA_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(2500),
+    MEDIA_TRANSPORT_PROVIDER: z.enum(["disabled", "livekit"]).default("disabled"),
+    LIVEKIT_URL: optionalUrl,
+    LIVEKIT_HEALTH_URL: optionalUrl,
+    LIVEKIT_API_KEY: z.string().default(""),
+    LIVEKIT_API_SECRET: z.string().default(""),
+    TURN_URLS: z.string().default(""),
+    VAD_PROVIDER: z.enum(["disabled", "silero-http"]).default("disabled"),
+    VAD_BASE_URL: optionalUrl,
+    STT_PROVIDER: z.enum(["disabled", "whisper-http"]).default("disabled"),
+    STT_BASE_URL: optionalUrl,
+    TTS_PROVIDER: z.enum(["disabled", "local-http"]).default("disabled"),
+    TTS_BASE_URL: optionalUrl,
+    AVATAR_PROVIDER: z.enum(["disabled", "musetalk-http"]).default("disabled"),
+    AVATAR_BASE_URL: optionalUrl,
   })
   .superRefine((value, context) => {
     if (value.LLM_PROVIDER !== "openai-compatible") return;
