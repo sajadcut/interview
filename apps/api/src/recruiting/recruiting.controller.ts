@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
@@ -17,6 +18,7 @@ export class RecruitingController {
 
   @Post("applications/:applicationId/scorecards/preview")
   @RequirePermissions(Permissions.CandidateScore)
+  @AuditedAction("scorecard.preview", "application")
   previewScorecard(@Body() body: unknown) {
     return this.recruiting.previewScorecard(body);
   }
