@@ -542,7 +542,7 @@ interview/
 └─ turbo.json
 ```
 
-`infra/` may remain empty during the local-native development phase. Docker/Compose files are not required to satisfy repository foundation work.
+`infra/` is a conceptual future boundary and may be absent/empty during the local-native development phase. Docker/Compose files are not required to satisfy repository foundation work.
 
 ---
 
