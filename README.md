@@ -14,13 +14,14 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 
 Laptop-first/local-native. Docker, Docker Compose, Kubernetes and MinIO are not required for the current development path.
 
-Required now:
+Required JavaScript toolchain:
 
 - Node.js 25.9.0
 - npm 11.6.2
 - Git
-- PostgreSQL 18.x
 - VS Code (preferred)
+
+PostgreSQL 18.x is required for database/API persistence work, but it is validated separately from the JavaScript workstation so frontend and static quality validation are not blocked by a missing `psql` client.
 
 The repository is an npm workspaces + Turborepo monorepo. `package.json` is the workspace manifest. `pnpm-workspace.yaml` is intentionally not used.
 
@@ -40,22 +41,29 @@ Verify the effective registry and connectivity before installing dependencies:
 npm run registry:check
 ```
 
-## First clean install after the npm migration
+## Workspace metadata and clean install
 
-If this checkout was previously installed with pnpm, remove the old pnpm artifacts before the first npm install:
+Before or after dependency changes you can validate all workspace package names, versions, and internal dependency versions without installing anything:
 
-```powershell
-Remove-Item pnpm-lock.yaml -Force -ErrorAction SilentlyContinue
-Remove-Item node_modules -Recurse -Force -ErrorAction SilentlyContinue
-npm install
+```bash
+npm run workspace:check
 ```
 
-`package-lock.json` is now the canonical dependency lockfile. Generate it with a successful npm 11.6.2 install against the Dotin Nexus, validate the repository, then commit it.
+If npm reports `Invalid Version:` after a manifest change or after migrating from the old pnpm install, the local `package-lock.json` / `node_modules` graph is stale. Use the repository recovery command:
+
+```bash
+npm run install:clean
+```
+
+It validates workspace metadata, removes only the local `node_modules` and `package-lock.json`, and performs a fresh `npm install` against the configured Dotin Nexus. Do not use this command merely to hide a reproducible install error; if the clean install still fails, keep the npm debug log and fix the dependency metadata.
+
+`package-lock.json` is the canonical dependency lockfile. Generate it with a successful npm 11.6.2 install against Dotin Nexus, validate the repository, then commit it.
 
 ## Start
 
 ```bash
 npm run registry:check
+npm run workspace:check
 npm install
 copy .env.example .env
 npm run workstation:check
@@ -65,6 +73,8 @@ npm run dev:bootstrap
 npm run api:sync
 npm run dev
 ```
+
+For UI/static validation, `npm run workstation:check`, lint, typecheck, tests, build and `npm run dev:web` can be run before PostgreSQL is installed. Database/API persistence commands require PostgreSQL and `DATABASE_URL`.
 
 Web: `http://localhost:3000`  
 API: `http://localhost:4000`  
