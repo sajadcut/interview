@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Icon } from "../../../../components/product/icon";
+import { InterviewMediaPlayer } from "../../../../components/product/interview-media-player";
 import {
   DemoNotice,
   Panel,
@@ -41,18 +43,20 @@ export default function InterviewReview() {
           <div className="mt-1 text-[9px] text-slate-500">Apr 28, 2026 · 42 min · AI Interviewer: Ava</div>
         </div>
         <div className="flex gap-2">
-          <ToolbarButton icon="share">Share</ToolbarButton>
-          <ToolbarButton icon="more">More</ToolbarButton>
-          <ToolbarButton primary>View Scorecard</ToolbarButton>
+          <ToolbarButton icon="share" disabled title="Share permissions and signed recording links are not wired yet">Share</ToolbarButton>
+          <ToolbarButton icon="more" disabled title="Additional interview actions are not wired yet">More</ToolbarButton>
+          <ToolbarButton href="/app/jobs/senior-backend-engineer/scorecards" primary>View Scorecard</ToolbarButton>
         </div>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto border-b border-slate-200 text-[10px]">
+      <nav className="flex gap-6 overflow-x-auto border-b border-slate-200 text-[10px]">
         <span className="border-b-2 border-indigo-600 pb-3 font-semibold text-indigo-600">Summary</span>
-        {["Transcript", "Questions", "Analysis", "Highlights", "Files"].map((item) => (
-          <span key={item} className="pb-3 text-slate-500">{item}</span>
-        ))}
-      </div>
+        <span className="pb-3 text-slate-400" title="Transcript drill-down is not wired on this fixture page yet">Transcript</span>
+        <span className="pb-3 text-slate-400" title="Question drill-down is not wired on this fixture page yet">Questions</span>
+        <span className="pb-3 text-slate-400" title="Analysis drill-down is not wired on this fixture page yet">Analysis</span>
+        <Link href="#highlights" className="pb-3 text-slate-500 hover:text-slate-800">Highlights</Link>
+        <span className="pb-3 text-slate-400" title="File attachments are not wired on this fixture page yet">Files</span>
+      </nav>
 
       <div className="grid gap-3 xl:grid-cols-[.9fr_1.15fr_1fr]">
         <Panel>
@@ -92,19 +96,8 @@ export default function InterviewReview() {
       </div>
 
       <div className="grid gap-3 xl:grid-cols-[1.35fr_.65fr]">
-        <Panel className="overflow-hidden">
-          <div className="video-stage relative aspect-[16/7] min-h-[300px]">
-            <div className="digital-human absolute inset-5 rounded-[14px] border border-white/10">
-              <div className="absolute start-4 top-4 flex items-center gap-2 rounded-full bg-black/35 px-3 py-1 text-[9px] text-white">
-                <span className="h-2 w-2 rounded-full bg-indigo-400" /> AI Interviewer
-              </div>
-              <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-5 pb-4 pt-12 text-white">
-                <button className="grid h-8 w-8 place-items-center rounded-full bg-white/15"><Icon name="play" size={14} /></button>
-                <div className="h-1 flex-1 rounded bg-white/20"><div className="h-full w-[56%] rounded bg-indigo-400" /></div>
-                <span className="text-[8px]">23:14 / 42:18</span>
-              </div>
-            </div>
-          </div>
+        <Panel className="overflow-hidden bg-slate-950 p-5">
+          <InterviewMediaPlayer />
         </Panel>
 
         <Panel>
@@ -124,16 +117,21 @@ export default function InterviewReview() {
       </div>
 
       <Panel>
-        <SectionHeader title="Key highlights" action={<span className="text-[8px] font-semibold text-indigo-600">View all highlights →</span>} />
-        <div className="grid gap-3 p-5 pt-3 md:grid-cols-3">
-          {highlights.map(([time, title, note], index) => (
-            <div key={time}>
-              <div className={`h-28 rounded-[10px] ${index === 1 ? "bg-gradient-to-br from-slate-900 via-indigo-950 to-cyan-950" : "digital-human"}`} />
-              <div className="mt-2 text-[8px] font-semibold">{time}</div>
-              <div className="mt-1 text-[9px] font-medium">{title}</div>
-              <div className="mt-1 text-[8px] text-emerald-600">{note}</div>
-            </div>
-          ))}
+        <div id="highlights">
+          <SectionHeader title="Key highlights" subtitle="Timestamp cards are evidence navigation; thumbnails appear only when real recording media exists." />
+          <div className="grid gap-3 p-5 pt-3 md:grid-cols-3">
+            {highlights.map(([time, title, note]) => (
+              <div key={time} className="rounded-[11px] border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[9px] font-semibold text-white">{time}</span>
+                  <Icon name="play" size={13} className="text-slate-400" />
+                </div>
+                <div className="mt-3 text-[10px] font-semibold text-slate-800">{title}</div>
+                <div className="mt-1 text-[9px] text-emerald-600">{note}</div>
+                <div className="mt-3 text-[8px] leading-4 text-slate-400">Recording seek is unavailable until a real media source is attached.</div>
+              </div>
+            ))}
+          </div>
         </div>
       </Panel>
     </div>
