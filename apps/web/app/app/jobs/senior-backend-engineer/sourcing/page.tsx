@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { candidates, jobTabs } from "../../../../../lib/demo-data";
 import { Icon } from "../../../../../components/product/icon";
 import {
@@ -30,14 +31,14 @@ export default function JobSourcingPage() {
           <p className="mt-1 text-[12px] text-slate-500">Internal-first discovery, approved source adapters, deduplication review and explainable retrieval signals.</p>
         </div>
         <div className="flex gap-2">
-          <ToolbarButton icon="filter">Edit search strategy</ToolbarButton>
-          <ToolbarButton primary icon="sparkles">Run approved search</ToolbarButton>
+          <ToolbarButton href="#search-strategy" icon="filter">View search strategy</ToolbarButton>
+          <ToolbarButton primary icon="sparkles" disabled title="Authenticated sourcing execution is available in the API but is not wired to this fixture page yet">Run approved search</ToolbarButton>
         </div>
       </div>
 
       <WorkspaceTabs tabs={jobTabs} active="Sourcing" />
 
-      <div className="grid gap-3 xl:grid-cols-[1.1fr_.9fr]">
+      <div id="search-strategy" className="grid gap-3 xl:grid-cols-[1.1fr_.9fr]">
         <Panel>
           <SectionHeader title="AI search strategy" subtitle="Retrieval is broad; final candidate fit remains a separate evidence-backed evaluation." />
           <div className="grid gap-3 p-5 pt-4 md:grid-cols-2">
@@ -82,7 +83,9 @@ export default function JobSourcingPage() {
                   <td><Pill tone="blue">{(0.94 - index * 0.06).toFixed(2)}</Pill></td>
                   <td>{candidate.skills.slice(0, 2).join(" + ")} · role context</td>
                   <td><Pill tone={index === 3 ? "amber" : "green"}>{index === 3 ? "Merge review" : "Resolved"}</Pill></td>
-                  <td><button className="text-[10px] font-semibold text-indigo-600">Review evidence →</button></td>
+                  <td>
+                    <Link href={candidate.name === "Ali Rahimi" ? "/app/candidates/ali-rahimi" : "/app/candidates"} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800">Review evidence →</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
