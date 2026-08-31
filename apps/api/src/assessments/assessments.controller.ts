@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
@@ -11,6 +12,7 @@ export class AssessmentsController {
 
   @Post("assessments/:assessmentId/sessions")
   @RequirePermissions(Permissions.AssessmentManage)
+  @AuditedAction("assessment.session.create", "assessment")
   createSession(@Param("assessmentId") assessmentId: string, @Body() body: unknown) {
     return this.assessments.createSession(assessmentId, body);
   }
