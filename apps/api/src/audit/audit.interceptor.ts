@@ -5,6 +5,23 @@ import type { RequestWithContext } from "../common/http/correlation-id.middlewar
 import { AUDITED_ACTION_KEY, type AuditedActionMetadata } from "./audited-action.decorator";
 import { AuditService } from "./audit.service";
 
+const auditedParamOrder = [
+  "id",
+  "applicationId",
+  "jobId",
+  "sessionId",
+  "releaseUnitId",
+  "assessmentId",
+] as const;
+
+function resolveEntityId(params: Record<string, unknown>): string | undefined {
+  for (const key of auditedParamOrder) {
+    const value = params[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return undefined;
+}
+
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
   private readonly logger = new Logger(AuditInterceptor.name);
@@ -22,7 +39,7 @@ export class AuditInterceptor implements NestInterceptor {
     if (!metadata) return next.handle();
 
     const request = context.switchToHttp().getRequest<RequestWithContext>();
-    const entityId = typeof request.params.id === "string" ? request.params.id : undefined;
+    const entityId = resolveEntityId(request.params as Record<string, unknown>);
 
     return next.handle().pipe(
       tap(() => {
