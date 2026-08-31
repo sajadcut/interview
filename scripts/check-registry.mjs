@@ -1,33 +1,34 @@
 import { spawnSync } from "node:child_process";
 
 const expectedRegistry = "https://nexus3.dotin.ir/repository/Dotin-NPM/";
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
-const configResult = spawnSync("pnpm", ["config", "get", "registry"], {
+const configResult = spawnSync(npmCommand, ["config", "get", "registry"], {
   encoding: "utf8",
-  shell: process.platform === "win32",
+  shell: false,
 });
 
 if (configResult.status !== 0) {
-  console.error("Unable to read pnpm registry configuration.");
+  console.error("Unable to read npm registry configuration.");
   console.error((configResult.stderr || configResult.stdout || "").trim());
   process.exit(1);
 }
 
 const configuredRegistry = configResult.stdout.trim();
 if (configuredRegistry !== expectedRegistry) {
-  console.error(`Registry mismatch. Expected ${expectedRegistry} but pnpm resolved ${configuredRegistry || "<empty>"}.`);
+  console.error(`Registry mismatch. Expected ${expectedRegistry} but npm resolved ${configuredRegistry || "<empty>"}.`);
   console.error("Run this command from the repository root so the committed .npmrc is applied.");
   process.exit(1);
 }
 
-console.log(`✓ pnpm registry: ${configuredRegistry}`);
+console.log(`✓ npm registry: ${configuredRegistry}`);
 
 const probeResult = spawnSync(
-  "pnpm",
+  npmCommand,
   ["view", "@eslint/js", "version", "--registry", expectedRegistry],
   {
     encoding: "utf8",
-    shell: process.platform === "win32",
+    shell: false,
     timeout: 120_000,
   },
 );
