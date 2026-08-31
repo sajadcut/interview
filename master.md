@@ -1,19 +1,20 @@
 # AI Recruiter Platform — MASTER
 
 > **Status:** Architecture baseline approved for implementation  
-> **Version:** 0.4.0  
+> **Version:** 0.5.0  
 > **Date:** 2026-08-31  
 > **Purpose:** Single source of truth for product boundaries, engineering architecture, UX principles, AI behavior, security, data model, interview architecture, development environment, and delivery order.
 
 ---
 
-## 0. How to use this document
-
-This file is the stable architecture contract for the project.
+# 0. How to use this document
 
 - `master.md` defines stable product and technical architecture.
-- `projectstate.md` defines current execution state, tickets, risks, and open decisions.
-- `production-readiness.md` defines the gates for safe real-candidate autonomous interviewing.
+- `projectstate.md` defines actual implementation status, tickets, risks, and pending validation.
+- `production-readiness.md` defines gates for safe real-candidate autonomous interviewing.
+- `docs/visual-product-target.md` defines the approved internal-product visual acceptance target.
+- `docs/architecture-decisions/*` records architecture changes and history.
+- `AGENTS.md` defines implementation constraints for humans and coding agents.
 
 Major architecture changes must be reflected here and in `projectstate.md`.
 
@@ -131,7 +132,7 @@ Candidate-facing flows require clear consent, recording disclosure, device check
 
 No interview mode is production-safe merely because a realtime demo works.
 
-Autonomous interviewing is enabled only after the relevant combination of job family, language, rubric, and interview mode passes `production-readiness.md`.
+Autonomous interviewing is enabled only after the relevant combination of job family, language, rubric, interview type, interviewer policy, evaluator version, and speech/avatar stack passes `production-readiness.md`.
 
 Every autonomous interview mode requires:
 
@@ -148,7 +149,7 @@ Every autonomous interview mode requires:
 
 ## 2.9 No mandatory per-interview media SaaS dependency
 
-The core interview path must have a commercially usable self-hosted implementation for:
+The core interview path must retain a commercially usable self-hosted implementation for:
 
 - WebRTC/media transport;
 - TURN/STUN;
@@ -168,7 +169,7 @@ Avatar API         not required
 RTC/media SaaS     not required
 ```
 
-Infrastructure still has CPU/GPU, bandwidth, storage, hosting, and operations cost.
+Self-hosted media still has CPU/GPU, bandwidth, storage, hosting, electricity, TURN, and operations cost.
 
 ## 2.10 Interview Brain and Digital Human are separate
 
@@ -181,16 +182,16 @@ Dialogue Engine / Interview Brain
         ↓
 spoken_text
         ↓
-Local TTS
+TTSProvider
         ↓
-Avatar Renderer
+AvatarProvider
         ↓
 Candidate
 ```
 
 The Interview Brain owns state, question strategy, follow-ups, evidence coverage, timing, and policy. Avatar rendering only presents approved speech.
 
-The AI Interviewer and AI Evaluator are logically separate. The Interviewer optimizes the conversation. The Evaluator scores evidence against the rubric.
+The AI Interviewer and AI Evaluator are logically separate. The Interviewer optimizes the conversation. The Evaluator scores persisted evidence against the rubric.
 
 ---
 
@@ -229,10 +230,8 @@ Internal App
 
 Candidate-facing flows are a separate security and UX surface.
 
-Typical entry:
-
 ```text
-Secure invitation / magic link
+Secure invitation / magic link / OTP
 → identity verification when required
 → consent
 → device check
@@ -242,9 +241,13 @@ Secure invitation / magic link
 
 Candidate users do not enter the internal HR application.
 
+## 3.3 AI Interviewer
+
+The AI Interviewer is a system actor and has no login. It operates through versioned interview policy and provider abstractions.
+
 ---
 
-# 4. Product architecture
+# 4. Product workspaces
 
 ## 4.1 Job Workspace
 
@@ -302,13 +305,13 @@ Internal review side:
 ```text
 Interview Plan
 Rubric
-Question strategy
+Question Strategy
 Session
 Transcript
 Evidence
 Scorecard
 Key Moments
-Decision support
+Decision Support
 ```
 
 ---
@@ -322,24 +325,22 @@ Start as a modular monolith plus specialized workers.
 ```text
 apps/web                Next.js / React / TypeScript
 apps/api                NestJS modular monolith
-services/ai-worker      AI/evaluation workloads
-services/media-worker   realtime speech/avatar/media workloads
-packages/*              shared UI/types/validation/config/db clients
+services/ai-worker      AI/evaluation workloads when needed
+services/media-worker   realtime speech/avatar/media workloads when needed
+packages/*              shared UI/types/validation/config/db/api-client
 ```
 
 Do not start with microservices.
 
 ## 5.2 Development environment — LOCAL NATIVE BASELINE
 
-**Current development is laptop-first and local-native. Docker is not required for day-to-day development.**
-
-The intended workstation flow is:
+Current development is laptop-first and local-native. Docker is not required for day-to-day development.
 
 ```text
 Laptop
 └─ VS Code
-   ├─ Node.js 24 LTS
-   ├─ pnpm 11
+   ├─ Node.js 25.9.x
+   ├─ npm 11.6.x
    ├─ Git
    ├─ PostgreSQL installed locally
    ├─ Python installed locally when AI/media work begins
@@ -348,89 +349,118 @@ Laptop
    └─ project processes started directly from terminals/tasks
 ```
 
-Development commands should work without Docker Desktop, Docker Compose, Kubernetes, or MinIO.
+Development commands must work without Docker Desktop, Docker Compose, Kubernetes, or MinIO.
 
 ### Local development principles
 
 1. Prefer direct installation of required developer tools on the laptop.
 2. Do not introduce Docker solely for convenience during the current implementation stage.
 3. Add a local service only when the current milestone requires it.
-4. Keep service interfaces deployment-independent so local implementations can later be replaced by production implementations.
+4. Keep service interfaces deployment-independent.
 5. Development simplicity must not leak laptop-specific assumptions into domain code.
 
 ### Intended local process layout
 
 ```text
 VS Code
-├─ Terminal: pnpm dev:web       → Next.js
-├─ Terminal: pnpm dev:api       → NestJS
+├─ Terminal: npm run dev:web      → Next.js
+├─ Terminal: npm run dev:api      → TypeScript watch + Node/Nest runtime
 ├─ PostgreSQL local service
-├─ Redis local service          → only when needed
-├─ Python ai-worker             → when needed
-└─ Python media-worker          → when interview work begins
+├─ Redis local service            → only when needed
+├─ Python ai-worker               → when needed
+└─ Python media-worker            → when interview work begins
 ```
 
-VS Code is the preferred IDE for the current development phase, but the repository must not depend on editor-specific proprietary behavior.
+VS Code is preferred, but the repository must remain terminal-first and must not depend on proprietary editor behavior.
 
-## 5.3 Production/deployment portability
+## 5.3 Package manager and monorepo
 
-Docker/containerization is **deferred**, not rejected.
-
-When deployment work begins, the architecture may add:
+The active JavaScript monorepo contract is:
 
 ```text
-Dockerfiles
-Docker Compose for reproducible environments where useful
-container registry
-production process manager/orchestrator
-GPU worker containers
-cloud deployment definitions
+Node.js          >=25.9.0 <26
+npm              >=11.6.2 <12
+npm workspaces   root package.json
+Turborepo        task orchestration
+package-lock.json canonical lockfile
 ```
 
-These are deployment concerns and are not prerequisites for current laptop development.
+Do not use `workspace:*` dependency protocol with npm 11.6.x. Internal workspaces use standard semver ranges matching the local workspace version.
 
-## 5.4 Core stack
+`pnpm-workspace.yaml` and `pnpm-lock.yaml` are not part of the active architecture.
+
+## 5.4 Required npm registry
+
+All dependency resolution uses the Dotin Nexus registry:
 
 ```text
-Runtime              Node.js 24 LTS
-Package manager      pnpm 11
-Frontend             Next.js 16.3 line + React + TypeScript
+https://nexus3.dotin.ir/repository/Dotin-NPM/
+```
+
+The registry is configured in root `.npmrc`. Do not bypass it during normal development. Credentials/tokens must never be committed.
+
+Installation analytics through Scarf are disabled at the root package level.
+
+## 5.5 NestJS 12 on Node 25
+
+NestJS 12 remains the backend application framework.
+
+The active Node 25 workstation does **not** depend on Nest CLI/schematics because their current Angular-devkit dependency line excludes Node 25. This is a tooling constraint, not a reason to replace NestJS runtime.
+
+```text
+TypeScript compiler
+→ dist/
+→ Node.js 25
+→ NestJS application runtime
+```
+
+Development watch is implemented without `@nestjs/cli`.
+
+Do not reintroduce `@nestjs/cli` or `@nestjs/schematics` until their Node 25 compatibility is explicitly validated.
+
+## 5.6 Production/deployment portability
+
+Docker/containerization is deferred, not rejected.
+
+Future deployment work may add Dockerfiles, container registry, production process orchestration, GPU worker containers, or cloud deployment definitions. These are not current workstation prerequisites.
+
+## 5.7 Core stack
+
+```text
+Runtime              Node.js 25.9.x
+Package manager      npm 11.6.x + npm workspaces
+Task orchestration   Turborepo
+Frontend             Next.js 16.3 line + React 19 + TypeScript
 Styling              Tailwind CSS
-UI primitives         shadcn/ui-based internal design system
+UI primitives         source-owned shadcn-like internal design system
 Server state          TanStack Query
-Tables                TanStack Table
-Forms                 React Hook Form + Zod
-Small client state    Zustand
-Backend               NestJS 12
+Tables                TanStack Table when domain tables mature
+Forms                 React Hook Form + Zod when form slices land
+Small client state    Zustand only where justified
+Backend               NestJS 12 modular monolith
 AI/media workers      Python where advantageous
 Database              PostgreSQL 18.x, local during development
 ORM                   Drizzle ORM
-Vector                pgvector, introduced when matching requires it
-Cache/ephemeral       Redis, introduced when feature requirements justify it
-Workflow              Temporal, introduced when long-running workflows require it
-Object storage        StorageProvider abstraction; local filesystem in development
-Realtime media        LiveKit OSS self-hosted when realtime interview work begins
-TURN                   coturn when remote WebRTC/NAT traversal requires it
+Vector                pgvector when matching requires it
+Cache/ephemeral       Redis only when requirements justify it
+Workflow              Temporal when long-running workflows require it
+Object storage        StorageProvider; local filesystem in development
+Realtime media        LiveKit OSS self-hosted when interview work begins
+TURN                   coturn
 VAD                    Silero VAD baseline
-STT                    whisper.cpp baseline
-TTS                    self-hosted provider interface; VITS-family benchmark baseline
+STT                    whisper.cpp baseline; Persian benchmark required
+TTS                    self-hosted provider interface; VITS-family benchmark
 Avatar                 self-hosted AvatarProvider; MuseTalk benchmark baseline
-Observability          OpenTelemetry + structured logs; error tracking added as needed
+Observability          OpenTelemetry + structured logs; Sentry-compatible tracking later
 CI/CD                  GitHub Actions
-IDE                    VS Code preferred for current local development
+IDE                    VS Code preferred
 ```
-
-Exact model versions are pinned only after performance and license review.
 
 ---
 
 # 6. Storage architecture
 
-## 6.1 StorageProvider abstraction
-
 Business modules must not depend directly on MinIO, AWS S3, or the local filesystem.
-
-Use a capability interface conceptually similar to:
 
 ```text
 StorageProvider
@@ -441,46 +471,20 @@ StorageProvider
 └─ createReadReference(key)
 ```
 
-## 6.2 Development storage
-
-For the current laptop development phase:
+Current development implementation:
 
 ```text
 LocalFilesystemStorageAdapter
 → .local-data/storage/
 ```
 
-Examples stored locally during development:
-
-- sample CVs;
-- candidate attachments;
-- test audio;
-- test video;
-- generated interview artifacts.
-
-The local storage directory is ignored by Git.
-
-Do not require MinIO for M0/M1 development.
-
-## 6.3 Production storage
-
-Production will use a durable object-storage implementation behind the same interface, such as:
-
-```text
-S3StorageAdapter
-or
-S3CompatibleStorageAdapter
-```
-
-MinIO remains an optional S3-compatible implementation for future self-hosted environments; it is **not the current development baseline**.
-
-Production storage must support retention/deletion policy, access control, encryption strategy, auditability, and large video/audio objects.
+Production later uses `S3StorageAdapter` or `S3CompatibleStorageAdapter`. MinIO remains optional future infrastructure, not a development requirement.
 
 ---
 
 # 7. Backend bounded modules
 
-Initial NestJS modules:
+Initial NestJS bounded modules include:
 
 ```text
 auth
@@ -511,7 +515,7 @@ privacy
 ai
 ```
 
-Business modules call capability interfaces. They must not directly lock the domain to a model, storage, media, or infrastructure vendor.
+Business modules call capability interfaces. They must not directly lock domain code to an AI, storage, STT, TTS, avatar, media, or infrastructure vendor.
 
 ---
 
@@ -522,7 +526,7 @@ interview/
 ├─ apps/
 │  ├─ web/
 │  └─ api/
-├─ services/
+├─ services/               specialized workers when milestones require them
 │  ├─ ai-worker/
 │  └─ media-worker/
 ├─ packages/
@@ -532,17 +536,18 @@ interview/
 │  ├─ validation/
 │  ├─ config/
 │  └─ api-client/
-├─ infra/                  reserved for future deployment assets
+├─ infra/                  future deployment assets
+├─ docs/
+│  ├─ architecture-decisions/
+│  └─ visual-product-target.md
 ├─ master.md
 ├─ projectstate.md
 ├─ production-readiness.md
 ├─ AGENTS.md
 ├─ package.json
-├─ pnpm-workspace.yaml
+├─ package-lock.json        generated/committed after validated npm install
 └─ turbo.json
 ```
-
-`infra/` is a conceptual future boundary and may be absent/empty during the local-native development phase. Docker/Compose files are not required to satisfy repository foundation work.
 
 ---
 
@@ -606,31 +611,11 @@ Notification
 RecruitmentEvent
 ```
 
-## 9.1 Candidate identity
-
-Candidate identity resolution may use email, phone, LinkedIn/profile URL where lawfully available, name/company/history, and other signals. Ambiguous merges require review.
-
-## 9.2 Application
-
-`Application` is the relationship between Candidate and Job and owns job-specific lifecycle state:
-
-```text
-candidate_id
-job_id
-stage_id
-source
-owner
-status
-match state
-screening/interview/assessment references
-final decision state
-```
+`Application` is the Candidate ↔ Job relationship and owns job-specific lifecycle state. Candidate identity remains organization-global.
 
 ---
 
 # 10. Resume ingestion and matching
-
-Resume pipeline:
 
 ```text
 Upload
@@ -644,45 +629,17 @@ Upload
 → candidate profile update
 ```
 
-During laptop development, uploaded documents may be stored through `LocalFilesystemStorageAdapter`.
-
 Candidate matching is not cosine similarity converted into a percentage.
 
-A match score combines explicit domain signals such as:
-
-- must-have skills;
-- relevant experience;
-- seniority;
-- domain/context relevance;
-- verified skills;
-- screening/assessment/interview evidence where available.
+Match scoring combines explicit domain signals such as must-have skills, relevant experience, seniority, context relevance, verified skills, screening, assessment, and interview evidence.
 
 Vector search is a retrieval signal, not the final business score.
 
 ---
 
-# 11. Evidence architecture
+# 11. Evidence and scoring architecture
 
-Evidence is first-class.
-
-Example:
-
-```text
-Skill: Kubernetes
-Evaluation: Advanced
-
-Evidence:
-- Resume p4: production cluster responsibility
-- Interview 14:21: rollout/rollback explanation
-- Interview 18:02: CrashLoopBackOff troubleshooting
-- Assessment: 8.4/10
-```
-
-Evidence should support deep links to source material and timestamps where possible.
-
----
-
-# 12. Scoring architecture
+Evidence is first-class and should deep-link to source material and timestamps where possible.
 
 ```text
 Rubric Version
@@ -702,7 +659,7 @@ Every override records previous value, new value, actor, reason, and timestamp.
 
 ---
 
-# 13. Sourcing architecture
+# 12. Sourcing architecture
 
 All sourcing is adapter-based:
 
@@ -714,38 +671,15 @@ CandidateSourceAdapter
 └─ ApprovedExternalSourceAdapter
 ```
 
-Do not make hidden or unapproved platform scraping a core dependency.
+Internal talent pool is searched first. Query expansion may include title/skill synonyms. Full-text and semantic retrieval may be combined, but retrieval similarity is not the final candidate score.
 
-Sourcing flow:
+Do not make hidden or unapproved platform scraping a core dependency. LinkedIn access, if present, must be lawful/authorized integration—not assumed scraping.
 
-```text
-Job
-→ AI search strategy
-→ query expansion
-→ human/policy approval where required
-→ source adapters
-→ normalization
-→ identity resolution / deduplication
-→ matching
-→ ranked discovered candidates
-```
-
-Vector retrieval, keyword search, and structured filters may contribute to discovery, but business fit is computed separately.
+Identity resolution/deduplication uses strong identifiers plus supporting signals; ambiguous merges require human review.
 
 ---
 
-# 14. Outreach and candidate conversation
-
-Core entities:
-
-```text
-Conversation
-Message
-Sequence
-Template
-Campaign
-CandidateContact
-```
+# 13. Outreach and candidate conversation
 
 Candidate-facing answers about salary, remote policy, benefits, process, and similar facts must be grounded in approved company/job knowledge.
 
@@ -760,123 +694,38 @@ Candidate question
 
 ---
 
-# 15. Workflow orchestration
+# 14. Workflow orchestration
 
-Temporal is intended for long-running workflows such as:
+Temporal is intended for real long-running workflows involving waits, retries, callbacks, and human signals. It is not required during the early foundation work.
 
-```text
-Candidate found
-→ wait for approval
-→ outreach
-→ wait for response
-→ follow-up
-→ screening
-→ scheduling
-→ interview
-→ evaluation
-→ manager review
-```
-
-Temporal is **not required during the first repository/database foundation steps**. Introduce it when real multi-step waits, retries, and human signals appear.
-
-Do not model multi-day orchestration as fragile cron chains and boolean flags.
+Do not model multi-day recruiting workflows as fragile cron chains and boolean flags.
 
 ---
 
-# 16. AI Interview architecture
+# 15. AI Interview architecture
 
-## 16.1 Core loop
+## 15.1 Core media/dialogue loop
 
 ```text
-Candidate microphone
+Candidate WebRTC
 → LiveKit OSS
 → Silero VAD
 → local STT
 → transcript
 → Interview Brain
-→ paid LLM call
+→ LLMProvider
 → structured turn
 → local TTS
-→ local Avatar renderer
+→ AvatarProvider
 → LiveKit audio/video
 → Candidate
 ```
 
-No mandatory hosted STT/TTS/avatar/media provider credentials are required.
+coturn provides TURN/STUN where needed.
 
-During early development, individual interview components may be run directly on the laptop without containers. GPU-heavy avatar work may later move to a dedicated machine while preserving the same interfaces.
+## 15.2 Interview plan and state
 
-## 16.2 Interview Planner
-
-Builds an interview plan from:
-
-```text
-Job
-Rubric
-Seniority
-Resume/Candidate history
-Interview template
-Time budget
-Organization policy
-```
-
-Each rubric criterion has evidence objectives.
-
-Example:
-
-```text
-Criterion: Kubernetes
-Goal: verify real production experience
-Evidence objectives:
-- deployment
-- troubleshooting
-- scaling
-- failure recovery
-```
-
-## 16.3 Dialogue Engine
-
-Questions form a controlled graph/state machine, not a static list and not a free LLM chat.
-
-```text
-Base question
-├─ weak answer   → clarify / probe
-├─ medium answer → evidence follow-up
-└─ strong answer → deeper scenario
-```
-
-Supported actions include:
-
-```text
-ASK
-CLARIFY
-PROBE
-PROBE_DEPTH
-SCENARIO
-MOVE_ON
-ANSWER_CANDIDATE_CLARIFICATION
-SKIP
-CLOSE
-```
-
-## 16.4 Structured turn contract
-
-The LLM should return structured output similar to:
-
-```json
-{
-  "action": "probe",
-  "criterion": "kubernetes",
-  "objective": "production_debugging",
-  "spoken_text": "یک نمونه از مشکلی که در production با Kubernetes داشتی تعریف می‌کنی؟",
-  "reason": "debugging evidence missing",
-  "expected_evidence": ["logs", "events", "metrics", "root cause"]
-}
-```
-
-Only approved `spoken_text` is sent to TTS/avatar.
-
-## 16.5 Interview state
+Plan derives from Job, Rubric, Seniority, Resume/Candidate history, interview template, time budget, and organization policy.
 
 Track at least:
 
@@ -892,43 +741,49 @@ candidate intent
 session/reconnect state
 ```
 
-## 16.6 Interviewer vs Evaluator
+Supported candidate intents include ANSWER, CLARIFICATION_REQUEST, SKIP_REQUEST, INTERRUPTION, SILENCE/TIMEOUT, RECONNECT, CANDIDATE_QUESTION, and POLICY_REFUSAL.
+
+Questions follow a controlled state graph, not a static list and not unconstrained chat.
+
+## 15.3 Structured turn contract
+
+A turn may resemble:
+
+```json
+{
+  "action": "probe",
+  "criterion": "kubernetes",
+  "objective": "production_debugging",
+  "spoken_text": "یه نمونه از مشکلی که در production با Kubernetes داشتی برام تعریف می‌کنی؟",
+  "expected_evidence": ["logs", "events", "metrics", "root cause"]
+}
+```
+
+Only approved `spoken_text` reaches TTS/avatar.
+
+## 15.4 Interviewer vs Evaluator
 
 ```text
 AI Interviewer
-→ asks good questions and manages dialogue
+→ manages dialogue and evidence collection
 
 AI Evaluator
-→ independently evaluates collected evidence against rubric
+→ independently evaluates finalized evidence against rubric
 ```
 
-Separate prompts/traces/roles are required for meaningful production evaluation.
+Separate prompts/traces/roles are mandatory for production evaluation.
 
-## 16.7 Digital human
+## 15.5 Digital human
 
-Avatar is presentation only.
+Avatar is presentation only and never owns interview intelligence.
 
-```text
-Interview Brain
-→ spoken_text
-→ TTSProvider
-→ AvatarProvider
-→ media output
-```
+Professionally recorded actor assets require explicit commercial likeness/voice rights. The target is professional/respectful digital-human interaction, not deceptive indistinguishability from a human.
 
-Baseline research path:
-
-- professionally recorded actor assets;
-- commercially licensed/owned likeness and voice rights;
-- local TTS;
-- MuseTalk-family realtime lip-sync benchmark;
-- voice-only fallback.
-
-Do not architect the interview as `question → prerecorded mp4`.
+Candidate video/audio may provide job-relevant timestamped evidence and session-integrity signals where lawful, but must not be used for unsupported emotion/honesty/personality/confidence inference.
 
 ---
 
-# 17. Assessments
+# 16. Assessments
 
 Coding assessment architecture:
 
@@ -939,46 +794,23 @@ Question
 → isolated runner
 → tests
 → structured result
-→ AI evidence analysis
-→ rubric score
+→ evidence analysis
+→ rubric evaluation
 ```
 
-Candidate code must never execute directly inside the core API process.
-
-System-design and role-specific assessments use versioned prompts/tasks and versioned rubrics.
+Candidate code must never execute directly in the core API process.
 
 ---
 
-# 18. Analytics
-
-Recruiting activity emits domain events such as:
-
-```text
-candidate.discovered
-candidate.contacted
-candidate.screened
-candidate.interviewed
-candidate.rejected
-candidate.hired
-```
+# 17. Analytics
 
 Initial analytics may use PostgreSQL. Introduce a dedicated analytics store only after measured volume justifies it.
 
-Core metrics include:
-
-- pipeline conversion;
-- stage duration;
-- time-to-hire;
-- source quality;
-- outreach response;
-- interview completion;
-- human/AI calibration;
-- low-confidence rate;
-- false-rejection analysis.
+Core metrics include pipeline conversion, stage duration, time-to-hire, source quality, outreach response, interview completion, human/AI calibration, low-confidence rate, and false-rejection analysis.
 
 ---
 
-# 19. Security, privacy, and governance
+# 18. Security, privacy, and governance
 
 Foundation requirements:
 
@@ -997,53 +829,23 @@ Production secret management must not rely on committed `.env` files. Local `.en
 
 ---
 
-# 20. Frontend and Design System principles
+# 19. Frontend and Design System principles
 
-The UI must not become a generic admin template or card grid.
+The UI must not become a generic admin template or KPI card grid.
 
-Use reusable primitives plus domain components.
+Use reusable primitives plus product-aware components. Favor enterprise patterns such as data tables, saved filters/views, split views, side panels, sticky actions, inline editing, bulk actions, comparison, timeline, pipeline/kanban, command menu, keyboard shortcuts, and evidence drill-down.
 
-Primitives include:
+Dashboard is a Command Center—not a gallery of decorative metrics.
 
-```text
-Button
-Input
-Combobox
-Dialog
-Drawer
-Popover
-Tabs
-DataTable
-FilterBuilder
-SavedView
-SplitView
-Timeline
-EmptyState
-Skeleton
-```
+AI suggestions must expose provenance/evidence/confidence where meaningful and preserve human approval, override, and undo.
 
-Product-aware components include:
+Internal product UI acceptance is defined in `docs/visual-product-target.md` and requires screenshots from the executable application, not generated mock images.
 
-```text
-CandidateRow
-CandidateHeader
-JobHeader
-MatchScore
-SkillMatrix
-EvidenceBlock
-AIRecommendation
-Scorecard
-InterviewMoment
-PipelineColumn
-ActivityItem
-RiskPanel
-```
-
-Candidate and Job workflows should favor data-dense patterns such as advanced tables, split views, contextual side panels, saved filters, bulk actions, and evidence drill-down.
+RTL/LTR readiness is a foundation requirement. Persian and English must both be supported.
 
 ---
 
-# 21. API conventions
+# 20. API conventions
 
 Baseline:
 
@@ -1063,7 +865,7 @@ Do not expose database records directly as uncontrolled API contracts.
 
 ---
 
-# 22. Testing strategy
+# 21. Testing strategy
 
 Minimum layers:
 
@@ -1078,25 +880,24 @@ AI contract/evaluation tests
 interview reliability tests
 ```
 
-For AI behavior, deterministic fixtures and evaluation datasets are more important than only snapshotting prose.
-
-Persian interview testing must include mixed Persian-English technical speech.
+For AI behavior, deterministic fixtures and evaluation datasets matter more than snapshotting prose. Persian interview testing must include mixed Persian-English technical speech.
 
 ---
 
-# 23. Local developer setup strategy
+# 22. Local developer setup strategy
 
-## 23.1 Required initially
+## 22.1 Required initially
 
 ```text
 VS Code
 Git
-Node.js 24 LTS
-pnpm 11
+Node.js 25.9.x
+npm 11.6.x
 PostgreSQL
+Dotin Nexus access
 ```
 
-## 23.2 Installed when milestone requires it
+## 22.2 Installed when milestone requires it
 
 ```text
 Python
@@ -1111,9 +912,7 @@ Avatar/GPU dependencies
 Temporal
 ```
 
-Do not install all infrastructure on day one merely because it may be needed later.
-
-## 23.3 Not required for current development
+## 22.3 Not required for current development
 
 ```text
 Docker Desktop
@@ -1126,7 +925,7 @@ hosted STT/TTS/avatar services
 
 ---
 
-# 24. Delivery order
+# 23. Delivery order
 
 ```text
 M0 Foundation
@@ -1138,31 +937,13 @@ M0 Foundation
 → M6 Analytics + Enterprise hardening
 ```
 
-### M0 local-native interpretation
+M0 establishes monorepo, web shell, API shell, local PostgreSQL, Drizzle, organization/user/membership, RBAC, audit, local filesystem StorageProvider, AI provider interfaces, Design System foundation, typed API client, and CI.
 
-M0 should establish:
-
-```text
-monorepo
-web shell
-API shell
-local PostgreSQL
-Drizzle
-organization/user/membership
-RBAC
-audit
-local filesystem StorageProvider
-AI provider interfaces
-Design System foundation
-typed API client
-CI
-```
-
-Redis, MinIO, Docker, Temporal, and realtime media are not required merely to complete early foundation work unless a specific feature makes them necessary.
+Redis, MinIO, Docker, Temporal, and realtime media are not required merely to complete early foundation work.
 
 ---
 
-# 25. Architecture decision summary
+# 24. Architecture decision summary
 
 Locked decisions:
 
@@ -1186,7 +967,12 @@ Interviewer/Evaluator separation
 Avatar presentation-only
 No mandatory per-minute media SaaS
 Self-hosted interview media path
-Local-native laptop development baseline
+Laptop-first local-native development
+Node.js 25.9.x + npm 11.6.x
+npm workspaces + Turborepo
+Dotin Nexus required registry
+package-lock.json canonical JavaScript lockfile
+NestJS runtime without Node-25-incompatible CLI/schematics
 VS Code preferred development IDE
 No Docker requirement during current implementation phase
 Local filesystem storage during development
@@ -1195,9 +981,9 @@ MinIO/S3 deferred behind StorageProvider
 
 ---
 
-# 26. Change policy
+# 25. Change policy
 
-Any future proposal that changes one of the locked decisions should document:
+Any future proposal that changes a locked decision should document:
 
 1. the problem;
 2. the proposed change;
