@@ -1,4 +1,21 @@
 import Link from "next/link";
 import { Panel, PersonAvatar, Pill, ToolbarButton } from "../../../components/product/recruiting-ui";
-const rows=[["Ali Rahimi","Senior Backend Engineer","AI Technical","Completed","86","Today 10:30"],["Sara Mohammadi","Senior Backend Engineer","AI Technical","Scheduled","—","Today 14:00"],["Reza Akbari","Senior Backend Engineer","Screening","Review","78","Yesterday"]];
-export default function InterviewsPage(){return <div className="space-y-4"><div className="flex items-end justify-between"><div><h1 className="text-[24px] font-semibold">Interviews</h1><p className="mt-1 text-[11px] text-slate-500">AI sessions, human reviews, transcripts and evidence-backed scorecards.</p></div><ToolbarButton>Calendar</ToolbarButton></div><Panel><table className="data-table"><thead><tr>{["Candidate","Job","Interview","Status","Score","Last activity",""].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r[0]}><td><div className="flex items-center gap-2"><PersonAvatar name={r[0]} size={28} tone={i}/><span className="font-semibold">{r[0]}</span></div></td><td>{r[1]}</td><td>{r[2]}</td><td><Pill tone={r[3]==="Completed"?"green":r[3]==="Scheduled"?"blue":"amber"}>{r[3]}</Pill></td><td className="font-semibold">{r[4]}</td><td>{r[5]}</td><td><Link className="font-semibold text-indigo-600" href={i===0?"/app/interviews/ali-rahimi":"/app/interviews"}>Open →</Link></td></tr>)}</tbody></table></Panel></div>}
+
+type InterviewRow = readonly [
+  candidate: string,
+  job: string,
+  interview: string,
+  status: "Completed" | "Scheduled" | "Review",
+  score: string,
+  activity: string,
+];
+
+const rows: InterviewRow[] = [
+  ["Ali Rahimi", "Senior Backend Engineer", "AI Technical", "Completed", "86", "Today 10:30"],
+  ["Sara Mohammadi", "Senior Backend Engineer", "AI Technical", "Scheduled", "—", "Today 14:00"],
+  ["Reza Akbari", "Senior Backend Engineer", "Screening", "Review", "78", "Yesterday"],
+];
+
+export default function InterviewsPage() {
+  return <div className="space-y-4"><div className="flex items-end justify-between"><div><h1 className="text-[24px] font-semibold">Interviews</h1><p className="mt-1 text-[11px] text-slate-500">AI sessions, human reviews, transcripts and evidence-backed scorecards.</p></div><ToolbarButton>Calendar</ToolbarButton></div><Panel><table className="data-table"><thead><tr>{["Candidate","Job","Interview","Status","Score","Last activity",""].map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={r[0]}><td><div className="flex items-center gap-2"><PersonAvatar name={r[0]} size={28} tone={i}/><span className="font-semibold">{r[0]}</span></div></td><td>{r[1]}</td><td>{r[2]}</td><td><Pill tone={r[3]==="Completed"?"green":r[3]==="Scheduled"?"blue":"amber"}>{r[3]}</Pill></td><td className="font-semibold">{r[4]}</td><td>{r[5]}</td><td><Link className="font-semibold text-indigo-600" href={i===0?"/app/interviews/ali-rahimi":"/app/interviews"}>Open →</Link></td></tr>)}</tbody></table></Panel></div>;
+}
