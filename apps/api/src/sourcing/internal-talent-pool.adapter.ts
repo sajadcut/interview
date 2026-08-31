@@ -20,11 +20,11 @@ export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
       SELECT
         c.id,
         c.display_name,
-        c.current_role,
+        c."current_role",
         c.current_company,
         COALESCE(array_agg(DISTINCT cs.skill_label) FILTER (WHERE cs.skill_label IS NOT NULL), '{}') AS skills,
         CASE
-          WHEN c.current_role ILIKE ${pattern} THEN 1.0
+          WHEN c."current_role" ILIKE ${pattern} THEN 1.0
           WHEN c.display_name ILIKE ${pattern} THEN 0.9
           WHEN bool_or(cs.skill_label ILIKE ${pattern}) THEN 0.8
           ELSE 0.5
@@ -38,11 +38,11 @@ export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
         AND t.status = 'active'
         AND (
           c.display_name ILIKE ${pattern}
-          OR c.current_role ILIKE ${pattern}
+          OR c."current_role" ILIKE ${pattern}
           OR c.current_company ILIKE ${pattern}
           OR cs.skill_label ILIKE ${pattern}
         )
-      GROUP BY c.id, c.display_name, c.current_role, c.current_company
+      GROUP BY c.id, c.display_name, c."current_role", c.current_company
       ORDER BY retrieval_score DESC, c.updated_at DESC
       LIMIT ${request.limit}
     `;
