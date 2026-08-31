@@ -8,13 +8,14 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `docs/visual-product-target.md` — approved visual implementation target.
+- `docs/architecture-decisions/ADR-0001-node-22-14-runtime.md` — approved Node 22.14 runtime decision that supersedes only the Node 24 statements in master v0.4.0.
 - `AGENTS.md` — engineering rules.
 
 ## Development baseline
 
 Laptop-first/local-native. Docker, Docker Compose, Kubernetes and MinIO are not required for the current development path.
 
-Required: Node.js 24 LTS, pnpm 11, Git, PostgreSQL 18.x and preferably VS Code.
+Required: Node.js 22.14.0 or newer 22.x (`>=22.14.0 <23`), pnpm 11, Git, PostgreSQL 18.x and preferably VS Code.
 
 ### Required npm registry
 
