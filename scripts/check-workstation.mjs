@@ -54,28 +54,22 @@ if (npmResult.status === 0 && npmVersion?.major === 11 && atLeast(npmVersion, re
   );
 }
 
-const commands = [
-  ["git", ["--version"], "Git"],
-  ["psql", ["--version"], "PostgreSQL client"],
-];
-
-for (const [command, args, label] of commands) {
-  const result = spawnSync(command, args, {
-    encoding: "utf8",
-    shell: process.platform === "win32",
-  });
-  const output = (result.stdout || result.stderr || "").trim();
-  if (result.status === 0) {
-    console.log(`✓ ${label}: ${output}`);
-  } else {
-    failed = true;
-    console.error(`✗ ${label}: command '${command}' was not available`);
-  }
+const gitResult = spawnSync("git", ["--version"], {
+  encoding: "utf8",
+  shell: false,
+});
+const gitOutput = (gitResult.stdout || gitResult.stderr || "").trim();
+if (gitResult.status === 0) {
+  console.log(`✓ Git: ${gitOutput}`);
+} else {
+  failed = true;
+  console.error("✗ Git: command 'git' was not available");
 }
 
 if (failed) {
-  console.error("\nWorkstation prerequisites are incomplete. See docs/local-development.md.");
+  console.error("\nJavaScript workstation prerequisites are incomplete. See docs/local-development.md.");
   process.exitCode = 1;
 } else {
-  console.log("\nWorkstation prerequisites detected.");
+  console.log("\nJavaScript workstation prerequisites detected.");
+  console.log("PostgreSQL is validated separately with `npm run db:check` when database work begins.");
 }
