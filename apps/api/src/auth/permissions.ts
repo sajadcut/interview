@@ -18,6 +18,7 @@ export const Permissions = {
   InterviewEvaluate: "interview.evaluate",
   AssessmentRead: "assessment.read",
   AssessmentManage: "assessment.manage",
+  AnalyticsRead: "analytics.read",
   PrivacyManage: "privacy.manage",
   DecisionSubmit: "decision.submit",
   IntegrationManage: "integration.manage",
