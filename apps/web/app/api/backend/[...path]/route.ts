@@ -10,9 +10,14 @@ const FORWARDED_REQUEST_HEADERS = [
 ] as const;
 
 function getApiTarget(): URL {
-  const configured = process.env.API_INTERNAL_URL?.trim() || "http://127.0.0.1:4000";
+  const host = process.env.API_HOST?.trim() || "127.0.0.1";
+  const port = process.env.API_PORT?.trim() || "4000";
+  const configured =
+    process.env.API_INTERNAL_URL?.trim() ||
+    process.env.NEXT_PUBLIC_API_URL?.trim() ||
+    `http://${host}:${port}`;
   const target = new URL(configured);
-  if (!['http:', 'https:'].includes(target.protocol)) {
+  if (!["http:", "https:"].includes(target.protocol)) {
     throw new Error("API_INTERNAL_URL must use http or https");
   }
   return target;
@@ -55,6 +60,7 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       const value = response.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
+    responseHeaders.set("x-interview-api-target", target.origin);
 
     return new Response(response.body, {
       status: response.status,
@@ -68,8 +74,12 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
         statusCode: 502,
         error: "Bad Gateway",
         message: `Internal API proxy could not reach ${target.origin}: ${reason}`,
+        target: target.origin,
       },
-      { status: 502 },
+      {
+        status: 502,
+        headers: { "x-interview-api-target": target.origin },
+      },
     );
   }
 }
