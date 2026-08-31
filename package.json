@@ -20,7 +20,10 @@
     "workstation:check": "node scripts/check-workstation.mjs",
     "db:generate": "pnpm --filter @interview/db db:generate",
     "db:migrate": "pnpm --filter @interview/db db:migrate",
-    "db:studio": "pnpm --filter @interview/db db:studio"
+    "db:studio": "pnpm --filter @interview/db db:studio",
+    "openapi:export": "pnpm --filter @interview/api openapi:export",
+    "api-client:generate": "pnpm --filter @interview/api-client generate",
+    "api:sync": "pnpm openapi:export && pnpm api-client:generate"
   },
   "devDependencies": {
     "@eslint/js": "^10.9.1",

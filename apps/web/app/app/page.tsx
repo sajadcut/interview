@@ -1,4 +1,5 @@
 import { AiIndicator } from "../../components/product/ai-indicator";
+import { SystemHealthCard } from "../../components/system/system-health-card";
 import { Card } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
 import { PageHeader } from "../../components/ui/page-header";
@@ -16,10 +17,7 @@ export default function CommandCenterPage() {
           <div className="flex items-center justify-between gap-2"><span className="text-xs text-[var(--muted)]">فعالیت AI</span><AiIndicator /></div>
           <div className="mt-2 text-lg font-bold">Gateway آماده اتصال است</div>
         </Card>
-        <Card>
-          <div className="text-xs text-[var(--muted)]">مصاحبه‌های آینده</div>
-          <div className="mt-2 text-lg font-bold">بدون جلسه زمان‌بندی‌شده</div>
-        </Card>
+        <SystemHealthCard />
       </div>
       <EmptyState title="اولین موقعیت شغلی را ایجاد کنید" description="Job Workspace در milestone بعدی به این shell متصل می‌شود." />
     </div>

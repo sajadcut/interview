@@ -1,2 +1,2 @@
-// Generated OpenAPI client is introduced in T011.
-export type ApiClientFoundationStatus = "pending-t011";
+export { createInterviewApiClient, type InterviewApiClient } from "./client";
+export type { paths, components } from "./generated/schema";

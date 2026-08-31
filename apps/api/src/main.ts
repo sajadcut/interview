@@ -1,11 +1,12 @@
 import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
 import { getEnv } from "./config/env";
+import { buildOpenApiDocument } from "./openapi";
 
 async function bootstrap(): Promise<void> {
   const env = getEnv();
@@ -19,14 +20,7 @@ async function bootstrap(): Promise<void> {
   );
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("Interview Platform API")
-    .setDescription("Core API for the AI Recruiter platform")
-    .setVersion("0.1.0")
-    .addBearerAuth()
-    .addApiKey({ type: "apiKey", in: "header", name: "x-organization-id" }, "organization")
-    .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  const document = buildOpenApiDocument(app);
   SwaggerModule.setup("docs", app, document, { jsonDocumentUrl: "openapi.json" });
 
   await app.listen(env.API_PORT);
