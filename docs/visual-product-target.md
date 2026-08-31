@@ -122,16 +122,33 @@ Executable screenshots from the running Windows stack were reviewed for:
 
 The internal application now has a coherent enterprise hierarchy, stable active navigation, dense job/candidate/interview anatomy and visible safety boundaries. Sourcing clearly separates retrieval from hiring score, outreach shows grounding/approval state, interview planning shows DEV_ONLY release state, scorecards expose evidence coverage and human review, assessment integrity signals remain review aids, and governance pages expose RBAC/privacy/release policy.
 
-Review 3 also identified three concrete acceptance gaps and the repository has been patched accordingly:
+Review 3 identified three concrete acceptance gaps and the repository was patched accordingly:
 
 1. Development fixture metrics were still too easy to read as customer production data. The shared fixture banner was replaced with a small neutral provenance badge and added to the screenshot-reviewed fixture-backed deep workspaces.
 2. AI Interview Review showed a next-round recommendation without an equally visible human decision boundary. The recommendation card now states reviewer approval is required and final advance/rejection/hiring decisions remain human-controlled.
 3. The candidate-facing layout was accidentally clamped by an outer `max-w-3xl` layout, producing excessive whitespace and a floating duplicate candidate brand. The outer clamp/duplicate heading were removed; the candidate flow now owns a wider responsive layout with stronger interview/consent hierarchy.
 
-A fresh screenshot pass is required on the patched HEAD before these surfaces are marked visually accepted. Responsive and explicit RTL/Persian review are still open gates.
+### Review 4 — patched desktop recheck + responsive/RTL code audit
+
+Fresh executable screenshots were reviewed for representative patched surfaces:
+
+```text
+/app/jobs/senior-backend-engineer
+/app/interviews/ali-rahimi
+/candidate
+```
+
+The desktop recheck passes the previously identified defects: development data provenance is visible without dominating the workflow, the interview recommendation is explicitly decision-support with a human-controlled final boundary, and the candidate surface now uses the intended wide two-column consent/progress anatomy with no duplicate candidate heading.
+
+A source-level responsive/RTL audit then found two additional defects before final acceptance:
+
+- internal navigation disappeared entirely below the `lg` breakpoint because the desktop sidebar was hidden without a mobile replacement;
+- the English candidate fixture inherited `dir=rtl` when `NEXT_PUBLIC_DEFAULT_LOCALE=fa`, despite the product rule that untranslated English fixture content must remain LTR.
+
+Both defects are patched: the internal app now exposes a sticky horizontally-scrollable mobile navigation bar below the compact header, mobile top actions collapse safely, and the candidate fixture declares `lang=en` / `dir=ltr` explicitly until Persian candidate copy is implemented.
 
 ## Current implementation state
 
 The repository contains executable UI anatomy spanning M1–M6, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, assessment evidence/runner boundaries, recruiting analytics and governance settings.
 
-Deep-workspace desktop screenshots have now been reviewed once on the running stack and the resulting defects have been patched. **Global visual acceptance remains open** until the patched HEAD receives a fresh executable screenshot pass plus responsive/RTL review and the same-HEAD quality gate.
+Representative patched desktop surfaces now pass visual recheck. **Global visual acceptance remains open** until responsive screenshots and explicit Persian-shell RTL screenshots are reviewed and lint/typecheck/build pass on the same responsive/RTL patch HEAD.
