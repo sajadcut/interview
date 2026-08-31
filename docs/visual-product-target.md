@@ -20,6 +20,10 @@ A route is not visually complete merely because it has routing, a card, an empty
 7. Candidate Intelligence Workspace
 8. Interviews list
 9. AI Interview Review / Scorecard surface
+10. Job Workspace — Sourcing Agent / source policy / discovered candidates
+11. Job Workspace — Outreach + screening + scheduling
+12. Candidate Intelligence — Assessment evidence
+13. Candidate-facing — consent / device-check / interview readiness
 
 ## Required characteristics
 
@@ -30,7 +34,14 @@ A route is not visually complete merely because it has routing, a card, an empty
 - tables, tabs, filters, saved-view affordances and contextual actions;
 - visible AI recommendation/provenance language without presenting AI as final authority;
 - evidence/score structures that can later connect to domain APIs;
+- sourcing retrieval signals visually distinct from final hiring/scorecard signals;
+- source-policy state visible where external discovery is involved;
+- outreach factual answers show approved grounding/approval state;
+- screening hard minimums and human-review state are distinguishable;
+- interview plan/release-unit state and evidence coverage are visible;
+- assessment runner/integrity signals are review aids, not automatic misconduct findings;
 - clear internal-app vs candidate-app separation;
+- candidate consent/recording/no-biometric-inference disclosures are understandable;
 - responsive behavior;
 - direction-aware RTL/LTR layout primitives;
 - no unsupported psychological/biometric visualizations;
@@ -38,7 +49,7 @@ A route is not visually complete merely because it has routing, a card, an empty
 
 ## Development fixtures
 
-Until M1 domain endpoints exist, the visual target may use deterministic development fixtures from `apps/web/lib/demo-data.ts`.
+Until the relevant domain endpoints and migrations are runtime-validated, the visual target may use deterministic development fixtures from `apps/web/lib/demo-data.ts` and route-local fixture constants.
 
 Fixtures are allowed only to exercise real React/Next.js UI. They must not be described as persisted production data and must be replaced with typed API data as each domain slice lands.
 
@@ -57,14 +68,17 @@ route exists
 + responsive behavior reviewed
 + RTL/LTR direction reviewed
 + Persian/English copy reviewed where in scope
++ AI provenance / evidence / human-control boundary visible where applicable
 + screenshot taken from executable application
 + screenshot compared to approved target
-+ lint/typecheck/build pass
++ lint/typecheck/build pass on the same HEAD
 ```
 
 Static mock images generated outside the application do not satisfy this gate.
 
-## First executable browser review
+## Executable browser reviews
+
+### Review 1
 
 The first real Windows/Next.js screenshots were reviewed for:
 
@@ -74,17 +88,32 @@ The first real Windows/Next.js screenshots were reviewed for:
 /app/candidates
 ```
 
-The screenshots proved that the routes and enterprise shell render, but they did **not** pass visual acceptance. The review found these shared gaps:
+They proved that the routes and enterprise shell render, but did not pass visual acceptance. Shared gaps included mixed RTL shell/LTR fixture hierarchy, missing active navigation, overly small typography/density, an over-prominent fixture notice, and weak shell/action hierarchy.
 
-- defaulting to the Persian/RTL shell while the fixture content remained English reversed page hierarchy and table reading order;
-- no current-route state in the dark navigation;
-- typography and row density were too small for production recruiter use at the captured desktop viewport;
-- the development-fixture notice was too visually dominant;
-- metric cards, table toolbars and page headers needed stronger hierarchy and more consistent spacing;
-- the shell/topbar needed clearer enterprise action hierarchy.
+Visual iteration 1 fixed the default fixture direction strategy, active navigation, typography/table density and shared shell/primitives.
 
-Visual iteration 1 was therefore pushed across the shared shell/design primitives plus Command Center, Jobs and Candidates. A new executable screenshot review is required; this iteration is not self-approved by code changes alone.
+### Review 2
+
+Fresh screenshots of the same three routes showed a material improvement: reading order, active state, tables and hierarchy were corrected. The remaining concrete shell defect was the bottom profile card overlapping Settings at shorter desktop viewport heights.
+
+Visual iteration 2 replaced the sidebar absolute footer with a flex/scroll-safe layout so navigation remains reachable and the profile card does not cover Settings.
+
+Review 2 still does not imply global visual acceptance. The deeper product surfaces below require executable review:
+
+```text
+/app/jobs/senior-backend-engineer
+/app/jobs/senior-backend-engineer/sourcing
+/app/jobs/senior-backend-engineer/outreach
+/app/jobs/senior-backend-engineer/interviews
+/app/jobs/senior-backend-engineer/scorecards
+/app/candidates/ali-rahimi
+/app/candidates/ali-rahimi/assessments
+/app/interviews/ali-rahimi
+/candidate
+```
 
 ## Current implementation state
 
-The current `main` contains coded visual implementations for all nine target surfaces. The JavaScript quality gate has passed on the Windows workstation, and the first executable browser review has occurred for three core routes. Visual iteration 1 is coded and requires a fresh browser screenshot comparison before any visual surface is marked accepted.
+The repository now contains executable UI anatomy spanning M1–M5, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, and assessment evidence/runner boundaries.
+
+These new routes are **coded, not visually accepted**. The latest M1–M5 HEAD still requires lint/typecheck/test/build and executable browser screenshot review before the new surfaces can be marked validated.
