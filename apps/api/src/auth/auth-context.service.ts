@@ -1,10 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
-import type { Permission } from "./permissions";
 
 export interface AuthPrincipal {
   userId: string;
-  permissions: ReadonlySet<Permission>;
+  source: "development-header";
 }
 
 @Injectable()

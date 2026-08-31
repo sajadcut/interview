@@ -1,12 +1,14 @@
-import { Injectable, type CallHandler, type ExecutionContext, type NestInterceptor } from "@nestjs/common";
+import { Injectable, Logger, type CallHandler, type ExecutionContext, type NestInterceptor } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { tap, type Observable } from "rxjs";
-import type { Request } from "express";
+import type { RequestWithContext } from "../common/http/correlation-id.middleware";
 import { AUDITED_ACTION_KEY, type AuditedActionMetadata } from "./audited-action.decorator";
 import { AuditService } from "./audit.service";
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+
   constructor(
     private readonly reflector: Reflector,
     private readonly audit: AuditService,
@@ -19,7 +21,7 @@ export class AuditInterceptor implements NestInterceptor {
     ]);
     if (!metadata) return next.handle();
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<RequestWithContext>();
     const entityId = typeof request.params.id === "string" ? request.params.id : undefined;
 
     return next.handle().pipe(
@@ -29,10 +31,14 @@ export class AuditInterceptor implements NestInterceptor {
             action: metadata.action,
             entityType: metadata.entityType,
             ...(entityId ? { entityId } : {}),
-            metadata: { method: request.method, path: request.originalUrl },
+            metadata: {
+              method: request.method,
+              path: request.originalUrl,
+              requestId: request.requestId ?? null,
+            },
           })
           .catch((error: unknown) => {
-            console.error("Audit write failed", error);
+            this.logger.error("Best-effort request audit write failed", error instanceof Error ? error.stack : undefined);
           });
       }),
     );

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { STORAGE_PROVIDER, type StorageProvider } from "./storage-provider";
@@ -48,7 +48,27 @@ export class StorageService {
     return { id: fileId, key, sha256 };
   }
 
-  get(key: string): Promise<Uint8Array> {
-    return this.provider.get(key);
+  async getById(fileId: string): Promise<Uint8Array> {
+    const metadata = await this.requireTenantFile(fileId);
+    return this.provider.get(metadata.storageKey);
+  }
+
+  async createReadReferenceById(fileId: string): Promise<string> {
+    const metadata = await this.requireTenantFile(fileId);
+    return this.provider.createReadReference(metadata.storageKey);
+  }
+
+  private async requireTenantFile(fileId: string): Promise<{ storageKey: string }> {
+    const organizationId = this.tenantContext.require().organizationId;
+    const rows = await this.database.sql`
+      SELECT storage_key
+      FROM files
+      WHERE id = ${fileId}::uuid
+        AND organization_id = ${organizationId}::uuid
+      LIMIT 1
+    `;
+    const row = rows[0] as { storage_key?: unknown } | undefined;
+    if (!row || typeof row.storage_key !== "string") throw new NotFoundException("File not found");
+    return { storageKey: row.storage_key };
   }
 }

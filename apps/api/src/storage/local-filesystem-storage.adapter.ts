@@ -4,6 +4,16 @@ import { Injectable } from "@nestjs/common";
 import { getEnv } from "../config/env";
 import type { StorageProvider, StoredObject } from "./storage-provider";
 
+export function resolveLocalStoragePath(root: string, key: string): string {
+  if (!key.trim() || key.includes("\0")) throw new Error("Invalid storage key");
+  const resolvedRoot = path.resolve(root);
+  const normalized = key.replaceAll("\\", "/").replace(/^\/+/, "");
+  const target = path.resolve(resolvedRoot, normalized);
+  const prefix = `${resolvedRoot}${path.sep}`;
+  if (!target.startsWith(prefix)) throw new Error("Unsafe storage key");
+  return target;
+}
+
 @Injectable()
 export class LocalFilesystemStorageAdapter implements StorageProvider {
   private readonly root = path.resolve(getEnv().LOCAL_STORAGE_ROOT);
@@ -33,16 +43,11 @@ export class LocalFilesystemStorageAdapter implements StorageProvider {
   }
 
   async createReadReference(key: string): Promise<string> {
+    this.resolveKey(key);
     return `local://${key}`;
   }
 
   private resolveKey(key: string): string {
-    const normalized = key.replaceAll("\\", "/").replace(/^\/+/, "");
-    const target = path.resolve(this.root, normalized);
-    const prefix = `${this.root}${path.sep}`;
-    if (target !== this.root && !target.startsWith(prefix)) {
-      throw new Error("Unsafe storage key");
-    }
-    return target;
+    return resolveLocalStoragePath(this.root, key);
   }
 }

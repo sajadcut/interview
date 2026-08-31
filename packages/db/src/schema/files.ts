@@ -1,4 +1,4 @@
-import { bigint, index, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { organizations } from "./foundation";
 
 export const files = pgTable(
@@ -17,6 +17,6 @@ export const files = pgTable(
   },
   (table) => [
     index("files_org_idx").on(table.organizationId),
-    index("files_storage_key_idx").on(table.storageKey),
+    uniqueIndex("files_storage_key_uq").on(table.storageKey),
   ],
 );

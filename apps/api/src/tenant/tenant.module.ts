@@ -1,21 +1,10 @@
-import {
-  Global,
-  MiddlewareConsumer,
-  Module,
-  type NestModule,
-} from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
-import { RequireTenantGuard } from "./require-tenant.guard";
+import { Global, MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
 import { TenantContextMiddleware } from "./tenant-context.middleware";
 import { TenantContextService } from "./tenant-context.service";
 
 @Global()
 @Module({
-  providers: [
-    TenantContextService,
-    TenantContextMiddleware,
-    { provide: APP_GUARD, useClass: RequireTenantGuard },
-  ],
+  providers: [TenantContextService, TenantContextMiddleware],
   exports: [TenantContextService],
 })
 export class TenantModule implements NestModule {

@@ -40,6 +40,7 @@ export const memberships = pgTable(
   },
   (table) => [
     uniqueIndex("memberships_org_user_uq").on(table.organizationId, table.userId),
+    uniqueIndex("memberships_id_org_uq").on(table.id, table.organizationId),
     index("memberships_user_idx").on(table.userId),
   ],
 );

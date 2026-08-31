@@ -1,4 +1,4 @@
-import { index, pgTable, primaryKey, uniqueIndex, uuid, varchar, timestamp } from "drizzle-orm/pg-core";
+import { foreignKey, index, pgTable, primaryKey, uniqueIndex, uuid, varchar, timestamp } from "drizzle-orm/pg-core";
 import { memberships, organizations } from "./foundation";
 
 export const roles = pgTable(
@@ -14,6 +14,7 @@ export const roles = pgTable(
   },
   (table) => [
     uniqueIndex("roles_org_key_uq").on(table.organizationId, table.key),
+    uniqueIndex("roles_id_org_uq").on(table.id, table.organizationId),
     index("roles_org_idx").on(table.organizationId),
   ],
 );
@@ -40,12 +41,22 @@ export const rolePermissions = pgTable(
 export const membershipRoles = pgTable(
   "membership_roles",
   {
-    membershipId: uuid("membership_id")
-      .notNull()
-      .references(() => memberships.id, { onDelete: "cascade" }),
-    roleId: uuid("role_id")
-      .notNull()
-      .references(() => roles.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull(),
+    membershipId: uuid("membership_id").notNull(),
+    roleId: uuid("role_id").notNull(),
   },
-  (table) => [primaryKey({ columns: [table.membershipId, table.roleId] })],
+  (table) => [
+    primaryKey({ columns: [table.membershipId, table.roleId] }),
+    index("membership_roles_org_idx").on(table.organizationId),
+    foreignKey({
+      name: "membership_roles_membership_org_fk",
+      columns: [table.membershipId, table.organizationId],
+      foreignColumns: [memberships.id, memberships.organizationId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "membership_roles_role_org_fk",
+      columns: [table.roleId, table.organizationId],
+      foreignColumns: [roles.id, roles.organizationId],
+    }).onDelete("cascade"),
+  ],
 );
