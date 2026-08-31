@@ -8,18 +8,25 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
 - `docs/visual-product-target.md` — approved visual implementation target.
-- `docs/architecture-decisions/ADR-0001-node-22-14-runtime.md` — approved Node 22.14 runtime decision that supersedes only the Node 24 statements in master v0.4.0.
 - `AGENTS.md` — engineering rules.
 
 ## Development baseline
 
 Laptop-first/local-native. Docker, Docker Compose, Kubernetes and MinIO are not required for the current development path.
 
-Required: Node.js 22.14.0 or newer 22.x (`>=22.14.0 <23`), pnpm 11, Git, PostgreSQL 18.x and preferably VS Code.
+Required now:
+
+- Node.js 25.9.0
+- npm 11.6.2
+- Git
+- PostgreSQL 18.x
+- VS Code (preferred)
+
+The repository is an npm workspaces + Turborepo monorepo. `package.json` is the workspace manifest. `pnpm-workspace.yaml` is intentionally not used.
 
 ### Required npm registry
 
-All Node/pnpm dependency resolution for this repository must use the Dotin Nexus registry committed in `.npmrc`:
+All Node/npm dependency resolution for this repository must use the Dotin Nexus registry committed in `.npmrc`:
 
 ```text
 https://nexus3.dotin.ir/repository/Dotin-NPM/
@@ -30,21 +37,33 @@ Do not bypass this registry with `registry.npmjs.org` for normal project develop
 Verify the effective registry and connectivity before installing dependencies:
 
 ```bash
-pnpm registry:check
+npm run registry:check
 ```
+
+## First clean install after the npm migration
+
+If this checkout was previously installed with pnpm, remove the old pnpm artifacts before the first npm install:
+
+```powershell
+Remove-Item pnpm-lock.yaml -Force -ErrorAction SilentlyContinue
+Remove-Item node_modules -Recurse -Force -ErrorAction SilentlyContinue
+npm install
+```
+
+`package-lock.json` is now the canonical dependency lockfile. Generate it with a successful npm 11.6.2 install against the Dotin Nexus, validate the repository, then commit it.
 
 ## Start
 
 ```bash
-pnpm registry:check
-pnpm install
-cp .env.example .env
-pnpm workstation:check
-pnpm db:check
-pnpm db:migrate
-pnpm dev:bootstrap
-pnpm api:sync
-pnpm dev
+npm run registry:check
+npm install
+copy .env.example .env
+npm run workstation:check
+npm run db:check
+npm run db:migrate
+npm run dev:bootstrap
+npm run api:sync
+npm run dev
 ```
 
 Web: `http://localhost:3000`  
@@ -71,12 +90,16 @@ These surfaces are real Next.js code. Until M1 APIs are implemented they use det
 ## Quality gate
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
+npm run lint
+npm run typecheck
+npm run test
+npm run build
 ```
 
 After starting the application, capture browser screenshots of the target routes and compare them against the approved references. A standalone generated mock image is not accepted as implementation evidence.
 
 Use `NEXT_PUBLIC_DEFAULT_LOCALE=en` or `fa` to review LTR/RTL behavior.
+
+## Node 25 / NestJS note
+
+NestJS 12 runtime remains in use, but Nest CLI/schematics are intentionally excluded from the local toolchain because their current schematics dependency chain does not support Node 25. API build and watch use the TypeScript compiler directly, preserving decorator metadata and avoiding a hidden Node-version conflict.
