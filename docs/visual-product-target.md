@@ -24,6 +24,8 @@ A route is not visually complete merely because it has routing, a card, an empty
 11. Job Workspace — Outreach + screening + scheduling
 12. Candidate Intelligence — Assessment evidence
 13. Candidate-facing — consent / device-check / interview readiness
+14. Recruiting Analytics — funnel / source performance / review load / AI governance
+15. Organization Governance — RBAC / retention / privacy requests / interview release policy
 
 ## Required characteristics
 
@@ -40,6 +42,8 @@ A route is not visually complete merely because it has routing, a card, an empty
 - screening hard minimums and human-review state are distinguishable;
 - interview plan/release-unit state and evidence coverage are visible;
 - assessment runner/integrity signals are review aids, not automatic misconduct findings;
+- analytics distinguish operational/retrieval metrics from evidence-backed hiring scores;
+- retention/legal-hold/privacy-request states are reviewable and auditable;
 - clear internal-app vs candidate-app separation;
 - candidate consent/recording/no-biometric-inference disclosures are understandable;
 - responsive behavior;
@@ -109,11 +113,13 @@ Review 2 still does not imply global visual acceptance. The deeper product surfa
 /app/candidates/ali-rahimi
 /app/candidates/ali-rahimi/assessments
 /app/interviews/ali-rahimi
+/app/analytics
+/app/settings
 /candidate
 ```
 
 ## Current implementation state
 
-The repository now contains executable UI anatomy spanning M1–M5, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, and assessment evidence/runner boundaries.
+The repository now contains executable UI anatomy spanning M1–M6, including sourcing/source-policy, grounded outreach/screening/scheduling, evidence-first scorecards, controlled interview release state, candidate consent/readiness, assessment evidence/runner boundaries, recruiting analytics and governance settings.
 
-These new routes are **coded, not visually accepted**. The latest M1–M5 HEAD still requires lint/typecheck/test/build and executable browser screenshot review before the new surfaces can be marked validated.
+These new routes are **coded, not visually accepted**. The latest HEAD still requires migration validation, OpenAPI regeneration, lint/typecheck/test/build and executable browser screenshot review before the new surfaces can be marked validated.
