@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api, apiErrorMessage } from "../../lib/api";
+import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { Panel, Pill } from "../product/recruiting-ui";
 import { useInternalAccess } from "../product/internal-access";
-import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 
 interface ConversationRow {
   id: string;
@@ -64,13 +65,13 @@ export function EngagementWorkspace() {
   async function load(resolved?: TenantIdentity) {
     const current = resolved ?? identity ?? (await resolveTenantIdentity());
     if (!identity) setIdentity(current);
-    const response = await fetch("/api/backend/v1/engagement/workspace", {
+    const result = await api.GET("/v1/engagement/workspace", {
       headers: tenantHeaders(current),
-      cache: "no-store",
-      credentials: "same-origin",
     });
-    if (!response.ok) throw new Error("Engagement workspace could not be loaded");
-    setWorkspace((await response.json()) as Workspace);
+    if (!result.response.ok) {
+      throw new Error(apiErrorMessage(result, "Engagement workspace could not be loaded"));
+    }
+    setWorkspace(result.data as Workspace);
   }
 
   useEffect(() => {
@@ -92,69 +93,74 @@ export function EngagementWorkspace() {
     };
   }, []);
 
-  async function post(path: string, body: Record<string, unknown>) {
-    if (!identity) return false;
-    const response = await fetch(`/api/backend${path}`, {
-      method: "POST",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    if (!response.ok) {
-      setMessage(payload.message || "Action failed");
-      return false;
+  async function completeAction(result: unknown, fallback: string): Promise<boolean> {
+    if (result && typeof result === "object" && "response" in result) {
+      const response = (result as { response?: Response }).response;
+      if (response?.ok) {
+        setMessage("Action completed and recorded.");
+        if (identity) await load(identity);
+        return true;
+      }
     }
-    setMessage("Action completed and recorded.");
-    await load(identity);
-    return true;
-  }
-
-  async function patch(path: string, body: Record<string, unknown>) {
-    if (!identity) return false;
-    const response = await fetch(`/api/backend${path}`, {
-      method: "PATCH",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    if (!response.ok) {
-      setMessage(payload.message || "Action failed");
-      return false;
-    }
-    setMessage("Action completed and recorded.");
-    await load(identity);
-    return true;
+    setMessage(apiErrorMessage(result, fallback));
+    return false;
   }
 
   async function createKnowledge() {
+    if (!identity) return;
     const title = window.prompt("Knowledge title")?.trim();
     if (!title) return;
     const body = window.prompt("Approved factual content")?.trim();
     if (!body) return;
-    await post("/v1/knowledge", { knowledgeType: "recruiting_policy", title, body });
+    const result = await api.POST("/v1/knowledge", {
+      headers: tenantHeaders(identity),
+      body: { knowledgeType: "recruiting_policy", title, body },
+    });
+    await completeAction(result, "Knowledge item could not be created");
   }
 
   async function approveKnowledge(item: KnowledgeRow) {
-    await post(`/v1/knowledge/${item.id}/approve`, {});
+    if (!identity) return;
+    const result = await api.POST("/v1/knowledge/{itemId}/approve", {
+      headers: tenantHeaders(identity),
+      params: { path: { itemId: item.id } },
+      body: {},
+    });
+    await completeAction(result, "Knowledge item could not be approved");
   }
 
   async function approveMessage(row: ConversationRow) {
-    if (!row.latest_message_id) return;
-    await post(`/v1/messages/${row.latest_message_id}/approve-send`, {});
+    if (!identity || !row.latest_message_id) return;
+    const result = await api.POST("/v1/messages/{messageId}/approve-send", {
+      headers: tenantHeaders(identity),
+      params: { path: { messageId: row.latest_message_id } },
+      body: {},
+    });
+    await completeAction(result, "Outbound message could not be approved");
   }
 
-  async function reviewScreening(row: ScreeningRow, reviewState: string) {
+  async function reviewScreening(row: ScreeningRow, reviewState: "approved" | "overridden_advance" | "overridden_reject") {
+    if (!identity) return;
     const reason = window.prompt("Human review reason")?.trim();
     if (!reason) return;
-    await post(`/v1/screening/sessions/${row.id}/review`, { reviewState, reason });
+    const result = await api.POST("/v1/screening/sessions/{sessionId}/review", {
+      headers: tenantHeaders(identity),
+      params: { path: { sessionId: row.id } },
+      body: { reviewState, reason },
+    });
+    await completeAction(result, "Screening review could not be recorded");
   }
 
   async function cancelSchedule(row: SchedulingRow) {
+    if (!identity) return;
     const reason = window.prompt("Cancellation reason")?.trim();
     if (!reason) return;
-    await patch(`/v1/scheduling/${row.id}/cancel`, { reason });
+    const result = await api.PATCH("/v1/scheduling/{requestId}/cancel", {
+      headers: tenantHeaders(identity),
+      params: { path: { requestId: row.id } },
+      body: { reason },
+    });
+    await completeAction(result, "Scheduling request could not be cancelled");
   }
 
   if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading engagement operations…</div>;
@@ -171,7 +177,7 @@ export function EngagementWorkspace() {
         {access.can("knowledge.manage") ? <button type="button" onClick={() => void createKnowledge()} className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white">Add approved knowledge</button> : null}
       </div>
 
-      {message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{message}</div> : null}
+      {message ? <div role="status" aria-live="polite" className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{message}</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-4">
         <Panel className="p-4"><div className="text-[9px] text-slate-500">Conversations</div><div className="mt-2 text-2xl font-semibold">{data.conversations.length}</div></Panel>
@@ -193,8 +199,8 @@ export function EngagementWorkspace() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel className="overflow-hidden"><div className="border-b border-slate-100 p-4"><h2 className="text-[12px] font-semibold">Scheduling lifecycle</h2></div><div className="divide-y divide-slate-100">{data.scheduling.map((row) => <div key={row.id} className="flex items-center justify-between gap-3 p-4"><div><div className="text-[10px] font-semibold">{row.candidate_name || "Candidate"} · {row.interview_type}</div><div className="mt-1 text-[9px] text-slate-500">{row.job_title || "Job"} · {row.selected_start ? new Date(row.selected_start).toLocaleString() : "Availability pending"}</div></div><div className="flex items-center gap-2"><Pill>{row.status}</Pill>{access.can("scheduling.manage") && row.status !== "cancelled" ? <button type="button" onClick={() => void cancelSchedule(row)} className="rounded-lg border border-slate-200 px-2 py-1 text-[9px]">Cancel</button> : null}</div></div>)}</div></Panel>
-        <Panel className="overflow-hidden"><div className="border-b border-slate-100 p-4"><h2 className="text-[12px] font-semibold">Knowledge & notification queue</h2></div><div className="p-4"><div className="space-y-2">{data.knowledge.slice(0, 8).map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-2"><div><div className="text-[9px] font-semibold">{item.title}</div><div className="text-[8px] text-slate-400">{item.knowledge_type}</div></div><div className="flex items-center gap-2"><Pill>{item.status}</Pill>{access.can("knowledge.manage") && item.status !== "approved" ? <button type="button" onClick={() => void approveKnowledge(item)} className="text-[9px] font-semibold text-indigo-600">Approve</button> : null}</div></div>)}</div><div className="mt-4 border-t border-slate-100 pt-3 text-[9px] text-slate-500">Notifications: {data.notifications.map((item) => `${item.notification_type}:${item.status}`).slice(0, 6).join(" · ") || "none"}</div></div></Panel>
+        <Panel className="overflow-hidden"><div className="border-b border-slate-100 p-4"><h2 className="text-[12px] font-semibold">Scheduling lifecycle</h2></div><div className="divide-y divide-slate-100">{data.scheduling.length ? data.scheduling.map((row) => <div key={row.id} className="flex items-center justify-between gap-3 p-4"><div><div className="text-[10px] font-semibold">{row.candidate_name || "Candidate"} · {row.interview_type}</div><div className="mt-1 text-[9px] text-slate-500">{row.job_title || "Job"} · {row.selected_start ? new Date(row.selected_start).toLocaleString() : "Availability pending"}</div></div><div className="flex items-center gap-2"><Pill>{row.status}</Pill>{access.can("scheduling.manage") && row.status !== "cancelled" ? <button type="button" onClick={() => void cancelSchedule(row)} className="rounded-lg border border-slate-200 px-2 py-1 text-[9px]">Cancel</button> : null}</div></div>) : <div className="p-5 text-[10px] text-slate-500">No scheduling requests.</div>}</div></Panel>
+        <Panel className="overflow-hidden"><div className="border-b border-slate-100 p-4"><h2 className="text-[12px] font-semibold">Knowledge & notification queue</h2></div><div className="p-4"><div className="space-y-2">{data.knowledge.length ? data.knowledge.slice(0, 8).map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-2"><div><div className="text-[9px] font-semibold">{item.title}</div><div className="text-[8px] text-slate-400">{item.knowledge_type}</div></div><div className="flex items-center gap-2"><Pill>{item.status}</Pill>{access.can("knowledge.manage") && item.status !== "approved" ? <button type="button" onClick={() => void approveKnowledge(item)} className="text-[9px] font-semibold text-indigo-600">Approve</button> : null}</div></div>) : <div className="text-[10px] text-slate-500">No knowledge items.</div>}</div><div className="mt-4 border-t border-slate-100 pt-3 text-[9px] text-slate-500">Notifications: {data.notifications.map((item) => `${item.notification_type}:${item.status}`).slice(0, 6).join(" · ") || "none"}</div></div></Panel>
       </div>
     </div>
   );
