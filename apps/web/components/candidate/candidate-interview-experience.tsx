@@ -111,9 +111,8 @@ export function CandidateInterviewExperience() {
       videoRef.current.srcObject = null;
     }
 
-    let devices: MediaDeviceInfo[] = [];
     try {
-      devices = await navigator.mediaDevices.enumerateDevices();
+      const devices = await navigator.mediaDevices.enumerateDevices();
       setCameraCount(devices.filter((device) => device.kind === "videoinput").length);
       setMicrophoneCount(devices.filter((device) => device.kind === "audioinput").length);
     } catch {
