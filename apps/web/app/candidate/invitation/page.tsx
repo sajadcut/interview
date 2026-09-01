@@ -4,7 +4,7 @@ import type { components } from "@interview/api-client";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../../lib/api";
+import { api } from "../../../lib/api";
 
 type InvitationContext = components["schemas"]["CandidateMagicLinkValidationDto"];
 
