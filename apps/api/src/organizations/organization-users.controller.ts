@@ -12,6 +12,7 @@ import {
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   AcceptOrganizationInvitationDto,
@@ -27,6 +28,7 @@ import {
 import { OrganizationUsersService } from "./organization-users.service";
 
 @ApiTags("organization-users")
+@ApiStandardErrorResponses()
 @Controller("v1/organization/users")
 @RequireTenant()
 @RequirePermissions(Permissions.OrganizationManageUsers)
@@ -72,6 +74,7 @@ export class OrganizationUsersController {
 }
 
 @ApiTags("organization-invitations")
+@ApiStandardErrorResponses()
 @Controller("v1/organization-invitations")
 export class OrganizationInvitationsController {
   constructor(private readonly users: OrganizationUsersService) {}
