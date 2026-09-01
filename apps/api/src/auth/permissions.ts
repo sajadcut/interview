@@ -1,6 +1,8 @@
 export const Permissions = {
   OrganizationRead: "organization.read",
   OrganizationManage: "organization.manage",
+  OrganizationManageUsers: "organization.manage_users",
+  SettingsManage: "settings.manage",
   JobRead: "job.read",
   JobCreate: "job.create",
   JobEdit: "job.edit",
