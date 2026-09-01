@@ -9,6 +9,7 @@ import {
   InterviewMediaModeDto,
   InterviewMediaReadinessQueryDto,
 } from "./interview-media.dto";
+import { InterviewMediaEventService } from "./interview-media-event.service";
 import { InterviewMediaService } from "./interview-media.service";
 import { InterviewSpeechService } from "./interview-speech.service";
 
@@ -18,6 +19,7 @@ import { InterviewSpeechService } from "./interview-speech.service";
 export class InterviewMediaController {
   constructor(
     private readonly media: InterviewMediaService,
+    private readonly mediaEvents: InterviewMediaEventService,
     private readonly speech: InterviewSpeechService,
   ) {}
 
@@ -79,15 +81,25 @@ export class InterviewMediaController {
     return this.media.getLatestMediaSession(sessionId);
   }
 
+  @Get(":sessionId/media/sessions/:mediaSessionId/participants")
+  @RequirePermissions(Permissions.InterviewRead)
+  @ApiOkResponse({ description: "Provider-neutral participant lifecycle state without credentials or raw media." })
+  listParticipants(
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+  ) {
+    return this.mediaEvents.listParticipants(sessionId, mediaSessionId);
+  }
+
   @Post(":sessionId/media/sessions/:mediaSessionId/events")
   @RequirePermissions(Permissions.InterviewManage)
   @AuditedAction("interview.media.event.append", "interview_media_session")
-  @ApiOkResponse({ description: "Append an operational media event without raw media or transcript content." })
+  @ApiOkResponse({ description: "Idempotently append an operational media event without raw media, transcript text or credentials." })
   appendEvent(
     @Param("sessionId") sessionId: string,
     @Param("mediaSessionId") mediaSessionId: string,
     @Body() body: InterviewMediaEventInputDto,
   ) {
-    return this.media.appendEvent(sessionId, mediaSessionId, body);
+    return this.mediaEvents.appendEvent(sessionId, mediaSessionId, body);
   }
 }
