@@ -11,6 +11,7 @@ import { EngagementModule } from "./engagement/engagement.module";
 import { HealthController } from "./health/health.controller";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { InterviewerModule } from "./interviewer/interviewer.module";
+import { ProductOperationsModule } from "./operations/product-operations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
 import { RecruitingModule } from "./recruiting/recruiting.module";
@@ -35,6 +36,7 @@ import { TenantModule } from "./tenant/tenant.module";
     AssessmentsModule,
     AnalyticsModule,
     PrivacyModule,
+    ProductOperationsModule,
   ],
   controllers: [AppController, HealthController],
 })
