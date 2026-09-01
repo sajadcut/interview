@@ -2,6 +2,10 @@ import { HttpException, Injectable, UnauthorizedException } from "@nestjs/common
 import { DatabaseService } from "../database/database.service";
 import { ACCOUNT_SECURITY_POLICY } from "./enterprise-auth.constants";
 import { PasswordHasherService } from "./password-hasher.service";
+import {
+  AUTH_RATE_LIMIT_POLICIES,
+  AuthRateLimitService,
+} from "./security/auth-rate-limit.service";
 import { SessionService, type IssuedSession, type SessionMetadata } from "./session.service";
 
 export interface LoginResult extends IssuedSession {
@@ -36,10 +40,16 @@ export class EnterpriseAuthService {
     private readonly database: DatabaseService,
     private readonly passwordHasher: PasswordHasherService,
     private readonly sessions: SessionService,
+    private readonly rateLimits: AuthRateLimitService,
   ) {}
 
   async login(email: string, password: string, metadata: SessionMetadata = {}): Promise<LoginResult> {
     const normalizedEmail = normalizeEmail(email);
+    await this.rateLimits.consume("login-email", normalizedEmail, AUTH_RATE_LIMIT_POLICIES.loginEmail);
+    if (metadata.ip) {
+      await this.rateLimits.consume("login-ip", metadata.ip, AUTH_RATE_LIMIT_POLICIES.loginIp);
+    }
+
     const rows = await this.database.sql`
       SELECT
         u.id::text AS user_id,
@@ -59,13 +69,15 @@ export class EnterpriseAuthService {
     if (!row || typeof row.user_id !== "string" || typeof row.password_hash !== "string") {
       throw new UnauthorizedException("Invalid email or password");
     }
+    const userId = row.user_id;
     if (row.disabled_at != null) {
+      await this.recordUserAudit(userId, "auth.login.failed", { reason: "account_disabled" });
       throw new UnauthorizedException("Account is disabled");
     }
 
-    const userId = row.user_id;
     const lockedUntil = row.locked_until == null ? undefined : new Date(String(row.locked_until));
     if (lockedUntil && !Number.isNaN(lockedUntil.getTime()) && lockedUntil.getTime() > Date.now()) {
+      await this.recordUserAudit(userId, "auth.login.failed", { reason: "account_locked" });
       throw new HttpException(
         "Account is temporarily locked after repeated failed sign-in attempts",
         423,
@@ -85,6 +97,7 @@ export class EnterpriseAuthService {
             updated_at = now()
         WHERE user_id = ${userId}::uuid
       `;
+      await this.recordUserAudit(userId, "auth.login.failed", { reason: "invalid_credentials" });
       throw new UnauthorizedException("Invalid email or password");
     }
 
@@ -103,7 +116,11 @@ export class EnterpriseAuthService {
       `;
     });
 
+    await this.rateLimits.clear("login-email", normalizedEmail);
+    if (metadata.ip) await this.rateLimits.clear("login-ip", metadata.ip);
+
     const issued = await this.sessions.createInternalSession(userId, metadata);
+    await this.recordUserAudit(userId, "auth.login", { sessionId: issued.sessionId });
     return {
       ...issued,
       email: typeof row.email === "string" ? row.email : normalizedEmail,
@@ -157,5 +174,27 @@ export class EnterpriseAuthService {
           updated_at = now()
     `;
     await this.sessions.revokeAllForUser(userId);
+  }
+
+  async recordUserAudit(
+    userId: string,
+    action: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.database.sql`
+      INSERT INTO audit_events (
+        organization_id, actor_type, actor_user_id, action, entity_type, entity_id, metadata
+      )
+      SELECT
+        m.organization_id,
+        'user',
+        ${userId}::uuid,
+        ${action},
+        'user',
+        ${userId},
+        ${metadata ? this.database.sql.json(metadata as never) : null}
+      FROM memberships m
+      WHERE m.user_id = ${userId}::uuid
+    `;
   }
 }
