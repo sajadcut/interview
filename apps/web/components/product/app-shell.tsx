@@ -75,26 +75,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const access = useInternalAccess();
   const locale = getDefaultLocale();
   const copy = shellCopy[locale];
-  const header =
-    locale === "fa"
-      ? {
-          search: "جستجوی کاندیدا، موقعیت یا مصاحبه...",
-          ask: "از AI بپرس",
-          create: "ایجاد موقعیت",
-          automation: "اتوماسیون",
-          searchPending: "جستجوی سراسری هنوز به ایندکس دامنه متصل نشده است",
-          aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
-          notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
-        }
-      : {
-          search: "Search candidates, jobs, interviews...",
-          ask: "Ask AI",
-          create: "Create Job",
-          automation: "Automation",
-          searchPending: "Global search is not connected to the domain index yet",
-          aiPending: "The global AI assistant is not wired to this control yet",
-          notificationsPending: "Notification center is not wired yet",
-        };
+  const header = locale === "fa"
+    ? {
+        search: "جستجوی کاندیدا، موقعیت یا مصاحبه...",
+        ask: "از AI بپرس",
+        create: "ایجاد موقعیت",
+        automation: "اتوماسیون",
+        aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
+        notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
+      }
+    : {
+        search: "Search candidates, jobs, interviews...",
+        ask: "Ask AI",
+        create: "Create Job",
+        automation: "Automation",
+        aiPending: "The global AI assistant is not wired to this control yet",
+        notificationsPending: "Notification center is not wired yet",
+      };
 
   const navigation = copy.navigation.filter(([, href]) => {
     if (href === "/app") return true;
@@ -109,152 +106,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   const canCreateJob = access.can("job.create");
 
   return (
-    <div
-      className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[236px_minmax(0,1fr)]"
-      dir={directionFor(locale)}
-    >
+    <div className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[236px_minmax(0,1fr)]" dir={directionFor(locale)}>
       <aside className="hidden bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0 lg:flex-col">
         <div className="mb-5 flex shrink-0 items-center gap-3 px-2 py-1">
-          <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30">
-            <Icon name="sparkles" size={17} />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[13px] font-semibold tracking-tight">AI Recruiter</div>
-            <div className="mt-0.5 truncate text-[10px] text-slate-400">
-              {access.organization?.name ?? copy.subtitle}
-            </div>
-          </div>
+          <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30"><Icon name="sparkles" size={17} /></div>
+          <div className="min-w-0"><div className="text-[13px] font-semibold tracking-tight">AI Recruiter</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{access.organization?.name ?? copy.subtitle}</div></div>
         </div>
-
         <div className="min-h-0 flex-1 overflow-y-auto pe-1">
-          <nav className="space-y-1" aria-label={copy.navigationLabel}>
-            {primary.map(([label, href]) => (
-              <NavItem
-                key={href}
-                label={label}
-                href={href}
-                active={isActivePath(pathname, href)}
-              />
-            ))}
-          </nav>
-
-          {secondary.length > 0 ? (
-            <>
-              <div className="my-4 border-t border-white/10" />
-              <div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">
-                {header.automation}
-              </div>
-              <nav
-                className="space-y-1"
-                aria-label={`${copy.navigationLabel} · ${header.automation}`}
-              >
-                {secondary.map(([label, href]) => (
-                  <NavItem
-                    key={href}
-                    label={label}
-                    href={href}
-                    active={isActivePath(pathname, href)}
-                  />
-                ))}
-              </nav>
-            </>
-          ) : null}
+          <nav className="space-y-1" aria-label={copy.navigationLabel}>{primary.map(([label, href]) => <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
+          {secondary.length > 0 ? <><div className="my-4 border-t border-white/10" /><div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">{header.automation}</div><nav className="space-y-1" aria-label={`${copy.navigationLabel} · ${header.automation}`}>{secondary.map(([label, href]) => <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav></> : null}
         </div>
-
         <div className="mt-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3 shadow-[0_8px_28px_rgba(2,6,23,.18)]">
-          {access.organizations.length > 1 ? (
-            <select
-              aria-label="Organization"
-              value={access.organization?.id}
-              onChange={(event) => access.selectOrganization(event.target.value)}
-              className="mb-3 w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-[10px] text-slate-200"
-            >
-              {access.organizations.map((organization) => (
-                <option key={organization.id} value={organization.id}>
-                  {organization.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-          <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">
-              {displayName.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[11px] font-semibold">{displayName}</div>
-              <div className="mt-0.5 truncate text-[9px] text-slate-400">{roleLabel}</div>
-            </div>
-          </div>
+          {access.organizations.length > 1 ? <select aria-label="Organization" value={access.organization?.id} onChange={(event) => access.selectOrganization(event.target.value)} className="mb-3 w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-[10px] text-slate-200">{access.organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select> : null}
+          <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">{displayName.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{displayName}</div><div className="mt-0.5 truncate text-[9px] text-slate-400">{roleLabel}</div></div></div>
         </div>
       </aside>
 
       <div className="min-w-0">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200/90 bg-white/95 px-3 backdrop-blur sm:gap-3 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center">
-            <div className="relative hidden w-full max-w-[560px] md:block" title={header.searchPending}>
-              <Icon
-                name="search"
-                size={15}
-                className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-300"
-              />
-              <input
-                readOnly
-                aria-disabled="true"
-                className="h-10 w-full cursor-not-allowed rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[12px] text-slate-400 outline-none placeholder:text-slate-400"
-                placeholder={header.search}
-              />
-            </div>
+            <form action="/app/search" method="get" className="relative hidden w-full max-w-[560px] md:block">
+              <Icon name="search" size={15} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
+              <input name="q" minLength={2} className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[12px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white" placeholder={header.search} />
+            </form>
           </div>
-          <button
-            type="button"
-            disabled
-            title={header.aiPending}
-            className="hidden h-10 cursor-not-allowed items-center gap-2 rounded-[10px] border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-400 sm:inline-flex"
-          >
-            <Icon name="sparkles" size={14} />
-            {header.ask}
-          </button>
-          {canCreateJob ? (
-            <Link
-              href="/app/jobs/new"
-              aria-label={header.create}
-              className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"
-            >
-              <Icon name="plus" size={14} />
-              <span className="hidden sm:inline">{header.create}</span>
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            disabled
-            title={header.notificationsPending}
-            className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400"
-          >
-            <Icon name="bell" size={15} />
-          </button>
-          <div className="hidden min-w-0 text-end sm:block">
-            <div className="max-w-36 truncate text-[10px] font-semibold text-slate-700">{displayName}</div>
-            <div className="max-w-36 truncate text-[9px] text-slate-400">{roleLabel}</div>
-          </div>
+          <button type="button" disabled title={header.aiPending} className="hidden h-10 cursor-not-allowed items-center gap-2 rounded-[10px] border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-400 sm:inline-flex"><Icon name="sparkles" size={14} />{header.ask}</button>
+          {canCreateJob ? <Link href="/app/jobs/new" aria-label={header.create} className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"><Icon name="plus" size={14} /><span className="hidden sm:inline">{header.create}</span></Link> : null}
+          <button type="button" disabled title={header.notificationsPending} className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400"><Icon name="bell" size={15} /></button>
+          <div className="hidden min-w-0 text-end sm:block"><div className="max-w-36 truncate text-[10px] font-semibold text-slate-700">{displayName}</div><div className="max-w-36 truncate text-[9px] text-slate-400">{roleLabel}</div></div>
         </header>
-
-        <nav
-          className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden"
-          aria-label={copy.mobileNavigationLabel}
-        >
-          {navigation.map(([label, href]) => (
-            <MobileNavItem
-              key={href}
-              label={label}
-              href={href}
-              active={isActivePath(pathname, href)}
-            />
-          ))}
-        </nav>
-
-        <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir="ltr">
-          {children}
-        </main>
+        <nav className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden" aria-label={copy.mobileNavigationLabel}>{navigation.map(([label, href]) => <MobileNavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
+        <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir="ltr">{children}</main>
       </div>
     </div>
   );
