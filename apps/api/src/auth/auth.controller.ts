@@ -13,6 +13,7 @@ import type { Request, Response } from "express";
 import { AuthContextService } from "./auth-context.service";
 import { readCookie } from "./cookie";
 import { LoginDto } from "./dto/login.dto";
+import { RequestPasswordResetDto, ResetPasswordDto } from "./dto/password-recovery.dto";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { SESSION_POLICY } from "./session-policy";
 import { SessionService, type IssuedSession, type SessionMetadata } from "./session.service";
@@ -82,6 +83,18 @@ export class AuthController {
       },
       organizations,
     };
+  }
+
+  @Post("password-reset/request")
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestPasswordReset(@Body() payload: RequestPasswordResetDto) {
+    return this.auth.requestPasswordReset(payload.email);
+  }
+
+  @Post("password-reset/complete")
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() payload: ResetPasswordDto) {
+    return this.auth.resetPassword(payload.token, payload.password);
   }
 
   @Post("refresh")
