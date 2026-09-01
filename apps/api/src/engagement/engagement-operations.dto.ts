@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -119,6 +120,7 @@ export class CreateNotificationDto {
   scheduledFor?: string;
 
   @ApiProperty()
+  @IsObject()
   payload!: Record<string, unknown>;
 }
 
