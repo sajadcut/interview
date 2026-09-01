@@ -5,10 +5,27 @@ import { RecruitingOperationsController } from "./recruiting-operations.controll
 import { RecruitingOperationsService } from "./recruiting-operations.service";
 import { RecruitingController } from "./recruiting.controller";
 import { RecruitingService } from "./recruiting.service";
+import { ScorecardReviewController } from "./scorecard-review.controller";
+import { ScorecardReviewService } from "./scorecard-review.service";
 
 @Module({
-  controllers: [RecruitingController, RecruitingOperationsController, CandidateIntelligenceController],
-  providers: [RecruitingService, RecruitingOperationsService, CandidateIntelligenceService],
-  exports: [RecruitingService, RecruitingOperationsService, CandidateIntelligenceService],
+  controllers: [
+    RecruitingController,
+    RecruitingOperationsController,
+    CandidateIntelligenceController,
+    ScorecardReviewController,
+  ],
+  providers: [
+    RecruitingService,
+    RecruitingOperationsService,
+    CandidateIntelligenceService,
+    ScorecardReviewService,
+  ],
+  exports: [
+    RecruitingService,
+    RecruitingOperationsService,
+    CandidateIntelligenceService,
+    ScorecardReviewService,
+  ],
 })
 export class RecruitingModule {}
