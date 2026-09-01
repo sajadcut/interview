@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { foundationCopy, getDefaultLocale } from "../../lib/i18n";
+import { directionFor, foundationCopy, getDefaultLocale } from "../../lib/i18n";
 
 export default function CandidateLayout({ children }: { children: ReactNode }) {
-  const copy = foundationCopy[getDefaultLocale()];
+  const locale = getDefaultLocale();
+  const copy = foundationCopy[locale];
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div lang={locale} dir={directionFor(locale)} className="min-h-screen bg-slate-50">
       <div className="sr-only">{copy.candidateBrand}</div>
       {children}
     </div>
