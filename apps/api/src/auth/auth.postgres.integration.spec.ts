@@ -4,6 +4,7 @@ import test from "node:test";
 import { DatabaseService } from "../database/database.service";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
+import { AuthRateLimitService } from "./security/auth-rate-limit.service";
 import { SessionService } from "./session.service";
 
 const integrationDatabaseUrl = process.env.AUTH_INTEGRATION_DATABASE_URL;
@@ -19,7 +20,8 @@ test(
     const database = new DatabaseService();
     const hasher = new PasswordHasherService();
     const sessions = new SessionService(database);
-    const auth = new EnterpriseAuthService(database, hasher, sessions);
+    const rateLimits = new AuthRateLimitService(database);
+    const auth = new EnterpriseAuthService(database, hasher, sessions, rateLimits);
     const userId = randomUUID();
     const email = `auth-integration-${userId}@example.invalid`;
     const password = "correct horse battery staple";
