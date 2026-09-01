@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { api } from "../../lib/api";
 
 export type UiPermission =
   | "organization.read"
@@ -211,17 +212,9 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
     let active = true;
     void (async () => {
       try {
-        const sessionResponse = await fetch("/api/backend/auth/session", {
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (sessionResponse.ok) {
-          const session = (await sessionResponse.json()) as {
-            userId?: string;
-            user?: InternalUser;
-            organizations?: InternalOrganization[];
-          };
-          const available = session.organizations ?? [];
+        const sessionResult = await api.GET("/auth/session");
+        if (sessionResult.response.ok && sessionResult.data) {
+          const available = sessionResult.data.organizations as InternalOrganization[];
           const stored = window.localStorage.getItem(STORAGE_KEY) ?? undefined;
           const selected =
             (stored && available.some((organization) => organization.id === stored)
@@ -229,7 +222,7 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
               : undefined) ?? available[0]?.id;
           if (active) {
             setAuthenticated(true);
-            setUser(session.user ?? (session.userId ? { id: session.userId } : undefined));
+            setUser({ id: sessionResult.data.userId });
             setOrganizations(available);
             setOrganizationId(selected);
             setDevelopmentFallback(false);
@@ -239,11 +232,9 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
         }
 
         if (process.env.NODE_ENV !== "production") {
-          const developmentResponse = await fetch("/api/backend/development/context", {
-            cache: "no-store",
-          });
-          if (developmentResponse.ok) {
-            const context = (await developmentResponse.json()) as {
+          const developmentResult = await api.GET("/development/context");
+          if (developmentResult.response.ok && developmentResult.data) {
+            const context = developmentResult.data as {
               ready?: boolean;
               organizationId?: string;
               userId?: string;
@@ -299,7 +290,7 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
+      <div role="status" className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
         در حال بررسی دسترسی…
       </div>
     );
