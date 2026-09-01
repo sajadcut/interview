@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 
 type InvitationContext = {
   valid: true;
@@ -20,7 +20,7 @@ function readMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function CandidateInvitationPage() {
+function CandidateInvitationContent() {
   const search = useSearchParams();
   const token = search.get("token")?.trim() ?? "";
   const [context, setContext] = useState<InvitationContext | null>(null);
@@ -103,5 +103,13 @@ export default function CandidateInvitationPage() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+export default function CandidateInvitationPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center px-4 py-10 text-sm text-slate-500">Loading invitation…</main>}>
+      <CandidateInvitationContent />
+    </Suspense>
   );
 }
