@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve("apps/web");
-const sourceRoots = ["app", "components", "hooks"].map((entry) => path.join(root, entry));
+const sourceRoots = ["app", "components", "hooks", "lib"].map((entry) => path.join(root, entry));
 const extensions = new Set([".ts", ".tsx", ".js", ".jsx"]);
 const ignored = new Set([
   path.normalize(path.join(root, "app/api/backend/[...path]/route.ts")),
@@ -59,5 +59,5 @@ if (violations.length) {
   console.error("Frontend contract-usage verification failed:\n" + violations.map((item) => `- ${item}`).join("\n"));
   process.exitCode = 1;
 } else {
-  console.log("✓ frontend production source has no direct /api/backend fetches or legacy demo fixtures");
+  console.log("✓ frontend production source and helpers have no direct /api/backend fetches or legacy demo fixtures");
 }
