@@ -3,7 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
-import { buildCorsOrigin } from "./common/http/cors";
+import { assertProductionCorsPolicy, buildCorsOrigin } from "./common/http/cors";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
 import { getEnv } from "./config/env";
@@ -14,6 +14,7 @@ async function bootstrap(): Promise<void> {
   const logger = new JsonLogger();
   const app = await NestFactory.create(AppModule, { logger });
   const corsOrigin = buildCorsOrigin(env.CORS_ORIGIN);
+  assertProductionCorsPolicy(env.NODE_ENV, corsOrigin);
 
   app.enableShutdownHooks();
   app.enableCors({
