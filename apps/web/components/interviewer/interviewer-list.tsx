@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { api, apiErrorMessage } from "../../lib/api";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 
 type AssignedInterview = {
@@ -20,28 +21,30 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    resolveTenantIdentity()
+    let active = true;
+    void resolveTenantIdentity()
       .then(async (identity) => {
-        const response = await fetch("/api/backend/v1/interviewer/interviews", {
-          credentials: "same-origin",
-          cache: "no-store",
+        const result = await api.GET("/v1/interviewer/interviews", {
           headers: tenantHeaders(identity),
         });
-        if (response.status === 401) {
+        if (result.response.status === 401) {
           window.location.replace("/login");
           return;
         }
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message = payload && typeof payload === "object" && "message" in payload
-            ? String((payload as { message?: unknown }).message)
-            : "Unable to load assigned interviews";
-          throw new Error(message);
+        if (!result.response.ok) {
+          throw new Error(apiErrorMessage(result, "Unable to load assigned interviews"));
         }
-        setItems(payload as AssignedInterview[]);
+        if (active) setItems((result.data ?? []) as AssignedInterview[]);
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load assigned interviews"))
-      .finally(() => setLoading(false));
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Unable to load assigned interviews");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
@@ -54,7 +57,7 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
         </div>
       </div>
 
-      {error ? <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
+      {error ? <div role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
       <div className="mt-5 grid gap-3">
         {items.map((item) => (
           <Link key={item.assignmentId} href={`/interviewer/session/${item.sessionId}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200">
@@ -71,7 +74,7 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
           </Link>
         ))}
         {!loading && items.length === 0 && !error ? <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-400">No interviews are currently assigned to you.</div> : null}
-        {loading ? <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading assignments…</div> : null}
+        {loading ? <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading assignments…</div> : null}
       </div>
     </section>
   );
