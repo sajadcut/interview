@@ -9,9 +9,23 @@ import {
   Res,
   UnauthorizedException,
 } from "@nestjs/common";
+import {
+  ApiAcceptedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
 import type { Request, Response } from "express";
 import { AuthContextService } from "./auth-context.service";
 import { readCookie } from "./cookie";
+import {
+  LoginResponseDto,
+  PasswordResetCompleteResponseDto,
+  PasswordResetRequestResponseDto,
+  RefreshResponseDto,
+  SessionResponseDto,
+} from "./dto/auth-response.dto";
 import { LoginDto } from "./dto/login.dto";
 import { RequestPasswordResetDto, ResetPasswordDto } from "./dto/password-recovery.dto";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
@@ -53,6 +67,7 @@ function clearSessionCookies(response: Response): void {
   response.clearCookie(SESSION_POLICY.REFRESH_COOKIE_NAME, { ...base, path: "/auth" });
 }
 
+@ApiTags("auth")
 @Controller("auth")
 export class AuthController {
   constructor(
@@ -63,6 +78,8 @@ export class AuthController {
 
   @Post("login")
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: LoginResponseDto })
+  @ApiUnauthorizedResponse({ description: "Invalid credentials, disabled account, or invalid session state." })
   async login(
     @Body() payload: LoginDto,
     @Req() request: Request,
@@ -87,18 +104,22 @@ export class AuthController {
 
   @Post("password-reset/request")
   @HttpCode(HttpStatus.ACCEPTED)
+  @ApiAcceptedResponse({ type: PasswordResetRequestResponseDto })
   requestPasswordReset(@Body() payload: RequestPasswordResetDto) {
     return this.auth.requestPasswordReset(payload.email);
   }
 
   @Post("password-reset/complete")
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: PasswordResetCompleteResponseDto })
   resetPassword(@Body() payload: ResetPasswordDto) {
     return this.auth.resetPassword(payload.token, payload.password);
   }
 
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: RefreshResponseDto })
+  @ApiUnauthorizedResponse({ description: "Refresh token is missing, expired, revoked, or already rotated." })
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const refreshToken = readCookie(
       request.header("cookie"),
@@ -117,6 +138,7 @@ export class AuthController {
 
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: "Session and refresh token revoked." })
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const principal = this.authContext.getOptional();
     const cookieHeader = request.header("cookie");
@@ -133,6 +155,8 @@ export class AuthController {
   }
 
   @Get("session")
+  @ApiOkResponse({ type: SessionResponseDto })
+  @ApiUnauthorizedResponse({ description: "Authentication is required." })
   async session() {
     const principal = this.authContext.getOptional();
     if (!principal || principal.source !== "session") {
