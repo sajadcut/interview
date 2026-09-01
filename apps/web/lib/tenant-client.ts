@@ -1,3 +1,5 @@
+import { api } from "./api";
+
 export interface SessionOrganization {
   id: string;
   name: string;
@@ -24,13 +26,9 @@ export function rememberOrganizationId(organizationId: string): void {
 
 export async function resolveTenantIdentity(): Promise<TenantIdentity> {
   const stored = storedOrganizationId();
-  const sessionResponse = await fetch("/api/backend/auth/session", {
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-  if (sessionResponse.ok) {
-    const session = (await sessionResponse.json()) as { organizations?: SessionOrganization[] };
-    const organizations = session.organizations ?? [];
+  const sessionResult = await api.GET("/auth/session");
+  if (!sessionResult.error && sessionResult.data) {
+    const organizations = sessionResult.data.organizations as SessionOrganization[];
     const organizationId =
       (stored && organizations.some((organization) => organization.id === stored) ? stored : undefined) ??
       organizations[0]?.id;

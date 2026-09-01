@@ -11,6 +11,7 @@ import {
 
 const ROLES = [
   "ORGANIZATION_ADMIN",
+  "HR_MANAGER",
   "RECRUITER",
   "INTERVIEWER",
   "HIRING_MANAGER",

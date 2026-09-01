@@ -9,15 +9,18 @@ import {
   Patch,
   Post,
 } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiNoContentResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   AcceptOrganizationInvitationDto,
+  AcceptOrganizationInvitationResponseDto,
   InviteOrganizationUserDto,
   OrganizationInvitationDto,
   OrganizationUserDto,
+  OrganizationUserRoleChangeDto,
+  OrganizationUserStatusChangeDto,
   UpdateOrganizationUserRoleDto,
   UpdateOrganizationUserStatusDto,
 } from "./organization-users.dto";
@@ -49,17 +52,20 @@ export class OrganizationUsersController {
   }
 
   @Patch(":userId/role")
+  @ApiOkResponse({ type: OrganizationUserRoleChangeDto })
   changeRole(@Param("userId") userId: string, @Body() body: UpdateOrganizationUserRoleDto) {
     return this.users.changeRole(userId, body);
   }
 
   @Patch(":userId/status")
+  @ApiOkResponse({ type: OrganizationUserStatusChangeDto })
   changeStatus(@Param("userId") userId: string, @Body() body: UpdateOrganizationUserStatusDto) {
     return this.users.setStatus(userId, body);
   }
 
   @Delete(":userId")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiNoContentResponse({ description: "Organization membership removed; global user account is retained." })
   remove(@Param("userId") userId: string) {
     return this.users.remove(userId);
   }
@@ -71,6 +77,7 @@ export class OrganizationInvitationsController {
   constructor(private readonly users: OrganizationUsersService) {}
 
   @Post("accept")
+  @ApiOkResponse({ type: AcceptOrganizationInvitationResponseDto })
   accept(@Body() body: AcceptOrganizationInvitationDto) {
     return this.users.acceptInvitation(body);
   }

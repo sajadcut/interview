@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { api } from "../../lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -12,14 +13,8 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setBusy(true);
     try {
-      const response = await fetch("/api/backend/auth/password-reset/request", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const payload = (await response.json().catch(() => null)) as { developmentToken?: string } | null;
-      if (payload?.developmentToken) setDevelopmentToken(payload.developmentToken);
+      const result = await api.POST("/auth/password-reset/request", { body: { email } });
+      if (result.data?.developmentToken) setDevelopmentToken(result.data.developmentToken);
       setDone(true);
     } finally {
       setBusy(false);

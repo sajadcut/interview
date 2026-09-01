@@ -1,7 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FormEvent, useState } from "react";
+import { api } from "../../lib/api";
+
+function errorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+    if (Array.isArray(message)) return message.map(String).join("; ");
+  }
+  return fallback;
+}
 
 export default function AcceptInvitePage() {
   const token = useSearchParams().get("token")?.trim() ?? "";
@@ -17,18 +27,11 @@ export default function AcceptInvitePage() {
     if (!token) return setError("Invitation token is missing");
     setBusy(true);
     try {
-      const response = await fetch("/api/backend/v1/organization-invitations/accept", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, displayName: displayName.trim(), password }),
+      const result = await api.POST("/v1/organization-invitations/accept", {
+        body: { token, displayName: displayName.trim(), password },
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = payload && typeof payload === "object" && "message" in payload
-          ? String((payload as { message?: unknown }).message)
-          : "Invitation could not be accepted";
-        throw new Error(message);
+      if (result.error || !result.data?.accepted) {
+        throw new Error(errorMessage(result.error, "Invitation could not be accepted"));
       }
       setDone(true);
     } catch (cause) {

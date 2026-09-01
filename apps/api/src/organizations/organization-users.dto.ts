@@ -36,7 +36,7 @@ export class AcceptOrganizationInvitationDto {
   @Length(1, 200)
   displayName!: string;
 
-  @ApiProperty({ minLength: 12, maxLength: 128 })
+  @ApiProperty({ minLength: 12, maxLength: 128, writeOnly: true })
   @IsString()
   @Length(12, 128)
   password!: string;
@@ -55,10 +55,30 @@ export class OrganizationUserDto {
 export class OrganizationInvitationDto {
   @ApiProperty() id!: string;
   @ApiProperty() email!: string;
-  @ApiProperty() role!: string;
-  @ApiProperty() expiresAt!: string;
-  @ApiProperty() createdAt!: string;
+  @ApiProperty({ enum: ORGANIZATION_ROLES }) role!: string;
+  @ApiProperty({ format: "date-time" }) expiresAt!: string;
+  @ApiProperty({ format: "date-time" }) createdAt!: string;
   @ApiProperty() deliveryRequired!: boolean;
   @ApiPropertyOptional({ description: "Development-only raw invitation token; never returned in production." })
   developmentToken?: string;
+}
+
+export class OrganizationUserRoleChangeDto {
+  @ApiProperty() userId!: string;
+  @ApiProperty({ enum: ORGANIZATION_ROLES }) role!: string;
+}
+
+export class OrganizationUserStatusChangeDto {
+  @ApiProperty() userId!: string;
+  @ApiProperty({ enum: ["active", "disabled"] }) status!: string;
+}
+
+export class AcceptOrganizationInvitationResponseDto {
+  @ApiProperty() accepted!: boolean;
+  @ApiProperty() organizationId!: string;
+  @ApiProperty() userId!: string;
+  @ApiProperty() membershipId!: string;
+  @ApiProperty({ enum: ORGANIZATION_ROLES }) role!: string;
+  @ApiProperty() existingAccount!: boolean;
+  @ApiProperty() credentialCreated!: boolean;
 }

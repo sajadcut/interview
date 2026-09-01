@@ -1,7 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { FormEvent, useState } from "react";
+import { api } from "../../lib/api";
+
+function errorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+    if (Array.isArray(message)) return message.map(String).join("; ");
+  }
+  return fallback;
+}
 
 export default function ResetPasswordPage() {
   const token = useSearchParams().get("token")?.trim() ?? "";
@@ -18,19 +28,8 @@ export default function ResetPasswordPage() {
     if (password !== confirmPassword) return setError("Passwords do not match");
     setBusy(true);
     try {
-      const response = await fetch("/api/backend/auth/password-reset/complete", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        const message = payload && typeof payload === "object" && "message" in payload
-          ? String((payload as { message?: unknown }).message)
-          : "Password reset failed";
-        throw new Error(message);
-      }
+      const result = await api.POST("/auth/password-reset/complete", { body: { token, password } });
+      if (result.error || !result.data?.reset) throw new Error(errorMessage(result.error, "Password reset failed"));
       setDone(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Password reset failed");

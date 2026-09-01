@@ -1,104 +1,188 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced. Deterministic M4 Interview Brain is browser-validated for a synthetic internal candidate. The next five M4 runtime stages are coded: local realtime toolchain/runbook, short-lived LiveKit credential issuance, internal browser LiveKit transport/reconnect lifecycle, executable local VAD/STT media-worker, and persisted Brain `spoken_text` → local TTS WAV bridge. Current workstation TypeScript typecheck, production build, and OpenAPI/typed-client regeneration are green. Realtime workstation checking is also validated and currently reports three missing required local tools: LiveKit Server, FFmpeg, and whisper.cpp CLI.  
-> **Version:** 0.13.2  
-> **Date:** 2026-09-01  
-> **Repository:** https://github.com/sajadcut/interview  
+> **Status:** Core Product Closure implementation is staged on `main`. Primary recruiter surfaces now read persisted API/database state, internal Auth and Organization User Management use generated typed API contracts, migration recovery guidance and DB-backed organization lifecycle coverage are present, and CI now enforces migration contracts, the mandatory Dotin Nexus registry, OpenAPI/client regeneration, contract drift, lint, typecheck, tests and build. Final quality-gate validation is currently blocked externally because Dotin Nexus returns HTTP 500 for `livekit-client@2.21.0`; no public-registry bypass is permitted. Realtime runtime validation remains separately blocked by missing LiveKit Server, FFmpeg and whisper.cpp CLI on the workstation.
+> **Version:** 0.14.0
+> **Date:** 2026-09-01
+> **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
 ---
 
-# 1. Current state
+# 1. Current verified state
 
 ```text
 Product architecture                       ✅ Defined in master.md
 Core technical architecture                ✅ Defined
 Interview architecture                     ✅ Defined
 Production-readiness gates                 ✅ Defined
-Node.js 25.9 / npm 11.6                    ✅ VALIDATED ON WINDOWS
-Dotin Nexus npm registry                    ✅ VERIFIED ON WORKSTATION
-PostgreSQL 17.11                            ✅ CONNECTIVITY + AUTH VALIDATED
-API bind 127.0.0.1:4100                    ✅ VALIDATED
-Root monorepo .env                          ✅ API + Web shared local source-of-truth
-CORS + same-origin Web→API proxy            ✅ BROWSER/API VALIDATED
-Development context ready=true              ✅ VALIDATED
-Deterministic Interview Brain               ✅ BROWSER VALIDATED
-Transcript + manual evidence persistence    ✅ BROWSER VALIDATED
-Evidence-driven criterion transition        ✅ BROWSER VALIDATED
-Migration 0015 realtime media               🟡 CODED / WORKSTATION APPLY RESULT PENDING
-Realtime provider readiness/preflight       🟡 CODED / RUNTIME PROVIDERS PENDING
-LiveKit scoped token issuance               🟡 CODED / LIVEKIT RUNTIME VALIDATION PENDING
-Browser LiveKit client transport            🟡 CODED / RUNTIME VALIDATION PENDING
-Media-worker executable                     🟡 CODED / PYTHON+MODELS VALIDATION PENDING
-Silero VAD HTTP adapter                     🟡 CODED / LOCAL PACKAGE+MODEL VALIDATION PENDING
-whisper.cpp final STT adapter               🟡 CODED / CLI+MODEL VALIDATION PENDING
-Persisted Brain turn → TTS WAV              🟡 CODED / LOCAL TTS ENGINE VALIDATION PENDING
-Media-worker LiveKit room subscriber        ⏳ NOT IMPLEMENTED
-Live audio chunk → VAD/STT transport        ⏳ NOT IMPLEMENTED
-TTS audio publication back into LiveKit     ⏳ NOT IMPLEMENTED
-Avatar runtime                              ⏳ NOT IMPLEMENTED
-Candidate realtime auth/session isolation   ⏳ NOT IMPLEMENTED
-Latest HEAD typecheck                       ✅ WORKSTATION GREEN
-Latest HEAD build                           ✅ WORKSTATION GREEN
-OpenAPI + typed client regeneration         ✅ WORKSTATION GREEN
-Realtime workstation checker                ✅ EXECUTED / BLOCKERS IDENTIFIED
-LiveKit Server executable                   ⏳ MISSING ON WORKSTATION
-FFmpeg executable                           ⏳ MISSING ON WORKSTATION
-whisper.cpp CLI executable                  ⏳ MISSING ON WORKSTATION
-Python 3.14.6                               ✅ FOUND BY REALTIME CHECK
-coturn                                      ◻ OPTIONAL FOR LOOPBACK / NOT INSTALLED
-Latest HEAD lint                            ⏳ PENDING
-Latest HEAD tests                           ⏳ PENDING
+Node.js 25.9 / npm 11.x                    ✅ WORKSTATION/GITHUB RUNNER BASELINE
+Dotin Nexus registry requirement            ✅ ENFORCED / NO BYPASS
+Dotin Nexus livekit-client@2.21.0           🔴 HTTP 500 FROM Dotin-NPM
+Migration sequencing + tenant FK contracts  ✅ CI PREFLIGHT GREEN (27 migrations)
+Migration recovery procedure                ✅ docs/database-migration-runbook.md
+Auth + session persistence                  ✅ DB-BACKED IMPLEMENTATION + EXISTING INTEGRATION COVERAGE
+Refresh-token rotation                      ✅ DB-BACKED IMPLEMENTATION + EXISTING INTEGRATION COVERAGE
+Organization user lifecycle                 ✅ DB-BACKED IMPLEMENTATION + NEW INTEGRATION COVERAGE
+Organization role set incl. HR_MANAGER      ✅ BACKEND + UI ALIGNED
+Primary Command Center                      ✅ PERSISTED API DATA
+Jobs list                                   ✅ PERSISTED API DATA
+Candidates list                             ✅ PERSISTED API DATA
+Recruiting Analytics                        ✅ PERSISTED API DATA
+Job create/workspace                        ✅ TYPED API CLIENT
+Candidate Intelligence workspace            ✅ TYPED API CLIENT
+Login/password reset/invite acceptance      ✅ TYPED API CLIENT
+Organization Users settings                 ✅ TYPED API CLIENT
+OpenAPI + typed-client regeneration         ✅ CI STEP DEFINED
+Generated contract drift guard              ✅ CI FAILURE IF GENERATED FILES DIFFER
+Latest HEAD lint/typecheck/test/build        ⏳ BLOCKED BEFORE INSTALL BY NEXUS E500
 Production approval                         ⬜ NOT APPROVED
 ```
 
----
-
-# 2. Validated evidence retained
+The current CI blocker is infrastructure outside the repository code path:
 
 ```text
-GET http://127.0.0.1:4100/health
-→ status=ok, service=interview-api
-
-GET http://127.0.0.1:4100/development/context
-→ ready=true
-
-GET /api/backend/development/context
-→ HTTP 200 through Next same-origin proxy
-
-Controlled Interview Brain browser flow
-→ synthetic session created
-→ Brain turn persisted
-→ interviewer transcript persisted
-→ candidate answer persisted
-→ manual evidence persisted
-→ evidence coverage updated
-→ Brain transitioned to next rubric criterion
-
-Current workstation quality evidence
-→ npm run typecheck: green
-→ npm run build: green
-→ npm run api:sync: OpenAPI export + typed client generation green
-
-Realtime workstation evidence
-→ npm run realtime:check executed successfully as a checker
-→ Python 3.14.6 found
-→ LiveKit Server missing from PATH
-→ FFmpeg missing from PATH
-→ whisper.cpp CLI missing from PATH
-→ coturn absent but optional for loopback
-→ LiveKit HTTP and media-worker URLs not yet configured
+npm view livekit-client@2.21.0 version
+registry = https://nexus3.dotin.ir/repository/Dotin-NPM/
+→ npm E500 Internal Server Error
+→ GET .../Dotin-NPM/livekit-client
 ```
 
-Candidate camera/microphone device check was previously validated in Firefox. Port 4000 remains occupied by workstation process TPVCGateway; Interview API local baseline is 127.0.0.1:4100.
+The private registry remains mandatory. The fix is to make `livekit-client@2.21.0` resolvable through `Dotin-NPM` (proxy/cache repair or hosted package in a repository included by that group), not to point npm at the public registry.
 
 ---
 
-# 3. M1–M6 baseline
+# 2. Core Product Closure delivered on main
+
+## CI / dependency supply chain
+
+- `.npmrc` remains locked to Dotin Nexus.
+- `scripts/check-registry.mjs` validates the configured registry and probes the exact blocking package/version.
+- Registry validation is a separate fast GitHub Actions job.
+- The quality job runs only after the registry gate passes.
+- CI then runs migration validation, `npm ci`, migrations, `api:sync`, generated-contract drift check, lint, typecheck, tests and build.
+- Generated OpenAPI/client files are uploaded as a workflow artifact before drift validation so a legitimate contract update can be committed exactly rather than hand-authored.
+
+## Real product data in primary recruiter UI
+
+The main product entry surfaces no longer present fixture metrics as current organization data:
+
+```text
+/app
+/app/jobs
+/app/candidates
+/app/analytics
+```
+
+They read persisted organization-scoped data through the API and expose loading/empty/error states.
+
+Deep recruiting surfaces now use the generated client rather than hand-built endpoint strings:
+
+```text
+job creation
+job recruiting workspace
+candidate intelligence workspace
+organization user management
+internal login/session resolution
+password reset request/complete
+organization invitation acceptance
+```
+
+Development fixture-backed deep visual demos may still exist elsewhere for product/reference work; they are not claimed here as persisted production data.
+
+## Auth / organization management contracts
+
+OpenAPI response/request DTO coverage was added for internal Auth and organization-user flows, including:
+
+```text
+login
+session
+refresh
+logout
+password reset request/complete
+organization user list
+pending invitations
+invite
+role change
+status change
+membership removal
+invitation acceptance
+```
+
+The UI role list is aligned with the backend canonical organization roles:
+
+```text
+ORGANIZATION_ADMIN
+HR_MANAGER
+RECRUITER
+INTERVIEWER
+HIRING_MANAGER
+```
+
+## Integration coverage
+
+Existing PostgreSQL integration coverage already exercises persisted sessions and refresh-token rotation. Core Closure adds a PostgreSQL-backed organization lifecycle test covering:
+
+```text
+invitation persistence
+raw-token hashing boundary
+invitation acceptance
+credential creation
+membership listing
+role change
+disable
+self-disable protection
+self-remove protection
+membership removal without deleting the global user
+audit-event persistence
+```
+
+## Database operations
+
+`docs/database-migration-runbook.md` defines:
+
+```text
+append-only forward migrations
+checksum/advisory-lock invariants
+pre-deploy backup evidence
+migration application + idempotent second run
+application-only rollback for compatible schemas
+corrective forward migration
+full database restore for destructive/unrecoverable incidents
+required release evidence
+```
+
+Automatic destructive down-migrations are intentionally not used.
+
+---
+
+# 3. Validation still required after Nexus repair
+
+As soon as Dotin Nexus can serve `livekit-client@2.21.0`, the existing GitHub Actions workflow must be allowed to reach the remaining gates on the same HEAD:
+
+```text
+registry probe
+→ npm ci
+→ db:migrate
+→ api:sync
+→ generated contract artifact
+→ committed-contract drift check
+→ lint
+→ typecheck
+→ PostgreSQL integration/unit tests
+→ build
+```
+
+Because the committed `openapi/openapi.json` and generated client predate the new Auth/organization contract annotations, the first post-Nexus run may intentionally fail the drift check after producing the exact generated artifact. In that case the generated OpenAPI/client artifact must be committed, then the workflow rerun. No handwritten substitute should be used.
+
+Core Product Closure is **implementation-complete but not validation-complete** until that final workflow is green.
+
+---
+
+# 4. M1–M6 product baseline
 
 ## M1 — Job → Candidate → Evidence
 
-Tenant-safe jobs/requirements/rubrics/candidates/applications/evidence/scorecards exist. Candidate remains organization-global; Application remains job-specific. Missing evidence remains incomplete rather than fabricated.
+Tenant-safe jobs, requirements, rubrics, candidates, applications, evidence and scorecards exist. Candidate remains organization-global; Application remains job-specific. Missing evidence remains incomplete rather than fabricated.
 
 ## M2 — Sourcing + Talent
 
@@ -110,7 +194,7 @@ Approved-knowledge grounding, persisted communications, deterministic hard-minim
 
 ## M4 — AI Interview
 
-Persisted release units/plans/sessions/turns/transcript/evidence, controlled candidate intents, deterministic Brain, release gating, consent/device UX, media readiness/persistence, and the runtime slices below are present. Real-candidate autonomous interview remains blocked.
+Persisted release units/plans/sessions/turns/transcript/evidence, controlled candidate intents, deterministic Brain, release gating, consent/device UX, media readiness/persistence, short-lived LiveKit credential issuance, browser transport harness and local media-worker boundaries exist. Real-candidate autonomous interview remains blocked and is not production-approved.
 
 ## M5 — Assessments
 
@@ -118,235 +202,45 @@ Assessment persistence and isolated-runner boundary exist. Real isolated executi
 
 ## M6 — Analytics + Enterprise hardening
 
-Analytics/privacy/retention/event foundations, tenant isolation, RBAC and audit are materially advanced. Production identity, integrations, observability and operational hardening remain incomplete.
+Analytics/privacy/retention/event foundations, tenant isolation, RBAC and audit are materially advanced. External integrations, observability and broader production hardening remain incomplete.
 
 ---
 
-# 4. Realtime foundation already present
+# 5. Realtime blockers are separate from Core Closure
+
+Current workstation runtime blockers remain:
 
 ```text
-provider-neutral transport/VAD/STT/TTS/avatar contracts
-migration 0015 interview_media_sessions + interview_media_events
-configured/reachable/ready provider health separation
-consent/release/provider preflight
-media lifecycle journal
-candidate launch gate
-internal readiness UI
-privacy invariants:
-  candidateVideoAnalysis = none
-  biometricInferenceAllowed = false
-  rawMediaPersistedByApi = false
-  spokenTextOnlyToAvatar = true
+LiveKit Server executable                   ⏳ MISSING
+FFmpeg executable                           ⏳ MISSING
+whisper.cpp / whisper-cli executable        ⏳ MISSING
 ```
+
+These executables are not needed to validate Core Product Closure. They are required later for realtime media transport/speech runtime validation.
+
+The npm package `livekit-client@2.21.0` is different: it is a JavaScript build dependency already declared by the Web workspace and must be supplied by the mandatory Dotin Nexus registry before the normal quality gate can install dependencies.
 
 ---
 
-# 5. Five new runtime stages coded
+# 6. Immediate external action
 
-## Stage 1 — Local-native toolchain/runbook
-
-Added:
-
-```text
-scripts/check-realtime-tools.mjs
-docs/realtime-runtime-runbook.md
-infra/realtime/turnserver.example.conf
-npm run realtime:check
-```
-
-Required local executable checks: LiveKit Server, Python, FFmpeg and whisper-cli. coturn is optional for localhost but required for non-loopback/corporate-network production validation.
-
-## Stage 2 — Secure LiveKit connection credential
-
-New server-side token signer creates HS256 LiveKit JWTs with:
-
-```text
-opaque participant identity
-opaque room reference
-roomJoin=true
-canPublish=true
-canSubscribe=true
-canPublishData=false
-publish sources = camera + microphone
-TTL bounded to 60..900 seconds
-```
-
-Endpoint:
-
-```text
-POST /v1/interviews/:sessionId/media/sessions/:mediaSessionId/connection
-```
-
-The endpoint refuses real-customer sessions in the development/internal path. API key/secret and access token are never persisted. Browser identity/room names contain no candidate PII.
-
-## Stage 3 — Internal browser LiveKit transport
-
-`livekit-client@2.21.0` is declared in the Web workspace. A synthetic transport harness now performs:
-
-```text
-preflight
-→ media-session persistence
-→ short-lived credential issuance
-→ Room.connect()
-→ microphone/camera publication
-→ connected/degraded/reconnected/disconnected lifecycle events
-→ 15s heartbeat
-→ explicit end
-```
-
-The lockfile must be generated by a real workstation `npm install` through Dotin Nexus; it was not fabricated in repository edits.
-
-## Stage 4 — Executable local VAD/STT media-worker
-
-`services/media-worker/server.py` now provides:
-
-```text
-GET  /health
-GET  /vad/health
-GET  /stt/health
-GET  /tts/health
-POST /vad/analyze
-POST /stt/finalize
-POST /tts/synthesize
-```
-
-POST endpoints require a local shared secret. VAD uses optional installed `silero-vad`. STT invokes local `whisper-cli`, writes only temporary WAV/output files, requires the expected output file to exist, returns only finalized text, and deletes temporary data after the request.
-
-This is an executable provider process, but it is not yet a LiveKit room subscriber. Live audio → worker streaming is the next transport integration slice.
-
-## Stage 5 — Persisted Brain spoken_text → TTS WAV
-
-New API service/controller path accepts no arbitrary text from the browser. It takes only session/media-session/turn IDs, loads a finalized persisted `interview_turns.spoken_text`, checks synthetic/internal scope and TTS readiness, then calls the authenticated worker TTS endpoint.
-
-```text
-POST /v1/interviews/:sessionId/media/sessions/:mediaSessionId/turns/:turnId/audio
-```
-
-The WAV response is streamed for internal validation and is not persisted. `tts_started` and `tts_ended` operational events store only identifiers/size metadata. An internal Brain→TTS harness can create a synthetic Brain turn and play the returned WAV when the local TTS engine is configured.
-
----
-
-# 6. Tooling required on workstation for these five stages
-
-```text
-LiveKit Server Windows binary
-livekit-client npm dependency from Dotin Nexus
-Python 3
-Python virtual environment
-silero-vad Python package/runtime
-FFmpeg
-whisper.cpp build / whisper-cli
-multilingual whisper ggml model
-one local TTS executable/runtime capable of UTF-8 Persian/English input and WAV output
-```
-
-For localhost transport, coturn is not required. Before network/production validation, TURN/TLS/firewall behavior must be validated.
-
-Local secret/model/voice files must never be committed.
-
----
-
-# 7. VALIDATED vs CODED vs NOT IMPLEMENTED
-
-## VALIDATED
-
-- Node/npm/PostgreSQL/API local baseline;
-- same-origin Web→API path;
-- development fixtures;
-- candidate Firefox device check;
-- synthetic Interview Brain session/turn/transcript/evidence flow;
-- evidence coverage and criterion transition;
-- current HEAD TypeScript typecheck;
-- current HEAD production build;
-- current OpenAPI export and typed API-client regeneration;
-- realtime workstation checker execution and blocker detection.
-
-## CODED — workstation runtime validation pending
-
-- migration 0015;
-- realtime provider health/preflight/lifecycle;
-- LiveKit JWT signer and scoped connection endpoint;
-- browser LiveKit transport/reconnect/heartbeat harness;
-- Python media-worker process;
-- Silero VAD endpoint;
-- whisper.cpp final STT endpoint;
-- authenticated local TTS command adapter;
-- persisted Brain turn → WAV endpoint/UI;
-- latest lint/test result.
-
-## NOT IMPLEMENTED / NOT CLAIMED CONNECTED
-
-- media-worker subscribing to LiveKit candidate audio tracks;
-- continuous audio frame/chunk streaming into VAD;
-- automatic VAD speech-end → STT finalize → transcript persistence;
-- transcript → Brain automatic realtime turn trigger;
-- TTS WAV publication back to LiveKit room;
-- interruption/barge-in audio cancellation;
-- avatar runtime/MuseTalk integration;
-- recording runtime;
-- candidate magic-link/OTP realtime auth isolation;
-- Persian/code-switching accuracy/latency benchmark;
-- failure injection/SLO/calibration;
-- SHADOW/SUPERVISED_PILOT/production approval.
-
----
-
-# 8. Workstation validation sequence
-
-After pulling current main, install/update JavaScript dependencies through the configured Dotin Nexus and keep the canonical lockfile workstation-generated:
+From the repository root, verify the Nexus package path with:
 
 ```powershell
-cd D:\interview\interview
-git pull
-npm install
+npm view livekit-client@2.21.0 version --registry=https://nexus3.dotin.ir/repository/Dotin-NPM/ --fetch-retries=0
 ```
 
-Apply/validate domain state and generated API artifacts:
-
-```powershell
-npm run db:validate
-npm run db:migrate
-npm run dev:bootstrap
-npm run api:sync
-```
-
-Install/start local media tools as described in `docs/realtime-runtime-runbook.md` and `services/media-worker/README.md`.
-
-Quality/runtime gates:
-
-```powershell
-npm run realtime:check
-npm run lint
-npm run test
-npm run typecheck
-npm run build
-npm run dev
-```
-
-Open:
+Healthy result:
 
 ```text
-http://localhost:3000/app/interviews/internal-test
+2.21.0
 ```
 
-Do not enable real-customer autonomous execution from this engineering harness.
-
----
-
-# 9. Next runtime work after validation
+Current GitHub Actions result:
 
 ```text
-LiveKit worker subscriber
-→ continuous audio frames
-→ streaming Silero state
-→ speech-end segmentation
-→ whisper final transcript
-→ transcript persistence
-→ Interview Brain next turn
-→ local TTS
-→ publish audio to LiveKit
-→ interruption/reconnect handling
-→ optional licensed avatar
+E500 Internal Server Error
+GET https://nexus3.dotin.ir/repository/Dotin-NPM/livekit-client
 ```
 
-Then: Persian/code-switching benchmarks, latency/failure injection, evaluator calibration, INTERNAL_TEST → SHADOW → SUPERVISED_PILOT. No autonomous real-candidate mode is production-approved.
+After Nexus returns `2.21.0`, rerun the latest failed GitHub Actions workflow and continue only from evidence produced by that exact HEAD.
