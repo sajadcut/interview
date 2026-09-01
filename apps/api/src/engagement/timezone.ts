@@ -1,12 +1,32 @@
-import { BadRequestException } from "@nestjs/common";
+import type { ValidationOptions } from "class-validator";
+import { registerDecorator } from "class-validator";
 
-export function requireIanaTimezone(value: string): string {
+export function isIanaTimezone(value: string): boolean {
   const timezone = value.trim();
-  if (!timezone) throw new BadRequestException("timezone is required");
+  if (!timezone) return false;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date(0));
+    return true;
   } catch {
-    throw new BadRequestException("timezone must be a valid IANA timezone");
+    return false;
   }
-  return timezone;
+}
+
+export function IsIanaTimezone(validationOptions?: ValidationOptions) {
+  return (object: object, propertyName: string): void => {
+    registerDecorator({
+      name: "isIanaTimezone",
+      target: object.constructor,
+      propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: unknown) {
+          return typeof value === "string" && isIanaTimezone(value);
+        },
+        defaultMessage() {
+          return "timezone must be a valid IANA timezone";
+        },
+      },
+    });
+  };
 }
