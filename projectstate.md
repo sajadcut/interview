@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced. Deterministic M4 Interview Brain is browser-validated for a synthetic internal candidate. The next five M4 runtime stages are coded: local realtime toolchain/runbook, short-lived LiveKit credential issuance, internal browser LiveKit transport/reconnect lifecycle, executable local VAD/STT media-worker, and persisted Brain `spoken_text` → local TTS WAV bridge. Current workstation TypeScript typecheck and production build are green; realtime runtime providers still require local tool startup and validation before they are called connected.  
-> **Version:** 0.13.1  
+> **Status:** M1–M6 implementation baseline materially advanced. Deterministic M4 Interview Brain is browser-validated for a synthetic internal candidate. The next five M4 runtime stages are coded: local realtime toolchain/runbook, short-lived LiveKit credential issuance, internal browser LiveKit transport/reconnect lifecycle, executable local VAD/STT media-worker, and persisted Brain `spoken_text` → local TTS WAV bridge. Current workstation TypeScript typecheck, production build, and OpenAPI/typed-client regeneration are green. Realtime workstation checking is also validated and currently reports three missing required local tools: LiveKit Server, FFmpeg, and whisper.cpp CLI.  
+> **Version:** 0.13.2  
 > **Date:** 2026-09-01  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -40,9 +40,15 @@ Avatar runtime                              ⏳ NOT IMPLEMENTED
 Candidate realtime auth/session isolation   ⏳ NOT IMPLEMENTED
 Latest HEAD typecheck                       ✅ WORKSTATION GREEN
 Latest HEAD build                           ✅ WORKSTATION GREEN
+OpenAPI + typed client regeneration         ✅ WORKSTATION GREEN
+Realtime workstation checker                ✅ EXECUTED / BLOCKERS IDENTIFIED
+LiveKit Server executable                   ⏳ MISSING ON WORKSTATION
+FFmpeg executable                           ⏳ MISSING ON WORKSTATION
+whisper.cpp CLI executable                  ⏳ MISSING ON WORKSTATION
+Python 3.14.6                               ✅ FOUND BY REALTIME CHECK
+coturn                                      ◻ OPTIONAL FOR LOOPBACK / NOT INSTALLED
 Latest HEAD lint                            ⏳ PENDING
 Latest HEAD tests                           ⏳ PENDING
-OpenAPI + typed client regeneration         ⏳ VALIDATION RESULT PENDING
 Production approval                         ⬜ NOT APPROVED
 ```
 
@@ -72,6 +78,16 @@ Controlled Interview Brain browser flow
 Current workstation quality evidence
 → npm run typecheck: green
 → npm run build: green
+→ npm run api:sync: OpenAPI export + typed client generation green
+
+Realtime workstation evidence
+→ npm run realtime:check executed successfully as a checker
+→ Python 3.14.6 found
+→ LiveKit Server missing from PATH
+→ FFmpeg missing from PATH
+→ whisper.cpp CLI missing from PATH
+→ coturn absent but optional for loopback
+→ LiveKit HTTP and media-worker URLs not yet configured
 ```
 
 Candidate camera/microphone device check was previously validated in Firefox. Port 4000 remains occupied by workstation process TPVCGateway; Interview API local baseline is 127.0.0.1:4100.
@@ -241,7 +257,9 @@ Local secret/model/voice files must never be committed.
 - synthetic Interview Brain session/turn/transcript/evidence flow;
 - evidence coverage and criterion transition;
 - current HEAD TypeScript typecheck;
-- current HEAD production build.
+- current HEAD production build;
+- current OpenAPI export and typed API-client regeneration;
+- realtime workstation checker execution and blocker detection.
 
 ## CODED — workstation runtime validation pending
 
@@ -254,7 +272,6 @@ Local secret/model/voice files must never be committed.
 - whisper.cpp final STT endpoint;
 - authenticated local TTS command adapter;
 - persisted Brain turn → WAV endpoint/UI;
-- latest OpenAPI/client regeneration result;
 - latest lint/test result.
 
 ## NOT IMPLEMENTED / NOT CLAIMED CONNECTED
