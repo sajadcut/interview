@@ -3,7 +3,11 @@ import test from "node:test";
 import { z } from "zod";
 import type { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
-import { AiGatewayService, AiStructuredOutputError } from "./ai-gateway.service";
+import {
+  AiGatewayService,
+  AiProviderTimeoutError,
+  AiStructuredOutputError,
+} from "./ai-gateway.service";
 import type { LlmProvider } from "./llm-provider";
 
 const organizationId = "22222222-2222-4222-8222-222222222222";
@@ -42,5 +46,21 @@ test("AI gateway rejects structurally invalid model output", async () => {
   await assert.rejects(
     () => tenant.run(organizationId, () => gateway.executeStructured(request)),
     AiStructuredOutputError,
+  );
+});
+
+test("AI gateway bounds provider execution with a timeout", async () => {
+  const tenant = new TenantContextService();
+  const provider: LlmProvider = {
+    name: "slow-test-provider",
+    generateStructured: async () => new Promise(() => undefined),
+  };
+  const gateway = new AiGatewayService(provider, databaseStub(), tenant);
+  await assert.rejects(
+    () =>
+      tenant.run(organizationId, () =>
+        gateway.executeStructured({ ...request, timeoutMs: 250 }),
+      ),
+    AiProviderTimeoutError,
   );
 });
