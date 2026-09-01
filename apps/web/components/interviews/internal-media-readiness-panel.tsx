@@ -1,15 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { api, apiErrorMessage } from "../../lib/api";
+import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 
 type RealtimeMediaMode = "audio" | "avatar";
-
-type DevelopmentContext = {
-  ready: boolean;
-  reason?: string;
-  organizationId?: string;
-  userId?: string;
-};
 
 type ProviderStatus = {
   component: "transport" | "vad" | "stt" | "tts" | "avatar";
@@ -36,19 +31,6 @@ type MediaReadiness = {
     spokenTextOnlyToAvatar: true;
   };
 };
-
-async function readJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    const message = Array.isArray(data.message)
-      ? data.message.filter((item): item is string => typeof item === "string").join("; ")
-      : typeof data.message === "string"
-        ? data.message
-        : `${response.status} ${response.statusText}`;
-    throw new Error(message);
-  }
-  return data as T;
-}
 
 function statusLabel(provider: ProviderStatus): string {
   if (provider.ready) return "Ready";
@@ -81,21 +63,15 @@ export function InternalMediaReadinessPanel() {
     setBusy(true);
     setError(null);
     try {
-      const context = await readJson<DevelopmentContext>(
-        await fetch("/api/backend/development/context", { cache: "no-store" }),
-      );
-      if (!context.ready || !context.organizationId || !context.userId) {
-        throw new Error(context.reason ?? "Development tenant context is not ready");
-      }
-
-      const response = await fetch(`/api/backend/v1/interviews/media/readiness?mode=${mode}`, {
-        cache: "no-store",
-        headers: {
-          "x-organization-id": context.organizationId,
-          "x-user-id": context.userId,
-        },
+      const identity = await resolveTenantIdentity();
+      const result = await api.GET("/v1/interviews/media/readiness", {
+        headers: tenantHeaders(identity),
+        params: { query: { mode } },
       });
-      setReadiness(await readJson<MediaReadiness>(response));
+      if (!result.response.ok) {
+        throw new Error(apiErrorMessage(result, "Could not load realtime media readiness"));
+      }
+      setReadiness(result.data as MediaReadiness);
     } catch (cause) {
       setReadiness(null);
       setError(cause instanceof Error ? cause.message : "Could not load realtime media readiness");
@@ -115,7 +91,7 @@ export function InternalMediaReadinessPanel() {
           <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">M4 · realtime readiness boundary</div>
           <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-slate-950">Self-hosted media pipeline readiness</h2>
           <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">
-            Provider health is checked through the API. Configuration alone never marks transport, VAD, STT, TTS or avatar as connected.
+            Provider health is checked through the typed API contract. Configuration alone never marks transport, VAD, STT, TTS or avatar as connected.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -124,6 +100,7 @@ export function InternalMediaReadinessPanel() {
               key={item}
               type="button"
               onClick={() => setMode(item)}
+              aria-pressed={mode === item}
               className={`rounded-full px-3 py-1.5 text-[9px] font-semibold ring-1 ${
                 mode === item
                   ? "bg-indigo-600 text-white ring-indigo-600"
@@ -145,7 +122,7 @@ export function InternalMediaReadinessPanel() {
       </div>
 
       {error ? (
-        <div className="mt-4 rounded-[10px] border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] leading-5 text-rose-700">{error}</div>
+        <div role="alert" className="mt-4 rounded-[10px] border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] leading-5 text-rose-700">{error}</div>
       ) : null}
 
       {readiness ? (
@@ -202,7 +179,7 @@ export function InternalMediaReadinessPanel() {
             <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">Avatar input</div><div className="mt-1 text-slate-500">Final spoken text only</div></div>
           </div>
         </>
-      ) : null}
+      ) : busy ? <div role="status" className="mt-4 rounded-[10px] bg-slate-50 p-4 text-[10px] text-slate-500">Checking provider readiness…</div> : null}
     </section>
   );
 }
