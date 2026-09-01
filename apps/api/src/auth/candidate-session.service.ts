@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DatabaseService } from "../database/database.service";
 import { SESSION_POLICY } from "./session-policy";
@@ -36,12 +36,39 @@ export class CandidateSessionService {
     candidateId: string;
     candidateIdentityId: string;
     applicationId: string;
+    consumeInvitationIds?: string[];
   }): Promise<IssuedCandidateSession> {
     const sessionId = randomUUID();
     const sessionToken = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + SESSION_POLICY.candidateHours * 60 * 60 * 1000);
 
     await this.database.sql.begin(async (tx) => {
+      if (input.consumeInvitationIds?.length) {
+        const consumed = await tx`
+          UPDATE invitation_tokens
+          SET consumed_at = now()
+          WHERE id = ANY(${input.consumeInvitationIds}::uuid[])
+            AND organization_id = ${input.organizationId}::uuid
+            AND candidate_identity_id = ${input.candidateIdentityId}::uuid
+            AND consumed_at IS NULL
+            AND expires_at > now()
+          RETURNING id::text
+        `;
+        if (consumed.length !== input.consumeInvitationIds.length) {
+          throw new UnauthorizedException("Candidate invitation is already used or expired");
+        }
+      }
+
+      await tx`
+        UPDATE candidate_identities
+        SET is_verified = true,
+            verified_at = now(),
+            expires_at = ${expiresAt},
+            temporary = true
+        WHERE organization_id = ${input.organizationId}::uuid
+          AND id = ${input.candidateIdentityId}::uuid
+          AND candidate_id = ${input.candidateId}::uuid
+      `;
       await tx`
         INSERT INTO sessions (
           id, principal_type, organization_id, candidate_identity_id, token_hash, expires_at
@@ -70,7 +97,10 @@ export class CandidateSessionService {
       sessionId,
       sessionToken,
       expiresAt,
-      ...input,
+      organizationId: input.organizationId,
+      candidateId: input.candidateId,
+      candidateIdentityId: input.candidateIdentityId,
+      applicationId: input.applicationId,
     };
   }
 
