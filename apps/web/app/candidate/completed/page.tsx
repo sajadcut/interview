@@ -1,46 +1,51 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
+import { api } from "../../../lib/api";
+import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
-type SessionInfo = {
-  candidate: { displayName: string };
-  job: { title: string };
-};
+type CandidateSession = components["schemas"]["CandidateSessionDto"];
 
 export default function CandidateCompletedPage() {
-  const [session, setSession] = useState<SessionInfo | null>(null);
+  const locale = getDefaultLocale();
+  const copy = candidateCopy[locale].completed;
+  const [session, setSession] = useState<CandidateSession | null>(null);
 
   useEffect(() => {
-    void fetch("/api/backend/v1/candidate-auth/session", {
-      credentials: "same-origin",
-      cache: "no-store",
-    }).then(async (response) => {
-      if (!response.ok) {
+    let active = true;
+    void api.GET("/v1/candidate-auth/session").then((result) => {
+      if (!active) return;
+      if (result.error || !result.data) {
         window.location.replace("/candidate/login");
         return;
       }
-      setSession((await response.json()) as SessionInfo);
+      setSession(result.data);
     });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function finish() {
-    await fetch("/api/backend/v1/candidate-auth/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    });
+    await api.POST("/v1/candidate-auth/logout");
     window.location.replace("/candidate/login");
   }
 
+  const detail = session
+    ? copy.detail.replace("{job}", session.jobTitle)
+    : candidateCopy[locale].loading;
+
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
-      <section className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-xl text-emerald-700">✓</div>
-        <h1 className="mt-4 text-2xl font-semibold tracking-[-.03em] text-slate-950">Interview completed</h1>
+      <section className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
+        <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-50 text-xl text-emerald-700" aria-hidden="true">✓</div>
+        <h1 className="mt-4 text-2xl font-semibold tracking-[-.03em] text-slate-950">{copy.title}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          {session ? `${session.candidate.displayName}, your ${session.job.title} interview has been recorded as complete.` : "Loading completion details…"}
+          {session ? `${session.candidateDisplayName}، ${detail}` : detail}
         </p>
-        <p className="mt-3 text-xs leading-5 text-slate-400">Your responses will be reviewed using the job rubric and supporting evidence. Final hiring decisions remain subject to human review.</p>
-        <button onClick={finish} className="mt-6 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white" type="button">End secure session</button>
+        <p className="mt-3 text-xs leading-5 text-slate-400">{copy.review}</p>
+        <button onClick={() => void finish()} className="mt-6 min-h-10 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-slate-500" type="button">{copy.end}</button>
       </section>
     </main>
   );
