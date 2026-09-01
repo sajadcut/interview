@@ -7,6 +7,8 @@ const FORWARDED_REQUEST_HEADERS = [
   "accept",
   "content-type",
   "authorization",
+  "cookie",
+  "user-agent",
   "x-organization-id",
   "x-user-id",
   "x-request-id",
@@ -43,6 +45,18 @@ function forwardedHeaders(request: Request): Headers {
   return headers;
 }
 
+function forwardResponseCookies(source: Headers, target: Headers): void {
+  const headers = source as Headers & { getSetCookie?: () => string[] };
+  const values = headers.getSetCookie?.() ?? [];
+  if (values.length > 0) {
+    for (const value of values) target.append("set-cookie", value);
+    return;
+  }
+
+  const fallback = source.get("set-cookie");
+  if (fallback) target.append("set-cookie", fallback);
+}
+
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const target = buildTargetUrl(request, path);
@@ -60,10 +74,17 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     const response = await fetch(target, init);
 
     const responseHeaders = new Headers();
-    for (const name of ["content-type", "cache-control", "location", "x-request-id"] as const) {
+    for (const name of [
+      "content-type",
+      "cache-control",
+      "location",
+      "www-authenticate",
+      "x-request-id",
+    ] as const) {
       const value = response.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
+    forwardResponseCookies(response.headers, responseHeaders);
     responseHeaders.set("x-interview-api-target", target.origin);
 
     return new Response(response.body, {
