@@ -13,8 +13,8 @@ export interface SourcePolicyRequest {
   sourceType: ApprovedSourceType;
   requestedLimit: number;
   adapter: CandidateSourceAdapter;
-  approvalConfirmed?: boolean;
-  approverUserId?: string;
+  approvalConfirmed?: boolean | undefined;
+  approverUserId?: string | undefined;
 }
 
 export interface SourcePolicyDecision {
