@@ -257,7 +257,7 @@ export class SourcingService {
       query,
       limit: policy.limit,
       adapter,
-      idempotencyKey,
+      ...(idempotencyKey ? { idempotencyKey } : {}),
     });
   }
 
