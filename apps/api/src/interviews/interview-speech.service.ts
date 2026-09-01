@@ -72,6 +72,7 @@ export class InterviewSpeechService {
     }
 
     await this.media.appendEvent(sessionId, mediaSessionId, {
+      idempotencyKey: `tts:${turnId}:started`,
       eventType: "tts_started",
       sourceComponent: "tts",
       payload: { turnId, action: String(row?.action ?? "unknown") },
@@ -92,6 +93,7 @@ export class InterviewSpeechService {
       });
     } catch (cause) {
       await this.media.appendEvent(sessionId, mediaSessionId, {
+        idempotencyKey: `tts:${turnId}:provider-connect-error`,
         eventType: "error",
         sourceComponent: "tts",
         payload: { message: "TTS provider connection failed", fatal: false, turnId },
@@ -103,6 +105,7 @@ export class InterviewSpeechService {
 
     if (!response.ok) {
       await this.media.appendEvent(sessionId, mediaSessionId, {
+        idempotencyKey: `tts:${turnId}:provider-http-${response.status}`,
         eventType: "error",
         sourceComponent: "tts",
         payload: { message: `TTS provider returned HTTP ${response.status}`, fatal: false, turnId },
@@ -119,6 +122,7 @@ export class InterviewSpeechService {
     }
 
     await this.media.appendEvent(sessionId, mediaSessionId, {
+      idempotencyKey: `tts:${turnId}:ended`,
       eventType: "tts_ended",
       sourceComponent: "tts",
       payload: { turnId, size: audio.length },
