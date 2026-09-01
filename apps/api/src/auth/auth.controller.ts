@@ -118,11 +118,17 @@ export class AuthController {
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const principal = this.authContext.getOptional();
     const cookieHeader = request.header("cookie");
     await this.sessions.revoke(
       readCookie(cookieHeader, SESSION_POLICY.COOKIE_NAME),
       readCookie(cookieHeader, SESSION_POLICY.REFRESH_COOKIE_NAME),
     );
+    if (principal?.userId) {
+      await this.auth.recordUserAudit(principal.userId, "auth.logout", {
+        sessionId: principal.sessionId ?? null,
+      });
+    }
     clearSessionCookies(response);
   }
 
