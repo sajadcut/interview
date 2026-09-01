@@ -5,6 +5,9 @@ import { TenantModule } from "../tenant/tenant.module";
 import { AuthContextService } from "./auth-context.service";
 import { AuthController } from "./auth.controller";
 import { AuthMiddleware } from "./auth.middleware";
+import { CandidateAuthController } from "./candidate-auth.controller";
+import { CandidateAuthService } from "./candidate-auth.service";
+import { CandidateSessionService } from "./candidate-session.service";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
 import { PermissionsGuard } from "./permissions.guard";
@@ -15,11 +18,13 @@ import { TenantAccessService } from "./tenant-access.service";
 @Global()
 @Module({
   imports: [TenantModule],
-  controllers: [AuthController],
+  controllers: [AuthController, CandidateAuthController],
   providers: [
     AuthContextService,
     AuthMiddleware,
     AuthRateLimitService,
+    CandidateAuthService,
+    CandidateSessionService,
     EnterpriseAuthService,
     PasswordHasherService,
     SessionService,
@@ -30,6 +35,8 @@ import { TenantAccessService } from "./tenant-access.service";
   exports: [
     AuthContextService,
     AuthRateLimitService,
+    CandidateAuthService,
+    CandidateSessionService,
     EnterpriseAuthService,
     PasswordHasherService,
     SessionService,
