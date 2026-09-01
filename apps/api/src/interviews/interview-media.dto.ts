@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsIn, IsObject, IsOptional } from "class-validator";
+import { IsIn, IsObject, IsOptional, IsString, Length } from "class-validator";
 import { RealtimeMediaModes } from "./interview-media.contracts";
 
 export const InterviewMediaEventTypes = [
@@ -10,6 +10,9 @@ export const InterviewMediaEventTypes = [
   "degraded",
   "disconnected",
   "reconnected",
+  "participant_joined",
+  "participant_left",
+  "turn_failure",
   "vad_speech_start",
   "vad_speech_end",
   "stt_final",
@@ -51,6 +54,15 @@ export class InterviewMediaReadinessQueryDto {
 }
 
 export class InterviewMediaEventInputDto {
+  @ApiProperty({
+    minLength: 8,
+    maxLength: 200,
+    description: "Stable caller-generated key. Retrying the same event with this key returns the original journal entry.",
+  })
+  @IsString()
+  @Length(8, 200)
+  idempotencyKey!: string;
+
   @ApiProperty({ enum: InterviewMediaEventTypes })
   @IsIn(InterviewMediaEventTypes)
   eventType!: InterviewMediaEventType;
@@ -60,7 +72,10 @@ export class InterviewMediaEventInputDto {
   @IsIn(InterviewMediaEventSources)
   sourceComponent?: InterviewMediaEventSource;
 
-  @ApiPropertyOptional({ type: Object })
+  @ApiPropertyOptional({
+    type: Object,
+    description: "Operational metadata only. Raw media, transcript text and credentials are rejected.",
+  })
   @IsOptional()
   @IsObject()
   payload?: Record<string, unknown>;
