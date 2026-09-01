@@ -38,6 +38,7 @@ export type UiPermission =
   | "analytics.read"
   | "privacy.manage"
   | "decision.submit"
+  | "automation.manage"
   | "integration.manage"
   | "audit.read";
 
@@ -94,6 +95,7 @@ const ALL_PERMISSIONS: UiPermission[] = [
   "analytics.read",
   "privacy.manage",
   "decision.submit",
+  "automation.manage",
   "integration.manage",
   "audit.read",
 ];
@@ -122,6 +124,7 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "analytics.read",
     "privacy.manage",
     "decision.submit",
+    "automation.manage",
     "audit.read",
   ],
   RECRUITER: [
@@ -143,6 +146,7 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "interview.start",
     "assessment.read",
     "assessment.manage",
+    "automation.manage",
   ],
   INTERVIEWER: [
     "candidate.read",
@@ -179,7 +183,7 @@ function permissionsFor(roles: string[]): ReadonlySet<UiPermission> {
 function permissionForPath(pathname: string): UiPermission | undefined {
   if (pathname.startsWith("/app/settings/users")) return "organization.manage_users";
   if (pathname.startsWith("/app/integrations")) return "integration.manage";
-  if (pathname.startsWith("/app/automations")) return "settings.manage";
+  if (pathname.startsWith("/app/automations")) return "automation.manage";
   if (pathname.startsWith("/app/analytics")) return "analytics.read";
   if (pathname.startsWith("/app/inbox")) return "candidate.contact";
   if (pathname.startsWith("/app/interviews")) return "interview.read";
