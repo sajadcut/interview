@@ -1,10 +1,38 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsObject,
+  IsOptional,
+  IsString,
+  Length,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+import { IsIanaTimezone } from "./timezone";
 
 export class OutboundMessageRequestDto {
-  @ApiProperty() body!: string;
-  @ApiProperty({ type: [String], description: "Approved knowledge item UUIDs" }) groundingReferences!: string[];
-  @ApiPropertyOptional({ default: false }) autoSendRequested?: boolean;
-  @ApiPropertyOptional({ default: false }) autoSendPolicyEnabled?: boolean;
+  @ApiProperty()
+  @IsString()
+  @Length(1, 10000)
+  body!: string;
+
+  @ApiProperty({ type: [String], description: "Approved knowledge item UUIDs" })
+  @IsArray()
+  @IsString({ each: true })
+  groundingReferences!: string[];
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  autoSendRequested?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  autoSendPolicyEnabled?: boolean;
 }
 
 export class MessageDto {
@@ -51,15 +79,39 @@ export class ScreeningSessionDto {
   @ApiProperty() createdAt!: string;
 }
 
+export class SchedulingSlotDto {
+  @ApiProperty() start!: string;
+  @ApiProperty() end!: string;
+}
+
 export class SchedulingRequestInputDto {
-  @ApiProperty() interviewType!: string;
-  @ApiProperty() timezone!: string;
-  @ApiProperty({ type: [Object] }) proposedSlots!: Record<string, unknown>[];
+  @ApiProperty()
+  @IsString()
+  @Length(1, 160)
+  interviewType!: string;
+
+  @ApiProperty({ example: "Europe/Berlin" })
+  @IsString()
+  @IsIanaTimezone()
+  timezone!: string;
+
+  @ApiProperty({ type: [SchedulingSlotDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(25)
+  @ValidateNested({ each: true })
+  @Type(() => SchedulingSlotDto)
+  proposedSlots!: SchedulingSlotDto[];
 }
 
 export class SchedulingConfirmationDto {
-  @ApiProperty() selectedStart!: string;
-  @ApiProperty() selectedEnd!: string;
+  @ApiProperty()
+  @IsString()
+  selectedStart!: string;
+
+  @ApiProperty()
+  @IsString()
+  selectedEnd!: string;
 }
 
 export class SchedulingRequestDto {
