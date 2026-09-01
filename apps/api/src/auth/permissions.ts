@@ -17,6 +17,8 @@ export const Permissions = {
   KnowledgeManage: "knowledge.manage",
   InterviewRead: "interview.read",
   InterviewManage: "interview.manage",
+  InterviewAssign: "interview.assign",
+  InterviewStart: "interview.start",
   InterviewEvaluate: "interview.evaluate",
   AssessmentRead: "assessment.read",
   AssessmentManage: "assessment.manage",
