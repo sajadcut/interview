@@ -27,7 +27,7 @@ export function rememberOrganizationId(organizationId: string): void {
 export async function resolveTenantIdentity(): Promise<TenantIdentity> {
   const stored = storedOrganizationId();
   const sessionResult = await api.GET("/auth/session");
-  if (!sessionResult.error && sessionResult.data) {
+  if (sessionResult.response.ok && sessionResult.data) {
     const organizations = sessionResult.data.organizations as SessionOrganization[];
     const organizationId =
       (stored && organizations.some((organization) => organization.id === stored) ? stored : undefined) ??
@@ -38,18 +38,21 @@ export async function resolveTenantIdentity(): Promise<TenantIdentity> {
     }
   }
 
-  const developmentResponse = await fetch("/api/backend/development/context", { cache: "no-store" });
-  if (developmentResponse.ok) {
-    const context = (await developmentResponse.json()) as {
-      organizationId?: string;
-      userId?: string;
-    };
-    if (context.organizationId && context.userId) {
-      rememberOrganizationId(context.organizationId);
-      return {
-        organizationId: context.organizationId,
-        developmentUserId: context.userId,
+  if (process.env.NODE_ENV !== "production") {
+    const developmentResult = await api.GET("/development/context");
+    if (developmentResult.response.ok && developmentResult.data) {
+      const context = developmentResult.data as {
+        ready?: boolean;
+        organizationId?: string;
+        userId?: string;
       };
+      if (context.ready && context.organizationId && context.userId) {
+        rememberOrganizationId(context.organizationId);
+        return {
+          organizationId: context.organizationId,
+          developmentUserId: context.userId,
+        };
+      }
     }
   }
 
