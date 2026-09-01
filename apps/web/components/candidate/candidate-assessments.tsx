@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { api } from "../../lib/api";
 
 interface AssessmentSession {
   session_id: string;
@@ -15,6 +16,15 @@ interface AssessmentSession {
   review_state?: string;
 }
 
+function messageFrom(value: unknown, fallback: string): string {
+  if (value && typeof value === "object" && "message" in value) {
+    const message = (value as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+    if (Array.isArray(message)) return message.map(String).join("; ");
+  }
+  return fallback;
+}
+
 export function CandidateAssessments() {
   const [sessions, setSessions] = useState<AssessmentSession[]>([]);
   const [selected, setSelected] = useState<AssessmentSession>();
@@ -24,17 +34,14 @@ export function CandidateAssessments() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const response = await fetch("/api/backend/v1/candidate/assessments", {
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    if (response.status === 401) {
+    const result = await api.GET("/v1/candidate/assessments");
+    if (result.response.status === 401) {
       window.location.href = "/candidate/login";
       return;
     }
-    const payload = (await response.json().catch(() => ({}))) as { sessions?: AssessmentSession[]; message?: string };
-    if (!response.ok) throw new Error(payload.message || "Assessments could not be loaded");
-    setSessions(payload.sessions ?? []);
+    if (result.error) throw new Error(messageFrom(result.error, "Assessments could not be loaded"));
+    const payload = result.data as { sessions?: AssessmentSession[] } | undefined;
+    setSessions(payload?.sessions ?? []);
   }
 
   useEffect(() => {
@@ -52,13 +59,11 @@ export function CandidateAssessments() {
   }, []);
 
   async function start(session: AssessmentSession) {
-    const response = await fetch(`/api/backend/v1/candidate/assessments/${session.session_id}/start`, {
-      method: "POST",
-      credentials: "same-origin",
+    const result = await api.POST("/v1/candidate/assessments/{sessionId}/start", {
+      params: { path: { sessionId: session.session_id } },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    if (!response.ok) {
-      setMessage(payload.message || "Assessment could not start");
+    if (result.error) {
+      setMessage(messageFrom(result.error, "Assessment could not start"));
       return;
     }
     setSelected({ ...session, status: "in_progress" });
@@ -68,15 +73,12 @@ export function CandidateAssessments() {
 
   async function submit() {
     if (!selected || !sourceText.trim()) return;
-    const response = await fetch(`/api/backend/v1/candidate/assessments/${selected.session_id}/submissions`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ language, sourceText }),
+    const result = await api.POST("/v1/candidate/assessments/{sessionId}/submissions", {
+      params: { path: { sessionId: selected.session_id } },
+      body: { language, sourceText },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    if (!response.ok) {
-      setMessage(payload.message || "Submission failed");
+    if (result.error) {
+      setMessage(messageFrom(result.error, "Submission failed"));
       return;
     }
     setSourceText("");
@@ -95,7 +97,7 @@ export function CandidateAssessments() {
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Complete only assessments assigned to this application. Integrity signals may be shown to reviewers as context and are never automatic findings of misconduct.
         </p>
-        {message ? <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-800">{message}</div> : null}
+        {message ? <div role="status" aria-live="polite" className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-800">{message}</div> : null}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
