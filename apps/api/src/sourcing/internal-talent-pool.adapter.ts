@@ -10,6 +10,7 @@ import {
 @Injectable()
 export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
   readonly sourceType = ApprovedSourceTypes.InternalTalentPool;
+  readonly providerKey = "internal-postgres";
   readonly requiresApproval = false;
 
   constructor(private readonly database: DatabaseService) {}
@@ -22,6 +23,7 @@ export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
         c.display_name,
         c."current_role",
         c.current_company,
+        c.updated_at,
         COALESCE(array_agg(DISTINCT cs.skill_label) FILTER (WHERE cs.skill_label IS NOT NULL), '{}') AS skills,
         CASE
           WHEN c."current_role" ILIKE ${pattern} THEN 1.0
@@ -42,20 +44,22 @@ export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
           OR c.current_company ILIKE ${pattern}
           OR cs.skill_label ILIKE ${pattern}
         )
-      GROUP BY c.id, c.display_name, c."current_role", c.current_company
+      GROUP BY c.id, c.display_name, c."current_role", c.current_company, c.updated_at
       ORDER BY retrieval_score DESC, c.updated_at DESC
       LIMIT ${request.limit}
     `;
 
+    const retrievedAt = new Date().toISOString();
     return rows.map((row) => {
       const skills = Array.isArray(row.skills) ? row.skills.map(String) : [];
       const displayName = String(row.display_name);
       const currentRole = row.current_role ? String(row.current_role) : undefined;
       const currentCompany = row.current_company ? String(row.current_company) : undefined;
+      const candidateId = String(row.id);
 
       return {
         sourceType: this.sourceType,
-        candidateId: String(row.id),
+        candidateId,
         displayName,
         ...(currentRole ? { currentRole } : {}),
         ...(currentCompany ? { currentCompany } : {}),
@@ -65,7 +69,15 @@ export class InternalTalentPoolAdapter implements CandidateSourceAdapter {
           currentRole ? `Current role: ${currentRole}` : "Current role not provided",
           skills.length ? `Skills: ${skills.join(", ")}` : "No indexed skills",
         ],
-      };
+        provenance: {
+          providerKey: this.providerKey,
+          sourceType: this.sourceType,
+          observedAt: new Date(String(row.updated_at)).toISOString(),
+          retrievedAt,
+          externalKey: candidateId,
+          evidenceReferences: [`candidate:${candidateId}`, `talent_pool:${candidateId}`],
+        },
+      } satisfies CandidateSourceResult;
     });
   }
 }
