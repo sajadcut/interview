@@ -2487,6 +2487,226 @@
         ]
       }
     },
+    "/v1/jobs/{jobId}/sourcing/imports": {
+      "post": {
+        "operationId": "SourcingImportExportController_importCandidates",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourcingImportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcingImportResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/runs/{runId}/export": {
+      "get": {
+        "operationId": "SourcingImportExportController_exportRun",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcingExportDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/runs/{runId}/audit": {
+      "get": {
+        "operationId": "SourcingImportExportController_auditRun",
+        "parameters": [
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourcingAuditDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
     "/v1/talent/{candidateId}": {
       "patch": {
         "operationId": "TalentOperationsController_upsertTalent",
@@ -6603,6 +6823,211 @@
             "description": "Required again when retrying an approval-gated external source."
           }
         }
+      },
+      "SourcingImportCandidateDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceExternalKey": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "currentRole": {
+            "type": "string"
+          },
+          "currentCompany": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "retrievalScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0
+          },
+          "evidenceReferences": {
+            "description": "Stable source references supporting the imported profile.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "normalizedEmail": {
+            "type": "string"
+          },
+          "normalizedPhone": {
+            "type": "string"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "displayName",
+          "skills",
+          "evidenceReferences",
+          "observedAt"
+        ]
+      },
+      "SourcingImportRequestDto": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "internal_talent_pool",
+              "ats",
+              "approved_job_board",
+              "approved_external"
+            ]
+          },
+          "providerKey": {
+            "type": "string",
+            "description": "Stable provider/importer key, for example greenhouse, lever or csv-import."
+          },
+          "approvalConfirmed": {
+            "type": "boolean",
+            "description": "Required for non-internal source imports."
+          },
+          "candidates": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourcingImportCandidateDto"
+            }
+          }
+        },
+        "required": [
+          "sourceType",
+          "providerKey",
+          "candidates"
+        ]
+      },
+      "SourcingImportResultDto": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "importedCount": {
+            "type": "number"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "providerKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId",
+          "importedCount",
+          "sourceType",
+          "providerKey",
+          "status"
+        ]
+      },
+      "SourcingExportDto": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "exportedAt": {
+            "type": "string"
+          },
+          "run": {
+            "type": "object"
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "exportedAt",
+          "run",
+          "attempts",
+          "candidates"
+        ]
+      },
+      "SourcingAuditDto": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "sourcePolicyVersion": {
+            "type": "string"
+          },
+          "attemptCount": {
+            "type": "number"
+          },
+          "resultCount": {
+            "type": "number"
+          },
+          "provenanceComplete": {
+            "type": "boolean"
+          },
+          "missingProvenanceCount": {
+            "type": "number"
+          },
+          "missingEvidenceReferenceCount": {
+            "type": "number"
+          },
+          "providerKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "runId",
+          "sourcePolicyVersion",
+          "attemptCount",
+          "resultCount",
+          "provenanceComplete",
+          "missingProvenanceCount",
+          "missingEvidenceReferenceCount",
+          "providerKeys",
+          "attempts"
+        ]
       },
       "UpsertTalentEntryDto": {
         "type": "object",

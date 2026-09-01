@@ -724,6 +724,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/jobs/{jobId}/sourcing/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcingImportExportController_importCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/runs/{runId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingImportExportController_exportRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/runs/{runId}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingImportExportController_auditRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/talent/{candidateId}": {
         parameters: {
             query?: never;
@@ -2300,6 +2348,59 @@ export interface components {
         SourcingRetryRequestDto: {
             /** @description Required again when retrying an approval-gated external source. */
             approvalConfirmed?: boolean;
+        };
+        SourcingImportCandidateDto: {
+            /** Format: uuid */
+            candidateId?: string;
+            sourceExternalKey?: string;
+            displayName: string;
+            currentRole?: string;
+            currentCompany?: string;
+            skills: string[];
+            /** @default 0 */
+            retrievalScore: number;
+            /** @description Stable source references supporting the imported profile. */
+            evidenceReferences: string[];
+            normalizedEmail?: string;
+            normalizedPhone?: string;
+            /** Format: date-time */
+            observedAt: string;
+            /** Format: uri */
+            sourceUrl?: string;
+        };
+        SourcingImportRequestDto: {
+            /** @enum {string} */
+            sourceType: "internal_talent_pool" | "ats" | "approved_job_board" | "approved_external";
+            /** @description Stable provider/importer key, for example greenhouse, lever or csv-import. */
+            providerKey: string;
+            /** @description Required for non-internal source imports. */
+            approvalConfirmed?: boolean;
+            candidates: components["schemas"]["SourcingImportCandidateDto"][];
+        };
+        SourcingImportResultDto: {
+            runId: string;
+            importedCount: number;
+            sourceType: string;
+            providerKey: string;
+            status: string;
+        };
+        SourcingExportDto: {
+            schemaVersion: string;
+            exportedAt: string;
+            run: Record<string, never>;
+            attempts: Record<string, never>[];
+            candidates: Record<string, never>[];
+        };
+        SourcingAuditDto: {
+            runId: string;
+            sourcePolicyVersion: string;
+            attemptCount: number;
+            resultCount: number;
+            provenanceComplete: boolean;
+            missingProvenanceCount: number;
+            missingEvidenceReferenceCount: number;
+            providerKeys: string[];
+            attempts: Record<string, never>[];
         };
         UpsertTalentEntryDto: {
             /** @enum {string} */
@@ -4668,6 +4769,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourcingRunExecutionDto"];
+                };
+            };
+        };
+    };
+    SourcingImportExportController_importCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourcingImportRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcingImportResultDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SourcingImportExportController_exportRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcingExportDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SourcingImportExportController_auditRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcingAuditDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
                 };
             };
         };
