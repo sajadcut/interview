@@ -45,6 +45,9 @@ jobs:
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
+      - name: Verify frontend contract usage
+        run: npm run web:contracts
+
       - name: Rebuild dependency lockfile from public registry
         run: |
           rm -f package-lock.json
