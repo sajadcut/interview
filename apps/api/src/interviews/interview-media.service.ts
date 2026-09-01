@@ -12,6 +12,7 @@ import type {
   InterviewMediaEventType,
 } from "./interview-media.dto";
 import { buildMediaProviderDescriptors, probeMediaProviders } from "./interview-media.providers";
+import { createLiveKitJoinToken } from "./livekit-access-token";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -268,9 +269,90 @@ export class InterviewMediaService {
         privacy: preflight.media.privacy,
         createdAt: new Date(String(rows[0]?.created_at)).toISOString(),
         connectionCredentialsIssued: false,
-        note: "Provider room/token issuance is a separate runtime integration step; this API does not fabricate credentials.",
+        note: "Use the scoped connection endpoint to issue a short-lived LiveKit token after transport readiness is healthy.",
       };
     });
+  }
+
+  async issueConnection(sessionId: string, mediaSessionId: string) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const rows = await this.database.sql`
+      SELECT
+        m.id,
+        m.mode,
+        m.status,
+        m.transport_provider,
+        m.room_reference,
+        s.checkpoint
+      FROM interview_media_sessions m
+      JOIN interview_sessions s
+        ON s.organization_id = m.organization_id AND s.id = m.interview_session_id
+      WHERE m.organization_id = ${organizationId}::uuid
+        AND m.id = ${mediaSessionId}::uuid
+        AND m.interview_session_id = ${sessionId}::uuid
+      LIMIT 1
+    `;
+    if (!rows.length) throw new NotFoundException("Interview media session not found");
+
+    const row = rows[0];
+    const checkpoint = asRecord(row?.checkpoint);
+    if (checkpoint.candidateIsRealCustomerCandidate === true) {
+      throw new BadRequestException(
+        "Internal engineering connection endpoint does not issue credentials for real customer candidates",
+      );
+    }
+    const status = String(row?.status ?? "unknown");
+    if (["ended", "failed"].includes(status)) {
+      throw new BadRequestException(`Interview media session is ${status}`);
+    }
+    if (String(row?.transport_provider) !== "livekit") {
+      throw new BadRequestException("LiveKit connection credentials require the livekit transport provider");
+    }
+    const mode = String(row?.mode);
+    if (mode !== "audio" && mode !== "avatar") {
+      throw new BadRequestException("Unsupported persisted realtime media mode");
+    }
+    const roomReference = row?.room_reference ? String(row.room_reference) : "";
+    if (!roomReference) throw new BadRequestException("Interview media session has no room reference");
+
+    const readiness = await this.getReadiness(mode);
+    if (!readiness.ready) {
+      throw new BadRequestException({
+        message: "Realtime transport is not ready for credential issuance",
+        blockers: readiness.blockers,
+      });
+    }
+
+    const env = getEnv();
+    if (!env.LIVEKIT_URL || !env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET) {
+      throw new BadRequestException("LiveKit URL/key/secret are not configured");
+    }
+    const liveKitUrl = new URL(env.LIVEKIT_URL);
+    if (liveKitUrl.protocol !== "ws:" && liveKitUrl.protocol !== "wss:") {
+      throw new BadRequestException("LIVEKIT_URL must use ws:// or wss:// for browser transport");
+    }
+
+    const participantIdentity = `candidate-${mediaSessionId}`;
+    const credential = createLiveKitJoinToken({
+      apiKey: env.LIVEKIT_API_KEY,
+      apiSecret: env.LIVEKIT_API_SECRET,
+      room: roomReference,
+      participantIdentity,
+      validForSeconds: env.LIVEKIT_TOKEN_TTL_SECONDS,
+    });
+
+    return {
+      transport: "livekit" as const,
+      serverUrl: env.LIVEKIT_URL,
+      roomReference,
+      accessToken: credential.token,
+      expiresAt: credential.expiresAt,
+      participantIdentity: credential.participantIdentity,
+      permissions: credential.permissions,
+      connectionCredentialsIssued: true,
+      persisted: false,
+      candidateScope: "synthetic-internal-only" as const,
+    };
   }
 
   async getLatestMediaSession(sessionId: string) {

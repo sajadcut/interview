@@ -50,6 +50,7 @@ const envSchema = z
     LIVEKIT_HEALTH_URL: optionalUrl,
     LIVEKIT_API_KEY: z.string().default(""),
     LIVEKIT_API_SECRET: z.string().default(""),
+    LIVEKIT_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
     TURN_URLS: z.string().default(""),
     VAD_PROVIDER: z.enum(["disabled", "silero-http"]).default("disabled"),
     VAD_BASE_URL: optionalUrl,

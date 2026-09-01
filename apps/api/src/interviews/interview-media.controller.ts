@@ -40,6 +40,17 @@ export class InterviewMediaController {
     return this.media.createMediaSession(sessionId, body.mode);
   }
 
+  @Post(":sessionId/media/sessions/:mediaSessionId/connection")
+  @RequirePermissions(Permissions.InterviewManage)
+  @AuditedAction("interview.media.connection.issue", "interview_media_session")
+  @ApiOkResponse({ description: "Issue a short-lived room-scoped LiveKit token for a synthetic/internal candidate. Token is never persisted." })
+  issueConnection(
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+  ) {
+    return this.media.issueConnection(sessionId, mediaSessionId);
+  }
+
   @Get(":sessionId/media/sessions/latest")
   @RequirePermissions(Permissions.InterviewRead)
   @ApiOkResponse({ description: "Latest persisted media lifecycle state for the interview session." })
