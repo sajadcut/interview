@@ -31,15 +31,20 @@ function createIntegrationDatabase(): DatabaseService {
   } as DatabaseService;
 }
 
+function authServices(database: DatabaseService) {
+  const hasher = new PasswordHasherService();
+  const sessions = new SessionService(database);
+  const rateLimits = new AuthRateLimitService(database);
+  const auth = new EnterpriseAuthService(database, hasher, sessions, rateLimits);
+  return { auth, sessions };
+}
+
 test(
   "enterprise auth persists sessions and rotates refresh tokens against PostgreSQL",
   { skip: !integrationDatabaseUrl },
   async () => {
     const database = createIntegrationDatabase();
-    const hasher = new PasswordHasherService();
-    const sessions = new SessionService(database);
-    const rateLimits = new AuthRateLimitService(database);
-    const auth = new EnterpriseAuthService(database, hasher, sessions, rateLimits);
+    const { auth, sessions } = authServices(database);
     const userId = randomUUID();
     const email = `auth-integration-${userId}@example.invalid`;
     const password = "correct horse battery staple";
@@ -103,6 +108,57 @@ test(
 
       await sessions.revoke(rotated.sessionToken);
       assert.equal(await sessions.resolveInternalSession(rotated.sessionToken), undefined);
+    } finally {
+      await database.sql`DELETE FROM users WHERE id = ${userId}::uuid`;
+      await database.onModuleDestroy();
+    }
+  },
+);
+
+test(
+  "password reset is single-use and revokes existing session and refresh credentials",
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const database = createIntegrationDatabase();
+    const { auth, sessions } = authServices(database);
+    const userId = randomUUID();
+    const email = `password-reset-${userId}@example.invalid`;
+    const oldPassword = "old correct horse battery staple";
+    const newPassword = "new correct horse battery staple";
+
+    try {
+      await database.sql`
+        INSERT INTO users (id, email, display_name)
+        VALUES (${userId}::uuid, ${email}, 'Password Reset Integration Test')
+      `;
+      await auth.setPassword(userId, oldPassword);
+      const login = await auth.login(email, oldPassword);
+
+      const resetRequest = await auth.requestPasswordReset(email);
+      assert.equal(resetRequest.accepted, true);
+      assert.ok(resetRequest.developmentToken);
+      const resetToken = String(resetRequest.developmentToken);
+
+      await auth.resetPassword(resetToken, newPassword);
+
+      assert.equal(await sessions.resolveInternalSession(login.sessionToken), undefined);
+      await assert.rejects(
+        () => sessions.rotateRefreshToken(login.refreshToken),
+        /invalid or expired|reuse detected/i,
+      );
+      await assert.rejects(
+        () => auth.resetPassword(resetToken, newPassword),
+        /invalid or expired/i,
+      );
+      await assert.rejects(() => auth.login(email, oldPassword), /Invalid email or password/);
+
+      const newLogin = await auth.login(email, newPassword);
+      assert.equal(newLogin.userId, userId);
+      assert.deepEqual(await sessions.resolveInternalSession(newLogin.sessionToken), {
+        userId,
+        sessionId: newLogin.sessionId,
+      });
+      await sessions.revoke(newLogin.sessionToken, newLogin.refreshToken);
     } finally {
       await database.sql`DELETE FROM users WHERE id = ${userId}::uuid`;
       await database.onModuleDestroy();
