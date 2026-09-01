@@ -26,6 +26,17 @@ export class SourcingRunSummaryDto {
   @ApiProperty() createdAt!: string;
 }
 
+export class SourcingAttemptDto {
+  @ApiProperty() attemptNo!: number;
+  @ApiProperty({ enum: sourceTypes }) sourceType!: ApprovedSourceType;
+  @ApiProperty() providerKey!: string;
+  @ApiProperty() state!: string;
+  @ApiProperty() resultCount!: number;
+  @ApiPropertyOptional() errorMessage?: string;
+  @ApiProperty() startedAt!: string;
+  @ApiPropertyOptional() completedAt?: string;
+}
+
 export class DiscoveredCandidateDto {
   @ApiProperty() id!: string;
   @ApiPropertyOptional() candidateId?: string;
@@ -40,10 +51,18 @@ export class DiscoveredCandidateDto {
 }
 
 export class SourcingRunDetailDto extends SourcingRunSummaryDto {
+  @ApiProperty() sourcePolicyVersion!: string;
+  @ApiPropertyOptional() idempotencyKey?: string;
   @ApiProperty({ type: Object }) strategy!: Record<string, unknown>;
   @ApiProperty({ type: [DiscoveredCandidateDto] }) results!: DiscoveredCandidateDto[];
+  @ApiProperty({ type: [SourcingAttemptDto] }) attempts!: SourcingAttemptDto[];
   @ApiProperty({ description: "Retrieval scores are search signals, not hiring scores." })
   retrievalNotice!: string;
+}
+
+export class SourcingRunExecutionDto extends SourcingRunDetailDto {
+  @ApiProperty() idempotentReplay!: boolean;
+  @ApiPropertyOptional() providerKey?: string;
 }
 
 export class SourcingRunRequestDto {
