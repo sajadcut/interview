@@ -10,6 +10,7 @@ function env(overrides: Partial<AppEnv> = {}): AppEnv {
     API_PORT: 4100,
     CORS_ORIGIN: "*",
     DATABASE_URL: "postgresql://interview:interview@localhost:5432/interview",
+    STORAGE_PROVIDER: "local",
     LOCAL_STORAGE_ROOT: ".local-data/storage",
     LLM_PROVIDER: "disabled",
     LLM_MODEL: "",
