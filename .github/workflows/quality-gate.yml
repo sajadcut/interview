@@ -45,8 +45,10 @@ jobs:
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
-      - name: Synchronize dependency lockfile
-        run: npm install --package-lock-only --ignore-scripts --replace-registry-host=always
+      - name: Rebuild dependency lockfile from public registry
+        run: |
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts
 
       - name: Install dependencies
         run: npm ci
