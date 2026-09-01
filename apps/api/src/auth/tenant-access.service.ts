@@ -7,11 +7,13 @@ import { Permissions, type Permission } from "./permissions";
 export interface TenantAccess {
   organizationId: string;
   userId: string;
-  membershipId: string;
+  membershipId: string | null;
+  platformAdmin: boolean;
   permissions: ReadonlySet<Permission>;
 }
 
 const knownPermissions = new Set<string>(Object.values(Permissions));
+const allPermissions = new Set<Permission>(Object.values(Permissions));
 
 function isPermission(value: string): value is Permission {
   return knownPermissions.has(value);
@@ -31,6 +33,25 @@ export class TenantAccessService {
 
     const principal = this.authContext.getOptional();
     if (!principal) throw new UnauthorizedException("Authentication is required");
+
+    const platformRows = await this.database.sql`
+      SELECT 1
+      FROM platform_user_roles pur
+      JOIN organizations o ON o.id = ${tenant.organizationId}::uuid
+      WHERE pur.user_id = ${principal.userId}::uuid
+        AND pur.role_key = 'PLATFORM_ADMIN'
+        AND pur.revoked_at IS NULL
+      LIMIT 1
+    `;
+    if (platformRows.length > 0) {
+      return {
+        organizationId: tenant.organizationId,
+        userId: principal.userId,
+        membershipId: null,
+        platformAdmin: true,
+        permissions: allPermissions,
+      };
+    }
 
     const rows = await this.database.sql`
       SELECT
@@ -68,6 +89,7 @@ export class TenantAccessService {
       organizationId: tenant.organizationId,
       userId: principal.userId,
       membershipId: row.membership_id,
+      platformAdmin: false,
       permissions: new Set(keys.filter(isPermission)),
     };
   }
