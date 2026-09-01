@@ -37,7 +37,17 @@ const envSchema = z
       .string()
       .min(1)
       .default("postgresql://interview:interview@localhost:5432/interview"),
+
+    STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),
     LOCAL_STORAGE_ROOT: z.string().min(1).default(".local-data/storage"),
+    S3_ENDPOINT: optionalUrl,
+    S3_REGION: z.string().trim().min(1).default("us-east-1"),
+    S3_BUCKET: z.string().trim().default(""),
+    S3_ACCESS_KEY_ID: z.string().default(""),
+    S3_SECRET_ACCESS_KEY: z.string().default(""),
+    S3_FORCE_PATH_STYLE: booleanFlag,
+    S3_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+
     LLM_PROVIDER: z.enum(["disabled", "openai-compatible"]).default("disabled"),
     LLM_MODEL: z.string().default(""),
     LLM_API_KEY: z.string().default(""),
@@ -63,12 +73,40 @@ const envSchema = z
     AVATAR_BASE_URL: optionalUrl,
   })
   .superRefine((value, context) => {
-    if (value.LLM_PROVIDER !== "openai-compatible") return;
-    if (!value.LLM_API_KEY) {
-      context.addIssue({ code: "custom", path: ["LLM_API_KEY"], message: "required when LLM_PROVIDER=openai-compatible" });
+    if (value.LLM_PROVIDER === "openai-compatible") {
+      if (!value.LLM_API_KEY) {
+        context.addIssue({
+          code: "custom",
+          path: ["LLM_API_KEY"],
+          message: "required when LLM_PROVIDER=openai-compatible",
+        });
+      }
+      if (!value.LLM_MODEL) {
+        context.addIssue({
+          code: "custom",
+          path: ["LLM_MODEL"],
+          message: "required when LLM_PROVIDER=openai-compatible unless every call supplies a model",
+        });
+      }
     }
-    if (!value.LLM_MODEL) {
-      context.addIssue({ code: "custom", path: ["LLM_MODEL"], message: "required when LLM_PROVIDER=openai-compatible unless every call supplies a model" });
+
+    if (value.STORAGE_PROVIDER === "s3") {
+      if (!value.S3_BUCKET) {
+        context.addIssue({
+          code: "custom",
+          path: ["S3_BUCKET"],
+          message: "required when STORAGE_PROVIDER=s3",
+        });
+      }
+      const hasAccessKey = Boolean(value.S3_ACCESS_KEY_ID);
+      const hasSecret = Boolean(value.S3_SECRET_ACCESS_KEY);
+      if (hasAccessKey !== hasSecret) {
+        context.addIssue({
+          code: "custom",
+          path: ["S3_ACCESS_KEY_ID"],
+          message: "S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY must be supplied together",
+        });
+      }
     }
   });
 
