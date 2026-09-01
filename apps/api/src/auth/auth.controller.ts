@@ -68,6 +68,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.auth.login(payload.email, payload.password, requestMetadata(request));
+    const organizations = await this.auth.listOrganizations(result.userId);
     setSessionCookies(response, result);
     return {
       user: {
@@ -79,6 +80,7 @@ export class AuthController {
         id: result.sessionId,
         expiresAt: result.sessionExpiresAt.toISOString(),
       },
+      organizations,
     };
   }
 
@@ -112,7 +114,7 @@ export class AuthController {
   }
 
   @Get("session")
-  session() {
+  async session() {
     const principal = this.authContext.getOptional();
     if (!principal || principal.source !== "session") {
       throw new UnauthorizedException("Authentication is required");
@@ -120,6 +122,7 @@ export class AuthController {
     return {
       userId: principal.userId,
       sessionId: principal.sessionId,
+      organizations: await this.auth.listOrganizations(principal.userId),
     };
   }
 }
