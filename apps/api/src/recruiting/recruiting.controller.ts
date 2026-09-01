@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   CandidateSummaryDto,
@@ -13,6 +14,7 @@ import {
 import { RecruitingService } from "./recruiting.service";
 
 @ApiTags("recruiting")
+@ApiStandardErrorResponses()
 @Controller("v1")
 @RequireTenant()
 export class RecruitingController {
@@ -34,6 +36,7 @@ export class RecruitingController {
 
   @Get("candidates")
   @RequirePermissions(Permissions.CandidateRead)
+  @ApiQuery({ name: "jobId", required: false, type: String })
   @ApiOkResponse({ type: CandidateSummaryDto, isArray: true })
   listCandidates(@Query("jobId") jobId?: string) {
     return this.recruiting.listCandidates(jobId);
