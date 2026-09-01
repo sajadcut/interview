@@ -45,6 +45,7 @@ const envSchema = z
 
     MEDIA_REALTIME_ENABLED: booleanFlag,
     MEDIA_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(2500),
+    MEDIA_WORKER_SHARED_SECRET: z.string().default(""),
     MEDIA_TRANSPORT_PROVIDER: z.enum(["disabled", "livekit"]).default("disabled"),
     LIVEKIT_URL: optionalUrl,
     LIVEKIT_HEALTH_URL: optionalUrl,

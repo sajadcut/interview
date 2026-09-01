@@ -2,9 +2,9 @@
 
 The media worker owns realtime speech/media mechanics for M4. It is separate from the Interview Brain and evaluator.
 
-## Implemented executable boundary
+## Executable boundary
 
-`server.py` is a local-native HTTP worker that can start without Docker. It loads the repository root `.env`, exposes component-specific health, accepts WAV audio for VAD/STT, and never logs request bodies/transcript text.
+`server.py` is a local-native HTTP worker. It loads the repository root `.env`, exposes component-specific health, accepts WAV audio for VAD/STT, and synthesizes WAV from server-approved `spokenText` through a configured local TTS command.
 
 ```text
 GET  /health
@@ -13,13 +13,14 @@ GET  /stt/health
 GET  /tts/health
 POST /vad/analyze      Content-Type: audio/wav
 POST /stt/finalize     Content-Type: audio/wav
+POST /tts/synthesize   Content-Type: application/json
 ```
 
-The STT endpoint invokes local `whisper-cli` and requires an actual output file; exit code 0 alone is not considered success. Only finalized transcript text is returned to the caller. Raw audio is held in a temporary directory and deleted after the request.
+All POST endpoints require `x-media-worker-secret`, matching local `MEDIA_WORKER_SHARED_SECRET`. Health endpoints never expose that secret. Request bodies, transcript text, spoken text and credentials are not logged.
+
+The STT endpoint invokes local `whisper-cli` and requires an actual output file; exit code 0 alone is not considered success. Raw audio and TTS text/output files live only in temporary directories and are deleted after the request.
 
 ## Local runtime
-
-Install Python dependencies into a local virtual environment:
 
 ```powershell
 python -m venv .venv-media
@@ -27,15 +28,15 @@ python -m venv .venv-media
 python -m pip install -r services/media-worker/requirements.txt
 ```
 
-Install/build `whisper.cpp`, ensure `whisper-cli` is on PATH (or set `WHISPER_CLI`), and configure a local model path:
+Install/build `whisper.cpp`, ensure `whisper-cli` is on PATH (or set `WHISPER_CLI`), and configure a local multilingual model.
 
 ```env
 MEDIA_WORKER_HOST=127.0.0.1
 MEDIA_WORKER_PORT=9010
+MEDIA_WORKER_SHARED_SECRET=<local-random-secret>
 WHISPER_CLI=whisper-cli
 WHISPER_MODEL_PATH=D:\models\whisper\ggml-medium.bin
 WHISPER_LANGUAGE=auto
-WHISPER_TIMEOUT_SECONDS=120
 
 VAD_PROVIDER=silero-http
 VAD_BASE_URL=http://127.0.0.1:9010/vad
@@ -45,36 +46,30 @@ TTS_PROVIDER=local-http
 TTS_BASE_URL=http://127.0.0.1:9010/tts
 ```
 
+TTS is intentionally command-adapter based so a self-hosted engine can be benchmarked without coupling domain code to one vendor. `TTS_COMMAND` must contain `{text_file}` and `{output_wav}` placeholders. Example shape only:
+
+```text
+<tts-executable> ... --input {text_file} ... --output {output_wav}
+```
+
+Do not commit model files, voices, actor assets or local secrets.
+
 Start:
 
 ```powershell
 npm run media-worker:dev
 ```
 
-Silero's Python runtime/model and whisper.cpp/model files are workstation dependencies; they are not committed to this repository.
+## Brain → TTS rule
 
-## Target pipeline
-
-```text
-Candidate WebRTC
-  -> LiveKit OSS + TURN where required
-  -> self-hosted VAD
-  -> self-hosted STT
-  -> finalized transcript persistence
-  -> Interview Brain
-  -> spoken_text only
-  -> self-hosted TTS
-  -> optional avatar renderer
-  -> LiveKit audio/video back to candidate
-```
+The core API TTS endpoint does not accept arbitrary client text. It takes only session/media-session/turn IDs, loads a finalized persisted `interview_turns.spoken_text`, then calls `/tts/synthesize`. This preserves the Master invariant that only approved Interview Brain speech reaches TTS/avatar.
 
 ## Hard boundaries
 
-- The Interview Brain owns interview strategy and structured turns; the avatar never owns intelligence.
+- Interview Brain owns interview strategy; avatar/rendering never owns intelligence.
 - Only finalized transcript text reaches the Brain.
-- Raw audio/video is not persisted by the core API or media-worker.
-- Only `spoken_text` from a finalized Brain turn reaches TTS/avatar.
-- Candidate video must not be used to infer emotion, honesty, personality, confidence or suitability.
-- Provider credentials and room access tokens are not persisted in interview media tables or committed.
+- Raw candidate audio/video is not persisted by the core API or worker.
+- Candidate video is not used for emotion, honesty, personality, confidence or suitability inference.
+- Provider credentials and LiveKit access tokens are not persisted.
 - Recording is separate from transport and requires explicit consent/policy approval.
-- The evaluator consumes persisted finalized evidence after the interview; it does not score live media frames.
+- Evaluator consumes persisted finalized evidence; it never scores live media frames.

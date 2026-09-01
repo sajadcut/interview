@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, StreamableFile } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
@@ -10,12 +10,16 @@ import {
   InterviewMediaReadinessQueryDto,
 } from "./interview-media.dto";
 import { InterviewMediaService } from "./interview-media.service";
+import { InterviewSpeechService } from "./interview-speech.service";
 
 @ApiTags("interview-media")
 @Controller("v1/interviews")
 @RequireTenant()
 export class InterviewMediaController {
-  constructor(private readonly media: InterviewMediaService) {}
+  constructor(
+    private readonly media: InterviewMediaService,
+    private readonly speech: InterviewSpeechService,
+  ) {}
 
   @Get("media/readiness")
   @RequirePermissions(Permissions.InterviewManage)
@@ -49,6 +53,23 @@ export class InterviewMediaController {
     @Param("mediaSessionId") mediaSessionId: string,
   ) {
     return this.media.issueConnection(sessionId, mediaSessionId);
+  }
+
+  @Post(":sessionId/media/sessions/:mediaSessionId/turns/:turnId/audio")
+  @RequirePermissions(Permissions.InterviewManage)
+  @AuditedAction("interview.media.tts.synthesize", "interview_media_session")
+  @ApiOkResponse({ description: "Stream WAV synthesized only from the persisted finalized Interview Brain spoken_text. No client-supplied text is accepted." })
+  async synthesizePersistedTurn(
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+    @Param("turnId") turnId: string,
+  ) {
+    const result = await this.speech.synthesizePersistedTurn(sessionId, mediaSessionId, turnId);
+    return new StreamableFile(result.audio, {
+      type: result.contentType,
+      disposition: `inline; filename="interview-turn-${turnId}.wav"`,
+      length: result.audio.length,
+    });
   }
 
   @Get(":sessionId/media/sessions/latest")

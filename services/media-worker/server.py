@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import shlex
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
+MAX_TTS_TEXT_CHARS = 4000
 
 
 def load_root_env() -> None:
@@ -43,7 +45,13 @@ def resolve_command(value: str) -> str | None:
     return shutil.which(candidate)
 
 
+def worker_secret_ready() -> bool:
+    return bool(os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip())
+
+
 def vad_status() -> dict[str, Any]:
+    if not worker_secret_ready():
+        return {"ready": False, "provider": "silero-vad", "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
     try:
         import silero_vad  # type: ignore
 
@@ -54,6 +62,8 @@ def vad_status() -> dict[str, Any]:
 
 
 def stt_status() -> dict[str, Any]:
+    if not worker_secret_ready():
+        return {"ready": False, "provider": "whisper.cpp", "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
     command = resolve_command(os.getenv("WHISPER_CLI", "whisper-cli"))
     model = os.getenv("WHISPER_MODEL_PATH", "").strip()
     if not command:
@@ -65,6 +75,8 @@ def stt_status() -> dict[str, Any]:
 
 def tts_status() -> dict[str, Any]:
     template = os.getenv("TTS_COMMAND", "").strip()
+    if not worker_secret_ready():
+        return {"ready": False, "provider": "local-command", "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
     if not template:
         return {"ready": False, "provider": "local-command", "reason": "TTS_COMMAND is not configured"}
     parts = shlex.split(template, posix=os.name != "nt")
@@ -86,16 +98,22 @@ def write_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> No
     handler.wfile.write(data)
 
 
-def read_audio_body(handler: BaseHTTPRequestHandler) -> bytes:
+def read_body(handler: BaseHTTPRequestHandler, maximum: int) -> bytes:
     length = int(handler.headers.get("content-length", "0") or "0")
     if length <= 0:
-        raise ValueError("audio body is required")
-    if length > MAX_AUDIO_BYTES:
-        raise ValueError(f"audio body exceeds {MAX_AUDIO_BYTES} bytes")
+        raise ValueError("request body is required")
+    if length > maximum:
+        raise ValueError(f"request body exceeds {maximum} bytes")
     body = handler.rfile.read(length)
     if len(body) != length:
-        raise ValueError("audio body ended before content-length")
+        raise ValueError("request body ended before content-length")
     return body
+
+
+def is_authorized(handler: BaseHTTPRequestHandler) -> bool:
+    expected = os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip()
+    supplied = handler.headers.get("x-media-worker-secret", "")
+    return bool(expected) and hmac.compare_digest(expected, supplied)
 
 
 def run_vad(audio_bytes: bytes) -> dict[str, Any]:
@@ -154,11 +172,42 @@ def run_whisper(audio_bytes: bytes) -> dict[str, Any]:
         return {"text": text, "isFinal": True, "language": language, "provider": "whisper.cpp"}
 
 
+def run_tts(spoken_text: str) -> bytes:
+    template = os.getenv("TTS_COMMAND", "").strip()
+    if not template:
+        raise RuntimeError("TTS_COMMAND is not configured")
+    timeout_seconds = int(os.getenv("TTS_TIMEOUT_SECONDS", "60"))
+
+    with tempfile.TemporaryDirectory(prefix="interview-tts-") as directory:
+        root = Path(directory)
+        text_file = root / "spoken.txt"
+        output_wav = root / "speech.wav"
+        text_file.write_text(spoken_text, encoding="utf-8")
+        tokens = shlex.split(template, posix=os.name != "nt")
+        if not tokens:
+            raise RuntimeError("TTS_COMMAND is empty")
+        command = resolve_command(tokens[0])
+        if not command:
+            raise RuntimeError("TTS command executable not found")
+        args = [
+            command,
+            *[
+                token.replace("{text_file}", str(text_file)).replace("{output_wav}", str(output_wav))
+                for token in tokens[1:]
+            ],
+        ]
+        result = subprocess.run(args, capture_output=True, timeout=timeout_seconds, check=False)
+        if result.returncode != 0 or not output_wav.is_file() or output_wav.stat().st_size == 0:
+            stderr = (result.stderr or b"").decode("utf-8", errors="replace")[-1000:]
+            raise RuntimeError(f"TTS command did not produce WAV output: {stderr or 'no output file'}")
+        return output_wav.read_bytes()
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "interview-media-worker/0.1"
+    server_version = "interview-media-worker/0.2"
 
     def log_message(self, format: str, *args: Any) -> None:
-        # Paths/status only; never log request bodies or transcript text.
+        # Paths/status only; never log request bodies, transcript text, spoken text or credentials.
         super().log_message(format, *args)
 
     def do_GET(self) -> None:
@@ -182,22 +231,47 @@ class Handler(BaseHTTPRequestHandler):
         write_json(self, 404, {"error": "Not Found"})
 
     def do_POST(self) -> None:
+        if not is_authorized(self):
+            write_json(self, 401, {"error": "Unauthorized"})
+            return
         try:
             if self.path == "/vad/analyze":
                 status = vad_status()
                 if not status["ready"]:
                     write_json(self, 503, status)
                     return
-                write_json(self, 200, run_vad(read_audio_body(self)))
+                write_json(self, 200, run_vad(read_body(self, MAX_AUDIO_BYTES)))
                 return
             if self.path == "/stt/finalize":
                 status = stt_status()
                 if not status["ready"]:
                     write_json(self, 503, status)
                     return
-                write_json(self, 200, run_whisper(read_audio_body(self)))
+                write_json(self, 200, run_whisper(read_body(self, MAX_AUDIO_BYTES)))
+                return
+            if self.path == "/tts/synthesize":
+                status = tts_status()
+                if not status["ready"]:
+                    write_json(self, 503, status)
+                    return
+                payload = json.loads(read_body(self, 32 * 1024).decode("utf-8"))
+                spoken_text = payload.get("spokenText") if isinstance(payload, dict) else None
+                if not isinstance(spoken_text, str) or not spoken_text.strip():
+                    raise ValueError("spokenText is required")
+                spoken_text = spoken_text.strip()
+                if len(spoken_text) > MAX_TTS_TEXT_CHARS:
+                    raise ValueError(f"spokenText exceeds {MAX_TTS_TEXT_CHARS} characters")
+                audio = run_tts(spoken_text)
+                self.send_response(200)
+                self.send_header("content-type", "audio/wav")
+                self.send_header("content-length", str(len(audio)))
+                self.send_header("cache-control", "no-store")
+                self.end_headers()
+                self.wfile.write(audio)
                 return
             write_json(self, 404, {"error": "Not Found"})
+        except json.JSONDecodeError:
+            write_json(self, 400, {"error": "Bad Request", "message": "valid JSON body is required"})
         except ValueError as exc:
             write_json(self, 400, {"error": "Bad Request", "message": str(exc)})
         except subprocess.TimeoutExpired:
