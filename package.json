@@ -19,6 +19,7 @@
     "dev:web": "npm run dev --workspace=@interview/web",
     "dev:api": "npm run dev --workspace=@interview/api",
     "dev:bootstrap": "node scripts/bootstrap-development.mjs",
+    "media-worker:dev": "python services/media-worker/server.py",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
