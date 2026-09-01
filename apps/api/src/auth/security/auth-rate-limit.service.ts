@@ -1,4 +1,4 @@
-import { Injectable, TooManyRequestsException } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { createHash } from "node:crypto";
 import { DatabaseService } from "../../database/database.service";
 
@@ -75,10 +75,13 @@ export class AuthRateLimitService {
     });
 
     if (result.blocked) {
-      throw new TooManyRequestsException({
-        message: "Too many authentication attempts; try again later",
-        retryAfterSeconds: result.retryAfterSeconds,
-      });
+      throw new HttpException(
+        {
+          message: "Too many authentication attempts; try again later",
+          retryAfterSeconds: result.retryAfterSeconds,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
