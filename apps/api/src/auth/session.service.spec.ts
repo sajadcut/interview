@@ -15,8 +15,7 @@ type TestSql = ((strings: TemplateStringsArray, ...values: unknown[]) => Promise
 
 function sessionDatabaseStub(reused = false): { database: DatabaseService; calls: SqlCall[] } {
   const calls: SqlCall[] = [];
-  let sql!: TestSql;
-  sql = Object.assign(
+  const sql: TestSql = Object.assign(
     async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const text = Array.from(strings).join("?");
       calls.push({ text, values });
