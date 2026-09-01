@@ -3,7 +3,8 @@ import { Injectable } from "@nestjs/common";
 
 export interface AuthPrincipal {
   userId: string;
-  source: "development-header";
+  sessionId?: string;
+  source: "development-header" | "session";
 }
 
 @Injectable()

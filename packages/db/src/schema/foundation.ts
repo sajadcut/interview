@@ -18,6 +18,8 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     email: varchar("email", { length: 320 }).notNull(),
     displayName: varchar("display_name", { length: 200 }),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

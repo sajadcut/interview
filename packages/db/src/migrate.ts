@@ -14,6 +14,7 @@ const databaseUrl: string = configuredDatabaseUrl;
 
 const migrationsDirectory = fileURLToPath(new URL("../migrations/", import.meta.url));
 const migrationPattern = /^\d{4}_[a-z0-9_-]+\.sql$/i;
+const migrationLockName = "interview-schema-migrations";
 
 function checksum(source: string): string {
   return createHash("sha256").update(source).digest("hex");
@@ -21,7 +22,16 @@ function checksum(source: string): string {
 
 async function migrate(): Promise<void> {
   const sql = postgres(databaseUrl, { max: 1, idle_timeout: 5, connect_timeout: 10 });
+  let migrationLockAcquired = false;
   try {
+    const lockRows = await sql`
+      SELECT pg_try_advisory_lock(hashtext(${migrationLockName})) AS acquired
+    `;
+    migrationLockAcquired = lockRows[0]?.acquired === true;
+    if (!migrationLockAcquired) {
+      throw new Error("Another migration process currently owns the schema migration lock");
+    }
+
     await sql`
       CREATE TABLE IF NOT EXISTS _interview_schema_migrations (
         name varchar(255) PRIMARY KEY,
@@ -58,6 +68,9 @@ async function migrate(): Promise<void> {
       console.log(`applied ${file}`);
     }
   } finally {
+    if (migrationLockAcquired) {
+      await sql`SELECT pg_advisory_unlock(hashtext(${migrationLockName}))`;
+    }
     await sql.end({ timeout: 5 });
   }
 }
