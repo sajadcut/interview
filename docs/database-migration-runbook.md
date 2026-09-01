@@ -9,17 +9,28 @@
 - Only one runner may apply schema changes at a time; the runner holds the `interview-schema-migrations` PostgreSQL advisory lock.
 - Every migration is executed in a transaction together with its migration-ledger insert.
 - Tenant-scoped foreign-key and sequencing contracts must pass `npm run db:validate` before deployment.
+- Dependencies and the committed lockfile are resolved from the public npm registry; production database recovery never depends on a package-registry fallback.
 
 ## Pre-deploy procedure
 
-1. Confirm the target commit has a green quality gate.
-2. Run `npm run registry:check` from the repository root and confirm the mandatory Dotin Nexus registry can serve all critical packages.
-3. Take a database backup/snapshot appropriate to the deployment environment and verify that the backup is readable.
-4. Record the current application commit SHA and the latest row in `_interview_schema_migrations`.
-5. Run `npm run db:validate` against the repository checkout.
-6. Apply with `DATABASE_URL=<target> npm run db:migrate` from exactly the release commit.
-7. Re-run the migration command once. A healthy second run must report every migration as `skip` and apply nothing.
-8. Run application health/readiness checks and a tenant-isolation smoke test before admitting normal traffic.
+1. Confirm the target commit has a green `quality-gate` including migrations, OpenAPI/client generation, lint, typecheck, tests, and build.
+2. Take a database backup or snapshot appropriate to the deployment environment and verify that the backup is readable or restorable in a non-production target.
+3. Record the current application commit SHA and the latest row in `_interview_schema_migrations`.
+4. Run `npm run db:validate` from exactly the release commit.
+5. Apply with `DATABASE_URL=<target> npm run db:migrate` from exactly the release commit.
+6. Re-run the migration command once. A healthy second run must report every migration as `skip` and apply nothing.
+7. Run liveness and database-readiness checks and a tenant-isolation smoke test before admitting normal traffic.
+
+## Schema-change strategy
+
+Use expand/contract changes whenever application versions may overlap:
+
+1. **Expand:** add nullable columns, new tables/indexes, or compatibility paths without removing behavior used by the currently deployed application.
+2. **Migrate/backfill:** move data in bounded, observable steps where necessary.
+3. **Switch:** deploy application code that reads/writes the new shape while remaining compatible with the expanded schema.
+4. **Contract:** only in a later release remove obsolete schema after rollback windows and old application versions have expired.
+
+Large table rewrites, blocking DDL, destructive column changes, and irreversible data transformations require an explicit deployment plan and measured staging rehearsal before production.
 
 ## Rollback policy
 
@@ -42,10 +53,15 @@ For destructive or unrecoverable data/schema failures:
 1. Stop writes or place the service in maintenance mode.
 2. Capture the failed database state for incident analysis if feasible.
 3. Restore the verified pre-deploy backup/snapshot into a new database or according to the platform recovery procedure.
-4. Point the application at the restored database only after integrity checks pass.
-5. Reconcile any external side effects that occurred after the backup point.
-6. Document the incident and ship a new forward migration before retrying the release.
+4. Run migration-ledger, referential-integrity, tenant-isolation, and application-readiness checks against the restored target.
+5. Point the application at the restored database only after those checks pass.
+6. Reconcile any external side effects that occurred after the recovery point.
+7. Document the incident and ship a new forward migration before retrying the release.
+
+## Migration verification in CI
+
+The GitHub Actions quality gate provisions PostgreSQL 18, validates migration contracts, applies every committed migration from a clean database, regenerates OpenAPI and the typed client, then runs lint, typecheck, PostgreSQL/unit tests, and build. A migration that cannot initialize a clean database therefore blocks the release before application deployment.
 
 ## Required release evidence
 
-Retain the release commit SHA, backup/snapshot identifier, migration runner output, schema migration ledger state, health-check result, and tenant-isolation smoke-test result with the deployment record.
+Retain the release commit SHA, backup/snapshot identifier, migration runner output, schema migration ledger state, readiness result, and tenant-isolation smoke-test result with the deployment record.
