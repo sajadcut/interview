@@ -16,7 +16,8 @@
       "dependsOn": ["^typecheck"]
     },
     "test": {
-      "dependsOn": ["^test"]
+      "dependsOn": ["^test"],
+      "env": ["NODE_ENV", "DATABASE_URL", "AUTH_INTEGRATION_DATABASE_URL"]
     }
   }
 }
