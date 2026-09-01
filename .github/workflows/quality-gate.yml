@@ -14,7 +14,24 @@ env:
   AUTH_INTEGRATION_DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
 
 jobs:
+  registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+
+      - name: Validate mandatory private registry
+        run: node scripts/check-registry.mjs
+
   quality:
+    needs: registry
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -44,9 +61,6 @@ jobs:
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
-      - name: Validate private registry
-        run: node scripts/check-registry.mjs
-
       - name: Install dependencies
         run: npm ci
 
@@ -64,6 +78,9 @@ jobs:
             openapi/openapi.json
             packages/api-client/src/generated/schema.ts
           if-no-files-found: error
+
+      - name: Verify generated API contract is committed
+        run: git diff --exit-code -- openapi/openapi.json packages/api-client/src/generated/schema.ts
 
       - name: Lint
         run: npm run lint
