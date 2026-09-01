@@ -1,5 +1,6 @@
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -43,8 +44,8 @@ export const candidateIdentities = pgTable(
     isVerified: boolean("is_verified").notNull().default(false),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
-    temporary: boolean("temporary").notNull().default(true),
-    metadata: jsonb("metadata").notNull().default({}),
+    temporary: boolean("temporary").notNull().default(false),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -64,9 +65,7 @@ export const sessions = pgTable(
     principalType: varchar("principal_type", { length: 24 }).notNull(),
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
-    candidateIdentityId: uuid("candidate_identity_id").references(() => candidateIdentities.id, {
-      onDelete: "cascade",
-    }),
+    candidateIdentityId: uuid("candidate_identity_id"),
     tokenHash: varchar("token_hash", { length: 64 }).notNull(),
     userAgentHash: varchar("user_agent_hash", { length: 64 }),
     ipHash: varchar("ip_hash", { length: 64 }),
@@ -79,6 +78,11 @@ export const sessions = pgTable(
     uniqueIndex("sessions_token_hash_uq").on(table.tokenHash),
     index("sessions_user_idx").on(table.userId),
     index("sessions_candidate_idx").on(table.organizationId, table.candidateIdentityId),
+    foreignKey({
+      name: "sessions_candidate_identity_org_fk",
+      columns: [table.organizationId, table.candidateIdentityId],
+      foreignColumns: [candidateIdentities.organizationId, candidateIdentities.id],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -110,9 +114,7 @@ export const invitationTokens = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    candidateIdentityId: uuid("candidate_identity_id").references(() => candidateIdentities.id, {
-      onDelete: "cascade",
-    }),
+    candidateIdentityId: uuid("candidate_identity_id"),
     targetEmail: varchar("target_email", { length: 320 }).notNull(),
     purpose: varchar("purpose", { length: 40 }).notNull(),
     tokenHash: varchar("token_hash", { length: 64 }).notNull(),
@@ -128,6 +130,11 @@ export const invitationTokens = pgTable(
   (table) => [
     uniqueIndex("invitation_tokens_token_hash_uq").on(table.tokenHash),
     index("invitation_tokens_org_email_idx").on(table.organizationId, table.targetEmail),
+    foreignKey({
+      name: "invitation_tokens_candidate_identity_org_fk",
+      columns: [table.organizationId, table.candidateIdentityId],
+      foreignColumns: [candidateIdentities.organizationId, candidateIdentities.id],
+    }).onDelete("cascade"),
   ],
 );
 

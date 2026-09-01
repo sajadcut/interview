@@ -27,7 +27,7 @@ async function bootstrap(): Promise<void> {
       "x-request-id",
     ],
     exposedHeaders: ["x-request-id"],
-    credentials: true,
+    credentials: corsOrigin !== "*",
     maxAge: 600,
   });
   app.useGlobalPipes(

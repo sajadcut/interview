@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
+import { HttpException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { ACCOUNT_SECURITY_POLICY } from "./enterprise-auth.constants";
 import { PasswordHasherService } from "./password-hasher.service";
@@ -61,7 +61,7 @@ export class EnterpriseAuthService {
     if (lockedUntil && !Number.isNaN(lockedUntil.getTime()) && lockedUntil.getTime() > Date.now()) {
       throw new HttpException(
         "Account is temporarily locked after repeated failed sign-in attempts",
-        HttpStatus.LOCKED,
+        423,
       );
     }
 
