@@ -37,12 +37,12 @@ export function createLiveKitJoinToken(input: LiveKitJoinTokenInput): LiveKitJoi
 
   const now = input.nowSeconds ?? Math.floor(Date.now() / 1000);
   const exp = now + input.validForSeconds;
-  const permissions = {
+  const permissions: LiveKitJoinTokenResult["permissions"] = {
     roomJoin: true,
     canPublish: true,
     canSubscribe: true,
     canPublishData: false,
-    canPublishSources: ["camera", "microphone"] as ["camera", "microphone"],
+    canPublishSources: ["camera", "microphone"],
   };
   const header = { alg: "HS256", typ: "JWT" };
   const payload = {
