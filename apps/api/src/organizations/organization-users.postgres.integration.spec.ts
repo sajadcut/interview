@@ -1,20 +1,38 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import postgres from "postgres";
 import { AuditService } from "../audit/audit.service";
 import { AuthContextService } from "../auth/auth-context.service";
 import { PasswordHasherService } from "../auth/password-hasher.service";
-import { DatabaseService } from "../database/database.service";
+import type { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { OrganizationUsersService } from "./organization-users.service";
 
 const integrationDatabaseUrl = process.env.AUTH_INTEGRATION_DATABASE_URL;
 
+function createIntegrationDatabase(): DatabaseService {
+  if (!integrationDatabaseUrl) {
+    throw new Error("AUTH_INTEGRATION_DATABASE_URL is required for PostgreSQL integration tests");
+  }
+  const sql = postgres(integrationDatabaseUrl, {
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
+  return {
+    sql,
+    onModuleDestroy: async () => {
+      await sql.end({ timeout: 5 });
+    },
+  } as DatabaseService;
+}
+
 test(
   "organization user lifecycle persists invitation, role, status, removal and audit events",
   { skip: !integrationDatabaseUrl },
   async () => {
-    const database = new DatabaseService();
+    const database = createIntegrationDatabase();
     const tenantContext = new TenantContextService();
     const authContext = new AuthContextService();
     const passwords = new PasswordHasherService();
