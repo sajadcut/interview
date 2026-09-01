@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** M1–M6 implementation baseline materially advanced. Deterministic M4 Interview Brain is browser-validated for a synthetic internal candidate. The next five M4 runtime stages are now coded: local realtime toolchain/runbook, short-lived LiveKit credential issuance, internal browser LiveKit transport/reconnect lifecycle, executable local VAD/STT media-worker, and persisted Brain `spoken_text` → local TTS WAV bridge. These new runtime stages still require workstation tools/dependencies and same-HEAD validation before they are called connected.  
-> **Version:** 0.13.0  
+> **Status:** M1–M6 implementation baseline materially advanced. Deterministic M4 Interview Brain is browser-validated for a synthetic internal candidate. The next five M4 runtime stages are coded: local realtime toolchain/runbook, short-lived LiveKit credential issuance, internal browser LiveKit transport/reconnect lifecycle, executable local VAD/STT media-worker, and persisted Brain `spoken_text` → local TTS WAV bridge. Current workstation TypeScript typecheck and production build are green; realtime runtime providers still require local tool startup and validation before they are called connected.  
+> **Version:** 0.13.1  
 > **Date:** 2026-09-01  
 > **Repository:** https://github.com/sajadcut/interview  
 > **Branch:** `main`
@@ -28,7 +28,7 @@ Evidence-driven criterion transition        ✅ BROWSER VALIDATED
 Migration 0015 realtime media               🟡 CODED / WORKSTATION APPLY RESULT PENDING
 Realtime provider readiness/preflight       🟡 CODED / RUNTIME PROVIDERS PENDING
 LiveKit scoped token issuance               🟡 CODED / LIVEKIT RUNTIME VALIDATION PENDING
-Browser LiveKit client transport            🟡 CODED / DEPENDENCY+RUNTIME VALIDATION PENDING
+Browser LiveKit client transport            🟡 CODED / RUNTIME VALIDATION PENDING
 Media-worker executable                     🟡 CODED / PYTHON+MODELS VALIDATION PENDING
 Silero VAD HTTP adapter                     🟡 CODED / LOCAL PACKAGE+MODEL VALIDATION PENDING
 whisper.cpp final STT adapter               🟡 CODED / CLI+MODEL VALIDATION PENDING
@@ -38,8 +38,11 @@ Live audio chunk → VAD/STT transport        ⏳ NOT IMPLEMENTED
 TTS audio publication back into LiveKit     ⏳ NOT IMPLEMENTED
 Avatar runtime                              ⏳ NOT IMPLEMENTED
 Candidate realtime auth/session isolation   ⏳ NOT IMPLEMENTED
-Latest HEAD lint/typecheck/test/build        ⏳ PENDING
-OpenAPI + typed client regeneration         ⏳ REQUIRED
+Latest HEAD typecheck                       ✅ WORKSTATION GREEN
+Latest HEAD build                           ✅ WORKSTATION GREEN
+Latest HEAD lint                            ⏳ PENDING
+Latest HEAD tests                           ⏳ PENDING
+OpenAPI + typed client regeneration         ⏳ VALIDATION RESULT PENDING
 Production approval                         ⬜ NOT APPROVED
 ```
 
@@ -65,6 +68,10 @@ Controlled Interview Brain browser flow
 → manual evidence persisted
 → evidence coverage updated
 → Brain transitioned to next rubric criterion
+
+Current workstation quality evidence
+→ npm run typecheck: green
+→ npm run build: green
 ```
 
 Candidate camera/microphone device check was previously validated in Firefox. Port 4000 remains occupied by workstation process TPVCGateway; Interview API local baseline is 127.0.0.1:4100.
@@ -232,9 +239,11 @@ Local secret/model/voice files must never be committed.
 - development fixtures;
 - candidate Firefox device check;
 - synthetic Interview Brain session/turn/transcript/evidence flow;
-- evidence coverage and criterion transition.
+- evidence coverage and criterion transition;
+- current HEAD TypeScript typecheck;
+- current HEAD production build.
 
-## CODED — workstation validation pending
+## CODED — workstation runtime validation pending
 
 - migration 0015;
 - realtime provider health/preflight/lifecycle;
@@ -245,8 +254,8 @@ Local secret/model/voice files must never be committed.
 - whisper.cpp final STT endpoint;
 - authenticated local TTS command adapter;
 - persisted Brain turn → WAV endpoint/UI;
-- latest OpenAPI/client;
-- latest lint/typecheck/test/build.
+- latest OpenAPI/client regeneration result;
+- latest lint/test result.
 
 ## NOT IMPLEMENTED / NOT CLAIMED CONNECTED
 
@@ -267,7 +276,7 @@ Local secret/model/voice files must never be committed.
 
 # 8. Workstation validation sequence
 
-After pulling current main, first install the new JavaScript dependency through the configured Dotin Nexus and let npm update the canonical lockfile:
+After pulling current main, install/update JavaScript dependencies through the configured Dotin Nexus and keep the canonical lockfile workstation-generated:
 
 ```powershell
 cd D:\interview\interview
@@ -275,7 +284,7 @@ git pull
 npm install
 ```
 
-Then apply/validate domain state:
+Apply/validate domain state and generated API artifacts:
 
 ```powershell
 npm run db:validate
@@ -284,15 +293,15 @@ npm run dev:bootstrap
 npm run api:sync
 ```
 
-Then install/start local media tools as described in `docs/realtime-runtime-runbook.md` and `services/media-worker/README.md`.
+Install/start local media tools as described in `docs/realtime-runtime-runbook.md` and `services/media-worker/README.md`.
 
-Finally run:
+Quality/runtime gates:
 
 ```powershell
 npm run realtime:check
 npm run lint
-npm run typecheck
 npm run test
+npm run typecheck
 npm run build
 npm run dev
 ```
