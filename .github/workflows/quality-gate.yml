@@ -44,11 +44,26 @@ jobs:
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
+      - name: Validate private registry
+        run: node scripts/check-registry.mjs
+
       - name: Install dependencies
         run: npm ci
 
       - name: Apply migrations
         run: npm run db:migrate
+
+      - name: Regenerate OpenAPI and typed client
+        run: npm run api:sync
+
+      - name: Upload generated API contract
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-api-contract
+          path: |
+            openapi/openapi.json
+            packages/api-client/src/generated/schema.ts
+          if-no-files-found: error
 
       - name: Lint
         run: npm run lint
