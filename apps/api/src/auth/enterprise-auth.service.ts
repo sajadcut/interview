@@ -137,6 +137,28 @@ export class EnterpriseAuthService {
   }
 
   async listOrganizations(userId: string): Promise<AuthenticatedOrganization[]> {
+    const platformAdminRows = await this.database.sql`
+      SELECT 1
+      FROM platform_user_roles
+      WHERE user_id = ${userId}::uuid
+        AND role_key = 'PLATFORM_ADMIN'
+        AND revoked_at IS NULL
+      LIMIT 1
+    `;
+    if (platformAdminRows.length > 0) {
+      const organizations = await this.database.sql`
+        SELECT id::text, name, slug
+        FROM organizations
+        ORDER BY lower(name)
+      `;
+      return organizations.map((row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        slug: String(row.slug),
+        roles: ["PLATFORM_ADMIN"],
+      }));
+    }
+
     const rows = await this.database.sql`
       SELECT
         o.id::text,
@@ -173,7 +195,7 @@ export class EnterpriseAuthService {
     await this.rateLimits.consume(
       "password-reset-email",
       normalizedEmail,
-      AUTH_RATE_LIMIT_POLICIES.loginEmail,
+      AUTH_RATE_LIMIT_POLICIES.passwordReset,
     );
 
     const users = await this.database.sql`
@@ -291,6 +313,32 @@ export class EnterpriseAuthService {
     action: string,
     metadata?: Record<string, unknown>,
   ): Promise<void> {
+    const platformRows = await this.database.sql`
+      SELECT 1
+      FROM platform_user_roles
+      WHERE user_id = ${userId}::uuid
+        AND role_key = 'PLATFORM_ADMIN'
+        AND revoked_at IS NULL
+      LIMIT 1
+    `;
+    if (platformRows.length > 0) {
+      await this.database.sql`
+        INSERT INTO audit_events (
+          organization_id, actor_type, actor_user_id, action, entity_type, entity_id, metadata
+        )
+        SELECT
+          o.id,
+          'user',
+          ${userId}::uuid,
+          ${action},
+          'user',
+          ${userId},
+          ${metadata ? this.database.sql.json(metadata as never) : null}
+        FROM organizations o
+      `;
+      return;
+    }
+
     await this.database.sql`
       INSERT INTO audit_events (
         organization_id, actor_type, actor_user_id, action, entity_type, entity_id, metadata
