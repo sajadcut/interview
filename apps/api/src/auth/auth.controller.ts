@@ -18,7 +18,8 @@ import { SESSION_POLICY } from "./session-policy";
 import { SessionService, type IssuedSession, type SessionMetadata } from "./session.service";
 
 function requestMetadata(request: Request): SessionMetadata {
-  const metadata: SessionMetadata = { ip: request.ip };
+  const metadata: SessionMetadata = {};
+  if (request.ip) metadata.ip = request.ip;
   const userAgent = request.header("user-agent");
   if (userAgent) metadata.userAgent = userAgent;
   return metadata;
