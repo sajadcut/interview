@@ -10,6 +10,7 @@ import { DatabaseModule } from "./database/database.module";
 import { EngagementModule } from "./engagement/engagement.module";
 import { HealthController } from "./health/health.controller";
 import { InterviewsModule } from "./interviews/interviews.module";
+import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
 import { RecruitingModule } from "./recruiting/recruiting.module";
 import { SourcingModule } from "./sourcing/sourcing.module";
@@ -22,6 +23,7 @@ import { TenantModule } from "./tenant/tenant.module";
     TenantModule,
     AuthorizationModule,
     AuditModule,
+    OrganizationsModule,
     StorageModule,
     AiModule,
     RecruitingModule,
