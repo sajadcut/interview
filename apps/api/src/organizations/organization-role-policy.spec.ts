@@ -7,9 +7,10 @@ import {
   roleDisplayName,
 } from "./organization-role-policy";
 
-test("organization role policy recognizes only supported internal roles", () => {
+test("organization role policy recognizes only tenant-scoped internal roles", () => {
   assert.equal(isOrganizationRole("ORGANIZATION_ADMIN"), true);
   assert.equal(isOrganizationRole("INTERVIEWER"), true);
+  assert.equal(isOrganizationRole("PLATFORM_ADMIN"), false);
   assert.equal(isOrganizationRole("CANDIDATE"), false);
   assert.equal(isOrganizationRole("unknown"), false);
 });
@@ -23,6 +24,14 @@ test("organization admins can manage users while interviewers cannot", () => {
     ORGANIZATION_ROLE_PERMISSIONS.INTERVIEWER.includes(Permissions.OrganizationManageUsers),
     false,
   );
+});
+
+test("interviewers can start assigned interviews but cannot manage or assign sessions", () => {
+  const permissions = ORGANIZATION_ROLE_PERMISSIONS.INTERVIEWER;
+  assert.equal(permissions.includes(Permissions.InterviewStart), true);
+  assert.equal(permissions.includes(Permissions.InterviewEvaluate), true);
+  assert.equal(permissions.includes(Permissions.InterviewManage), false);
+  assert.equal(permissions.includes(Permissions.InterviewAssign), false);
 });
 
 test("role display name is stable and human readable", () => {
