@@ -5,9 +5,12 @@ import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
+  SourcingRetryRequestDto,
   SourcingRunDetailDto,
+  SourcingRunExecutionDto,
   SourcingRunRequestDto,
   SourcingRunSummaryDto,
+  SourcingSourceCapabilityDto,
   TalentCandidateDto,
 } from "./sourcing.dto";
 import { SourcingService } from "./sourcing.service";
@@ -26,6 +29,13 @@ export class SourcingController {
     return this.sourcing.listTalentPool(Number.isFinite(limit) ? limit : 100);
   }
 
+  @Get("sourcing/sources")
+  @RequirePermissions(Permissions.JobRead)
+  @ApiOkResponse({ type: SourcingSourceCapabilityDto, isArray: true })
+  listSourceCapabilities() {
+    return this.sourcing.listSourceCapabilities();
+  }
+
   @Get("jobs/:jobId/sourcing/runs")
   @RequirePermissions(Permissions.JobRead)
   @ApiOkResponse({ type: SourcingRunSummaryDto, isArray: true })
@@ -40,12 +50,27 @@ export class SourcingController {
     return this.sourcing.getRun(runId);
   }
 
+  @Post("jobs/:jobId/sourcing/runs")
+  @RequirePermissions(Permissions.SourcingRun)
+  @AuditedAction("sourcing.run", "job")
+  @ApiOkResponse({ type: SourcingRunExecutionDto })
+  runSource(@Param("jobId") jobId: string, @Body() body: SourcingRunRequestDto) {
+    return this.sourcing.runSource(jobId, body);
+  }
+
+  @Post("sourcing/runs/:runId/retry")
+  @RequirePermissions(Permissions.SourcingRun)
+  @AuditedAction("sourcing.run.retry", "sourcing_run")
+  @ApiOkResponse({ type: SourcingRunExecutionDto })
+  retrySource(@Param("runId") runId: string, @Body() body: SourcingRetryRequestDto) {
+    return this.sourcing.retryRun(runId, body);
+  }
+
   @Post("jobs/:jobId/sourcing/runs/internal")
   @RequirePermissions(Permissions.SourcingRun)
   @AuditedAction("sourcing.run.internal", "job")
+  @ApiOkResponse({ type: SourcingRunExecutionDto })
   searchInternal(@Param("jobId") jobId: string, @Body() body: SourcingRunRequestDto) {
-    const query = typeof body?.query === "string" ? body.query : "";
-    const rawLimit = typeof body?.limit === "number" ? body.limit : 25;
-    return this.sourcing.searchInternalTalent(jobId, query, Number.isFinite(rawLimit) ? rawLimit : 25);
+    return this.sourcing.searchInternalTalent(jobId, body.query, body.limit ?? 25);
   }
 }
