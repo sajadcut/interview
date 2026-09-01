@@ -8,6 +8,7 @@ import { AuthMiddleware } from "./auth.middleware";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
 import { PermissionsGuard } from "./permissions.guard";
+import { AuthRateLimitService } from "./security/auth-rate-limit.service";
 import { SessionService } from "./session.service";
 import { TenantAccessService } from "./tenant-access.service";
 
@@ -18,6 +19,7 @@ import { TenantAccessService } from "./tenant-access.service";
   providers: [
     AuthContextService,
     AuthMiddleware,
+    AuthRateLimitService,
     EnterpriseAuthService,
     PasswordHasherService,
     SessionService,
@@ -27,6 +29,7 @@ import { TenantAccessService } from "./tenant-access.service";
   ],
   exports: [
     AuthContextService,
+    AuthRateLimitService,
     EnterpriseAuthService,
     PasswordHasherService,
     SessionService,
