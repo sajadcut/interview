@@ -25,6 +25,7 @@ export const Permissions = {
   AnalyticsRead: "analytics.read",
   PrivacyManage: "privacy.manage",
   DecisionSubmit: "decision.submit",
+  AutomationManage: "automation.manage",
   IntegrationManage: "integration.manage",
   AuditRead: "audit.read",
 } as const;
