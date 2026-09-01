@@ -4,7 +4,6 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
-  IsObject,
   IsOptional,
   IsString,
   Length,
@@ -80,8 +79,13 @@ export class ScreeningSessionDto {
 }
 
 export class SchedulingSlotDto {
-  @ApiProperty() start!: string;
-  @ApiProperty() end!: string;
+  @ApiProperty()
+  @IsString()
+  start!: string;
+
+  @ApiProperty()
+  @IsString()
+  end!: string;
 }
 
 export class SchedulingRequestInputDto {
