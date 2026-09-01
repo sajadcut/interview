@@ -1,4 +1,6 @@
 import { HttpException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { createHash, randomBytes } from "node:crypto";
+import { getEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
 import { ACCOUNT_SECURITY_POLICY } from "./enterprise-auth.constants";
 import { PasswordHasherService } from "./password-hasher.service";
@@ -7,6 +9,8 @@ import {
   AuthRateLimitService,
 } from "./security/auth-rate-limit.service";
 import { SessionService, type IssuedSession, type SessionMetadata } from "./session.service";
+
+const PASSWORD_RESET_MINUTES = 30;
 
 export interface LoginResult extends IssuedSession {
   email: string;
@@ -32,6 +36,10 @@ interface CredentialRow {
 
 function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function tokenHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 @Injectable()
@@ -158,6 +166,108 @@ export class EnterpriseAuthService {
         ? row.role_keys.filter((value): value is string => typeof value === "string")
         : [],
     }));
+  }
+
+  async requestPasswordReset(email: string) {
+    const normalizedEmail = normalizeEmail(email);
+    await this.rateLimits.consume(
+      "password-reset-email",
+      normalizedEmail,
+      AUTH_RATE_LIMIT_POLICIES.loginEmail,
+    );
+
+    const users = await this.database.sql`
+      SELECT id::text
+      FROM users
+      WHERE lower(email) = ${normalizedEmail}
+        AND disabled_at IS NULL
+      LIMIT 1
+    `;
+    const userId = users[0]?.id ? String(users[0].id) : undefined;
+    let developmentToken: string | undefined;
+
+    if (userId) {
+      const rawToken = randomBytes(32).toString("base64url");
+      developmentToken = rawToken;
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_MINUTES * 60 * 1000);
+      await this.database.sql.begin(async (tx) => {
+        await tx`
+          UPDATE password_reset_tokens
+          SET consumed_at = COALESCE(consumed_at, now())
+          WHERE user_id = ${userId}::uuid
+            AND consumed_at IS NULL
+        `;
+        await tx`
+          INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+          VALUES (${userId}::uuid, ${tokenHash(rawToken)}, ${expiresAt})
+        `;
+      });
+      await this.recordUserAudit(userId, "auth.password_reset.request", {
+        expiresAt: expiresAt.toISOString(),
+      });
+    }
+
+    return {
+      accepted: true,
+      deliveryRequired: true,
+      ...(getEnv().NODE_ENV !== "production" && developmentToken
+        ? { developmentToken }
+        : {}),
+    };
+  }
+
+  async resetPassword(rawToken: string, password: string): Promise<{ reset: true }> {
+    const passwordHash = await this.passwordHasher.hashPassword(password);
+    const hash = tokenHash(rawToken);
+
+    const result = await this.database.sql.begin(async (tx) => {
+      const tokens = await tx`
+        SELECT id::text, user_id::text
+        FROM password_reset_tokens
+        WHERE token_hash = ${hash}
+          AND consumed_at IS NULL
+          AND expires_at > now()
+        LIMIT 1
+        FOR UPDATE
+      `;
+      const token = tokens[0];
+      if (!token?.user_id) throw new UnauthorizedException("Password reset token is invalid or expired");
+      const userId = String(token.user_id);
+
+      await tx`
+        INSERT INTO credentials (user_id, password_hash, reset_required)
+        VALUES (${userId}::uuid, ${passwordHash}, false)
+        ON CONFLICT (user_id) DO UPDATE
+        SET password_hash = EXCLUDED.password_hash,
+            failed_login_count = 0,
+            locked_until = NULL,
+            reset_required = false,
+            password_changed_at = now(),
+            updated_at = now()
+      `;
+      await tx`
+        UPDATE password_reset_tokens
+        SET consumed_at = now()
+        WHERE id = ${String(token.id)}::uuid
+      `;
+      await tx`
+        UPDATE sessions
+        SET revoked_at = COALESCE(revoked_at, now())
+        WHERE user_id = ${userId}::uuid AND revoked_at IS NULL
+      `;
+      await tx`
+        UPDATE refresh_tokens rt
+        SET revoked_at = COALESCE(rt.revoked_at, now())
+        FROM sessions s
+        WHERE rt.session_id = s.id
+          AND s.user_id = ${userId}::uuid
+          AND rt.revoked_at IS NULL
+      `;
+      return userId;
+    });
+
+    await this.recordUserAudit(result, "auth.password_reset.complete");
+    return { reset: true };
   }
 
   async setPassword(userId: string, password: string, resetRequired = false): Promise<void> {
