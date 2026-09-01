@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../../lib/api";
 
@@ -14,7 +14,7 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const token = useSearchParams().get("token")?.trim() ?? "";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,5 +56,13 @@ export default function ResetPasswordPage() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10 text-sm text-slate-500">Loading password reset…</main>}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }
