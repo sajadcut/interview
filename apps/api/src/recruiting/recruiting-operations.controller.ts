@@ -3,6 +3,7 @@ import { ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   CreateCriterionEvaluationDto,
@@ -17,6 +18,7 @@ import {
 import { RecruitingOperationsService } from "./recruiting-operations.service";
 
 @ApiTags("recruiting-operations")
+@ApiStandardErrorResponses()
 @Controller("v1")
 @RequireTenant()
 export class RecruitingOperationsController {
