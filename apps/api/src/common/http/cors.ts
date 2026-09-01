@@ -13,5 +13,32 @@ export function buildCorsOrigin(configuredOrigins: string): CorsOriginConfig {
     throw new Error("CORS_ORIGIN must contain at least one origin or *");
   }
 
+  for (const origin of origins) {
+    let parsed: URL;
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error(`Invalid CORS origin: ${origin}`);
+    }
+    if (!parsed.origin || parsed.origin === "null" || parsed.href !== `${parsed.origin}/`) {
+      throw new Error(`CORS origin must be an origin only (scheme + host + optional port): ${origin}`);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(`CORS origin must use http:// or https://: ${origin}`);
+    }
+  }
+
   return origins;
+}
+
+export function assertProductionCorsPolicy(
+  nodeEnv: "development" | "test" | "production",
+  origins: CorsOriginConfig,
+): void {
+  if (nodeEnv === "production" && origins === "*") {
+    throw new Error("CORS_ORIGIN='*' is not allowed in production");
+  }
+  if (nodeEnv === "production" && origins.some((origin) => origin.startsWith("http://"))) {
+    throw new Error("Production CORS origins must use https://");
+  }
 }
