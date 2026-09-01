@@ -32,7 +32,9 @@
     "db:validate": "node scripts/check-migrations.mjs",
     "db:check": "node scripts/check-database.mjs",
     "db:migrate": "npm run db:migrate --workspace=@interview/db",
+    "db:performance": "npm run db:performance --workspace=@interview/db",
     "db:studio": "npm run db:studio --workspace=@interview/db",
+    "load:test": "node scripts/load-test.mjs",
     "openapi:export": "npm run openapi:export --workspace=@interview/api",
     "api-client:generate": "npm run generate --workspace=@interview/api-client",
     "api:sync": "npm run openapi:export && npm run api-client:generate"
