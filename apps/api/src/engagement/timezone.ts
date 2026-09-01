@@ -18,7 +18,7 @@ export function IsIanaTimezone(validationOptions?: ValidationOptions) {
       name: "isIanaTimezone",
       target: object.constructor,
       propertyName,
-      options: validationOptions,
+      ...(validationOptions ? { options: validationOptions } : {}),
       validator: {
         validate(value: unknown) {
           return typeof value === "string" && isIanaTimezone(value);
