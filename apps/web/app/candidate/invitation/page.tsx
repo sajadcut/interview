@@ -1,21 +1,18 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { api } from "../../lib/api";
 
-type InvitationContext = {
-  valid: true;
-  maskedEmail: string;
-  candidateDisplayName: string;
-  jobTitle: string;
-  expiresAt: string;
-};
+type InvitationContext = components["schemas"]["CandidateMagicLinkValidationDto"];
 
 function readMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
     const value = (payload as { message?: unknown }).message;
     if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.map(String).join("; ");
   }
   return fallback;
 }
@@ -29,22 +26,29 @@ function CandidateInvitationContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     if (!token) {
       setError("Invitation token is missing");
-      return;
+      return () => {
+        active = false;
+      };
     }
-    fetch("/api/backend/v1/candidate-auth/magic-link/validate", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(readMessage(payload, "Invitation is invalid or expired"));
-        setContext(payload as InvitationContext);
+
+    void api.POST("/v1/candidate-auth/magic-link/validate", { body: { token } })
+      .then((result) => {
+        if (!active) return;
+        if (result.error || !result.data) {
+          throw new Error(readMessage(result.error, "Invitation is invalid or expired"));
+        }
+        setContext(result.data);
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Invitation validation failed"));
+      .catch((cause) => {
+        if (active) setError(cause instanceof Error ? cause.message : "Invitation validation failed");
+      });
+
+    return () => {
+      active = false;
+    };
   }, [token]);
 
   async function verify(event: FormEvent<HTMLFormElement>) {
@@ -52,14 +56,12 @@ function CandidateInvitationContent() {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/backend/v1/candidate-auth/otp/verify", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, otp: otp.trim() }),
+      const result = await api.POST("/v1/candidate-auth/otp/verify", {
+        body: { token, otp: otp.trim() },
       });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(readMessage(payload, "Verification failed"));
+      if (result.error || !result.data?.authenticated) {
+        throw new Error(readMessage(result.error, "Verification failed"));
+      }
       window.location.assign("/candidate/setup");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Verification failed");
@@ -79,6 +81,7 @@ function CandidateInvitationContent() {
             <div className="mt-1 text-xs text-slate-500">{context.jobTitle} · code sent to {context.maskedEmail}</div>
           </div>
         ) : null}
+        {!context && !error ? <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">Validating invitation…</div> : null}
         {error ? <div className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div> : null}
 
         {context ? (
