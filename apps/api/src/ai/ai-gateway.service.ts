@@ -6,6 +6,10 @@ import { getEnv } from "../config/env";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { LLM_PROVIDER, type LlmMessage, type LlmProvider } from "./llm-provider";
 
+const DEFAULT_LLM_TIMEOUT_MS = 20_000;
+const MIN_LLM_TIMEOUT_MS = 250;
+const MAX_LLM_TIMEOUT_MS = 120_000;
+
 export interface AiExecutionRequest<T> {
   capability: string;
   promptVersion: string;
@@ -14,12 +18,40 @@ export interface AiExecutionRequest<T> {
   schema: z.ZodType<T>;
   inputReferences?: Record<string, unknown>;
   temperature?: number;
+  timeoutMs?: number;
 }
 
 export class AiStructuredOutputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "AiStructuredOutputError";
+  }
+}
+
+export class AiProviderTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`LLM provider timed out after ${timeoutMs}ms`);
+    this.name = "AiProviderTimeoutError";
+  }
+}
+
+function boundedTimeout(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return DEFAULT_LLM_TIMEOUT_MS;
+  return Math.max(MIN_LLM_TIMEOUT_MS, Math.min(MAX_LLM_TIMEOUT_MS, Math.trunc(value)));
+}
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => reject(new AiProviderTimeoutError(timeoutMs)), timeoutMs);
+        timeout.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -36,6 +68,7 @@ export class AiGatewayService {
     const executionId = randomUUID();
     const started = Date.now();
     const model = request.model?.trim() || getEnv().LLM_MODEL.trim();
+    const timeoutMs = boundedTimeout(request.timeoutMs);
     if (!model) throw new Error("An LLM model must be supplied by the request or LLM_MODEL");
 
     await this.database.sql`
@@ -54,11 +87,14 @@ export class AiGatewayService {
     `;
 
     try {
-      const result = await this.provider.generateStructured({
-        model,
-        messages: request.messages,
-        ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-      });
+      const result = await withTimeout(
+        this.provider.generateStructured({
+          model,
+          messages: request.messages,
+          ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+        }),
+        timeoutMs,
+      );
       const parsed = request.schema.safeParse(result.output);
       if (!parsed.success) {
         const details = parsed.error.issues
