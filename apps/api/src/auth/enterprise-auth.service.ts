@@ -9,6 +9,13 @@ export interface LoginResult extends IssuedSession {
   displayName: string | null;
 }
 
+export interface AuthenticatedOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  roles: string[];
+}
+
 interface CredentialRow {
   user_id?: unknown;
   email?: unknown;
@@ -102,6 +109,38 @@ export class EnterpriseAuthService {
       email: typeof row.email === "string" ? row.email : normalizedEmail,
       displayName: typeof row.display_name === "string" ? row.display_name : null,
     };
+  }
+
+  async listOrganizations(userId: string): Promise<AuthenticatedOrganization[]> {
+    const rows = await this.database.sql`
+      SELECT
+        o.id::text,
+        o.name,
+        o.slug,
+        COALESCE(
+          array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL),
+          ARRAY[]::varchar[]
+        ) AS role_keys
+      FROM memberships m
+      JOIN organizations o ON o.id = m.organization_id
+      LEFT JOIN membership_roles mr
+        ON mr.membership_id = m.id AND mr.organization_id = m.organization_id
+      LEFT JOIN roles r
+        ON r.id = mr.role_id AND r.organization_id = m.organization_id
+      WHERE m.user_id = ${userId}::uuid
+        AND m.status = 'active'
+      GROUP BY o.id
+      ORDER BY lower(o.name)
+    `;
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      slug: String(row.slug),
+      roles: Array.isArray(row.role_keys)
+        ? row.role_keys.filter((value): value is string => typeof value === "string")
+        : [],
+    }));
   }
 
   async setPassword(userId: string, password: string, resetRequired = false): Promise<void> {
