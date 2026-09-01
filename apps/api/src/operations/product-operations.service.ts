@@ -13,7 +13,7 @@ import type {
   UpdateOrganizationSettingsDto,
 } from "./product-operations.dto";
 
-const CREDENTIAL_REFERENCE = /^(vault|secret|env|external):\/\/[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$/;
+const CREDENTIAL_REFERENCE = /^(vault|secret|env|external):\/\/[A-Za-z0-9._~:/?#\u005B\u005D@!$&'()*+,;=%-]+$/;
 
 function actor(auth: AuthContextService): string {
   const userId = auth.getOptional()?.userId;
