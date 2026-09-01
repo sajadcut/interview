@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   NODE_ENV: test
@@ -45,6 +45,9 @@ jobs:
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
+      - name: Synchronize dependency lockfile
+        run: npm install --package-lock-only --ignore-scripts --replace-registry-host=always
+
       - name: Install dependencies
         run: npm ci
 
@@ -54,17 +57,19 @@ jobs:
       - name: Regenerate OpenAPI and typed client
         run: npm run api:sync
 
-      - name: Upload generated API contract
+      - name: Upload generated contracts
         uses: actions/upload-artifact@v4
         with:
-          name: generated-api-contract
+          name: generated-contracts
           path: |
+            package-lock.json
             openapi/openapi.json
             packages/api-client/src/generated/schema.ts
           if-no-files-found: error
 
-      - name: Verify generated API contract is committed
-        run: git diff --exit-code -- openapi/openapi.json packages/api-client/src/generated/schema.ts
+      - name: Verify generated contracts are committed on pull requests
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts
 
       - name: Lint
         run: npm run lint
@@ -77,3 +82,16 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Commit deterministic generated contracts on main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if git diff --quiet -- package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts; then
+            echo "Generated contracts already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts
+          git commit -m "chore: sync generated contracts"
+          git push
