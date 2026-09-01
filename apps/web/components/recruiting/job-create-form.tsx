@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Panel } from "../product/recruiting-ui";
+import { api } from "../../lib/api";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
+import { Panel } from "../product/recruiting-ui";
 
 interface DraftRequirement {
   name: string;
@@ -32,6 +33,13 @@ function keyFor(value: string, index: number): string {
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
   return normalized || `criterion_${index + 1}`;
+}
+
+function errorMessage(value: unknown, fallback: string): string {
+  if (value && typeof value === "object" && "message" in value && typeof (value as { message?: unknown }).message === "string") {
+    return String((value as { message: string }).message);
+  }
+  return fallback;
 }
 
 export function JobCreateForm() {
@@ -79,11 +87,9 @@ export function JobCreateForm() {
     setError(undefined);
     try {
       const identity = await resolveTenantIdentity();
-      const response = await fetch("/api/backend/v1/jobs", {
-        method: "POST",
-        headers: tenantHeaders(identity, true),
-        credentials: "same-origin",
-        body: JSON.stringify({
+      const result = await api.POST("/v1/jobs", {
+        headers: tenantHeaders(identity),
+        body: {
           title: title.trim(),
           ...(department.trim() ? { department: department.trim() } : {}),
           ...(location.trim() ? { location: location.trim() } : {}),
@@ -92,10 +98,10 @@ export function JobCreateForm() {
           requirements,
           rubricName: `${title.trim()} rubric`,
           rubricCriteria: criteria,
-        }),
+        },
       });
-      const payload = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
-      if (!response.ok || !payload.id) throw new Error(payload.message || "ایجاد موقعیت ناموفق بود");
+      const payload = (result.data ?? result.error ?? {}) as { id?: string; message?: string };
+      if (result.error || !payload.id) throw new Error(errorMessage(payload, "ایجاد موقعیت ناموفق بود"));
       router.push(`/app/jobs/${payload.id}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "ایجاد موقعیت ناموفق بود");
@@ -113,7 +119,7 @@ export function JobCreateForm() {
         <div className="text-[10px] text-slate-400">Jobs / Create</div>
         <h1 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950">Create a job and evidence rubric</h1>
         <p className="mt-1 max-w-3xl text-[11px] leading-5 text-slate-500">
-          این فرم مستقیماً Job، Requirements و Rubric Version 1 را در دیتابیس ایجاد می‌کند. انتشار rubric یک اقدام جداگانه و قابل audit است.
+          این فرم از typed API client استفاده می‌کند و Job، Requirements و Rubric Version 1 را مستقیماً در دیتابیس ایجاد می‌کند. انتشار rubric یک اقدام جداگانه و قابل audit است.
         </p>
       </div>
 
@@ -129,7 +135,7 @@ export function JobCreateForm() {
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">موقعیت
               <input className={field} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Tehran / Hybrid" />
             </label>
-            <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">Senioritiy
+            <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">Seniority
               <input className={field} value={seniority} onChange={(event) => setSeniority(event.target.value)} placeholder="Senior" />
             </label>
           </div>
@@ -159,12 +165,7 @@ export function JobCreateForm() {
             امتیاز نهایی تنها از rubric versioned و evidence-backed evaluation محاسبه می‌شود. ساخت Job هیچ Hiring Score مصنوعی تولید نمی‌کند.
           </div>
           {error ? <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[10px] text-rose-700">{error}</div> : null}
-          <button
-            type="button"
-            onClick={() => void submit()}
-            disabled={submitting}
-            className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <button type="button" onClick={() => void submit()} disabled={submitting} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
             {submitting ? "در حال ایجاد…" : "Create draft job"}
           </button>
         </Panel>

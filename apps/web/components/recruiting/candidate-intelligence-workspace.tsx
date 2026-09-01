@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Panel, Pill } from "../product/recruiting-ui";
-import { useInternalAccess } from "../product/internal-access";
+import { api } from "../../lib/api";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
+import { useInternalAccess } from "../product/internal-access";
+import { Panel, Pill } from "../product/recruiting-ui";
 
 interface CandidateWorkspacePayload {
   candidate: {
@@ -36,6 +37,13 @@ interface CandidateWorkspacePayload {
   evidence: Array<{ id: string; applicationId?: string; evidenceType: string; sourceType: string; sourceReference: string; excerpt?: string; occurredAt?: string; createdAt: string }>;
 }
 
+function messageFrom(value: unknown, fallback: string): string {
+  if (value && typeof value === "object" && "message" in value && typeof (value as { message?: unknown }).message === "string") {
+    return String((value as { message: string }).message);
+  }
+  return fallback;
+}
+
 export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: string }) {
   const access = useInternalAccess();
   const [identity, setIdentity] = useState<TenantIdentity>();
@@ -47,13 +55,12 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
     if (!identity) setIdentity(currentIdentity);
-    const response = await fetch(`/api/backend/v1/candidates/${candidateId}/intelligence-workspace`, {
+    const result = await api.GET("/v1/candidates/{candidateId}/intelligence-workspace", {
+      params: { path: { candidateId } },
       headers: tenantHeaders(currentIdentity),
-      credentials: "same-origin",
-      cache: "no-store",
     });
-    const payload = (await response.json().catch(() => ({}))) as CandidateWorkspacePayload & { message?: string };
-    if (!response.ok || !payload.candidate) throw new Error(payload.message || "Candidate workspace could not be loaded");
+    const payload = (result.data ?? result.error ?? {}) as CandidateWorkspacePayload & { message?: string };
+    if (result.error || !payload.candidate) throw new Error(messageFrom(payload, "Candidate workspace could not be loaded"));
     setWorkspace(payload);
     setSelectedApplicationId((current) => current ?? payload.applications[0]?.id);
   }
@@ -88,14 +95,13 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
 
   async function finalizeScorecard() {
     if (!identity || !selectedApplicationId) return;
-    const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/scorecards/finalize`, {
-      method: "POST",
+    const result = await api.POST("/v1/applications/{applicationId}/scorecards/finalize", {
+      params: { path: { applicationId: selectedApplicationId } },
       headers: tenantHeaders(identity),
-      credentials: "same-origin",
     });
-    const payload = (await response.json().catch(() => ({}))) as { persisted?: boolean; overallScore?: number | null; recommendation?: string; message?: string; missingEvaluationCriterionIds?: string[]; missingEvidenceCriterionIds?: string[] };
-    if (!response.ok) {
-      setMessage(payload.message || "Scorecard finalization failed");
+    const payload = (result.data ?? result.error ?? {}) as { persisted?: boolean; overallScore?: number | null; recommendation?: string; message?: string; missingEvaluationCriterionIds?: string[]; missingEvidenceCriterionIds?: string[] };
+    if (result.error) {
+      setMessage(messageFrom(payload, "Scorecard finalization failed"));
       return;
     }
     if (!payload.persisted) {
@@ -113,34 +119,30 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     if (!excerpt) return;
     const sourceReference = window.prompt("Source reference (document, transcript timestamp, assessment id)")?.trim();
     if (!sourceReference) return;
-    const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/evidence`, {
-      method: "POST",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify({ evidenceType: "review_note", sourceType: "human_review", sourceReference, excerpt }),
+    const result = await api.POST("/v1/applications/{applicationId}/evidence", {
+      params: { path: { applicationId: selectedApplicationId } },
+      headers: tenantHeaders(identity),
+      body: { evidenceType: "review_note", sourceType: "human_review", sourceReference, excerpt },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    setMessage(response.ok ? "Evidence persisted." : payload.message || "Evidence creation failed");
-    if (response.ok) await load(identity);
+    setMessage(result.error ? messageFrom(result.error, "Evidence creation failed") : "Evidence persisted.");
+    if (!result.error) await load(identity);
   }
 
   async function submitDecision(decision: "advance" | "hold" | "reject" | "hire") {
     if (!identity || !selectedApplicationId) return;
     const reason = window.prompt(`Human reason for ${decision}`)?.trim();
     if (!reason) return;
-    const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/decision`, {
-      method: "POST",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify({
+    const result = await api.POST("/v1/applications/{applicationId}/decision", {
+      params: { path: { applicationId: selectedApplicationId } },
+      headers: tenantHeaders(identity),
+      body: {
         decision,
         reason,
         ...(selectedApplication?.scorecardId ? { scorecardId: selectedApplication.scorecardId } : {}),
-      }),
+      },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    setMessage(response.ok ? `Human decision recorded: ${decision}.` : payload.message || "Decision submission failed");
-    if (response.ok) await load(identity);
+    setMessage(result.error ? messageFrom(result.error, "Decision submission failed") : `Human decision recorded: ${decision}.`);
+    if (!result.error) await load(identity);
   }
 
   if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading candidate intelligence…</div>;
@@ -167,7 +169,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
         <div className="space-y-4">
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">Applications & job matches</h2>
-            <div className="mt-4 grid gap-2">{workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-left transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{application.pipelineStage} · {application.status}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">Match {application.preInterviewMatchScore}%</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">Hiring {application.hiringScore}</Pill> : <Pill>Hiring score incomplete</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">Latest human decision: <strong>{application.decision}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>)}</div>
+            <div className="mt-4 grid gap-2">{workspace.applications.length ? workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-left transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{application.pipelineStage} · {application.status}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">Match {application.preInterviewMatchScore}%</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">Hiring {application.hiringScore}</Pill> : <Pill>Hiring score incomplete</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">Latest human decision: <strong>{application.decision}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>) : <div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">No applications are associated with this candidate yet.</div>}</div>
           </Panel>
 
           <Panel className="p-5">
@@ -189,7 +191,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
 
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">Skills & verification</h2>
-            <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {skill.verificationState}</span>)}</div>
+            <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.length ? workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {skill.verificationState}</span>) : <span className="text-[10px] text-slate-400">No persisted skills.</span>}</div>
           </Panel>
 
           {selectedApplication ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">Human decision control</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">AI recommendations are decision support only. A human actor and reason are persisted for every decision.</p><div className="mt-4 grid grid-cols-2 gap-2">{access.can("decision.submit") ? (["advance", "hold", "reject", "hire"] as const).map((decision) => <button key={decision} type="button" onClick={() => void submitDecision(decision)} className={`rounded-lg border px-3 py-2 text-[10px] font-semibold ${decision === "reject" ? "border-rose-100 text-rose-700" : decision === "hire" ? "border-emerald-100 text-emerald-700" : "border-slate-200 text-slate-700"}`}>{decision}</button>) : <div className="col-span-2 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-500">Current role cannot submit hiring decisions.</div>}</div><Link href={`/app/jobs/${selectedApplication.jobId}`} className="mt-4 inline-flex text-[9px] font-semibold text-indigo-600">Open job workspace →</Link></Panel> : null}

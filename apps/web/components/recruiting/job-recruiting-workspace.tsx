@@ -1,33 +1,21 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Panel, Pill } from "../product/recruiting-ui";
-import { useInternalAccess } from "../product/internal-access";
+import { api } from "../../lib/api";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
+import { useInternalAccess } from "../product/internal-access";
+import { Panel, Pill } from "../product/recruiting-ui";
 
-interface JobWorkspace {
-  id: string;
-  title: string;
-  status: string;
-  department?: string;
-  location?: string;
-  seniority?: string;
-  summary?: string;
-  requirements: Array<{ id: string; requirementType: string; name: string; description?: string; weight: number; minimumYears?: number }>;
-  rubricCriteria: Array<{ id: string; criterionKey: string; label: string; weight: number; required: boolean; displayOrder: number }>;
-  pipeline: Array<{ stage: string; count: number }>;
-}
+type JobWorkspace = components["schemas"]["JobWorkspaceDto"];
+type CandidateSummary = components["schemas"]["CandidateSummaryDto"];
 
-interface CandidateSummary {
-  id: string;
-  displayName: string;
-  currentRole?: string;
-  currentCompany?: string;
-  applicationId?: string;
-  pipelineStage?: string;
-  preInterviewMatchScore?: number;
-  skills: string[];
+function messageFrom(value: unknown, fallback: string): string {
+  if (value && typeof value === "object" && "message" in value && typeof (value as { message?: unknown }).message === "string") {
+    return String((value as { message: string }).message);
+  }
+  return fallback;
 }
 
 export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
@@ -43,13 +31,19 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
     if (!identity) setIdentity(currentIdentity);
     const headers = tenantHeaders(currentIdentity);
-    const [jobResponse, candidatesResponse] = await Promise.all([
-      fetch(`/api/backend/v1/jobs/${jobId}/workspace`, { headers, cache: "no-store", credentials: "same-origin" }),
-      fetch(`/api/backend/v1/candidates?jobId=${encodeURIComponent(jobId)}`, { headers, cache: "no-store", credentials: "same-origin" }),
+    const [jobResult, candidatesResult] = await Promise.all([
+      api.GET("/v1/jobs/{jobId}/workspace", {
+        params: { path: { jobId } },
+        headers,
+      }),
+      api.GET("/v1/candidates", {
+        params: { query: { jobId } },
+        headers,
+      }),
     ]);
-    if (!jobResponse.ok) throw new Error("Job workspace could not be loaded");
-    setJob((await jobResponse.json()) as JobWorkspace);
-    setCandidates(candidatesResponse.ok ? ((await candidatesResponse.json()) as CandidateSummary[]) : []);
+    if (jobResult.error || !jobResult.data) throw new Error(messageFrom(jobResult.error, "Job workspace could not be loaded"));
+    setJob(jobResult.data);
+    setCandidates(candidatesResult.error || !candidatesResult.data ? [] : candidatesResult.data);
   }
 
   useEffect(() => {
@@ -74,29 +68,26 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
   async function publishRubric() {
     if (!identity) return;
     setMessage(undefined);
-    const response = await fetch(`/api/backend/v1/jobs/${jobId}/rubric/publish`, {
-      method: "POST",
+    const result = await api.POST("/v1/jobs/{jobId}/rubric/publish", {
+      params: { path: { jobId } },
       headers: tenantHeaders(identity),
-      credentials: "same-origin",
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string; version?: number };
-    setMessage(response.ok ? `Rubric v${payload.version ?? ""} published.` : payload.message || "Publish failed");
-    if (response.ok) await load(identity);
+    const payload = (result.data ?? result.error ?? {}) as { message?: string; version?: number };
+    setMessage(result.error ? messageFrom(payload, "Publish failed") : `Rubric v${payload.version ?? ""} published.`);
+    if (!result.error) await load(identity);
   }
 
   async function moveStage(applicationId: string, stage: string) {
     if (!identity) return;
     const reason = window.prompt(`Reason for moving to ${stage}`)?.trim();
     if (!reason) return;
-    const response = await fetch(`/api/backend/v1/applications/${applicationId}/stage`, {
-      method: "POST",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify({ stage, reason }),
+    const result = await api.POST("/v1/applications/{applicationId}/stage", {
+      params: { path: { applicationId } },
+      headers: tenantHeaders(identity),
+      body: { stage, reason },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    setMessage(response.ok ? `Application moved to ${stage}.` : payload.message || "Stage move failed");
-    if (response.ok) await load(identity);
+    setMessage(result.error ? messageFrom(result.error, "Stage move failed") : `Application moved to ${stage}.`);
+    if (!result.error) await load(identity);
   }
 
   async function saveShortlist() {
@@ -104,14 +95,13 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
     const entries = candidates
       .filter((candidate) => candidate.applicationId && selected.has(candidate.applicationId))
       .map((candidate, index) => ({ applicationId: candidate.applicationId!, rank: index + 1, rationale: "Human-selected shortlist entry" }));
-    const response = await fetch(`/api/backend/v1/jobs/${jobId}/shortlist`, {
-      method: "PUT",
-      headers: tenantHeaders(identity, true),
-      credentials: "same-origin",
-      body: JSON.stringify({ name: "Primary shortlist", status: "review", entries }),
+    const result = await api.PUT("/v1/jobs/{jobId}/shortlist", {
+      params: { path: { jobId } },
+      headers: tenantHeaders(identity),
+      body: { name: "Primary shortlist", status: "review", entries },
     });
-    const payload = (await response.json().catch(() => ({}))) as { message?: string; entryCount?: number };
-    setMessage(response.ok ? `${payload.entryCount ?? entries.length} candidates saved to shortlist.` : payload.message || "Shortlist update failed");
+    const payload = (result.data ?? result.error ?? {}) as { message?: string; entryCount?: number };
+    setMessage(result.error ? messageFrom(payload, "Shortlist update failed") : `${payload.entryCount ?? entries.length} candidates saved to shortlist.`);
   }
 
   if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading job workspace…</div>;
