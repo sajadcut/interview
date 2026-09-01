@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState, type FormEvent } from "react";
 import { rememberOrganizationId, type SessionOrganization } from "../../lib/tenant-client";
 
 interface LoginResponse {
