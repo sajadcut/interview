@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS credentials (
 ALTER TABLE candidate_identities
   ADD COLUMN IF NOT EXISTS verified_at timestamptz,
   ADD COLUMN IF NOT EXISTS expires_at timestamptz,
-  ADD COLUMN IF NOT EXISTS temporary boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS temporary boolean NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE UNIQUE INDEX IF NOT EXISTS candidate_identities_org_id_uq
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   principal_type varchar(24) NOT NULL CHECK (principal_type IN ('internal', 'candidate')),
   user_id uuid REFERENCES users(id) ON DELETE CASCADE,
   organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE,
-  candidate_identity_id uuid,
+  candidate_identity_id uuid REFERENCES candidate_identities(id) ON DELETE CASCADE,
   token_hash varchar(64) NOT NULL UNIQUE,
   user_agent_hash varchar(64),
   ip_hash varchar(64),
@@ -38,10 +38,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   last_seen_at timestamptz NOT NULL DEFAULT now(),
   revoked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (organization_id, candidate_identity_id)
-    REFERENCES candidate_identities(organization_id, id) ON DELETE CASCADE,
   CHECK (
-    (principal_type = 'internal' AND user_id IS NOT NULL AND organization_id IS NULL AND candidate_identity_id IS NULL)
+    (principal_type = 'internal' AND user_id IS NOT NULL AND candidate_identity_id IS NULL)
     OR
     (principal_type = 'candidate' AND user_id IS NULL AND organization_id IS NOT NULL AND candidate_identity_id IS NOT NULL)
   )
@@ -67,7 +65,7 @@ CREATE INDEX IF NOT EXISTS refresh_tokens_family_idx ON refresh_tokens(family_id
 CREATE TABLE IF NOT EXISTS invitation_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  candidate_identity_id uuid,
+  candidate_identity_id uuid REFERENCES candidate_identities(id) ON DELETE CASCADE,
   target_email varchar(320) NOT NULL,
   purpose varchar(40) NOT NULL CHECK (
     purpose IN ('candidate_magic_link', 'candidate_otp', 'organization_user_invite')
@@ -80,9 +78,7 @@ CREATE TABLE IF NOT EXISTS invitation_tokens (
   expires_at timestamptz NOT NULL,
   consumed_at timestamptz,
   created_by_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (organization_id, candidate_identity_id)
-    REFERENCES candidate_identities(organization_id, id) ON DELETE CASCADE
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS invitation_tokens_org_email_idx
   ON invitation_tokens(organization_id, target_email, expires_at);
