@@ -12,7 +12,11 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const membershipId = "33333333-3333-4333-8333-333333333333";
 
 function databaseReturning(rows: unknown[]): DatabaseService {
-  const sql = async () => rows;
+  const sql = async (strings: TemplateStringsArray) => {
+    const text = Array.from(strings).join("?");
+    if (text.includes("FROM platform_user_roles")) return [];
+    return rows;
+  };
   return { sql } as unknown as DatabaseService;
 }
 
