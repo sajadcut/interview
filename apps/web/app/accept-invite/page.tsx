@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../../lib/api";
 
@@ -14,7 +14,7 @@ function errorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function AcceptInvitePage() {
+function AcceptInviteContent() {
   const token = useSearchParams().get("token")?.trim() ?? "";
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -60,5 +60,13 @@ export default function AcceptInvitePage() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10 text-sm text-slate-500">Loading invitation…</main>}>
+      <AcceptInviteContent />
+    </Suspense>
   );
 }
