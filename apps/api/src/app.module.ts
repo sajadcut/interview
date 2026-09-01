@@ -13,6 +13,7 @@ import { EngagementModule } from "./engagement/engagement.module";
 import { HealthController } from "./health/health.controller";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { InterviewerModule } from "./interviewer/interviewer.module";
+import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { MetricsController } from "./metrics/metrics.controller";
 import { MetricsMiddleware } from "./metrics/metrics.middleware";
 import { MetricsService } from "./metrics/metrics.service";
@@ -42,6 +43,7 @@ import { TenantModule } from "./tenant/tenant.module";
     AnalyticsModule,
     PrivacyModule,
     ProductOperationsModule,
+    MaintenanceModule,
   ],
   controllers: [AppController, HealthController, MetricsController],
   providers: [MetricsService, MetricsMiddleware],
