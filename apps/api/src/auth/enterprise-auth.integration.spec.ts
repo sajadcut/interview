@@ -3,6 +3,7 @@ import test from "node:test";
 import type { DatabaseService } from "../database/database.service";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
+import { AuthRateLimitService } from "./security/auth-rate-limit.service";
 import { SessionService } from "./session.service";
 
 interface SqlCall {
@@ -50,7 +51,8 @@ test("enterprise auth login verifies Argon2id and persists only token hashes", a
   const passwordHash = await hasher.hashPassword(password);
   const { database, calls } = databaseStub(passwordHash);
   const sessions = new SessionService(database);
-  const auth = new EnterpriseAuthService(database, hasher, sessions);
+  const rateLimits = new AuthRateLimitService(database);
+  const auth = new EnterpriseAuthService(database, hasher, sessions, rateLimits);
 
   const result = await auth.login("ADMIN@example.com", password, {
     ip: "127.0.0.1",
@@ -74,7 +76,8 @@ test("enterprise auth increments failed-login state on invalid password", async 
   const passwordHash = await hasher.hashPassword("correct horse battery staple");
   const { database, calls } = databaseStub(passwordHash);
   const sessions = new SessionService(database);
-  const auth = new EnterpriseAuthService(database, hasher, sessions);
+  const rateLimits = new AuthRateLimitService(database);
+  const auth = new EnterpriseAuthService(database, hasher, sessions, rateLimits);
 
   await assert.rejects(
     () => auth.login("admin@example.com", "definitely-wrong-password"),
