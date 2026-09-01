@@ -1,11 +1,5 @@
-import { CandidateInterviewExperience } from "../../components/candidate/candidate-interview-experience";
-import { CandidateRealtimeLaunchGate } from "../../components/candidate/candidate-realtime-launch-gate";
+import { redirect } from "next/navigation";
 
 export default function CandidatePage() {
-  return (
-    <>
-      <CandidateRealtimeLaunchGate />
-      <CandidateInterviewExperience />
-    </>
-  );
+  redirect("/candidate/login");
 }
