@@ -3,6 +3,7 @@ import type { OrganizationRole } from "./membership-role.types";
 
 export const ORGANIZATION_ROLES: readonly OrganizationRole[] = [
   "ORGANIZATION_ADMIN",
+  "HR_MANAGER",
   "RECRUITER",
   "INTERVIEWER",
   "HIRING_MANAGER",
@@ -12,6 +13,28 @@ const ALL_PERMISSIONS = Object.values(Permissions);
 
 export const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> = {
   ORGANIZATION_ADMIN: ALL_PERMISSIONS,
+  HR_MANAGER: [
+    Permissions.OrganizationRead,
+    Permissions.SettingsManage,
+    Permissions.JobRead,
+    Permissions.JobEdit,
+    Permissions.CandidateRead,
+    Permissions.CandidateContact,
+    Permissions.CandidateMoveStage,
+    Permissions.CandidateScore,
+    Permissions.TalentManage,
+    Permissions.ScreeningManage,
+    Permissions.SchedulingManage,
+    Permissions.KnowledgeManage,
+    Permissions.InterviewRead,
+    Permissions.InterviewAssign,
+    Permissions.InterviewEvaluate,
+    Permissions.AssessmentRead,
+    Permissions.AnalyticsRead,
+    Permissions.PrivacyManage,
+    Permissions.DecisionSubmit,
+    Permissions.AuditRead,
+  ],
   RECRUITER: [
     Permissions.JobRead,
     Permissions.JobCreate,
