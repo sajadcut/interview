@@ -48,6 +48,22 @@ function maskEmail(email: string): string {
   return `${visible}${"*".repeat(Math.max(3, local.length - visible.length))}@${domain}`;
 }
 
+export type CandidateInvitationState = "valid" | "used" | "expired" | "locked";
+
+export function candidateInvitationState(
+  input: { consumedAt?: string | Date | null; expiresAt: string | Date; lockedUntil?: string | Date | null },
+  now = new Date(),
+): CandidateInvitationState {
+  if (input.consumedAt) return "used";
+  const expiresAt = new Date(input.expiresAt);
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= now.getTime()) return "expired";
+  if (input.lockedUntil) {
+    const lockedUntil = new Date(input.lockedUntil);
+    if (!Number.isNaN(lockedUntil.getTime()) && lockedUntil.getTime() > now.getTime()) return "locked";
+  }
+  return "valid";
+}
+
 @Injectable()
 export class CandidateAuthService {
   constructor(
@@ -234,6 +250,8 @@ export class CandidateAuthService {
         it.candidate_identity_id::text,
         it.target_email,
         it.expires_at,
+        it.consumed_at,
+        it.locked_until,
         cic.application_id::text,
         cic.candidate_id::text,
         c.display_name,
@@ -248,13 +266,20 @@ export class CandidateAuthService {
         ON j.organization_id = a.organization_id AND j.id = a.job_id
       WHERE it.token_hash = ${hash(rawToken)}
         AND it.purpose = 'candidate_magic_link'
-        AND it.consumed_at IS NULL
-        AND it.expires_at > now()
-        AND (it.locked_until IS NULL OR it.locked_until <= now())
       LIMIT 1
     `;
     const row = rows[0];
-    if (!row) throw new UnauthorizedException("Candidate invitation is invalid or expired");
+    if (!row) throw new UnauthorizedException("Candidate invitation is invalid");
+
+    const state = candidateInvitationState({
+      consumedAt: row.consumed_at ? String(row.consumed_at) : null,
+      expiresAt: String(row.expires_at),
+      lockedUntil: row.locked_until ? String(row.locked_until) : null,
+    });
+    if (state === "used") throw new UnauthorizedException("Candidate invitation has already been used");
+    if (state === "expired") throw new UnauthorizedException("Candidate invitation has expired");
+    if (state === "locked") throw new UnauthorizedException("Candidate invitation is temporarily locked");
+
     return {
       valid: true,
       invitationId: String(row.invitation_id),
@@ -289,77 +314,82 @@ export class CandidateAuthService {
     if (!magic) throw new UnauthorizedException("Candidate invitation is invalid or expired");
 
     const otpRows = await this.database.sql`
-      SELECT it.id::text AS otp_id, it.otp_hash, it.failed_attempts, it.locked_until
+      SELECT
+        it.id::text AS otp_id,
+        it.otp_hash,
+        it.failed_attempts,
+        it.locked_until,
+        it.expires_at
       FROM invitation_tokens it
       JOIN candidate_invitation_contexts cic ON cic.invitation_token_id = it.id
-      WHERE it.organization_id = ${String(magic.organization_id)}::uuid
+      WHERE cic.organization_id = ${String(magic.organization_id)}::uuid
+        AND cic.application_id = ${String(magic.application_id)}::uuid
         AND it.candidate_identity_id = ${String(magic.candidate_identity_id)}::uuid
         AND it.purpose = 'candidate_otp'
         AND it.consumed_at IS NULL
-        AND it.expires_at > now()
-        AND cic.application_id = ${String(magic.application_id)}::uuid
       ORDER BY it.created_at DESC
       LIMIT 1
     `;
-    const challenge = otpRows[0];
-    if (!challenge || typeof challenge.otp_hash !== "string") {
-      throw new UnauthorizedException("Candidate verification challenge is invalid or expired");
+    const otpRow = otpRows[0];
+    if (!otpRow) throw new UnauthorizedException("Candidate OTP challenge was not found");
+    if (new Date(String(otpRow.expires_at)).getTime() <= Date.now()) {
+      throw new UnauthorizedException("Candidate OTP challenge has expired");
     }
-    const lockedUntil = challenge.locked_until ? new Date(String(challenge.locked_until)) : null;
-    if (lockedUntil && lockedUntil.getTime() > Date.now()) {
-      throw new UnauthorizedException("Candidate verification challenge is temporarily locked");
+    if (otpRow.locked_until && new Date(String(otpRow.locked_until)).getTime() > Date.now()) {
+      throw new UnauthorizedException("Candidate OTP challenge is locked");
     }
 
-    const valid = secureEqual(challenge.otp_hash, otpHash(rawToken, otp));
-    if (!valid) {
+    const expectedOtpHash = String(otpRow.otp_hash ?? "");
+    const suppliedOtpHash = otpHash(rawToken, otp);
+    if (!secureEqual(expectedOtpHash, suppliedOtpHash)) {
+      const nextAttempts = Number(otpRow.failed_attempts ?? 0) + 1;
+      const lock = nextAttempts >= CANDIDATE_OTP_MAX_ATTEMPTS;
       await this.database.sql`
         UPDATE invitation_tokens
-        SET failed_attempts = failed_attempts + 1,
-            locked_until = CASE
-              WHEN failed_attempts + 1 >= ${CANDIDATE_OTP_MAX_ATTEMPTS}
-                THEN now() + interval '30 minutes'
-              ELSE locked_until
-            END
-        WHERE id = ${String(challenge.otp_id)}::uuid
+        SET failed_attempts = ${nextAttempts},
+            locked_until = CASE WHEN ${lock} THEN now() + interval '15 minutes' ELSE locked_until END
+        WHERE id = ${String(otpRow.otp_id)}::uuid
       `;
-      throw new UnauthorizedException("Verification code is invalid");
+      throw new UnauthorizedException(lock ? "Candidate OTP challenge is locked" : "Candidate OTP is invalid");
     }
 
+    await this.database.sql.begin(async (tx) => {
+      await tx`
+        UPDATE invitation_tokens
+        SET consumed_at = now()
+        WHERE id IN (${String(magic.magic_id)}::uuid, ${String(otpRow.otp_id)}::uuid)
+      `;
+      await tx`
+        UPDATE candidate_identities
+        SET is_verified = true, verified_at = now()
+        WHERE organization_id = ${String(magic.organization_id)}::uuid
+          AND id = ${String(magic.candidate_identity_id)}::uuid
+      `;
+    });
     await this.rateLimits.clear("candidate-otp", rawToken);
-    const issued = await this.candidateSessions.create({
+
+    return this.candidateSessions.issue({
       organizationId: String(magic.organization_id),
       candidateIdentityId: String(magic.candidate_identity_id),
       candidateId: String(magic.candidate_id),
       applicationId: String(magic.application_id),
-      consumeInvitationIds: [String(magic.magic_id), String(challenge.otp_id)],
     });
-
-    await this.database.sql`
-      INSERT INTO audit_events (
-        organization_id, actor_type, action, entity_type, entity_id, metadata
-      ) VALUES (
-        ${issued.organizationId}::uuid,
-        'candidate',
-        'candidate.auth.verified',
-        'application',
-        ${issued.applicationId},
-        ${this.database.sql.json({ sessionId: issued.sessionId, candidateId: issued.candidateId } as never)}
-      )
-    `;
-
-    return issued;
   }
 
-  async getSession(rawToken: string | undefined) {
+  async getSession(rawToken?: string) {
     const session = await this.candidateSessions.resolve(rawToken);
-    if (!session) throw new UnauthorizedException("Candidate authentication is required");
+    if (!session) throw new UnauthorizedException("Candidate session is not active");
     const rows = await this.database.sql`
-      SELECT c.display_name, j.title AS job_title, a.status, a.pipeline_stage
+      SELECT
+        c.display_name,
+        c.preferred_language,
+        j.title AS job_title,
+        j.department,
+        j.location,
+        a.pipeline_stage
       FROM applications a
-      JOIN candidates c
-        ON c.organization_id = a.organization_id AND c.id = a.candidate_id
-      JOIN jobs j
-        ON j.organization_id = a.organization_id AND j.id = a.job_id
+      JOIN candidates c ON c.organization_id = a.organization_id AND c.id = a.candidate_id
+      JOIN jobs j ON j.organization_id = a.organization_id AND j.id = a.job_id
       WHERE a.organization_id = ${session.organizationId}::uuid
         AND a.id = ${session.applicationId}::uuid
         AND a.candidate_id = ${session.candidateId}::uuid
@@ -368,15 +398,22 @@ export class CandidateAuthService {
     const row = rows[0];
     if (!row) throw new UnauthorizedException("Candidate application is no longer available");
     return {
-      ...session,
+      authenticated: true,
+      sessionId: session.sessionId,
+      organizationId: session.organizationId,
+      candidateId: session.candidateId,
+      applicationId: session.applicationId,
+      expiresAt: session.expiresAt.toISOString(),
       candidateDisplayName: String(row.display_name),
+      preferredLanguage: row.preferred_language ? String(row.preferred_language) : null,
       jobTitle: String(row.job_title),
-      applicationStatus: String(row.status),
+      department: row.department ? String(row.department) : null,
+      location: row.location ? String(row.location) : null,
       pipelineStage: String(row.pipeline_stage),
     };
   }
 
-  async logout(rawToken: string | undefined): Promise<void> {
+  async logout(rawToken?: string): Promise<void> {
     await this.candidateSessions.revoke(rawToken);
   }
 }
