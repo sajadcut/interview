@@ -45,16 +45,20 @@ function forwardedHeaders(request: Request): Headers {
   return headers;
 }
 
+function proxyCookiePath(value: string): string {
+  return value.replace(/;\s*Path=\/auth(?=;|$)/i, "; Path=/api/backend/auth");
+}
+
 function forwardResponseCookies(source: Headers, target: Headers): void {
   const headers = source as Headers & { getSetCookie?: () => string[] };
   const values = headers.getSetCookie?.() ?? [];
   if (values.length > 0) {
-    for (const value of values) target.append("set-cookie", value);
+    for (const value of values) target.append("set-cookie", proxyCookiePath(value));
     return;
   }
 
   const fallback = source.get("set-cookie");
-  if (fallback) target.append("set-cookie", fallback);
+  if (fallback) target.append("set-cookie", proxyCookiePath(fallback));
 }
 
 async function proxy(request: Request, context: { params: Promise<{ path: string[] }> }) {
