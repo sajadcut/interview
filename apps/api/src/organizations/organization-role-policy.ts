@@ -2,7 +2,6 @@ import { Permissions, type Permission } from "../auth/permissions";
 import type { OrganizationRole } from "./membership-role.types";
 
 export const ORGANIZATION_ROLES: readonly OrganizationRole[] = [
-  "PLATFORM_ADMIN",
   "ORGANIZATION_ADMIN",
   "RECRUITER",
   "INTERVIEWER",
@@ -12,7 +11,6 @@ export const ORGANIZATION_ROLES: readonly OrganizationRole[] = [
 const ALL_PERMISSIONS = Object.values(Permissions);
 
 export const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Permission[]> = {
-  PLATFORM_ADMIN: ALL_PERMISSIONS,
   ORGANIZATION_ADMIN: ALL_PERMISSIONS,
   RECRUITER: [
     Permissions.JobRead,
