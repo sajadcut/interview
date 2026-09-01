@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   resolveTenantIdentity,
   tenantHeaders,
@@ -54,13 +54,11 @@ export default function OrganizationUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [developmentToken, setDevelopmentToken] = useState<string | null>(null);
 
-  const load = useCallback(async (resolvedIdentity?: TenantIdentity) => {
-    const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
-    setIdentity(currentIdentity);
+  const load = useCallback(async (currentIdentity: TenantIdentity) => {
     const headers = tenantHeaders(currentIdentity);
     const [usersResponse, invitationsResponse] = await Promise.all([
-      fetch("/api/backend/v1/organization/users", { cache: "no-store", headers }),
-      fetch("/api/backend/v1/organization/users/invitations", { cache: "no-store", headers }),
+      fetch("/api/backend/v1/organization/users", { cache: "no-store", credentials: "same-origin", headers }),
+      fetch("/api/backend/v1/organization/users/invitations", { cache: "no-store", credentials: "same-origin", headers }),
     ]);
     if (!usersResponse.ok) {
       throw new Error(errorMessage(await usersResponse.json().catch(() => null), "Unable to load organization users"));
@@ -70,28 +68,48 @@ export default function OrganizationUsersPage() {
     }
     setUsers((await usersResponse.json()) as OrganizationUser[]);
     setInvitations((await invitationsResponse.json()) as Invitation[]);
-  }, [identity]);
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
     resolveTenantIdentity()
-      .then((resolved) => load(resolved))
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load organization access"));
+      .then(async (resolved) => {
+        if (cancelled) return;
+        setIdentity(resolved);
+        await load(resolved);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : "Unable to load organization access");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
+  async function currentIdentity(): Promise<TenantIdentity> {
+    if (identity) return identity;
+    const resolved = await resolveTenantIdentity();
+    setIdentity(resolved);
+    return resolved;
+  }
+
   async function request(path: string, init: RequestInit) {
-    const currentIdentity = identity ?? (await resolveTenantIdentity());
-    setIdentity(currentIdentity);
+    const resolved = await currentIdentity();
     const response = await fetch(path, {
       ...init,
       credentials: "same-origin",
       headers: {
-        ...tenantHeaders(currentIdentity, init.body !== undefined),
+        ...tenantHeaders(resolved, init.body !== undefined),
         ...init.headers,
       },
     });
     const payload = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) throw new Error(errorMessage(payload, `Request failed with ${response.status}`));
     return payload;
+  }
+
+  async function reload(): Promise<void> {
+    await load(await currentIdentity());
   }
 
   async function invite(event: FormEvent<HTMLFormElement>) {
@@ -106,7 +124,7 @@ export default function OrganizationUsersPage() {
       })) as Invitation;
       setEmail("");
       if (invitation.developmentToken) setDevelopmentToken(invitation.developmentToken);
-      await load();
+      await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to invite user");
     } finally {
@@ -121,7 +139,7 @@ export default function OrganizationUsersPage() {
         method: "PATCH",
         body: JSON.stringify({ role: nextRole }),
       });
-      await load();
+      await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to change role");
     }
@@ -134,7 +152,7 @@ export default function OrganizationUsersPage() {
         method: "PATCH",
         body: JSON.stringify({ status: user.status === "active" ? "disabled" : "active" }),
       });
-      await load();
+      await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to change status");
     }
@@ -145,7 +163,7 @@ export default function OrganizationUsersPage() {
     setError(null);
     try {
       await request(`/api/backend/v1/organization/users/${userId}`, { method: "DELETE" });
-      await load();
+      await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to remove user");
     }
