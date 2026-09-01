@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { directionFor, getDefaultLocale, shellCopy } from "../../lib/i18n";
 import { Icon, type IconName } from "./icon";
+import { requiredPermissionForInternalPath, useInternalAccess } from "./internal-access";
 
 const iconByHref: Record<string, IconName> = {
   "/app": "home",
@@ -24,17 +25,7 @@ function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavItem({
-  label,
-  href,
-  count,
-  active,
-}: {
-  label: string;
-  href: string;
-  count?: string;
-  active: boolean;
-}) {
+function NavItem({ label, href, active }: { label: string; href: string; active: boolean }) {
   return (
     <Link
       href={href}
@@ -48,11 +39,6 @@ function NavItem({
       {active ? <span className="absolute inset-y-2 start-0 w-[3px] rounded-full bg-indigo-400" /> : null}
       <Icon name={iconByHref[href] ?? "home"} size={16} />
       <span className="flex-1">{label}</span>
-      {count ? (
-        <span className="rounded-full bg-indigo-500/25 px-2 py-0.5 text-[10px] font-semibold text-indigo-100">
-          {count}
-        </span>
-      ) : null}
     </Link>
   );
 }
@@ -74,8 +60,19 @@ function MobileNavItem({ label, href, active }: { label: string; href: string; a
   );
 }
 
+function readableRole(role: string | undefined): string {
+  if (!role) return "Member";
+  if (role === "org_admin") return "Organization Admin";
+  if (role === "HR_MANAGER") return "HR Manager";
+  return role
+    .split("_")
+    .map((part) => `${part[0] ?? ""}${part.slice(1).toLowerCase()}`)
+    .join(" ");
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const access = useInternalAccess();
   const locale = getDefaultLocale();
   const copy = shellCopy[locale];
   const header =
@@ -85,7 +82,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           ask: "از AI بپرس",
           create: "ایجاد موقعیت",
           automation: "اتوماسیون",
-          recruiter: "استخدام‌کننده",
           searchPending: "جستجوی سراسری هنوز به ایندکس دامنه متصل نشده است",
           aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
           notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
@@ -95,13 +91,22 @@ export function AppShell({ children }: { children: ReactNode }) {
           ask: "Ask AI",
           create: "Create Job",
           automation: "Automation",
-          recruiter: "Recruiter",
           searchPending: "Global search is not connected to the domain index yet",
           aiPending: "The global AI assistant is not wired to this control yet",
           notificationsPending: "Notification center is not wired yet",
         };
-  const primary = copy.navigation.slice(0, 7);
-  const secondary = copy.navigation.slice(7);
+
+  const navigation = copy.navigation.filter(([, href]) => {
+    if (href === "/app") return true;
+    const permission = requiredPermissionForInternalPath(href);
+    return permission ? access.can(permission) : true;
+  });
+  const secondaryHrefs = ["/app/automations", "/app/integrations", "/app/settings"];
+  const primary = navigation.filter(([, href]) => !secondaryHrefs.includes(href));
+  const secondary = navigation.filter(([, href]) => secondaryHrefs.includes(href));
+  const displayName = access.user?.displayName || access.user?.email || "Organization member";
+  const roleLabel = readableRole(access.roles[0]);
+  const canCreateJob = access.can("job.create");
 
   return (
     <div
@@ -115,46 +120,71 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0">
             <div className="text-[13px] font-semibold tracking-tight">AI Recruiter</div>
-            <div className="mt-0.5 text-[10px] text-slate-400">{copy.subtitle}</div>
+            <div className="mt-0.5 truncate text-[10px] text-slate-400">
+              {access.organization?.name ?? copy.subtitle}
+            </div>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto pe-1">
           <nav className="space-y-1" aria-label={copy.navigationLabel}>
-            {primary.map(([label, href]) => {
-              const count = href === "/app/inbox" ? "8" : undefined;
-              return (
-                <NavItem
-                  key={href}
-                  label={label}
-                  href={href}
-                  active={isActivePath(pathname, href)}
-                  {...(count ? { count } : {})}
-                />
-              );
-            })}
-          </nav>
-
-          <div className="my-4 border-t border-white/10" />
-          <div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">
-            {header.automation}
-          </div>
-          <nav className="space-y-1" aria-label={`${copy.navigationLabel} · ${header.automation}`}>
-            {secondary.map(([label, href]) => (
-              <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />
+            {primary.map(([label, href]) => (
+              <NavItem
+                key={href}
+                label={label}
+                href={href}
+                active={isActivePath(pathname, href)}
+              />
             ))}
           </nav>
+
+          {secondary.length > 0 ? (
+            <>
+              <div className="my-4 border-t border-white/10" />
+              <div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">
+                {header.automation}
+              </div>
+              <nav
+                className="space-y-1"
+                aria-label={`${copy.navigationLabel} · ${header.automation}`}
+              >
+                {secondary.map(([label, href]) => (
+                  <NavItem
+                    key={href}
+                    label={label}
+                    href={href}
+                    active={isActivePath(pathname, href)}
+                  />
+                ))}
+              </nav>
+            </>
+          ) : null}
         </div>
 
-        <div className="mt-3 flex shrink-0 items-center gap-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3 shadow-[0_8px_28px_rgba(2,6,23,.18)]">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">
-            SN
+        <div className="mt-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3 shadow-[0_8px_28px_rgba(2,6,23,.18)]">
+          {access.organizations.length > 1 ? (
+            <select
+              aria-label="Organization"
+              value={access.organization?.id}
+              onChange={(event) => access.selectOrganization(event.target.value)}
+              className="mb-3 w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-[10px] text-slate-200"
+            >
+              {access.organizations.map((organization) => (
+                <option key={organization.id} value={organization.id}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">
+              {displayName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-semibold">{displayName}</div>
+              <div className="mt-0.5 truncate text-[9px] text-slate-400">{roleLabel}</div>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[11px] font-semibold">Sara Noroozi</div>
-            <div className="mt-0.5 text-[9px] text-slate-400">{header.recruiter}</div>
-          </div>
-          <Icon name="chevron" size={13} />
         </div>
       </aside>
 
@@ -175,23 +205,36 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </div>
           </div>
-          <button type="button" disabled title={header.aiPending} className="hidden h-10 cursor-not-allowed items-center gap-2 rounded-[10px] border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-400 sm:inline-flex">
+          <button
+            type="button"
+            disabled
+            title={header.aiPending}
+            className="hidden h-10 cursor-not-allowed items-center gap-2 rounded-[10px] border border-slate-200 bg-slate-100 px-3.5 text-[11px] font-semibold text-slate-400 sm:inline-flex"
+          >
             <Icon name="sparkles" size={14} />
             {header.ask}
           </button>
-          <Link
-            href="/app/jobs/new"
-            aria-label={header.create}
-            className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"
+          {canCreateJob ? (
+            <Link
+              href="/app/jobs/new"
+              aria-label={header.create}
+              className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"
+            >
+              <Icon name="plus" size={14} />
+              <span className="hidden sm:inline">{header.create}</span>
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            disabled
+            title={header.notificationsPending}
+            className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400"
           >
-            <Icon name="plus" size={14} />
-            <span className="hidden sm:inline">{header.create}</span>
-          </Link>
-          <button type="button" disabled title={header.notificationsPending} className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400">
             <Icon name="bell" size={15} />
           </button>
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold">
-            SN
+          <div className="hidden min-w-0 text-end sm:block">
+            <div className="max-w-36 truncate text-[10px] font-semibold text-slate-700">{displayName}</div>
+            <div className="max-w-36 truncate text-[9px] text-slate-400">{roleLabel}</div>
           </div>
         </header>
 
@@ -199,8 +242,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden"
           aria-label={copy.mobileNavigationLabel}
         >
-          {copy.navigation.map(([label, href]) => (
-            <MobileNavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />
+          {navigation.map(([label, href]) => (
+            <MobileNavItem
+              key={href}
+              label={label}
+              href={href}
+              active={isActivePath(pathname, href)}
+            />
           ))}
         </nav>
 
