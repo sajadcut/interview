@@ -33,10 +33,6 @@ export class AppController {
       JOIN memberships m
         ON m.organization_id = o.id AND m.user_id = u.id AND m.status = 'active'
       JOIN applications a ON a.organization_id = o.id
-      JOIN candidates candidate
-        ON candidate.organization_id = a.organization_id
-       AND candidate.id = a.candidate_id
-       AND candidate.primary_email = 'ali.rahimi@example.local'
       JOIN interview_plans p
         ON p.organization_id = a.organization_id
        AND p.job_id = a.job_id
@@ -47,14 +43,14 @@ export class AppController {
        AND c.purpose = 'ai_interview'
        AND c.withdrawn_at IS NULL
       WHERE o.slug = ${organizationSlug}
-      ORDER BY p.version DESC, c.granted_at DESC
+      ORDER BY a.updated_at DESC, p.version DESC, c.granted_at DESC
       LIMIT 1
     `;
     const row = rows[0];
     if (!row) {
       return {
         ready: false,
-        reason: "Development domain fixtures are not available. Run dev:bootstrap after migrations.",
+        reason: "Development domain seed data is not available. Run dev:bootstrap after migrations.",
       };
     }
 
