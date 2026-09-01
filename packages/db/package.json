@@ -9,6 +9,7 @@
   },
   "scripts": {
     "db:migrate": "tsx src/migrate.ts",
+    "db:performance": "tsx src/verify-performance.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "eslint src drizzle.config.ts --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json"
