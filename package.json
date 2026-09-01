@@ -28,6 +28,7 @@
     "check": "npm run db:validate && npm run lint && npm run typecheck && npm run test && npm run build",
     "workstation:check": "node scripts/check-workstation.mjs",
     "registry:check": "node scripts/check-registry.mjs",
+    "realtime:check": "node scripts/check-realtime-tools.mjs",
     "db:validate": "node scripts/check-migrations.mjs",
     "db:check": "node scripts/check-database.mjs",
     "db:migrate": "npm run db:migrate --workspace=@interview/db",
