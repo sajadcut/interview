@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
-import { DatabaseService } from "../database/database.service";
+import postgres from "postgres";
+import type { DatabaseService } from "../database/database.service";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
 import { AuthRateLimitService } from "./security/auth-rate-limit.service";
@@ -13,11 +14,28 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function createIntegrationDatabase(): DatabaseService {
+  if (!integrationDatabaseUrl) {
+    throw new Error("AUTH_INTEGRATION_DATABASE_URL is required for PostgreSQL integration tests");
+  }
+  const sql = postgres(integrationDatabaseUrl, {
+    max: 1,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
+  return {
+    sql,
+    onModuleDestroy: async () => {
+      await sql.end({ timeout: 5 });
+    },
+  } as DatabaseService;
+}
+
 test(
   "enterprise auth persists sessions and rotates refresh tokens against PostgreSQL",
   { skip: !integrationDatabaseUrl },
   async () => {
-    const database = new DatabaseService();
+    const database = createIntegrationDatabase();
     const hasher = new PasswordHasherService();
     const sessions = new SessionService(database);
     const rateLimits = new AuthRateLimitService(database);
