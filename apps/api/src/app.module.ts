@@ -6,11 +6,16 @@ import { AssessmentsModule } from "./assessments/assessments.module";
 import { AuditModule } from "./audit/audit.module";
 import { AuthorizationModule } from "./auth/authorization.module";
 import { correlationIdMiddleware } from "./common/http/correlation-id.middleware";
+import { csrfProtectionMiddleware } from "./common/http/csrf.middleware";
+import { securityHeadersMiddleware } from "./common/http/security-headers.middleware";
 import { DatabaseModule } from "./database/database.module";
 import { EngagementModule } from "./engagement/engagement.module";
 import { HealthController } from "./health/health.controller";
 import { InterviewsModule } from "./interviews/interviews.module";
 import { InterviewerModule } from "./interviewer/interviewer.module";
+import { MetricsController } from "./metrics/metrics.controller";
+import { MetricsMiddleware } from "./metrics/metrics.middleware";
+import { MetricsService } from "./metrics/metrics.service";
 import { ProductOperationsModule } from "./operations/product-operations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
@@ -38,10 +43,18 @@ import { TenantModule } from "./tenant/tenant.module";
     PrivacyModule,
     ProductOperationsModule,
   ],
-  controllers: [AppController, HealthController],
+  controllers: [AppController, HealthController, MetricsController],
+  providers: [MetricsService, MetricsMiddleware],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(correlationIdMiddleware).forRoutes("*");
+    consumer
+      .apply(
+        correlationIdMiddleware,
+        securityHeadersMiddleware,
+        csrfProtectionMiddleware,
+        MetricsMiddleware,
+      )
+      .forRoutes("*");
   }
 }
