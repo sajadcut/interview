@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 
 type Detail = {
