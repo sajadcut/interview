@@ -5,6 +5,11 @@ export interface SessionOrganization {
   roles: string[];
 }
 
+export interface TenantIdentity {
+  organizationId: string;
+  developmentUserId?: string;
+}
+
 const ORGANIZATION_STORAGE_KEY = "interview.organizationId";
 
 function storedOrganizationId(): string | null {
@@ -17,38 +22,50 @@ export function rememberOrganizationId(organizationId: string): void {
   window.localStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
-export async function resolveOrganizationId(): Promise<string> {
+export async function resolveTenantIdentity(): Promise<TenantIdentity> {
   const stored = storedOrganizationId();
-  if (stored) return stored;
-
   const sessionResponse = await fetch("/api/backend/auth/session", {
     cache: "no-store",
     credentials: "same-origin",
   });
   if (sessionResponse.ok) {
     const session = (await sessionResponse.json()) as { organizations?: SessionOrganization[] };
-    const organizationId = session.organizations?.[0]?.id;
+    const organizations = session.organizations ?? [];
+    const organizationId =
+      (stored && organizations.some((organization) => organization.id === stored) ? stored : undefined) ??
+      organizations[0]?.id;
     if (organizationId) {
       rememberOrganizationId(organizationId);
-      return organizationId;
+      return { organizationId };
     }
   }
 
   const developmentResponse = await fetch("/api/backend/development/context", { cache: "no-store" });
   if (developmentResponse.ok) {
-    const context = (await developmentResponse.json()) as { organizationId?: string };
-    if (context.organizationId) {
+    const context = (await developmentResponse.json()) as {
+      organizationId?: string;
+      userId?: string;
+    };
+    if (context.organizationId && context.userId) {
       rememberOrganizationId(context.organizationId);
-      return context.organizationId;
+      return {
+        organizationId: context.organizationId,
+        developmentUserId: context.userId,
+      };
     }
   }
 
   throw new Error("No active organization is available for this session");
 }
 
-export function tenantHeaders(organizationId: string, json = false): HeadersInit {
+export async function resolveOrganizationId(): Promise<string> {
+  return (await resolveTenantIdentity()).organizationId;
+}
+
+export function tenantHeaders(identity: TenantIdentity, json = false): HeadersInit {
   return {
-    "x-organization-id": organizationId,
+    "x-organization-id": identity.organizationId,
+    ...(identity.developmentUserId ? { "x-user-id": identity.developmentUserId } : {}),
     ...(json ? { "content-type": "application/json" } : {}),
   };
 }
