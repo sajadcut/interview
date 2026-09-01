@@ -33,6 +33,7 @@ export const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Pe
     Permissions.AnalyticsRead,
     Permissions.PrivacyManage,
     Permissions.DecisionSubmit,
+    Permissions.AutomationManage,
     Permissions.AuditRead,
   ],
   RECRUITER: [
@@ -54,6 +55,7 @@ export const ORGANIZATION_ROLE_PERMISSIONS: Record<OrganizationRole, readonly Pe
     Permissions.InterviewStart,
     Permissions.AssessmentRead,
     Permissions.AssessmentManage,
+    Permissions.AutomationManage,
   ],
   INTERVIEWER: [
     Permissions.CandidateRead,
