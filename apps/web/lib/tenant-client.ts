@@ -24,6 +24,11 @@ export function rememberOrganizationId(organizationId: string): void {
   window.localStorage.setItem(ORGANIZATION_STORAGE_KEY, organizationId);
 }
 
+export function clearRememberedOrganizationId(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(ORGANIZATION_STORAGE_KEY);
+}
+
 export async function resolveTenantIdentity(): Promise<TenantIdentity> {
   const stored = storedOrganizationId();
   const sessionResult = await api.GET("/auth/session");
