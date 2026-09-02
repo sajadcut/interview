@@ -19,44 +19,40 @@ jobs:
           from pathlib import Path
           path = Path("apps/api/src/resumes/resume-ingestion.service.ts")
           text = path.read_text(encoding="utf-8")
-          old = '''function mapResumeRow(row: ResumeRow): ResumeDto {
-  const profile = row.structured_profile && typeof row.structured_profile === "object"
-    ? row.structured_profile
-    : { email: null, phone: null, location: null, preferredLanguage: null, currentRole: null, currentCompany: null, skills: [], experiences: [], parserVersion: "" };
-  return {'''
-          new = '''function mapResumeRow(row: ResumeRow): ResumeDto {
-  const profile = decodeStructuredProfile(row.structured_profile);
-  return {'''
+          old = "function mapResumeRow(row: ResumeRow): ResumeDto {\n  const profile = row.structured_profile && typeof row.structured_profile === \"object\"\n    ? row.structured_profile\n    : { email: null, phone: null, location: null, preferredLanguage: null, currentRole: null, currentCompany: null, skills: [], experiences: [], parserVersion: \"\" };\n  return {"
+          new = "function mapResumeRow(row: ResumeRow): ResumeDto {\n  const profile = decodeStructuredProfile(row.structured_profile);\n  return {"
           if old not in text:
-              raise SystemExit("mapResumeRow profile fragment not found")
-          text = text.replace(old, new)
-          anchor = '''function mapResumeRow(row: ResumeRow): ResumeDto {'''
-          helper = '''function decodeStructuredProfile(value: unknown): ResumeDto["structuredProfile"] {
-  const empty: ResumeDto["structuredProfile"] = {
-    email: null,
-    phone: null,
-    location: null,
-    preferredLanguage: null,
-    currentRole: null,
-    currentCompany: null,
-    skills: [],
-    experiences: [],
-    parserVersion: "",
-  };
-  if (!value) return empty;
-  if (typeof value === "object") return value as ResumeDto["structuredProfile"];
-  if (typeof value !== "string") return empty;
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return parsed && typeof parsed === "object"
-      ? parsed as ResumeDto["structuredProfile"]
-      : empty;
-  } catch {
-    return empty;
-  }
-}
-
-'''
+            raise SystemExit("mapResumeRow profile fragment not found")
+          helper_lines = [
+            'function decodeStructuredProfile(value: unknown): ResumeDto["structuredProfile"] {',
+            '  const empty: ResumeDto["structuredProfile"] = {',
+            '    email: null,',
+            '    phone: null,',
+            '    location: null,',
+            '    preferredLanguage: null,',
+            '    currentRole: null,',
+            '    currentCompany: null,',
+            '    skills: [],',
+            '    experiences: [],',
+            '    parserVersion: "",',
+            '  };',
+            '  if (!value) return empty;',
+            '  if (typeof value === "object") return value as ResumeDto["structuredProfile"];',
+            '  if (typeof value !== "string") return empty;',
+            '  try {',
+            '    const parsed: unknown = JSON.parse(value);',
+            '    return parsed && typeof parsed === "object"',
+            '      ? parsed as ResumeDto["structuredProfile"]',
+            '      : empty;',
+            '  } catch {',
+            '    return empty;',
+            '  }',
+            '}',
+            '',
+          ]
+          helper = "\n".join(helper_lines) + "\n"
+          text = text.replace(old, new, 1)
+          anchor = "function mapResumeRow(row: ResumeRow): ResumeDto {"
           text = text.replace(anchor, helper + anchor, 1)
           path.write_text(text, encoding="utf-8")
       - name: Commit fix
