@@ -1,6 +1,21 @@
-import { expect, test as base } from "@playwright/test";
+import { expect, test as base, type Response } from "@playwright/test";
 
-const expectedHttpConsoleError = /^Failed to load resource: the server responded with a status of 4\d\d\b/;
+const genericClientErrorConsole = /^Failed to load resource: the server responded with a status of 4\d\d\b/;
+
+const expectedBackendClientFailures = [
+  { method: "GET", path: "/api/backend/auth/session", statuses: new Set([401]) },
+  { method: "GET", path: "/api/backend/v1/candidate-auth/session", statuses: new Set([401]) },
+  { method: "GET", path: "/api/backend/v1/candidate-consent", statuses: new Set([401]) },
+  { method: "POST", path: "/api/backend/v1/candidate-auth/magic-link/validate", statuses: new Set([401]) },
+] as const;
+
+function isExpectedBackendClientFailure(response: Response): boolean {
+  const path = new URL(response.url()).pathname;
+  const method = response.request().method();
+  return expectedBackendClientFailures.some(
+    (entry) => entry.method === method && entry.path === path && entry.statuses.has(response.status() as never),
+  );
+}
 
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
@@ -12,12 +27,19 @@ export const test = base.extend({
     page.on("console", (message) => {
       if (message.type() !== "error") return;
       const text = message.text();
-      if (expectedHttpConsoleError.test(text)) return;
+      // Chromium's generic 4xx console line has no URL. The response listener below
+      // classifies the concrete backend request against the explicit negative-flow allowlist.
+      if (genericClientErrorConsole.test(text)) return;
       diagnostics.push(`console.error: ${text}`);
     });
     page.on("response", (response) => {
-      if (response.status() >= 500 && response.url().includes("/api/backend")) {
+      if (!response.url().includes("/api/backend")) return;
+      if (response.status() >= 500) {
         diagnostics.push(`backend ${response.status()}: ${response.request().method()} ${response.url()}`);
+        return;
+      }
+      if (response.status() >= 400 && !isExpectedBackendClientFailure(response)) {
+        diagnostics.push(`unexpected backend ${response.status()}: ${response.request().method()} ${response.url()}`);
       }
     });
 
