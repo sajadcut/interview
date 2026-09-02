@@ -1,13 +1,20 @@
 import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { CANDIDATE_SESSION_COOKIE } from "../auth/candidate-session.service";
 import { readCookie } from "../auth/cookie";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
-import { QueueAssessmentExecutionDto, ReviewAssessmentDto } from "./assessment-operations.dto";
+import {
+  CandidateAssessmentListDto,
+  CandidateAssessmentStartDto,
+  CandidateAssessmentSubmissionDto,
+  QueueAssessmentExecutionDto,
+  ReviewAssessmentDto,
+} from "./assessment-operations.dto";
 import { AssessmentOperationsService } from "./assessment-operations.service";
 import { AssessmentSubmissionRequestDto } from "./assessments.dto";
 
@@ -51,16 +58,22 @@ export class CandidateAssessmentsController {
   }
 
   @Get()
+  @ApiOkResponse({ type: CandidateAssessmentListDto })
+  @ApiStandardErrorResponses()
   list(@Req() request: Request) {
     return this.operations.listCandidateAssessments(this.token(request));
   }
 
   @Post(":sessionId/start")
+  @ApiOkResponse({ type: CandidateAssessmentStartDto })
+  @ApiStandardErrorResponses()
   start(@Param("sessionId") sessionId: string, @Req() request: Request) {
     return this.operations.startCandidateAssessment(this.token(request), sessionId);
   }
 
   @Post(":sessionId/submissions")
+  @ApiOkResponse({ type: CandidateAssessmentSubmissionDto })
+  @ApiStandardErrorResponses()
   submit(
     @Param("sessionId") sessionId: string,
     @Body() body: AssessmentSubmissionRequestDto,
