@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -23,6 +23,7 @@ export class SourcingController {
 
   @Get("talent")
   @RequirePermissions(Permissions.CandidateRead)
+  @ApiQuery({ name: "limit", required: false, type: Number, example: 100 })
   @ApiOkResponse({ type: TalentCandidateDto, isArray: true })
   listTalent(@Query("limit") rawLimit?: string) {
     const limit = rawLimit ? Number(rawLimit) : 100;
