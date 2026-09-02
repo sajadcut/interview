@@ -1,5 +1,11 @@
 import { test, expect } from "./fixtures";
-import { BASE_URL, createCandidateInvitation, signInRecruiter, type CandidateE2EIdentity } from "./support";
+import {
+  BASE_URL,
+  createCandidateInvitation,
+  setCandidateConsents,
+  signInRecruiter,
+  type CandidateE2EIdentity,
+} from "./support";
 
 function candidateAlert(page: Parameters<typeof signInRecruiter>[0], text: RegExp | string) {
   return page.getByRole("alert").filter({ hasText: text });
@@ -40,8 +46,25 @@ test.describe("critical candidate flows", () => {
 
   test("invalid invitation fails closed in the browser", async ({ page }) => {
     await page.goto(`/candidate/invitation?token=${"x".repeat(43)}`);
-    await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
+    await expect(candidateAlert(page, /invalid|expired|already (?:been )?used/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Verify and continue" })).toHaveCount(0);
+  });
+
+  test("candidate can paste an invitation token from the secure login surface", async ({ page, context, candidateIdentity }) => {
+    await signInRecruiter(page);
+    const invitation = await createCandidateInvitation(page, candidateIdentity.applicationId);
+
+    await context.clearCookies();
+    await page.evaluate(() => window.localStorage.clear());
+    await page.goto("/candidate/login");
+    await page.locator("form input").fill(invitation.developmentToken);
+    await Promise.all([
+      page.waitForURL(/\/candidate\/invitation\?token=/),
+      page.locator("form").getByRole("button").click(),
+    ]);
+
+    await expect(page.getByRole("heading", { name: "Verify candidate access" })).toBeVisible();
+    await expect(page.getByText(candidateIdentity.displayName, { exact: true })).toBeVisible();
   });
 
   test("candidate verifies invitation, persists consent, recovers devices and reaches interview gate", async ({ page, context, candidateIdentity }) => {
@@ -51,6 +74,17 @@ test.describe("critical candidate flows", () => {
     await context.clearCookies();
     await page.evaluate(() => window.localStorage.clear());
     await verifyCandidateInvitation(page, candidateIdentity, invitation.developmentToken, invitation.developmentOtp);
+
+    // Consent is application/candidate state, not invitation state. Reset it after authentication so
+    // CI retries and repeated local runs always exercise the pre-consent gate deterministically.
+    await setCandidateConsents(page, false);
+
+    // Candidate and internal sessions are deliberately separate security surfaces. A valid candidate
+    // cookie must not grant access to the recruiter workspace, and checking that boundary must not
+    // destroy the candidate session.
+    await page.goto("/app");
+    await expect(page.getByRole("heading", { name: "ورود سازمانی لازم است" })).toBeVisible();
+    await page.goto("/candidate/setup");
 
     // The candidate session is cookie-backed and must survive a full browser reload.
     await page.reload();
@@ -120,6 +154,11 @@ test.describe("critical candidate flows", () => {
     await page.goto("/candidate/completed");
     await expect(page.getByRole("heading", { name: "Interview completed" })).toBeVisible();
     await expect(page.getByText(new RegExp(candidateIdentity.displayName))).toBeVisible();
+
+    // Leave persistent candidate state neutral before ending the cookie-backed session. This keeps the
+    // suite retry-safe even when a later assertion fails after the irreversible invitation consumption.
+    await setCandidateConsents(page, false);
+
     await Promise.all([
       page.waitForURL(/\/candidate\/login$/),
       page.getByRole("button", { name: "End secure session" }).click(),
@@ -130,6 +169,6 @@ test.describe("critical candidate flows", () => {
     await page.goto("/candidate/setup");
     await page.waitForURL(/\/candidate\/login$/);
     await page.goto(`${BASE_URL}/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
-    await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
+    await expect(candidateAlert(page, /invalid|expired|already (?:been )?used/i)).toBeVisible();
   });
 });
