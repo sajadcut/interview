@@ -12,6 +12,7 @@ test("media mode payload survives global whitelist validation", async () => {
 
 test("media event payload accepts operational metadata and rejects unknown top-level fields", async () => {
   const valid = Object.assign(new InterviewMediaEventInputDto(), {
+    idempotencyKey: "heartbeat:transport:0001",
     eventType: "heartbeat",
     sourceComponent: "transport",
     payload: { latencyMs: 42 },
@@ -19,6 +20,7 @@ test("media event payload accepts operational metadata and rejects unknown top-l
   assert.deepEqual(await validate(valid, options), []);
 
   const invalid = Object.assign(new InterviewMediaEventInputDto(), {
+    idempotencyKey: "heartbeat:transport:0002",
     eventType: "heartbeat",
     sourceComponent: "transport",
     payload: {},
