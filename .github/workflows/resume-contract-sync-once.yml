@@ -19,11 +19,12 @@ jobs:
           from pathlib import Path
           path = Path("apps/api/src/resumes/resume-ingestion.service.ts")
           text = path.read_text(encoding="utf-8")
+          marker = "$" + "{{"
           replacements = {
-            '${{ source: "resume", resumeId: input.resumeId }}::jsonb': '${JSON.stringify({ source: "resume", resumeId: input.resumeId })}::jsonb',
-            '${{ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb': '${JSON.stringify({ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb',
-            '${{ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb': '${JSON.stringify({ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb',
-            '${input.profile}::jsonb': '${JSON.stringify(input.profile)}::jsonb',
+            marker + ' source: "resume", resumeId: input.resumeId }}::jsonb': '$' + '{JSON.stringify({ source: "resume", resumeId: input.resumeId })}::jsonb',
+            marker + ' claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb': '$' + '{JSON.stringify({ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb',
+            marker + ' claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb': '$' + '{JSON.stringify({ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb',
+            '$' + '{input.profile}::jsonb': '$' + '{JSON.stringify(input.profile)}::jsonb',
           }
           for old, new in replacements.items():
             if old not in text:
