@@ -21,8 +21,8 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String) : [];
 }
 
-function fingerprintInput(input: InterviewEvaluatorInput): string {
-  return createHash("sha256").update(JSON.stringify(input)).digest("hex");
+function fingerprint(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 @Injectable()
@@ -139,6 +139,10 @@ export class InterviewEvaluatorService {
   }> {
     const organizationId = this.tenantContext.require().organizationId;
     const input = await this.buildInput(sessionId);
+    if (input.sessionStatus !== "completed") {
+      throw new BadRequestException("Only completed interview sessions can be evaluated");
+    }
+
     let draft;
     let output: InterviewEvaluatorOutput;
     try {
@@ -154,7 +158,8 @@ export class InterviewEvaluatorService {
       throw error;
     }
 
-    const inputFingerprint = fingerprintInput(input);
+    const inputFingerprint = fingerprint(input);
+    const draftFingerprint = fingerprint(draft);
     const inputReferences = {
       ...(draft.provenance.inputReferences ?? {}),
       interviewSessionId: input.sessionId,
@@ -163,6 +168,7 @@ export class InterviewEvaluatorService {
       evidenceIds: input.evidence.map((item) => item.id),
       transcriptSegmentIds: input.transcript.map((item) => item.id),
       inputFingerprint,
+      draftFingerprint,
     };
 
     return this.database.sql.begin(async (tx) => {
@@ -171,7 +177,7 @@ export class InterviewEvaluatorService {
           organization_id, interview_session_id, rubric_version_id,
           evaluator_version, status, criterion_results, recommendation,
           evaluator_trace_reference, human_review_state, evidence_complete,
-          calibration_reference, idempotency_key, input_fingerprint,
+          calibration_reference, idempotency_key, input_fingerprint, draft_fingerprint,
           provider, model, prompt_version, input_references,
           overall_confidence, weighted_score, score_algorithm_version,
           validation_report, output_snapshot, requires_human_review
@@ -189,6 +195,7 @@ export class InterviewEvaluatorService {
           ${draft.provenance.calibrationReference ?? null},
           ${draft.idempotencyKey},
           ${inputFingerprint},
+          ${draftFingerprint},
           ${draft.provenance.provider},
           ${draft.provenance.model ?? null},
           ${draft.provenance.promptVersion},
@@ -208,7 +215,8 @@ export class InterviewEvaluatorService {
 
       if (!inserted[0]) {
         const existing = await tx`
-          SELECT id::text, scorecard_id::text, output_snapshot
+          SELECT id::text, scorecard_id::text, output_snapshot,
+                 input_fingerprint, draft_fingerprint
           FROM interview_evaluations
           WHERE organization_id = ${organizationId}::uuid
             AND interview_session_id = ${sessionId}::uuid
@@ -217,6 +225,14 @@ export class InterviewEvaluatorService {
         `;
         const row = existing[0];
         if (!row) throw new Error("Unable to resolve idempotent evaluator replay");
+        if (
+          String(row.input_fingerprint ?? "") !== inputFingerprint ||
+          String(row.draft_fingerprint ?? "") !== draftFingerprint
+        ) {
+          throw new BadRequestException(
+            "Evaluator idempotency key was already used with different input or output",
+          );
+        }
         return {
           evaluationId: String(row.id),
           scorecardId: row.scorecard_id ? String(row.scorecard_id) : null,
