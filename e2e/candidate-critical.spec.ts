@@ -1,6 +1,10 @@
 import { test, expect } from "./fixtures";
 import { BASE_URL, createCandidateInvitation, signInRecruiter, type CandidateE2EIdentity } from "./support";
 
+function candidateAlert(page: Parameters<typeof signInRecruiter>[0], text: RegExp | string) {
+  return page.getByRole("alert").filter({ hasText: text });
+}
+
 async function verifyCandidateInvitation(
   page: Parameters<typeof signInRecruiter>[0],
   identity: CandidateE2EIdentity,
@@ -16,7 +20,7 @@ async function verifyCandidateInvitation(
   const wrongOtp = otp === "000000" ? "111111" : "000000";
   await page.getByLabel("One-time verification code").fill(wrongOtp);
   await page.getByRole("button", { name: "Verify and continue" }).click();
-  await expect(page.getByRole("alert")).toContainText("Candidate OTP is invalid");
+  await expect(candidateAlert(page, "Candidate OTP is invalid")).toBeVisible();
   await expect(page).toHaveURL(/\/candidate\/invitation\?token=/);
 
   await page.getByLabel("One-time verification code").fill(otp);
@@ -25,10 +29,6 @@ async function verifyCandidateInvitation(
     page.getByRole("button", { name: "Verify and continue" }).click(),
   ]);
   await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
-}
-
-function candidateAlert(page: Parameters<typeof signInRecruiter>[0], text: RegExp | string) {
-  return page.getByRole("alert").filter({ hasText: text });
 }
 
 test.describe("critical candidate flows", () => {
