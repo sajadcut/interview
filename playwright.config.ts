@@ -58,6 +58,13 @@ export default defineConfig({
         ...devices["Desktop Firefox"],
       },
     },
+    {
+      name: "webkit-compat",
+      testMatch: /browser-compat\.spec\.ts/,
+      use: {
+        ...devices["Desktop Safari"],
+      },
+    },
   ],
   webServer: [
     {
