@@ -75,7 +75,7 @@ export class EvaluatorShadowTestingController {
   }
 
   @Get("programs/:programId/summary")
-  summary(@Param("programId", new ParseUUIDPipe()) programId: string) {
+  summary(@Param("programId", new ParseUUIDPipe()) programId: string): Promise<unknown> {
     return this.shadow.summary(programId);
   }
 }
