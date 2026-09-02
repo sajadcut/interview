@@ -374,10 +374,33 @@ function bestChunk(chunks: Array<ResumeChunk & { id: string }>, query: string) {
   return best;
 }
 
+function decodeStructuredProfile(value: unknown): ResumeDto["structuredProfile"] {
+  const empty: ResumeDto["structuredProfile"] = {
+    email: null,
+    phone: null,
+    location: null,
+    preferredLanguage: null,
+    currentRole: null,
+    currentCompany: null,
+    skills: [],
+    experiences: [],
+    parserVersion: "",
+  };
+  if (!value) return empty;
+  if (typeof value === "object") return value as ResumeDto["structuredProfile"];
+  if (typeof value !== "string") return empty;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object"
+      ? parsed as ResumeDto["structuredProfile"]
+      : empty;
+  } catch {
+    return empty;
+  }
+}
+
 function mapResumeRow(row: ResumeRow): ResumeDto {
-  const profile = row.structured_profile && typeof row.structured_profile === "object"
-    ? row.structured_profile
-    : { email: null, phone: null, location: null, preferredLanguage: null, currentRole: null, currentCompany: null, skills: [], experiences: [], parserVersion: "" };
+  const profile = decodeStructuredProfile(row.structured_profile);
   return {
     id: row.id,
     candidateId: row.candidate_id,
