@@ -353,27 +353,21 @@ export class CandidateAuthService {
       throw new UnauthorizedException(lock ? "Candidate OTP challenge is locked" : "Candidate OTP is invalid");
     }
 
-    await this.database.sql.begin(async (tx) => {
-      await tx`
-        UPDATE invitation_tokens
-        SET consumed_at = now()
-        WHERE id IN (${String(magic.magic_id)}::uuid, ${String(otpRow.otp_id)}::uuid)
-      `;
-      await tx`
-        UPDATE candidate_identities
-        SET is_verified = true, verified_at = now()
-        WHERE organization_id = ${String(magic.organization_id)}::uuid
-          AND id = ${String(magic.candidate_identity_id)}::uuid
-      `;
-    });
-    await this.rateLimits.clear("candidate-otp", rawToken);
-
-    return this.candidateSessions.issue({
+    const issued = await this.candidateSessions.create({
       organizationId: String(magic.organization_id),
       candidateIdentityId: String(magic.candidate_identity_id),
       candidateId: String(magic.candidate_id),
       applicationId: String(magic.application_id),
+      consumeInvitationIds: [String(magic.magic_id), String(otpRow.otp_id)],
     });
+
+    try {
+      await this.rateLimits.clear("candidate-otp", rawToken);
+    } catch {
+      // Session issuance is already committed atomically with invitation consumption.
+      // A stale rate-limit bucket must not strand a successfully authenticated candidate.
+    }
+    return issued;
   }
 
   async getSession(rawToken?: string) {
