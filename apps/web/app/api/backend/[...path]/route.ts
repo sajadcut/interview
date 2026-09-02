@@ -8,6 +8,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "content-type",
   "authorization",
   "cookie",
+  "origin",
   "user-agent",
   "x-organization-id",
   "x-user-id",
