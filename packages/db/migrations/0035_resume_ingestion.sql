@@ -1,7 +1,9 @@
 -- Resume ingestion: tenant-scoped upload -> extraction -> parsing -> chunks -> evidence -> profile.
 
-ALTER TABLE files
-  ADD CONSTRAINT files_org_id_uq UNIQUE (organization_id, id);
+-- The tenant integrity layer may already have created this supporting relation.
+-- CREATE UNIQUE INDEX is relation-idempotent and still provides the unique key required by the composite FK.
+CREATE UNIQUE INDEX IF NOT EXISTS files_org_id_uq
+  ON files(organization_id, id);
 
 ALTER TABLE candidate_experiences
   ADD COLUMN IF NOT EXISTS source_fingerprint varchar(64);
