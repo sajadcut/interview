@@ -10,18 +10,30 @@ test.describe("critical recruiter flows", () => {
 
   test("recruiter authenticates with persisted session and reaches candidate intelligence", async ({ page }) => {
     await signInRecruiter(page);
-    await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
 
+    // A full reload must preserve the server-side session and selected organization context.
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Hiring command center" })).toBeVisible();
+
+    await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Resume ingestion" })).toBeVisible();
     await expect(page.getByText("Backend Lead", { exact: false })).toBeVisible();
     await expect(page.getByText("Digikala", { exact: false })).toBeVisible();
   });
 
-  test("recruiter uploads a real resume through the browser and sees ingestion evidence", async ({ page }) => {
+  test("recruiter rejects unsupported resume input then ingests a real resume with evidence", async ({ page }) => {
     await signInRecruiter(page);
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await expect(page.getByRole("heading", { name: "Resume ingestion" })).toBeVisible();
+
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: "unsupported-resume.bin",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("not a supported resume", "utf8"),
+    });
+    await expect(page.getByText("Supported resume formats are PDF, DOCX and UTF-8 plain text.")).toBeVisible();
 
     const resumeText = [
       "Ali Rahimi",
@@ -35,7 +47,7 @@ test.describe("critical recruiter flows", () => {
       "Designed reliable distributed services with PostgreSQL, idempotency and Kubernetes.",
     ].join("\n");
 
-    await page.locator('input[type="file"]').setInputFiles({
+    await fileInput.setInputFiles({
       name: "ali-rahimi-e2e-resume.txt",
       mimeType: "text/plain",
       buffer: Buffer.from(resumeText, "utf8"),
@@ -47,7 +59,7 @@ test.describe("critical recruiter flows", () => {
     await expect(page.getByText("Skills & verification")).toBeVisible();
   });
 
-  test("recruiter creates a job and rubric through the UI", async ({ page }) => {
+  test("recruiter validates rubric requirements and creates a persisted job through the UI", async ({ page }) => {
     await signInRecruiter(page);
     await page.goto("/app/jobs/new");
     await expect(page.getByRole("heading", { name: "Create a job and evidence rubric" })).toBeVisible();
@@ -60,8 +72,13 @@ test.describe("critical recruiter flows", () => {
     await page.getByRole("textbox", { name: "Seniority", exact: true }).fill("Senior");
     await page.getByRole("textbox", { name: /Must-have requirements/ }).fill("TypeScript\nPostgreSQL\nDistributed systems");
     await page.getByRole("textbox", { name: /Nice-to-have requirements/ }).fill("Kubernetes\nObservability");
-    await page.getByRole("textbox", { name: /Rubric criteria/ }).fill("System design\nReliability reasoning");
 
+    // A job cannot be submitted without an evidence rubric.
+    await page.getByRole("button", { name: "Create draft job" }).click();
+    await expect(page.getByText("حداقل یک معیار ارزیابی وارد کنید.")).toBeVisible();
+    await expect(page).toHaveURL(/\/app\/jobs\/new$/);
+
+    await page.getByRole("textbox", { name: /Rubric criteria/ }).fill("System design\nReliability reasoning");
     await Promise.all([
       page.waitForURL(/\/app\/jobs\/[0-9a-f-]{36}$/i),
       page.getByRole("button", { name: "Create draft job" }).click(),
