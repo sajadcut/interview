@@ -3,7 +3,7 @@
 import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
-import { tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
+import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
 
@@ -15,6 +15,7 @@ const ACCEPTED_RESUME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
 ]);
+const RESUME_MANAGER_ROLES = new Set(["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "RECRUITER", "org_admin"]);
 
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`;
@@ -31,7 +32,7 @@ function statusTone(status: string): "green" | "amber" | "red" | "blue" {
 
 export function ResumeIngestionPanel({
   candidateId,
-  identity,
+  identity: providedIdentity,
   applicationId,
   onIngested,
 }: {
@@ -42,16 +43,35 @@ export function ResumeIngestionPanel({
 }) {
   const access = useInternalAccess();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [identity, setIdentity] = useState<TenantIdentity | undefined>(providedIdentity);
   const [resumes, setResumes] = useState<ResumeDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string>();
+  const canManageResume = access.roles.some((role) => RESUME_MANAGER_ROLES.has(role));
 
-  const loadResumes = useCallback(async () => {
-    if (!identity) {
-      setLoading(false);
+  useEffect(() => {
+    if (providedIdentity) {
+      setIdentity(providedIdentity);
       return;
     }
+    let active = true;
+    void resolveTenantIdentity()
+      .then((resolved) => {
+        if (active) setIdentity(resolved);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setMessage(error instanceof Error ? error.message : "No active organization is available");
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [providedIdentity]);
+
+  const loadResumes = useCallback(async () => {
+    if (!identity) return;
     const result = await api.GET("/v1/candidates/{candidateId}/resumes", {
       params: { path: { candidateId } },
       headers: tenantHeaders(identity),
@@ -70,7 +90,7 @@ export function ResumeIngestionPanel({
   }, [loadResumes]);
 
   async function uploadResume(file: File) {
-    if (!identity || !access.can("candidate.resume_manage")) return;
+    if (!identity || !canManageResume) return;
     if (file.size <= 0 || file.size > MAX_RESUME_BYTES) {
       setMessage("Resume must be between 1 byte and 10 MB.");
       return;
@@ -137,7 +157,7 @@ export function ResumeIngestionPanel({
             PDF, DOCX or UTF-8 text is stored, extracted, parsed, chunked and converted into candidate evidence. Resume-derived skills stay unverified until corroborated.
           </p>
         </div>
-        {access.can("candidate.resume_manage") ? (
+        {canManageResume ? (
           <label className={`inline-flex h-9 cursor-pointer items-center rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white ${uploading ? "pointer-events-none opacity-60" : ""}`}>
             {uploading ? "Processing…" : "Upload resume"}
             <input
@@ -157,7 +177,7 @@ export function ResumeIngestionPanel({
 
       {applicationId ? (
         <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[9px] text-slate-500">
-          New uploads will be linked to the currently selected application.
+          New uploads will be linked to the selected application.
         </div>
       ) : null}
       {message ? <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-[9px] text-indigo-800">{message}</div> : null}
