@@ -1,0 +1,252 @@
+name: core-doc-sync-once
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Synchronize architecture and project state
+        shell: python
+        run: |
+          from pathlib import Path
+
+          master = Path("master.md")
+          text = master.read_text(encoding="utf-8")
+          old_registry = '''## 5.4 Required npm registry
+
+All dependency resolution uses the Dotin Nexus registry:
+
+```text
+https://nexus3.dotin.ir/repository/Dotin-NPM/
+```
+
+The registry is configured in root `.npmrc`. Do not bypass it during normal development. Credentials/tokens must never be committed.
+
+Installation analytics through Scarf are disabled at the root package level.'''
+          new_registry = '''## 5.4 npm registry and dependency reproducibility
+
+Dependency resolution uses the public npm registry:
+
+```text
+https://registry.npmjs.org/
+```
+
+The root `.npmrc` enforces HTTPS, strict engine checks and bounded retry/timeouts. `package-lock.json` is the canonical dependency graph and must be committed. CI uses the committed lockfile with `npm ci`; it must not delete or regenerate the lockfile during the quality gate. Dependency changes require an explicit lockfile update followed by the full quality gate.
+
+Installation analytics through Scarf are disabled at the root package level.'''
+          if old_registry not in text:
+              raise SystemExit("master.md registry section did not match expected baseline")
+          text = text.replace(old_registry, new_registry)
+          text = text.replace("Dotin Nexus access", "Internet access to registry.npmjs.org")
+          text = text.replace("Dotin Nexus required registry", "Public npm registry + deterministic committed package-lock.json")
+          master.write_text(text, encoding="utf-8")
+
+          Path("projectstate.md").write_text('''# AI Recruiter Platform — PROJECT STATE
+
+> **Status:** Core Product Closure is implementation-complete and validation-complete on `main`. The deterministic GitHub Actions quality gate installs the committed lockfile, applies the full PostgreSQL schema, regenerates and verifies OpenAPI/typed-client drift, runs lint/typecheck/tests, and produces the production Web/API build. Repository-level branch protection remains a GitHub administration setting and is tracked separately from code readiness.
+> **Version:** 0.20.0
+> **Date:** 2026-09-02
+> **Repository:** https://github.com/sajadcut/interview
+> **Branch:** `main`
+
+---
+
+# 1. Core Product Closure — verified
+
+Evidence from GitHub Actions quality-gate run `33606779658` on commit `323fe4871867aca4c78287223d727fdf16ecedf3`:
+
+```text
+Node.js                                       25.9.0
+npm                                            11.6.2 pinned by CI
+Registry                                       https://registry.npmjs.org/
+Migration contract validation                 ✅
+Frontend direct-backend/demo fixture guard    ✅
+Committed lockfile npm ci                      ✅
+Production dependency high-severity audit      ✅ (0 high-severity findings)
+PostgreSQL migrations                          ✅ 34/34
+Operational DB index contracts                ✅ 21/21
+OpenAPI regeneration                           ✅
+Typed API client regeneration                  ✅
+Generated contract drift                       ✅ clean
+Lint                                            ✅
+Typecheck                                       ✅
+Tests                                           ✅ 92/92, 0 failed, 0 skipped
+Build                                           ✅ API + Next.js production build
+```
+
+The quality gate is read-only with respect to source/generated artifacts. It no longer deletes/regenerates the dependency lockfile as part of installation and no longer commits generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered merge-ready.
+
+---
+
+# 2. Core product surfaces
+
+Persisted organization-scoped API/database data backs the primary internal surfaces:
+
+```text
+/app
+/app/jobs
+/app/jobs/[jobId]
+/app/candidates
+/app/candidates/[candidateId]
+/app/analytics
+/app/interviews
+/app/talent
+/app/inbox
+/app/automations
+/app/integrations
+/app/settings
+/app/settings/audit
+/app/settings/users
+```
+
+The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects the removed legacy demo fixtures. Product Operations (Automations, Integrations, Settings, Search and Audit) now use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
+
+---
+
+# 3. Identity, authorization and tenant safety
+
+Implemented and covered:
+
+```text
+Argon2id credential hashing
+DB-backed sessions
+refresh-token rotation + reuse revocation
+logout/session invalidation
+single-use password reset + credential/session revocation
+candidate invitation state (valid / used / expired / locked)
+candidate identity/session flow
+organization invitation/user lifecycle
+RBAC + permission guard
+tenant access resolution
+PostgreSQL recruiting tenant-isolation test
+audit export tenant-isolation test
+```
+
+Consequential hiring decisions remain human-controlled and score/evidence boundaries remain deterministic/auditable.
+
+---
+
+# 4. Database and migration operations
+
+Current schema contains 34 append-only migrations. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
+
+```text
+expand/contract schema changes
+pre-deploy backup evidence
+application rollback while schema remains compatible
+forward corrective migration for schema defects
+verified database restore for destructive/unrecoverable incidents
+```
+
+Automatic destructive down-migrations are intentionally not the production rollback strategy.
+
+---
+
+# 5. API contract boundary
+
+Controller DTOs are the OpenAPI source of truth. `npm run api:sync` regenerates:
+
+```text
+openapi/openapi.json
+packages/api-client/src/generated/schema.ts
+```
+
+CI regenerates both and requires zero diff against committed artifacts. `package-lock.json` is independently canonical and consumed by `npm ci`.
+
+---
+
+# 6. Current milestone state beyond Core Closure
+
+```text
+M1 Job → Candidate → Evidence        materially implemented
+M2 Sourcing + Talent                provider-neutral architecture + internal source implemented; external providers plug-in
+M3 Outreach/Screening/Scheduling    persisted workflow/policy implemented; real email/calendar providers plug-in
+M4 Interview Brain/contracts        materially implemented; realtime runtime validation remains pending
+M5 Assessments                       domain/runner contract implemented; isolated execution worker pending
+M6 Analytics/Enterprise hardening   materially advanced
+```
+
+Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, and VAD/STT/TTS provider boundaries.
+
+---
+
+# 7. Production-readiness boundary
+
+Core Product Closure being green does **not** approve autonomous real-candidate interviewing. LiveKit/FFmpeg/whisper.cpp runtime validation, speech/realtime benchmarks, evaluator calibration, shadow testing, supervised pilot evidence and production approval remain governed by `production-readiness.md`.
+
+External provider implementations (ATS/job board/email/calendar), the isolated assessment execution worker, and realtime media/speech runtime are separate milestones rather than hidden Core Closure debt.
+
+---
+
+# 8. Repository governance
+
+The code-level quality gate is complete and green. `main` branch protection is currently not enabled in repository settings. Required production repository governance is:
+
+```text
+protect main
+require the GitHub Actions `quality` status check
+require branch to be up to date before merge
+block force pushes
+block branch deletion
+```
+
+This setting requires GitHub repository-administration permission and is not writable through the currently connected GitHub integration.
+''', encoding="utf-8")
+
+          readiness = Path("production-readiness.md")
+          r = readiness.read_text(encoding="utf-8")
+          old = '''# 32. Current readiness
+
+As of 2026-08-31:
+
+```text
+Architecture                    ✅ Defined
+Self-hosted interview design    ✅ Defined
+Production gates                ✅ Defined
+Implementation                  ⬜ Not started
+Calibration                     ⬜ Not started
+Shadow testing                  ⬜ Not started
+Pilot                           ⬜ Not started
+Production approval             ⬜ Not approved
+```
+
+The next legitimate step is implementation and measurement, not declaring the product production-ready.'''
+          new = '''# 32. Current readiness
+
+As of 2026-09-02:
+
+```text
+Architecture                    ✅ Defined
+Self-hosted interview design    ✅ Defined
+Production gates                ✅ Defined
+Core implementation             ✅ Advanced / Core Product Closure validated
+Realtime runtime validation     ⏳ Pending
+Calibration                     ⬜ Not started
+Shadow testing                  ⬜ Not started
+Pilot                           ⬜ Not started
+Production approval             ⬜ Not approved
+```
+
+The codebase has moved beyond foundation implementation, but autonomous real-candidate interviewing is not production-approved. The next legitimate steps are realtime/runtime measurement, calibration, shadow validation and supervised pilot evidence—not declaring controlled production from implementation status alone.'''
+          if old not in r:
+              raise SystemExit("production-readiness current-state section did not match expected baseline")
+          readiness.write_text(r.replace(old, new), encoding="utf-8")
+
+      - name: Commit synchronized documents
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add master.md projectstate.md production-readiness.md
+          git diff --cached --exit-code && exit 0 || true
+          git commit -m "docs: sync core closure architecture state"
+          git push
