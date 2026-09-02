@@ -14,6 +14,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 1 : 0,
+  failOnFlakyTests: Boolean(process.env.CI),
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI
     ? [
