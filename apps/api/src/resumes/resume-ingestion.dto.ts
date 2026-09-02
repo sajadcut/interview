@@ -48,6 +48,7 @@ export class ResumeDto {
   @ApiPropertyOptional({ type: String, nullable: true }) failureMessage!: string | null;
   @ApiPropertyOptional({ type: Number, nullable: true }) pageCount!: number | null;
   @ApiProperty({ type: Number }) chunkCount!: number;
+  @ApiProperty({ type: Number }) embeddedChunkCount!: number;
   @ApiProperty({ type: Number }) evidenceCount!: number;
   @ApiProperty({ type: ResumeStructuredProfileDto }) structuredProfile!: ResumeStructuredProfileDto;
   @ApiPropertyOptional({ type: String, nullable: true }) processedAt!: string | null;

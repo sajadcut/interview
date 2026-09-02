@@ -53,6 +53,12 @@ const envSchema = z
     LLM_API_KEY: z.string().default(""),
     LLM_BASE_URL: optionalUrl,
 
+    EMBEDDING_PROVIDER: z.enum(["disabled", "openai-compatible"]).default("disabled"),
+    EMBEDDING_MODEL: z.string().default(""),
+    EMBEDDING_API_KEY: z.string().default(""),
+    EMBEDDING_BASE_URL: optionalUrl,
+    EMBEDDING_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(10_000),
+
     MEDIA_REALTIME_ENABLED: booleanFlag,
     MEDIA_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(2500),
     MEDIA_WORKER_SHARED_SECRET: z.string().default(""),
@@ -86,6 +92,23 @@ const envSchema = z
           code: "custom",
           path: ["LLM_MODEL"],
           message: "required when LLM_PROVIDER=openai-compatible unless every call supplies a model",
+        });
+      }
+    }
+
+    if (value.EMBEDDING_PROVIDER === "openai-compatible") {
+      if (!value.EMBEDDING_MODEL) {
+        context.addIssue({
+          code: "custom",
+          path: ["EMBEDDING_MODEL"],
+          message: "required when EMBEDDING_PROVIDER=openai-compatible",
+        });
+      }
+      if (!value.EMBEDDING_API_KEY && !value.LLM_API_KEY) {
+        context.addIssue({
+          code: "custom",
+          path: ["EMBEDDING_API_KEY"],
+          message: "EMBEDDING_API_KEY or LLM_API_KEY is required when embeddings are enabled",
         });
       }
     }
