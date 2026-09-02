@@ -115,8 +115,20 @@ test.describe("critical candidate flows", () => {
     await expect(page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" })).toBeVisible();
     await expect(page.getByText(new RegExp(`Hello ${candidateIdentity.displayName}`))).toBeVisible();
 
-    // Invitation secrets are single-use even after the authenticated session is discarded.
-    await context.clearCookies();
+    // Realtime completion is not simulated here; this validates the authenticated completion surface
+    // and the secure-session termination behavior that the realtime runtime will hand off to.
+    await page.goto("/candidate/completed");
+    await expect(page.getByRole("heading", { name: "Interview completed" })).toBeVisible();
+    await expect(page.getByText(new RegExp(candidateIdentity.displayName))).toBeVisible();
+    await Promise.all([
+      page.waitForURL(/\/candidate\/login$/),
+      page.getByRole("button", { name: "End secure session" }).click(),
+    ]);
+    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+
+    // Logged-out candidate access is closed, and the original invitation remains single-use.
+    await page.goto("/candidate/setup");
+    await page.waitForURL(/\/candidate\/login$/);
     await page.goto(`${BASE_URL}/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
     await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
   });
