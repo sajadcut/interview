@@ -465,75 +465,72 @@ export class EvaluatorCalibrationService {
       calibrationOnly: true,
     };
 
-    return this.database.sql.begin(async (tx) => {
-      const rows = await tx`
-        INSERT INTO evaluator_calibration_runs (
-          organization_id, calibration_case_id, evaluator_version, criterion_results,
-          recommendation, mean_absolute_score_delta, recommendation_agreement,
-          within_tolerance, notes, reference_review_id, ai_evaluation_id,
-          idempotency_key, input_fingerprint, provider, model, prompt_version,
-          criterion_comparisons, reference_criterion_count, matched_criterion_count,
-          coverage_rate, root_mean_squared_score_delta, max_absolute_score_delta,
-          mean_signed_score_delta, within_tolerance_rate, evidence_agreement_rate,
-          low_confidence_rate, false_reject, false_promotion, case_pass,
-          validation_report, created_by_user_id
-        ) VALUES (
-          ${organizationId}::uuid,
-          ${caseId}::uuid,
-          ${evaluatorVersion},
-          ${this.database.sql.json(aiCriteria as never)},
-          ${aiRecommendation ?? null},
-          ${comparison.meanAbsoluteScoreDelta},
-          ${comparison.recommendationAgreement},
-          ${comparison.withinToleranceRate === 1 && comparison.coverageRate === 1},
-          ${optionalString(input.notes) ?? null},
-          ${String(calibrationCase.reference_review_id)}::uuid,
-          ${aiEvaluationId ?? null}::uuid,
-          ${idempotencyKey},
-          ${inputFingerprint},
-          ${provider ?? null},
-          ${model ?? null},
-          ${promptVersion ?? null},
-          ${this.database.sql.json(comparison.criterionComparisons as never)},
-          ${comparison.referenceCriterionCount},
-          ${comparison.matchedCriterionCount},
-          ${comparison.coverageRate},
-          ${comparison.rootMeanSquaredScoreDelta},
-          ${comparison.maxAbsoluteScoreDelta},
-          ${comparison.meanSignedScoreDelta},
-          ${comparison.withinToleranceRate},
-          ${comparison.evidenceAgreementRate},
-          ${comparison.lowConfidenceRate},
-          ${comparison.falseReject},
-          ${comparison.falsePromotion},
-          ${comparison.casePass},
-          ${this.database.sql.json(validationReport as never)},
-          ${userId}::uuid
-        )
-        ON CONFLICT (organization_id, calibration_case_id, idempotency_key)
-          WHERE idempotency_key IS NOT NULL
-        DO NOTHING
-        RETURNING id::text, created_at
+    const rows = await this.database.sql`
+      INSERT INTO evaluator_calibration_runs (
+        organization_id, calibration_case_id, evaluator_version, criterion_results,
+        recommendation, mean_absolute_score_delta, recommendation_agreement,
+        within_tolerance, notes, reference_review_id, ai_evaluation_id,
+        idempotency_key, input_fingerprint, provider, model, prompt_version,
+        criterion_comparisons, reference_criterion_count, matched_criterion_count,
+        coverage_rate, root_mean_squared_score_delta, max_absolute_score_delta,
+        mean_signed_score_delta, within_tolerance_rate, evidence_agreement_rate,
+        low_confidence_rate, false_reject, false_promotion, case_pass,
+        validation_report, created_by_user_id
+      ) VALUES (
+        ${organizationId}::uuid,
+        ${caseId}::uuid,
+        ${evaluatorVersion},
+        ${this.database.sql.json(aiCriteria as never)},
+        ${aiRecommendation ?? null},
+        ${comparison.meanAbsoluteScoreDelta},
+        ${comparison.recommendationAgreement},
+        ${comparison.withinToleranceRate === 1 && comparison.coverageRate === 1},
+        ${optionalString(input.notes) ?? null},
+        ${String(calibrationCase.reference_review_id)}::uuid,
+        ${aiEvaluationId ?? null}::uuid,
+        ${idempotencyKey},
+        ${inputFingerprint},
+        ${provider ?? null},
+        ${model ?? null},
+        ${promptVersion ?? null},
+        ${this.database.sql.json(comparison.criterionComparisons as never)},
+        ${comparison.referenceCriterionCount},
+        ${comparison.matchedCriterionCount},
+        ${comparison.coverageRate},
+        ${comparison.rootMeanSquaredScoreDelta},
+        ${comparison.maxAbsoluteScoreDelta},
+        ${comparison.meanSignedScoreDelta},
+        ${comparison.withinToleranceRate},
+        ${comparison.evidenceAgreementRate},
+        ${comparison.lowConfidenceRate},
+        ${comparison.falseReject},
+        ${comparison.falsePromotion},
+        ${comparison.casePass},
+        ${this.database.sql.json(validationReport as never)},
+        ${userId}::uuid
+      )
+      ON CONFLICT (organization_id, calibration_case_id, idempotency_key)
+        WHERE idempotency_key IS NOT NULL
+      DO NOTHING
+      RETURNING id::text
+    `;
+
+    if (!rows[0]) {
+      const existing = await this.database.sql`
+        SELECT id::text, input_fingerprint
+        FROM evaluator_calibration_runs
+        WHERE organization_id = ${organizationId}::uuid
+          AND calibration_case_id = ${caseId}::uuid
+          AND idempotency_key = ${idempotencyKey}
+        LIMIT 1
       `;
-      if (!rows[0]) {
-        const existing = await tx`
-          SELECT id::text, input_fingerprint
-          FROM evaluator_calibration_runs
-          WHERE organization_id = ${organizationId}::uuid
-            AND calibration_case_id = ${caseId}::uuid
-            AND idempotency_key = ${idempotencyKey}
-          LIMIT 1
-        `;
-        if (!existing[0]) throw new Error("Unable to resolve calibration idempotent replay");
-        if (String(existing[0].input_fingerprint) !== inputFingerprint) {
-          throw new BadRequestException("Calibration idempotency key was already used with different input");
-        }
-        const replay = await this.getRun(String(existing[0].id));
-        return { ...replay, idempotentReplay: true };
+      if (!existing[0]) throw new Error("Unable to resolve calibration idempotent replay");
+      if (String(existing[0].input_fingerprint) !== inputFingerprint) {
+        throw new BadRequestException("Calibration idempotency key was already used with different input");
       }
-      const run = await this.getRun(String(rows[0].id));
-      return { ...run, idempotentReplay: false };
-    });
+      return { ...(await this.getRun(String(existing[0].id))), idempotentReplay: true };
+    }
+    return { ...(await this.getRun(String(rows[0].id))), idempotentReplay: false };
   }
 
   async getRun(runId: string) {
