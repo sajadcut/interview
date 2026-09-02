@@ -7,10 +7,32 @@ export const E2E_USER_PASSWORD = process.env.E2E_USER_PASSWORD ?? "BrowserE2e!20
 export const SEEDED_JOB_ID = "11111111-1111-4111-8111-111111111111";
 export const SEEDED_CANDIDATE_ID = "22222222-2222-4222-8222-222222222222";
 export const SEEDED_APPLICATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+export const SEEDED_SECONDARY_APPLICATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 export interface CandidateInvitationSecrets {
   developmentToken: string;
   developmentOtp: string;
+}
+
+export interface CandidateE2EIdentity {
+  applicationId: string;
+  displayName: string;
+  jobTitle: string;
+}
+
+export function candidateIdentityForProject(projectName: string): CandidateE2EIdentity {
+  if (projectName === "chromium-mobile-candidate") {
+    return {
+      applicationId: SEEDED_SECONDARY_APPLICATION_ID,
+      displayName: "Sara Mohammadi",
+      jobTitle: "Senior Backend Engineer",
+    };
+  }
+  return {
+    applicationId: SEEDED_APPLICATION_ID,
+    displayName: "Ali Rahimi",
+    jobTitle: "Senior Backend Engineer",
+  };
 }
 
 export async function signInRecruiter(page: Page): Promise<void> {
@@ -30,7 +52,10 @@ export async function activeOrganizationId(page: Page): Promise<string> {
   return organizationId!;
 }
 
-export async function createCandidateInvitation(page: Page): Promise<CandidateInvitationSecrets> {
+export async function createCandidateInvitation(
+  page: Page,
+  applicationId = SEEDED_APPLICATION_ID,
+): Promise<CandidateInvitationSecrets> {
   const organizationId = await activeOrganizationId(page);
   const response = await page.context().request.post(`${BASE_URL}/api/backend/v1/candidate-auth/invitations`, {
     headers: {
@@ -38,7 +63,7 @@ export async function createCandidateInvitation(page: Page): Promise<CandidateIn
       "content-type": "application/json",
       "x-organization-id": organizationId,
     },
-    data: { applicationId: SEEDED_APPLICATION_ID },
+    data: { applicationId },
   });
 
   const rawBody = await response.text();
