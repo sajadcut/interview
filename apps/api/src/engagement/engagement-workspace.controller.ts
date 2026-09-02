@@ -1,8 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
+import { EngagementWorkspaceDto } from "./engagement-workspace.dto";
 import { EngagementWorkspaceService } from "./engagement-workspace.service";
 
 @ApiTags("engagement-workspace")
@@ -13,6 +15,8 @@ export class EngagementWorkspaceController {
 
   @Get("workspace")
   @RequirePermissions(Permissions.CandidateRead)
+  @ApiOkResponse({ type: EngagementWorkspaceDto })
+  @ApiStandardErrorResponses()
   getWorkspace() {
     return this.workspace.getWorkspace();
   }
