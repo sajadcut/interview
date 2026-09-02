@@ -31,6 +31,15 @@ test.describe("critical recruiter flows", () => {
     await expect(saraRow).toBeVisible();
     await expect(saraRow.getByRole("cell").nth(2)).toContainText("screening");
 
+    // Consequential pipeline mutations require an explicit human reason. Cancelling the prompt
+    // must not produce a request or optimistic UI transition.
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("prompt");
+      await dialog.dismiss();
+    });
+    await saraRow.getByRole("button", { name: "review", exact: true }).click();
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("screening");
+
     page.once("dialog", async (dialog) => {
       expect(dialog.type()).toBe("prompt");
       await dialog.accept("E2E verified recruiter stage transition");
