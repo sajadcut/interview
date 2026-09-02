@@ -8375,6 +8375,9 @@
           "chunkCount": {
             "type": "number"
           },
+          "embeddedChunkCount": {
+            "type": "number"
+          },
           "evidenceCount": {
             "type": "number"
           },
@@ -8398,6 +8401,7 @@
           "byteSize",
           "sha256",
           "chunkCount",
+          "embeddedChunkCount",
           "evidenceCount",
           "structuredProfile",
           "createdAt"

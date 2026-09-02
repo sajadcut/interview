@@ -2580,6 +2580,7 @@ export interface components {
             failureMessage?: string | null;
             pageCount?: number | null;
             chunkCount: number;
+            embeddedChunkCount: number;
             evidenceCount: number;
             structuredProfile: components["schemas"]["ResumeStructuredProfileDto"];
             processedAt?: string | null;

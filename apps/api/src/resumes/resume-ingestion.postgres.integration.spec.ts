@@ -6,6 +6,7 @@ import type { DatabaseService } from "../database/database.service";
 import type { StorageService } from "../storage/storage.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker } from "./resume-chunker";
+import type { ResumeEmbeddingProvider } from "./resume-embedding-provider";
 import { ResumeIngestionService } from "./resume-ingestion.service";
 import { ResumeParser } from "./resume-parser";
 import { ResumeTextExtractor } from "./resume-text-extractor";
@@ -50,6 +51,15 @@ test(
     const database = createIntegrationDatabase();
     const tenant = new TenantContextService();
     const storage = createStorage(database, tenant);
+    const embeddings: ResumeEmbeddingProvider = {
+      configured: true,
+      embed: async (texts) => ({
+        provider: "integration-test",
+        model: "resume-test-embedding-v1",
+        dimensions: 3,
+        vectors: texts.map((_, index) => [index + 0.1, index + 0.2, index + 0.3]),
+      }),
+    };
     const service = new ResumeIngestionService(
       database,
       tenant,
@@ -57,6 +67,7 @@ test(
       new ResumeTextExtractor(),
       new ResumeParser(),
       new ResumeChunker(),
+      embeddings,
     );
     const orgA = randomUUID();
     const orgB = randomUUID();
@@ -93,6 +104,7 @@ test(
       assert.equal(first.id, replay.id);
       assert.equal(first.status, "completed");
       assert.ok(first.chunkCount > 0);
+      assert.equal(first.embeddedChunkCount, first.chunkCount);
       assert.ok(first.evidenceCount >= 3);
       assert.equal(first.structuredProfile.currentRole, "Senior Backend Engineer");
 
@@ -107,6 +119,14 @@ test(
         WHERE organization_id = ${orgA}::uuid AND candidate_id = ${candidateA}::uuid
       `;
       assert.equal(resumeRows[0]?.count, 1);
+
+      const embeddingRows = await database.sql`
+        SELECT count(*)::int AS count, min(dimensions)::int AS dimensions
+        FROM resume_chunk_embeddings
+        WHERE organization_id = ${orgA}::uuid AND resume_id = ${first.id}::uuid
+      `;
+      assert.equal(embeddingRows[0]?.count, first.chunkCount);
+      assert.equal(embeddingRows[0]?.dimensions, 3);
 
       await assert.rejects(
         () => tenant.run(orgB, () => service.getResume(candidateB, first.id)),

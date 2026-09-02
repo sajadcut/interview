@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   BadRequestException,
   HttpException,
+  Inject,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -10,6 +11,7 @@ import { DatabaseService } from "../database/database.service";
 import { StorageService } from "../storage/storage.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker, type ResumeChunk } from "./resume-chunker";
+import { RESUME_EMBEDDING_PROVIDER, type ResumeEmbeddingBatch, type ResumeEmbeddingProvider } from "./resume-embedding-provider";
 import { ResumeParser, type ParsedResumeProfile } from "./resume-parser";
 import { MAX_RESUME_BYTES, ResumeTextExtractor } from "./resume-text-extractor";
 import type { ResumeDto } from "./resume-ingestion.dto";
@@ -37,6 +39,7 @@ type ResumeRow = {
   created_at: Date | string;
   page_count: number | null;
   chunk_count: string | number;
+  embedded_chunk_count: string | number;
   evidence_count: string | number;
 };
 
@@ -49,6 +52,7 @@ export class ResumeIngestionService {
     private readonly extractor: ResumeTextExtractor,
     private readonly parser: ResumeParser,
     private readonly chunker: ResumeChunker,
+    @Inject(RESUME_EMBEDDING_PROVIDER) private readonly embeddings: ResumeEmbeddingProvider,
   ) {}
 
   async ingest(candidateId: string, upload: ResumeUpload, applicationId?: string): Promise<ResumeDto> {
@@ -112,6 +116,7 @@ export class ResumeIngestionService {
       const profile = this.parser.parse(extracted.text);
       const chunks = this.chunker.chunk(extracted.text);
       if (chunks.length === 0) throw new UnprocessableEntityException("Resume produced no searchable chunks");
+      const embeddingBatch = await this.embedChunks(chunks);
 
       await this.persistProcessedResume({
         organizationId,
@@ -123,6 +128,7 @@ export class ResumeIngestionService {
         extractorVersion: extracted.extractorVersion,
         profile,
         chunks,
+        embeddingBatch,
       });
       return this.getResume(candidateId, resumeId);
     } catch (error) {
@@ -205,6 +211,7 @@ export class ResumeIngestionService {
     extractorVersion: string;
     profile: ParsedResumeProfile;
     chunks: ResumeChunk[];
+    embeddingBatch: ResumeEmbeddingBatch | null;
   }): Promise<void> {
     const textSha = createHash("sha256").update(input.extractedText).digest("hex");
     await this.database.sql.begin(async (tx) => {
@@ -219,17 +226,40 @@ export class ResumeIngestionService {
 
       const persistedChunks: Array<ResumeChunk & { id: string }> = [];
       for (const chunk of input.chunks) {
+        const embeddingVector = input.embeddingBatch?.vectors[chunk.index] ?? null;
+        const embeddingMetadata = embeddingVector && input.embeddingBatch
+          ? {
+              provider: input.embeddingBatch.provider,
+              model: input.embeddingBatch.model,
+              dimensions: input.embeddingBatch.dimensions,
+            }
+          : {};
         const rows = await tx`
           INSERT INTO resume_chunks (
             organization_id, resume_id, chunk_index, text_content, content_hash,
-            start_char, end_char, embedding_state
+            start_char, end_char, embedding_state, embedding_metadata
           ) VALUES (
             ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
-            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar}, 'not_enabled'
+            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar},
+            ${embeddingVector ? "completed" : "not_enabled"}, ${JSON.stringify(embeddingMetadata)}::jsonb
           )
           RETURNING id
         `;
-        persistedChunks.push({ ...chunk, id: (rows[0] as { id: string }).id });
+        const chunkId = (rows[0] as { id: string }).id;
+        persistedChunks.push({ ...chunk, id: chunkId });
+        if (embeddingVector && input.embeddingBatch) {
+          const serializedVector = JSON.stringify(embeddingVector);
+          const vectorSha256 = createHash("sha256").update(serializedVector).digest("hex");
+          await tx`
+            INSERT INTO resume_chunk_embeddings (
+              organization_id, resume_id, chunk_id, provider, model, dimensions, embedding, vector_sha256
+            ) VALUES (
+              ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunkId}::uuid,
+              ${input.embeddingBatch.provider}, ${input.embeddingBatch.model}, ${input.embeddingBatch.dimensions},
+              ${serializedVector}::jsonb, ${vectorSha256}
+            )
+          `;
+        }
       }
 
       await tx`
@@ -331,6 +361,38 @@ export class ResumeIngestionService {
     });
   }
 
+  private async embedChunks(chunks: ResumeChunk[]): Promise<ResumeEmbeddingBatch | null> {
+    if (!this.embeddings.configured) return null;
+    const vectors: number[][] = [];
+    let provider: string | null = null;
+    let model: string | null = null;
+    let dimensions: number | null = null;
+
+    for (let offset = 0; offset < chunks.length; offset += 32) {
+      const batch = chunks.slice(offset, offset + 32);
+      const result = await this.embeddings.embed(batch.map((chunk) => chunk.text));
+      if (result.vectors.length !== batch.length || result.dimensions <= 0) {
+        throw new UnprocessableEntityException("Embedding provider returned invalid chunk coverage");
+      }
+      if (result.vectors.some((vector) => vector.length !== result.dimensions || vector.some((value) => !Number.isFinite(value)))) {
+        throw new UnprocessableEntityException("Embedding provider returned invalid vector dimensions");
+      }
+      if (provider === null) {
+        provider = result.provider;
+        model = result.model;
+        dimensions = result.dimensions;
+      } else if (provider !== result.provider || model !== result.model || dimensions !== result.dimensions) {
+        throw new UnprocessableEntityException("Embedding provider changed model or dimensions within one resume");
+      }
+      vectors.push(...result.vectors);
+    }
+
+    if (!provider || !model || !dimensions || vectors.length !== chunks.length) {
+      throw new UnprocessableEntityException("Embedding provider did not cover every resume chunk");
+    }
+    return { provider, model, dimensions, vectors };
+  }
+
   private async markFailed(organizationId: string, resumeId: string, error: unknown): Promise<void> {
     const code = error instanceof HttpException ? `HTTP_${error.getStatus()}` : "RESUME_PROCESSING_FAILED";
     const message = error instanceof Error ? error.message.slice(0, 500) : "Resume processing failed";
@@ -346,6 +408,7 @@ export class ResumeIngestionService {
         r.*,
         d.page_count,
         (SELECT count(*) FROM resume_chunks c WHERE c.organization_id = r.organization_id AND c.resume_id = r.id) AS chunk_count,
+        (SELECT count(*) FROM resume_chunk_embeddings ce WHERE ce.organization_id = r.organization_id AND ce.resume_id = r.id) AS embedded_chunk_count,
         (SELECT count(*) FROM evidence e WHERE e.organization_id = r.organization_id AND e.candidate_id = r.candidate_id AND e.source_type = 'resume' AND e.source_reference LIKE ('resume:' || r.id::text || '#%')) AS evidence_count
       FROM resumes r
       LEFT JOIN resume_documents d
@@ -414,6 +477,7 @@ function mapResumeRow(row: ResumeRow): ResumeDto {
     failureMessage: row.failure_message,
     pageCount: row.page_count,
     chunkCount: Number(row.chunk_count),
+    embeddedChunkCount: Number(row.embedded_chunk_count),
     evidenceCount: Number(row.evidence_count),
     structuredProfile: profile as ResumeDto["structuredProfile"],
     processedAt: row.processed_at ? new Date(row.processed_at).toISOString() : null,
