@@ -126,7 +126,7 @@ export class ResumeParser {
       if (SECTION_HEADER.test(line) || SKILL_HEADERS.test(line)) break;
       const date = line.match(DATE_RANGE);
       if (!date) continue;
-      const heading = line.replace(date[0], "").replace(/[|,؛;]+$/g, "").trim();
+      const heading = line.replace(date[0], "").trim().replace(/[|,؛;]+$/g, "").trim();
       const parts = heading.split(/\s+(?:at|@|—|–|-|\|)\s+/i).map((part) => part.trim()).filter(Boolean);
       if (parts.length < 2) continue;
       const [title, company] = parts;

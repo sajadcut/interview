@@ -237,7 +237,7 @@ export class ResumeIngestionService {
           primary_email = COALESCE(primary_email, ${input.profile.email}),
           primary_phone = COALESCE(primary_phone, ${input.profile.phone}),
           location = COALESCE(location, ${input.profile.location}),
-          current_role = COALESCE(current_role, ${input.profile.currentRole}),
+          "current_role" = COALESCE("current_role", ${input.profile.currentRole}),
           current_company = COALESCE(current_company, ${input.profile.currentCompany}),
           preferred_language = COALESCE(preferred_language, ${input.profile.preferredLanguage}),
           updated_at = now()
