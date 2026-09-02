@@ -72,6 +72,62 @@
         ]
       }
     },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_readiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "database",
+                    "migrationCount",
+                    "timestamp"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    },
+                    "database": {
+                      "type": "string",
+                      "enum": [
+                        "ready"
+                      ]
+                    },
+                    "migrationCount": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "latestMigration": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database is unavailable or migration ledger cannot be read."
+          }
+        },
+        "tags": [
+          "system"
+        ]
+      }
+    },
     "/auth/login": {
       "post": {
         "operationId": "AuthController_login",
@@ -465,6 +521,75 @@
         },
         "tags": [
           "candidate-consent"
+        ]
+      }
+    },
+    "/v1/audit/export": {
+      "get": {
+        "operationId": "AuditController_exportEvents",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 120,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1000,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditExportDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -2255,10 +2380,11 @@
         "parameters": [
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
-              "type": "string"
+              "example": 100,
+              "type": "number"
             }
           }
         ],
@@ -2760,7 +2886,7 @@
         "parameters": [
           {
             "name": "state",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3475,7 +3601,54 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngagementWorkspaceDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3740,7 +3913,54 @@
         ],
         "responses": {
           "200": {
-            "description": "Provider-neutral realtime media readiness. No credentials are returned."
+            "description": "Provider-neutral realtime media readiness. No credentials are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewMediaReadinessDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3907,6 +4127,37 @@
         ]
       }
     },
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
+      "get": {
+        "operationId": "InterviewMediaController_listParticipants",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaSessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider-neutral participant lifecycle state without credentials or raw media."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
     "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
       "post": {
         "operationId": "InterviewMediaController_appendEvent",
@@ -3940,11 +4191,445 @@
         },
         "responses": {
           "200": {
-            "description": "Append an operational media event without raw media or transcript content."
+            "description": "Idempotently append an operational media event without raw media, transcript text or credentials."
           }
         },
         "tags": [
           "interview-media"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/interview-plans/generate": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_generatePlan",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateInterviewPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interview-plans/{planId}/publish": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_publishPlan",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/evaluator-input": {
+      "get": {
+        "operationId": "InterviewOrchestrationController_evaluatorInput",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewEvaluatorInputDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/cases": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_createCalibrationCase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEvaluatorCalibrationCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/cases/{caseId}/runs": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_recordCalibrationRun",
+        "parameters": [
+          {
+            "name": "caseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordEvaluatorCalibrationRunDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorCalibrationRunDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/summary": {
+      "get": {
+        "operationId": "InterviewOrchestrationController_calibrationSummary",
+        "parameters": [
+          {
+            "name": "evaluatorVersion",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorCalibrationSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
         ]
       }
     },
@@ -3954,7 +4639,54 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewAssignmentOptionsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4378,7 +5110,54 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateAssessmentListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4400,8 +5179,55 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateAssessmentStartDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4433,8 +5259,55 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateAssessmentSubmissionDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4673,7 +5546,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4695,7 +5575,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4709,7 +5596,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationConnectionResponseDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4731,7 +5628,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationConnectionResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4764,7 +5668,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationConnectionResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4778,7 +5689,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationWorkspaceResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4800,7 +5718,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4833,7 +5758,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRuleResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4866,7 +5798,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationRunCreatedResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4889,7 +5828,14 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutomationApprovalResponseDto"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4900,10 +5846,29 @@
     "/v1/search": {
       "get": {
         "operationId": "ProductOperationsController_search",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSearchResultDto"
+                  }
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -4917,7 +5882,7 @@
         "parameters": [
           {
             "name": "action",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4925,7 +5890,7 @@
           },
           {
             "name": "entityType",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4933,8 +5898,174 @@
           },
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductAuditEventDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "product-operations"
+        ]
+      }
+    },
+    "/v1/legal-holds": {
+      "get": {
+        "operationId": "MaintenanceController_listLegalHolds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LegalHoldDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "maintenance"
+        ]
+      },
+      "post": {
+        "operationId": "MaintenanceController_createLegalHold",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalHoldInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalHoldDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/v1/legal-holds/{holdId}/release": {
+      "patch": {
+        "operationId": "MaintenanceController_releaseLegalHold",
+        "parameters": [
+          {
+            "name": "holdId",
+            "required": true,
+            "in": "path",
             "schema": {
               "type": "string"
             }
@@ -4942,11 +6073,280 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalHoldDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "tags": [
-          "product-operations"
+          "maintenance"
+        ]
+      }
+    },
+    "/v1/maintenance/session-cleanup": {
+      "post": {
+        "operationId": "MaintenanceController_sessionCleanup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCleanupRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceJobDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/v1/maintenance/retention": {
+      "post": {
+        "operationId": "MaintenanceController_retention",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceExecutionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceJobDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "maintenance"
+        ]
+      }
+    },
+    "/v1/privacy/requests/{requestId}/execute-deletion": {
+      "post": {
+        "operationId": "MaintenanceController_executePrivacyDeletion",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceExecutionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceJobDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "maintenance"
         ]
       }
     }
@@ -5457,6 +6857,88 @@
           "consentType",
           "noticeVersion",
           "granted"
+        ]
+      },
+      "AuditExportEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actorType": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "object"
+          },
+          "action": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "object"
+          },
+          "reason": {
+            "type": "object"
+          },
+          "before": {
+            "type": "object"
+          },
+          "after": {
+            "type": "object"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorType",
+          "action",
+          "entityType",
+          "createdAt"
+        ]
+      },
+      "AuditExportDto": {
+        "type": "object",
+        "properties": {
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "organizationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "filters": {
+            "type": "object"
+          },
+          "count": {
+            "type": "number"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditExportEventDto"
+            }
+          }
+        },
+        "required": [
+          "exportedAt",
+          "organizationId",
+          "filters",
+          "count",
+          "truncated",
+          "events"
         ]
       },
       "OrganizationUserDto": {
@@ -7560,6 +9042,249 @@
           "state"
         ]
       },
+      "EngagementConversationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "application_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "candidate_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_message_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "latest_direction": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_body": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_approval_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_delivery_status": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "status"
+        ]
+      },
+      "EngagementScreeningDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "application_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "job_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "recommendation": {
+            "type": "string",
+            "nullable": true
+          },
+          "review_state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "application_id",
+          "review_state"
+        ]
+      },
+      "EngagementSchedulingDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "application_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "job_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "interview_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "selected_start": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "application_id",
+          "interview_type",
+          "status"
+        ]
+      },
+      "EngagementNotificationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidate_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "notification_type": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "notification_type",
+          "channel",
+          "status"
+        ]
+      },
+      "EngagementKnowledgeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "knowledge_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "knowledge_type",
+          "status"
+        ]
+      },
+      "EngagementWorkspacePolicyDto": {
+        "type": "object",
+        "properties": {
+          "candidateFactsRequireApprovedKnowledge": {
+            "type": "boolean"
+          },
+          "screeningRequiresHumanReview": {
+            "type": "boolean"
+          },
+          "externalDeliveryRequiresConfiguredProvider": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "candidateFactsRequireApprovedKnowledge",
+          "screeningRequiresHumanReview",
+          "externalDeliveryRequiresConfiguredProvider"
+        ]
+      },
+      "EngagementWorkspaceDto": {
+        "type": "object",
+        "properties": {
+          "conversations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementConversationDto"
+            }
+          },
+          "screening": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementScreeningDto"
+            }
+          },
+          "scheduling": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementSchedulingDto"
+            }
+          },
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementNotificationDto"
+            }
+          },
+          "knowledge": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngagementKnowledgeDto"
+            }
+          },
+          "policy": {
+            "$ref": "#/components/schemas/EngagementWorkspacePolicyDto"
+          }
+        },
+        "required": [
+          "conversations",
+          "screening",
+          "scheduling",
+          "notifications",
+          "knowledge",
+          "policy"
+        ]
+      },
       "CreateInterviewSessionDto": {
         "type": "object",
         "properties": {
@@ -8008,6 +9733,140 @@
           "createdAt"
         ]
       },
+      "MediaProviderStatusDto": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "type": "string",
+            "enum": [
+              "transport",
+              "vad",
+              "stt",
+              "tts",
+              "avatar"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "component",
+          "provider",
+          "configured",
+          "reachable",
+          "ready"
+        ]
+      },
+      "MediaPrivacyPolicyDto": {
+        "type": "object",
+        "properties": {
+          "candidateVideoAnalysis": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          "biometricInferenceAllowed": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "rawMediaPersistedByApi": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "spokenTextOnlyToAvatar": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "candidateVideoAnalysis",
+          "biometricInferenceAllowed",
+          "rawMediaPersistedByApi",
+          "spokenTextOnlyToAvatar"
+        ]
+      },
+      "InterviewMediaReadinessDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "avatar"
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaProviderStatusDto"
+            }
+          },
+          "requiredComponents": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "transport",
+                "vad",
+                "stt",
+                "tts",
+                "avatar"
+              ]
+            }
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/MediaPrivacyPolicyDto"
+          }
+        },
+        "required": [
+          "enabled",
+          "mode",
+          "ready",
+          "blockers",
+          "providers",
+          "requiredComponents",
+          "privacy"
+        ]
+      },
       "InterviewMediaModeDto": {
         "type": "object",
         "properties": {
@@ -8026,6 +9885,12 @@
       "InterviewMediaEventInputDto": {
         "type": "object",
         "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200,
+            "description": "Stable caller-generated key. Retrying the same event with this key returns the original journal entry."
+          },
           "eventType": {
             "type": "string",
             "enum": [
@@ -8036,6 +9901,9 @@
               "degraded",
               "disconnected",
               "reconnected",
+              "participant_joined",
+              "participant_left",
+              "turn_failure",
               "vad_speech_start",
               "vad_speech_end",
               "stt_final",
@@ -8062,11 +9930,398 @@
             ]
           },
           "payload": {
+            "type": "object",
+            "description": "Operational metadata only. Raw media, transcript text and credentials are rejected."
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "eventType"
+        ]
+      },
+      "GenerateInterviewPlanDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "default": "en"
+          },
+          "interviewType": {
+            "type": "string",
+            "default": "structured_competency"
+          },
+          "timeBudgetMinutes": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 180,
+            "default": 45
+          },
+          "minDepth": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 1
+          },
+          "maxDepth": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 3
+          },
+          "interviewerPolicyVersion": {
+            "type": "string",
+            "default": "interviewer-policy-v1"
+          },
+          "speechAvatarStackVersion": {
+            "type": "string",
+            "default": "pre-realtime-contract-v1"
+          },
+          "evaluatorVersion": {
+            "type": "string",
+            "default": "evidence-evaluator-v1"
+          },
+          "forbiddenTopics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "InterviewPlanGeneratedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "jobId": {
+            "type": "string"
+          },
+          "rubricVersionId": {
+            "type": "string"
+          },
+          "releaseUnitId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "interviewType": {
+            "type": "string"
+          },
+          "timeBudgetMinutes": {
+            "type": "number"
+          },
+          "questionStrategy": {
             "type": "object"
           }
         },
         "required": [
-          "eventType"
+          "id",
+          "jobId",
+          "rubricVersionId",
+          "releaseUnitId",
+          "version",
+          "status",
+          "language",
+          "interviewType",
+          "timeBudgetMinutes",
+          "questionStrategy"
+        ]
+      },
+      "InterviewEvaluatorInputDto": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "sessionStatus": {
+            "type": "string"
+          },
+          "rubricVersionId": {
+            "type": "string"
+          },
+          "planVersion": {
+            "type": "number"
+          },
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "boundaries": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "sessionId",
+          "applicationId",
+          "sessionStatus",
+          "rubricVersionId",
+          "planVersion",
+          "evaluatorVersion",
+          "criteria",
+          "transcript",
+          "evidence",
+          "boundaries"
+        ]
+      },
+      "EvaluatorCriterionBenchmarkDto": {
+        "type": "object",
+        "properties": {
+          "criterionKey": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "criterionKey",
+          "score"
+        ]
+      },
+      "CreateEvaluatorCalibrationCaseDto": {
+        "type": "object",
+        "properties": {
+          "rubricVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "transcriptFixture": {
+            "description": "Final transcript fixture segments used for deterministic evaluator testing.",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "expectedCriteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
+            }
+          },
+          "expectedRecommendation": {
+            "type": "string"
+          },
+          "tolerance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 10
+          }
+        },
+        "required": [
+          "rubricVersionId",
+          "name",
+          "transcriptFixture",
+          "expectedCriteria"
+        ]
+      },
+      "RecordEvaluatorCalibrationRunDto": {
+        "type": "object",
+        "properties": {
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "criterionResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
+            }
+          },
+          "recommendation": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluatorVersion",
+          "criterionResults"
+        ]
+      },
+      "EvaluatorCalibrationRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "caseId": {
+            "type": "string"
+          },
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "meanAbsoluteScoreDelta": {
+            "type": "number"
+          },
+          "recommendationAgreement": {
+            "type": "boolean"
+          },
+          "withinTolerance": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "caseId",
+          "evaluatorVersion",
+          "recommendationAgreement",
+          "withinTolerance",
+          "createdAt"
+        ]
+      },
+      "EvaluatorCalibrationSummaryDto": {
+        "type": "object",
+        "properties": {
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "runCount": {
+            "type": "number"
+          },
+          "withinToleranceRate": {
+            "type": "number"
+          },
+          "recommendationAgreementRate": {
+            "type": "number"
+          },
+          "meanAbsoluteScoreDelta": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "evaluatorVersion",
+          "runCount",
+          "withinToleranceRate",
+          "recommendationAgreementRate"
+        ]
+      },
+      "InterviewAssignmentSessionOptionDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionStatus": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateName": {
+            "type": "string"
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "interviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "interviewerName": {
+            "type": "string"
+          },
+          "interviewerEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "assignmentStatus": {
+            "type": "string"
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "sessionId",
+          "sessionStatus",
+          "applicationId",
+          "candidateName",
+          "jobTitle"
+        ]
+      },
+      "InterviewerOptionDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "email"
+        ]
+      },
+      "InterviewAssignmentOptionsDto": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewAssignmentSessionOptionDto"
+            }
+          },
+          "interviewers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewerOptionDto"
+            }
+          }
+        },
+        "required": [
+          "sessions",
+          "interviewers"
         ]
       },
       "AssignInterviewerDto": {
@@ -8316,6 +10571,184 @@
           "rationale"
         ]
       },
+      "CandidateAssessmentSessionDto": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "candidate_notice_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "review_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "assessment_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assessment_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "string"
+          },
+          "time_limit_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "version": {
+            "type": "number"
+          },
+          "job_title": {
+            "type": "string"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "result_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "normalized_score": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "session_id",
+          "status",
+          "assessment_id",
+          "assessment_type",
+          "title",
+          "instructions",
+          "version",
+          "job_title"
+        ]
+      },
+      "CandidateAssessmentListDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateAssessmentSessionDto"
+            }
+          },
+          "integrityNotice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidateId",
+          "applicationId",
+          "sessions",
+          "integrityNotice"
+        ]
+      },
+      "CandidateAssessmentStartDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "candidate_notice_version": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "CandidateAssessmentSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assessment_session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "language": {
+            "type": "string"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "executionBoundary": {
+            "type": "string"
+          },
+          "coreApiExecutedCode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "assessment_session_id",
+          "language",
+          "submitted_at",
+          "executionBoundary",
+          "coreApiExecutedCode"
+        ]
+      },
       "FunnelStageDto": {
         "type": "object",
         "properties": {
@@ -8544,6 +10977,42 @@
           "reviewNotes"
         ]
       },
+      "OrganizationSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "organization_id": {
+            "type": "string"
+          },
+          "default_locale": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "hiring_policy": {
+            "type": "object"
+          },
+          "notification_preferences": {
+            "type": "object"
+          },
+          "updated_by_user_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "organization_id",
+          "default_locale",
+          "timezone",
+          "hiring_policy",
+          "notification_preferences"
+        ]
+      },
       "UpdateOrganizationSettingsDto": {
         "type": "object",
         "properties": {
@@ -8560,6 +11029,62 @@
             "type": "object"
           }
         }
+      },
+      "IntegrationConnectionResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider_key": {
+            "type": "string"
+          },
+          "connection_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "configured",
+              "verified",
+              "degraded",
+              "disabled"
+            ]
+          },
+          "credential_reference": {
+            "type": "object",
+            "nullable": true
+          },
+          "config": {
+            "type": "object"
+          },
+          "last_verified_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": "object",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "provider_key",
+          "connection_type",
+          "status",
+          "config",
+          "created_at",
+          "updated_at"
+        ]
       },
       "CreateIntegrationDto": {
         "type": "object",
@@ -8602,6 +11127,136 @@
             "type": "object"
           }
         }
+      },
+      "AutomationRuleResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "trigger_type": {
+            "type": "string"
+          },
+          "trigger_config": {
+            "type": "object"
+          },
+          "action_type": {
+            "type": "string"
+          },
+          "action_config": {
+            "type": "object"
+          },
+          "approval_required": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "trigger_type",
+          "action_type",
+          "approval_required",
+          "enabled",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "AutomationRunResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rule_id": {
+            "type": "string"
+          },
+          "trigger_reference": {
+            "type": "object",
+            "nullable": true
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "output": {
+            "type": "object",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "object",
+            "nullable": true
+          },
+          "approved_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "rule_id",
+          "idempotency_key",
+          "state",
+          "created_at"
+        ]
+      },
+      "AutomationWorkspaceResponseDto": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomationRuleResponseDto"
+            }
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomationRunResponseDto"
+            }
+          }
+        },
+        "required": [
+          "rules",
+          "runs"
+        ]
       },
       "CreateAutomationRuleDto": {
         "type": "object",
@@ -8661,6 +11316,295 @@
         "required": [
           "idempotencyKey"
         ]
+      },
+      "AutomationRunCreatedResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rule_id": {
+            "type": "string"
+          },
+          "trigger_reference": {
+            "type": "object",
+            "nullable": true
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "input": {
+            "type": "object"
+          },
+          "output": {
+            "type": "object",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "object",
+            "nullable": true
+          },
+          "approved_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "executionBoundary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "rule_id",
+          "idempotency_key",
+          "state",
+          "created_at",
+          "executionBoundary"
+        ]
+      },
+      "AutomationApprovalResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "rule_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "approved_by_user_id": {
+            "type": "string"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "rule_id",
+          "state",
+          "approved_by_user_id",
+          "approved_at"
+        ]
+      },
+      "ProductSearchResultDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "job",
+              "candidate",
+              "interview"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "href": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "title",
+          "href"
+        ]
+      },
+      "ProductAuditEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actor_type": {
+            "type": "string"
+          },
+          "actor_user_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "action": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actor_type",
+          "action",
+          "entity_type",
+          "created_at"
+        ]
+      },
+      "LegalHoldDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "candidateId": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "placedAt": {
+            "type": "string"
+          },
+          "releasedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason",
+          "status",
+          "placedAt"
+        ]
+      },
+      "LegalHoldInputDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SessionCleanupRequestDto": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          },
+          "graceDays": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365,
+            "default": 7
+          }
+        }
+      },
+      "MaintenanceJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "jobType": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "result": {
+            "type": "object"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "jobType",
+          "state",
+          "dryRun",
+          "result",
+          "startedAt"
+        ]
+      },
+      "MaintenanceExecutionDto": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          }
+        }
       }
     }
   }

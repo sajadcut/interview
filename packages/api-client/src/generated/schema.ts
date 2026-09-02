@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["HealthController_readiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -238,6 +254,22 @@ export interface paths {
         get: operations["CandidateConsentController_status"];
         put?: never;
         post: operations["CandidateConsentController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["AuditController_exportEvents"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1348,6 +1380,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewMediaController_listParticipants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
         parameters: {
             query?: never;
@@ -1358,6 +1406,102 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["InterviewMediaController_appendEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/interview-plans/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_generatePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-plans/{planId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_publishPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/evaluator-input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewOrchestrationController_evaluatorInput"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_createCalibrationCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/cases/{caseId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_recordCalibrationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewOrchestrationController_calibrationSummary"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1860,6 +2004,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/legal-holds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MaintenanceController_listLegalHolds"];
+        put?: never;
+        post: operations["MaintenanceController_createLegalHold"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/legal-holds/{holdId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["MaintenanceController_releaseLegalHold"];
+        trace?: never;
+    };
+    "/v1/maintenance/session-cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MaintenanceController_sessionCleanup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/maintenance/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MaintenanceController_retention"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/privacy/requests/{requestId}/execute-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MaintenanceController_executePrivacyDeletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1993,6 +2217,30 @@ export interface components {
             consentType: "privacy_disclosure" | "ai_interview" | "recording";
             noticeVersion: string;
             granted: boolean;
+        };
+        AuditExportEventDto: {
+            id: string;
+            actorType: string;
+            actorUserId?: Record<string, never>;
+            action: string;
+            entityType: string;
+            entityId?: Record<string, never>;
+            reason?: Record<string, never>;
+            before?: Record<string, never>;
+            after?: Record<string, never>;
+            metadata?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AuditExportDto: {
+            /** Format: date-time */
+            exportedAt: string;
+            /** Format: uuid */
+            organizationId: string;
+            filters: Record<string, never>;
+            count: number;
+            truncated: boolean;
+            events: components["schemas"]["AuditExportEventDto"][];
         };
         OrganizationUserDto: {
             userId: string;
@@ -2546,6 +2794,73 @@ export interface components {
             providerReference?: string;
             errorMessage?: string;
         };
+        EngagementConversationDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            candidate_id?: string | null;
+            /** Format: uuid */
+            application_id?: string | null;
+            channel: string;
+            status: string;
+            candidate_name?: string | null;
+            /** Format: uuid */
+            latest_message_id?: string | null;
+            latest_direction?: string | null;
+            latest_body?: string | null;
+            latest_approval_state?: string | null;
+            latest_delivery_status?: string | null;
+        };
+        EngagementScreeningDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            candidate_name?: string | null;
+            job_title?: string | null;
+            recommendation?: string | null;
+            review_state: string;
+        };
+        EngagementSchedulingDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            application_id: string;
+            candidate_name?: string | null;
+            job_title?: string | null;
+            interview_type: string;
+            status: string;
+            /** Format: date-time */
+            selected_start?: string | null;
+        };
+        EngagementNotificationDto: {
+            /** Format: uuid */
+            id: string;
+            candidate_name?: string | null;
+            notification_type: string;
+            channel: string;
+            status: string;
+        };
+        EngagementKnowledgeDto: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            knowledge_type: string;
+            status: string;
+        };
+        EngagementWorkspacePolicyDto: {
+            candidateFactsRequireApprovedKnowledge: boolean;
+            screeningRequiresHumanReview: boolean;
+            externalDeliveryRequiresConfiguredProvider: boolean;
+        };
+        EngagementWorkspaceDto: {
+            conversations: components["schemas"]["EngagementConversationDto"][];
+            screening: components["schemas"]["EngagementScreeningDto"][];
+            scheduling: components["schemas"]["EngagementSchedulingDto"][];
+            notifications: components["schemas"]["EngagementNotificationDto"][];
+            knowledge: components["schemas"]["EngagementKnowledgeDto"][];
+            policy: components["schemas"]["EngagementWorkspacePolicyDto"];
+        };
         CreateInterviewSessionDto: {
             applicationId: string;
             interviewPlanId: string;
@@ -2653,16 +2968,160 @@ export interface components {
             id: string;
             createdAt: string;
         };
+        MediaProviderStatusDto: {
+            /** @enum {string} */
+            component: "transport" | "vad" | "stt" | "tts" | "avatar";
+            provider: string;
+            configured: boolean;
+            reachable: boolean;
+            ready: boolean;
+            version?: string;
+            reason?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+        };
+        MediaPrivacyPolicyDto: {
+            /** @enum {string} */
+            candidateVideoAnalysis: "none";
+            /** @enum {boolean} */
+            biometricInferenceAllowed: false;
+            /** @enum {boolean} */
+            rawMediaPersistedByApi: false;
+            /** @enum {boolean} */
+            spokenTextOnlyToAvatar: true;
+        };
+        InterviewMediaReadinessDto: {
+            enabled: boolean;
+            /** @enum {string} */
+            mode: "audio" | "avatar";
+            ready: boolean;
+            blockers: string[];
+            providers: components["schemas"]["MediaProviderStatusDto"][];
+            requiredComponents: ("transport" | "vad" | "stt" | "tts" | "avatar")[];
+            privacy: components["schemas"]["MediaPrivacyPolicyDto"];
+        };
         InterviewMediaModeDto: {
             /** @enum {string} */
             mode: "audio" | "avatar";
         };
         InterviewMediaEventInputDto: {
+            /** @description Stable caller-generated key. Retrying the same event with this key returns the original journal entry. */
+            idempotencyKey: string;
             /** @enum {string} */
-            eventType: "preflight" | "provider_status" | "connecting" | "connected" | "degraded" | "disconnected" | "reconnected" | "vad_speech_start" | "vad_speech_end" | "stt_final" | "brain_turn" | "tts_started" | "tts_ended" | "avatar_started" | "avatar_ended" | "heartbeat" | "ended" | "error";
+            eventType: "preflight" | "provider_status" | "connecting" | "connected" | "degraded" | "disconnected" | "reconnected" | "participant_joined" | "participant_left" | "turn_failure" | "vad_speech_start" | "vad_speech_end" | "stt_final" | "brain_turn" | "tts_started" | "tts_ended" | "avatar_started" | "avatar_ended" | "heartbeat" | "ended" | "error";
             /** @enum {string} */
             sourceComponent?: "transport" | "vad" | "stt" | "brain" | "tts" | "avatar" | "api";
+            /** @description Operational metadata only. Raw media, transcript text and credentials are rejected. */
             payload?: Record<string, never>;
+        };
+        GenerateInterviewPlanDto: {
+            /** @default en */
+            language: string;
+            /** @default structured_competency */
+            interviewType: string;
+            /** @default 45 */
+            timeBudgetMinutes: number;
+            /** @default 1 */
+            minDepth: number;
+            /** @default 3 */
+            maxDepth: number;
+            /** @default interviewer-policy-v1 */
+            interviewerPolicyVersion: string;
+            /** @default pre-realtime-contract-v1 */
+            speechAvatarStackVersion: string;
+            /** @default evidence-evaluator-v1 */
+            evaluatorVersion: string;
+            forbiddenTopics?: string[];
+        };
+        InterviewPlanGeneratedDto: {
+            id: string;
+            jobId: string;
+            rubricVersionId: string;
+            releaseUnitId: string;
+            version: number;
+            status: string;
+            language: string;
+            interviewType: string;
+            timeBudgetMinutes: number;
+            questionStrategy: Record<string, never>;
+        };
+        InterviewEvaluatorInputDto: {
+            schemaVersion: string;
+            sessionId: string;
+            applicationId: string;
+            sessionStatus: string;
+            rubricVersionId: string;
+            planVersion: number;
+            evaluatorVersion: string;
+            criteria: Record<string, never>[];
+            transcript: Record<string, never>[];
+            evidence: Record<string, never>[];
+            boundaries: Record<string, never>;
+        };
+        EvaluatorCriterionBenchmarkDto: {
+            criterionKey: string;
+            score: number;
+        };
+        CreateEvaluatorCalibrationCaseDto: {
+            /** Format: uuid */
+            rubricVersionId: string;
+            name: string;
+            /** @description Final transcript fixture segments used for deterministic evaluator testing. */
+            transcriptFixture: Record<string, never>[];
+            expectedCriteria: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
+            expectedRecommendation?: string;
+            /** @default 10 */
+            tolerance: number;
+        };
+        RecordEvaluatorCalibrationRunDto: {
+            evaluatorVersion: string;
+            criterionResults: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
+            recommendation?: string;
+            notes?: string;
+        };
+        EvaluatorCalibrationRunDto: {
+            id: string;
+            caseId: string;
+            evaluatorVersion: string;
+            meanAbsoluteScoreDelta?: number;
+            recommendationAgreement: boolean;
+            withinTolerance: boolean;
+            createdAt: string;
+        };
+        EvaluatorCalibrationSummaryDto: {
+            evaluatorVersion: string;
+            runCount: number;
+            withinToleranceRate: number;
+            recommendationAgreementRate: number;
+            meanAbsoluteScoreDelta?: number;
+        };
+        InterviewAssignmentSessionOptionDto: {
+            /** Format: uuid */
+            sessionId: string;
+            sessionStatus: string;
+            /** Format: uuid */
+            applicationId: string;
+            candidateName: string;
+            jobTitle: string;
+            /** Format: uuid */
+            interviewerUserId?: string;
+            interviewerName?: string;
+            /** Format: email */
+            interviewerEmail?: string;
+            assignmentStatus?: string;
+            /** Format: date-time */
+            scheduledFor?: string;
+        };
+        InterviewerOptionDto: {
+            /** Format: uuid */
+            userId: string;
+            /** Format: email */
+            email: string;
+            displayName?: string;
+        };
+        InterviewAssignmentOptionsDto: {
+            sessions: components["schemas"]["InterviewAssignmentSessionOptionDto"][];
+            interviewers: components["schemas"]["InterviewerOptionDto"][];
         };
         AssignInterviewerDto: {
             sessionId: string;
@@ -2728,6 +3187,62 @@ export interface components {
             /** Format: uuid */
             criterionId?: string;
         };
+        CandidateAssessmentSessionDto: {
+            /** Format: uuid */
+            session_id: string;
+            status: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            submitted_at?: string | null;
+            /** Format: date-time */
+            expires_at?: string | null;
+            candidate_notice_version?: string | null;
+            review_state?: string | null;
+            /** Format: uuid */
+            assessment_id: string;
+            assessment_type: string;
+            title: string;
+            instructions: string;
+            time_limit_minutes?: number | null;
+            version: number;
+            job_title: string;
+            /** Format: uuid */
+            submission_id?: string | null;
+            /** Format: uuid */
+            result_id?: string | null;
+            result_status?: string | null;
+            normalized_score?: number | null;
+        };
+        CandidateAssessmentListDto: {
+            /** Format: uuid */
+            candidateId: string;
+            /** Format: uuid */
+            applicationId: string;
+            sessions: components["schemas"]["CandidateAssessmentSessionDto"][];
+            integrityNotice: string;
+        };
+        CandidateAssessmentStartDto: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            expires_at?: string | null;
+            candidate_notice_version?: string | null;
+        };
+        CandidateAssessmentSubmissionDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            assessment_session_id: string;
+            language: string;
+            /** Format: date-time */
+            submitted_at: string;
+            executionBoundary: string;
+            coreApiExecutedCode: boolean;
+        };
         FunnelStageDto: {
             stage: string;
             count: number;
@@ -2789,11 +3304,37 @@ export interface components {
             decision: "approve" | "reject";
             reviewNotes: string;
         };
+        OrganizationSettingsResponseDto: {
+            organization_id: string;
+            default_locale: string;
+            timezone: string;
+            hiring_policy: Record<string, never>;
+            notification_preferences: Record<string, never>;
+            updated_by_user_id?: Record<string, never> | null;
+            /** Format: date-time */
+            updated_at?: Record<string, never> | null;
+        };
         UpdateOrganizationSettingsDto: {
             defaultLocale?: string;
             timezone?: string;
             hiringPolicy?: Record<string, never>;
             notificationPreferences?: Record<string, never>;
+        };
+        IntegrationConnectionResponseDto: {
+            id: string;
+            provider_key: string;
+            connection_type: string;
+            /** @enum {string} */
+            status: "configured" | "verified" | "degraded" | "disabled";
+            credential_reference?: Record<string, never> | null;
+            config: Record<string, never>;
+            /** Format: date-time */
+            last_verified_at?: Record<string, never> | null;
+            last_error?: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         CreateIntegrationDto: {
             providerKey: string;
@@ -2807,6 +3348,43 @@ export interface components {
             status?: "configured" | "verified" | "degraded" | "disabled";
             credentialReference?: string;
             config?: Record<string, never>;
+        };
+        AutomationRuleResponseDto: {
+            id: string;
+            name: string;
+            description?: Record<string, never> | null;
+            trigger_type: string;
+            trigger_config?: Record<string, never>;
+            action_type: string;
+            action_config?: Record<string, never>;
+            approval_required: boolean;
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AutomationRunResponseDto: {
+            id: string;
+            rule_id: string;
+            trigger_reference?: Record<string, never> | null;
+            idempotency_key: string;
+            state: string;
+            input?: Record<string, never>;
+            output?: Record<string, never> | null;
+            error_message?: Record<string, never> | null;
+            /** Format: date-time */
+            approved_at?: Record<string, never> | null;
+            /** Format: date-time */
+            started_at?: Record<string, never> | null;
+            /** Format: date-time */
+            completed_at?: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AutomationWorkspaceResponseDto: {
+            rules: components["schemas"]["AutomationRuleResponseDto"][];
+            runs: components["schemas"]["AutomationRunResponseDto"][];
         };
         CreateAutomationRuleDto: {
             name: string;
@@ -2825,6 +3403,92 @@ export interface components {
             idempotencyKey: string;
             triggerReference?: string;
             input?: Record<string, never>;
+        };
+        AutomationRunCreatedResponseDto: {
+            id: string;
+            rule_id: string;
+            trigger_reference?: Record<string, never> | null;
+            idempotency_key: string;
+            state: string;
+            input?: Record<string, never>;
+            output?: Record<string, never> | null;
+            error_message?: Record<string, never> | null;
+            /** Format: date-time */
+            approved_at?: Record<string, never> | null;
+            /** Format: date-time */
+            started_at?: Record<string, never> | null;
+            /** Format: date-time */
+            completed_at?: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+            executionBoundary: string;
+        };
+        AutomationApprovalResponseDto: {
+            id: string;
+            rule_id: string;
+            state: string;
+            approved_by_user_id: string;
+            /** Format: date-time */
+            approved_at: string;
+        };
+        ProductSearchResultDto: {
+            /** @enum {string} */
+            type: "job" | "candidate" | "interview";
+            id: string;
+            title: string;
+            subtitle?: string;
+            href: string;
+        };
+        ProductAuditEventDto: {
+            id: string;
+            actor_type: string;
+            actor_user_id?: Record<string, never> | null;
+            action: string;
+            entity_type: string;
+            entity_id?: Record<string, never> | null;
+            metadata?: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LegalHoldDto: {
+            id: string;
+            candidateId?: string;
+            entityType?: string;
+            entityId?: string;
+            reason: string;
+            status: string;
+            placedAt: string;
+            releasedAt?: string;
+        };
+        LegalHoldInputDto: {
+            /** Format: uuid */
+            candidateId?: string;
+            entityType?: string;
+            /** Format: uuid */
+            entityId?: string;
+            reason: string;
+        };
+        SessionCleanupRequestDto: {
+            /** @default true */
+            dryRun: boolean;
+            idempotencyKey?: string;
+            /** @default 7 */
+            graceDays: number;
+        };
+        MaintenanceJobDto: {
+            id: string;
+            jobType: string;
+            state: string;
+            dryRun: boolean;
+            result: Record<string, never>;
+            errorMessage?: string;
+            startedAt: string;
+            completedAt?: string;
+        };
+        MaintenanceExecutionDto: {
+            /** @default true */
+            dryRun: boolean;
+            idempotencyKey?: string;
         };
     };
     responses: never;
@@ -2895,6 +3559,41 @@ export interface operations {
                         timestamp: string;
                     };
                 };
+            };
+        };
+    };
+    HealthController_readiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "ready";
+                        /** @enum {string} */
+                        database: "ready";
+                        migrationCount: number;
+                        latestMigration?: string | null;
+                        /** Format: date-time */
+                        timestamp: string;
+                    };
+                };
+            };
+            /** @description Database is unavailable or migration ledger cannot be read. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3236,6 +3935,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    AuditController_exportEvents: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                action?: string;
+                entityType?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditExportDto"];
                 };
             };
         };
@@ -4618,8 +5342,8 @@ export interface operations {
     };
     SourcingController_listTalent: {
         parameters: {
-            query: {
-                limit: string;
+            query?: {
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -4978,8 +5702,8 @@ export interface operations {
     };
     TalentOperationsController_listDuplicateReviews: {
         parameters: {
-            query: {
-                state: string;
+            query?: {
+                state?: string;
             };
             header?: never;
             path?: never;
@@ -5514,7 +6238,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EngagementWorkspaceDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -5695,7 +6453,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["InterviewMediaReadinessDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -5810,6 +6602,27 @@ export interface operations {
             };
         };
     };
+    InterviewMediaController_listParticipants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+                mediaSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider-neutral participant lifecycle state without credentials or raw media. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     InterviewMediaController_appendEvent: {
         parameters: {
             query?: never;
@@ -5826,12 +6639,338 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Append an operational media event without raw media or transcript content. */
+            /** @description Idempotently append an operational media event without raw media, transcript text or credentials. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    InterviewOrchestrationController_generatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateInterviewPlanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_publishPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_evaluatorInput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewEvaluatorInputDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_createCalibrationCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEvaluatorCalibrationCaseDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_recordCalibrationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordEvaluatorCalibrationRunDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorCalibrationRunDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_calibrationSummary: {
+        parameters: {
+            query: {
+                evaluatorVersion: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorCalibrationSummaryDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -5848,7 +6987,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["InterviewAssignmentOptionsDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -6180,7 +7353,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateAssessmentListDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -6195,11 +7402,45 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateAssessmentStartDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -6218,11 +7459,45 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CandidateAssessmentSubmissionDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
@@ -6403,7 +7678,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OrganizationSettingsResponseDto"];
+                };
             };
         };
     };
@@ -6424,7 +7701,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OrganizationSettingsResponseDto"];
+                };
             };
         };
     };
@@ -6441,7 +7720,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IntegrationConnectionResponseDto"][];
+                };
             };
         };
     };
@@ -6462,7 +7743,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IntegrationConnectionResponseDto"];
+                };
             };
         };
     };
@@ -6485,7 +7768,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IntegrationConnectionResponseDto"];
+                };
             };
         };
     };
@@ -6502,7 +7787,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AutomationWorkspaceResponseDto"];
+                };
             };
         };
     };
@@ -6523,7 +7810,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleResponseDto"];
+                };
             };
         };
     };
@@ -6546,7 +7835,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AutomationRuleResponseDto"];
+                };
             };
         };
     };
@@ -6569,7 +7860,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AutomationRunCreatedResponseDto"];
+                };
             };
         };
     };
@@ -6588,11 +7881,57 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AutomationApprovalResponseDto"];
+                };
             };
         };
     };
     ProductOperationsController_search: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSearchResultDto"][];
+                };
+            };
+        };
+    };
+    ProductOperationsController_listAuditEvents: {
+        parameters: {
+            query?: {
+                action?: string;
+                entityType?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductAuditEventDto"][];
+                };
+            };
+        };
+    };
+    MaintenanceController_listLegalHolds: {
         parameters: {
             query?: never;
             header?: never;
@@ -6605,19 +7944,106 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LegalHoldDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
-    ProductOperationsController_listAuditEvents: {
+    MaintenanceController_createLegalHold: {
         parameters: {
-            query: {
-                action: string;
-                entityType: string;
-                limit: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalHoldInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalHoldDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    MaintenanceController_releaseLegalHold: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                holdId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -6626,7 +8052,208 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LegalHoldDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    MaintenanceController_sessionCleanup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionCleanupRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceJobDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    MaintenanceController_retention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceExecutionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceJobDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    MaintenanceController_executePrivacyDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaintenanceExecutionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaintenanceJobDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
