@@ -4,6 +4,7 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 const apiURL = process.env.E2E_API_URL ?? "http://127.0.0.1:4000";
 const databaseURL =
   process.env.DATABASE_URL ?? "postgresql://interview:interview@127.0.0.1:5432/interview";
+const fakeMediaArgs = ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"];
 
 export default defineConfig({
   testDir: "./e2e",
@@ -36,9 +37,16 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         permissions: ["camera", "microphone"],
-        launchOptions: {
-          args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
-        },
+        launchOptions: { args: fakeMediaArgs },
+      },
+    },
+    {
+      name: "chromium-mobile-candidate",
+      testMatch: /candidate-critical\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
+        permissions: ["camera", "microphone"],
+        launchOptions: { args: fakeMediaArgs },
       },
     },
   ],
