@@ -17,6 +17,7 @@ export interface IssuedCandidateSession {
 
 export interface ResolvedCandidateSession {
   sessionId: string;
+  expiresAt: Date;
   organizationId: string;
   candidateId: string;
   candidateIdentityId: string;
@@ -104,11 +105,26 @@ export class CandidateSessionService {
     };
   }
 
+  /**
+   * Compatibility entry point for callers that have already consumed the invitation
+   * within their own transaction. New flows should prefer create() and pass
+   * consumeInvitationIds so invitation consumption and session creation are atomic.
+   */
+  issue(input: {
+    organizationId: string;
+    candidateId: string;
+    candidateIdentityId: string;
+    applicationId: string;
+  }): Promise<IssuedCandidateSession> {
+    return this.create(input);
+  }
+
   async resolve(rawToken: string | undefined): Promise<ResolvedCandidateSession | undefined> {
     if (!rawToken) return undefined;
     const rows = await this.database.sql`
       SELECT
         s.id::text AS session_id,
+        s.expires_at,
         s.organization_id::text,
         s.candidate_identity_id::text,
         csc.candidate_id::text,
@@ -134,6 +150,7 @@ export class CandidateSessionService {
     if (!row) return undefined;
     return {
       sessionId: String(row.session_id),
+      expiresAt: new Date(String(row.expires_at)),
       organizationId: String(row.organization_id),
       candidateIdentityId: String(row.candidate_identity_id),
       candidateId: String(row.candidate_id),
