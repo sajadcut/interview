@@ -112,7 +112,7 @@ jobs:
       - name: Seed deterministic browser fixtures
         run: npm run e2e:seed
 
-      - name: Install Chromium for Playwright
+      - name: Install Playwright browser engines
         run: npm run e2e:install
 
       - name: Browser E2E critical flows
