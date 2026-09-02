@@ -9,6 +9,9 @@ export const SEEDED_CANDIDATE_ID = "22222222-2222-4222-8222-222222222222";
 export const SEEDED_APPLICATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 export const SEEDED_SECONDARY_APPLICATION_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
+const CANDIDATE_NOTICE_VERSION = "candidate-access-v1";
+const REQUIRED_CANDIDATE_CONSENTS = ["privacy_disclosure", "ai_interview", "recording"] as const;
+
 export interface CandidateInvitationSecrets {
   developmentToken: string;
   developmentOtp: string;
@@ -85,4 +88,25 @@ export async function createCandidateInvitation(
   expect(body.developmentToken).toBeTruthy();
   expect(body.developmentOtp).toMatch(/^\d{6}$/);
   return body as CandidateInvitationSecrets;
+}
+
+export async function setCandidateConsents(page: Page, granted: boolean): Promise<void> {
+  for (const consentType of REQUIRED_CANDIDATE_CONSENTS) {
+    const response = await page.context().request.post(`${BASE_URL}/api/backend/v1/candidate-consent`, {
+      headers: {
+        origin: BASE_URL,
+        "content-type": "application/json",
+      },
+      data: {
+        consentType,
+        noticeVersion: CANDIDATE_NOTICE_VERSION,
+        granted,
+      },
+    });
+    const rawBody = await response.text();
+    expect(
+      response.ok(),
+      `candidate consent reset returned ${response.status()} for ${consentType}: ${rawBody.slice(0, 1000)}`,
+    ).toBeTruthy();
+  }
 }
