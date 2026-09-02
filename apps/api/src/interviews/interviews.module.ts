@@ -1,4 +1,7 @@
 import { Module } from "@nestjs/common";
+import { EvaluatorCalibrationAnalyticsService } from "./evaluator-calibration-analytics.service";
+import { EvaluatorCalibrationController } from "./evaluator-calibration.controller";
+import { EvaluatorCalibrationService } from "./evaluator-calibration.service";
 import { InterviewBrainService } from "./interview-brain.service";
 import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { InterviewMediaController } from "./interview-media.controller";
@@ -11,11 +14,18 @@ import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
 
 @Module({
-  controllers: [InterviewsController, InterviewMediaController, InterviewOrchestrationController],
+  controllers: [
+    InterviewsController,
+    InterviewMediaController,
+    InterviewOrchestrationController,
+    EvaluatorCalibrationController,
+  ],
   providers: [
     InterviewsService,
     InterviewBrainService,
     InterviewEvaluatorService,
+    EvaluatorCalibrationService,
+    EvaluatorCalibrationAnalyticsService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -25,6 +35,8 @@ import { InterviewsService } from "./interviews.service";
     InterviewsService,
     InterviewBrainService,
     InterviewEvaluatorService,
+    EvaluatorCalibrationService,
+    EvaluatorCalibrationAnalyticsService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
