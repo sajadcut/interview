@@ -1,4 +1,5 @@
 import { expect, test as base, type Response } from "@playwright/test";
+import { candidateIdentityForProject, type CandidateE2EIdentity } from "./support";
 
 const genericClientErrorConsole = /^Failed to load resource: the server responded with a status of 4\d\d\b/;
 
@@ -17,7 +18,14 @@ function isExpectedBackendClientFailure(response: Response): boolean {
   );
 }
 
-export const test = base.extend({
+type E2EFixtures = {
+  candidateIdentity: CandidateE2EIdentity;
+};
+
+export const test = base.extend<E2EFixtures>({
+  candidateIdentity: async ({}, use, testInfo) => {
+    await use(candidateIdentityForProject(testInfo.project.name));
+  },
   page: async ({ page }, use, testInfo) => {
     const diagnostics: string[] = [];
 
