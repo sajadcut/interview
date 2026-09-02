@@ -10,6 +10,7 @@ export const Permissions = {
   CandidateContact: "candidate.contact",
   CandidateMoveStage: "candidate.move_stage",
   CandidateScore: "candidate.score",
+  CandidateResumeManage: "candidate.resume_manage",
   SourcingRun: "sourcing.run",
   TalentManage: "talent.manage",
   ScreeningManage: "screening.manage",

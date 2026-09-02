@@ -21,6 +21,7 @@ import { ProductOperationsModule } from "./operations/product-operations.module"
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
 import { RecruitingModule } from "./recruiting/recruiting.module";
+import { ResumeIngestionModule } from "./resumes/resume-ingestion.module";
 import { SourcingModule } from "./sourcing/sourcing.module";
 import { StorageModule } from "./storage/storage.module";
 import { TenantModule } from "./tenant/tenant.module";
@@ -35,6 +36,7 @@ import { TenantModule } from "./tenant/tenant.module";
     StorageModule,
     AiModule,
     RecruitingModule,
+    ResumeIngestionModule,
     SourcingModule,
     EngagementModule,
     InterviewsModule,

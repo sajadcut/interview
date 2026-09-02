@@ -58,6 +58,16 @@ export class StorageService {
     return this.provider.createReadReference(metadata.storageKey);
   }
 
+  async deleteById(fileId: string): Promise<void> {
+    const organizationId = this.tenantContext.require().organizationId;
+    const metadata = await this.requireTenantFile(fileId);
+    await this.provider.delete(metadata.storageKey);
+    await this.database.sql`
+      DELETE FROM files
+      WHERE id = ${fileId}::uuid AND organization_id = ${organizationId}::uuid
+    `;
+  }
+
   private async requireTenantFile(fileId: string): Promise<{ storageKey: string }> {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
