@@ -389,15 +389,15 @@ Do not use `workspace:*` dependency protocol with npm 11.6.x. Internal workspace
 
 `pnpm-workspace.yaml` and `pnpm-lock.yaml` are not part of the active architecture.
 
-## 5.4 Required npm registry
+## 5.4 npm registry and dependency reproducibility
 
-All dependency resolution uses the Dotin Nexus registry:
+Dependency resolution uses the public npm registry:
 
 ```text
-https://nexus3.dotin.ir/repository/Dotin-NPM/
+https://registry.npmjs.org/
 ```
 
-The registry is configured in root `.npmrc`. Do not bypass it during normal development. Credentials/tokens must never be committed.
+The root `.npmrc` enforces HTTPS, strict engine checks and bounded retry/timeouts. `package-lock.json` is the canonical dependency graph and must be committed. CI uses the committed lockfile with `npm ci`; it must not delete or regenerate the lockfile during the quality gate. Dependency changes require an explicit lockfile update followed by the full quality gate.
 
 Installation analytics through Scarf are disabled at the root package level.
 
@@ -894,7 +894,7 @@ Git
 Node.js 25.9.x
 npm 11.6.x
 PostgreSQL
-Dotin Nexus access
+Internet access to registry.npmjs.org
 ```
 
 ## 22.2 Installed when milestone requires it
@@ -970,7 +970,7 @@ Self-hosted interview media path
 Laptop-first local-native development
 Node.js 25.9.x + npm 11.6.x
 npm workspaces + Turborepo
-Dotin Nexus required registry
+Public npm registry + deterministic committed package-lock.json
 package-lock.json canonical JavaScript lockfile
 NestJS runtime without Node-25-incompatible CLI/schematics
 VS Code preferred development IDE

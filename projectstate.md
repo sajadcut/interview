@@ -1,246 +1,150 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure implementation is staged on `main`. Primary recruiter surfaces now read persisted API/database state, internal Auth and Organization User Management use generated typed API contracts, migration recovery guidance and DB-backed organization lifecycle coverage are present, and CI now enforces migration contracts, the mandatory Dotin Nexus registry, OpenAPI/client regeneration, contract drift, lint, typecheck, tests and build. Final quality-gate validation is currently blocked externally because Dotin Nexus returns HTTP 500 for `livekit-client@2.21.0`; no public-registry bypass is permitted. Realtime runtime validation remains separately blocked by missing LiveKit Server, FFmpeg and whisper.cpp CLI on the workstation.
-> **Version:** 0.14.0
-> **Date:** 2026-09-01
+> **Status:** Core Product Closure is implementation-complete and validation-complete on `main`. The deterministic GitHub Actions quality gate installs the committed lockfile, applies the full PostgreSQL schema, regenerates and verifies OpenAPI/typed-client drift, runs lint/typecheck/tests, and produces the production Web/API build. Repository-level branch protection remains a GitHub administration setting and is tracked separately from code readiness.
+> **Version:** 0.20.0
+> **Date:** 2026-09-02
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
 ---
 
-# 1. Current verified state
+# 1. Core Product Closure — verified
+
+Evidence from GitHub Actions quality-gate run `33606779658` on commit `323fe4871867aca4c78287223d727fdf16ecedf3`:
 
 ```text
-Product architecture                       ✅ Defined in master.md
-Core technical architecture                ✅ Defined
-Interview architecture                     ✅ Defined
-Production-readiness gates                 ✅ Defined
-Node.js 25.9 / npm 11.x                    ✅ WORKSTATION/GITHUB RUNNER BASELINE
-Dotin Nexus registry requirement            ✅ ENFORCED / NO BYPASS
-Dotin Nexus livekit-client@2.21.0           🔴 HTTP 500 FROM Dotin-NPM
-Migration sequencing + tenant FK contracts  ✅ CI PREFLIGHT GREEN (27 migrations)
-Migration recovery procedure                ✅ docs/database-migration-runbook.md
-Auth + session persistence                  ✅ DB-BACKED IMPLEMENTATION + EXISTING INTEGRATION COVERAGE
-Refresh-token rotation                      ✅ DB-BACKED IMPLEMENTATION + EXISTING INTEGRATION COVERAGE
-Organization user lifecycle                 ✅ DB-BACKED IMPLEMENTATION + NEW INTEGRATION COVERAGE
-Organization role set incl. HR_MANAGER      ✅ BACKEND + UI ALIGNED
-Primary Command Center                      ✅ PERSISTED API DATA
-Jobs list                                   ✅ PERSISTED API DATA
-Candidates list                             ✅ PERSISTED API DATA
-Recruiting Analytics                        ✅ PERSISTED API DATA
-Job create/workspace                        ✅ TYPED API CLIENT
-Candidate Intelligence workspace            ✅ TYPED API CLIENT
-Login/password reset/invite acceptance      ✅ TYPED API CLIENT
-Organization Users settings                 ✅ TYPED API CLIENT
-OpenAPI + typed-client regeneration         ✅ CI STEP DEFINED
-Generated contract drift guard              ✅ CI FAILURE IF GENERATED FILES DIFFER
-Latest HEAD lint/typecheck/test/build        ⏳ BLOCKED BEFORE INSTALL BY NEXUS E500
-Production approval                         ⬜ NOT APPROVED
+Node.js                                       25.9.0
+npm                                           11.6.2 pinned by CI
+Registry                                      https://registry.npmjs.org/
+Migration contract validation                ✅
+Frontend direct-backend/demo fixture guard   ✅
+Committed lockfile npm ci                     ✅
+Production dependency high-severity audit    ✅ (0 high-severity findings)
+PostgreSQL migrations                         ✅ 34/34
+Operational DB index contracts               ✅ 21/21
+OpenAPI regeneration                          ✅
+Typed API client regeneration                 ✅
+Generated contract drift                      ✅ clean
+Lint                                          ✅
+Typecheck                                     ✅
+Tests                                         ✅ 92/92, 0 failed, 0 skipped
+Build                                         ✅ API + Next.js production build
 ```
 
-The current CI blocker is infrastructure outside the repository code path:
-
-```text
-npm view livekit-client@2.21.0 version
-registry = https://nexus3.dotin.ir/repository/Dotin-NPM/
-→ npm E500 Internal Server Error
-→ GET .../Dotin-NPM/livekit-client
-```
-
-The private registry remains mandatory. The fix is to make `livekit-client@2.21.0` resolvable through `Dotin-NPM` (proxy/cache repair or hosted package in a repository included by that group), not to point npm at the public registry.
+The quality gate is read-only with respect to source/generated artifacts. It no longer deletes/regenerates the dependency lockfile as part of installation and no longer commits generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered merge-ready.
 
 ---
 
-# 2. Core Product Closure delivered on main
+# 2. Core product surfaces
 
-## CI / dependency supply chain
-
-- `.npmrc` remains locked to Dotin Nexus.
-- `scripts/check-registry.mjs` validates the configured registry and probes the exact blocking package/version.
-- Registry validation is a separate fast GitHub Actions job.
-- The quality job runs only after the registry gate passes.
-- CI then runs migration validation, `npm ci`, migrations, `api:sync`, generated-contract drift check, lint, typecheck, tests and build.
-- Generated OpenAPI/client files are uploaded as a workflow artifact before drift validation so a legitimate contract update can be committed exactly rather than hand-authored.
-
-## Real product data in primary recruiter UI
-
-The main product entry surfaces no longer present fixture metrics as current organization data:
+Persisted organization-scoped API/database data backs the primary internal surfaces:
 
 ```text
 /app
 /app/jobs
+/app/jobs/[jobId]
 /app/candidates
+/app/candidates/[candidateId]
 /app/analytics
+/app/interviews
+/app/talent
+/app/inbox
+/app/automations
+/app/integrations
+/app/settings
+/app/settings/audit
+/app/settings/users
 ```
 
-They read persisted organization-scoped data through the API and expose loading/empty/error states.
+The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects the removed legacy demo fixtures. Product Operations (Automations, Integrations, Settings, Search and Audit) now use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
 
-Deep recruiting surfaces now use the generated client rather than hand-built endpoint strings:
+---
+
+# 3. Identity, authorization and tenant safety
+
+Implemented and covered:
 
 ```text
-job creation
-job recruiting workspace
-candidate intelligence workspace
-organization user management
-internal login/session resolution
-password reset request/complete
-organization invitation acceptance
+Argon2id credential hashing
+DB-backed sessions
+refresh-token rotation + reuse revocation
+logout/session invalidation
+single-use password reset + credential/session revocation
+candidate invitation state (valid / used / expired / locked)
+candidate identity/session flow
+organization invitation/user lifecycle
+RBAC + permission guard
+tenant access resolution
+PostgreSQL recruiting tenant-isolation test
+audit export tenant-isolation test
 ```
 
-Development fixture-backed deep visual demos may still exist elsewhere for product/reference work; they are not claimed here as persisted production data.
+Consequential hiring decisions remain human-controlled and score/evidence boundaries remain deterministic/auditable.
 
-## Auth / organization management contracts
+---
 
-OpenAPI response/request DTO coverage was added for internal Auth and organization-user flows, including:
+# 4. Database and migration operations
 
-```text
-login
-session
-refresh
-logout
-password reset request/complete
-organization user list
-pending invitations
-invite
-role change
-status change
-membership removal
-invitation acceptance
-```
-
-The UI role list is aligned with the backend canonical organization roles:
+Current schema contains 34 append-only migrations. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
 
 ```text
-ORGANIZATION_ADMIN
-HR_MANAGER
-RECRUITER
-INTERVIEWER
-HIRING_MANAGER
-```
-
-## Integration coverage
-
-Existing PostgreSQL integration coverage already exercises persisted sessions and refresh-token rotation. Core Closure adds a PostgreSQL-backed organization lifecycle test covering:
-
-```text
-invitation persistence
-raw-token hashing boundary
-invitation acceptance
-credential creation
-membership listing
-role change
-disable
-self-disable protection
-self-remove protection
-membership removal without deleting the global user
-audit-event persistence
-```
-
-## Database operations
-
-`docs/database-migration-runbook.md` defines:
-
-```text
-append-only forward migrations
-checksum/advisory-lock invariants
+expand/contract schema changes
 pre-deploy backup evidence
-migration application + idempotent second run
-application-only rollback for compatible schemas
-corrective forward migration
-full database restore for destructive/unrecoverable incidents
-required release evidence
+application rollback while schema remains compatible
+forward corrective migration for schema defects
+verified database restore for destructive/unrecoverable incidents
 ```
 
-Automatic destructive down-migrations are intentionally not used.
+Automatic destructive down-migrations are intentionally not the production rollback strategy.
 
 ---
 
-# 3. Validation still required after Nexus repair
+# 5. API contract boundary
 
-As soon as Dotin Nexus can serve `livekit-client@2.21.0`, the existing GitHub Actions workflow must be allowed to reach the remaining gates on the same HEAD:
+Controller DTOs are the OpenAPI source of truth. `npm run api:sync` regenerates:
 
 ```text
-registry probe
-→ npm ci
-→ db:migrate
-→ api:sync
-→ generated contract artifact
-→ committed-contract drift check
-→ lint
-→ typecheck
-→ PostgreSQL integration/unit tests
-→ build
+openapi/openapi.json
+packages/api-client/src/generated/schema.ts
 ```
 
-Because the committed `openapi/openapi.json` and generated client predate the new Auth/organization contract annotations, the first post-Nexus run may intentionally fail the drift check after producing the exact generated artifact. In that case the generated OpenAPI/client artifact must be committed, then the workflow rerun. No handwritten substitute should be used.
-
-Core Product Closure is **implementation-complete but not validation-complete** until that final workflow is green.
+CI regenerates both and requires zero diff against committed artifacts. `package-lock.json` is independently canonical and consumed by `npm ci`.
 
 ---
 
-# 4. M1–M6 product baseline
+# 6. Current milestone state beyond Core Closure
 
-## M1 — Job → Candidate → Evidence
+```text
+M1 Job → Candidate → Evidence        materially implemented
+M2 Sourcing + Talent                provider-neutral architecture + internal source implemented; external providers plug-in
+M3 Outreach/Screening/Scheduling    persisted workflow/policy implemented; real email/calendar providers plug-in
+M4 Interview Brain/contracts        materially implemented; realtime runtime validation remains pending
+M5 Assessments                      domain/runner contract implemented; isolated execution worker pending
+M6 Analytics/Enterprise hardening   materially advanced
+```
 
-Tenant-safe jobs, requirements, rubrics, candidates, applications, evidence and scorecards exist. Candidate remains organization-global; Application remains job-specific. Missing evidence remains incomplete rather than fabricated.
-
-## M2 — Sourcing + Talent
-
-Internal-talent-first adapter architecture, sourcing runs, discovered candidates and merge review are persisted. Real semantic/pgvector retrieval and production external adapters remain incomplete.
-
-## M3 — Outreach + Screening + Scheduling
-
-Approved-knowledge grounding, persisted communications, deterministic hard-minimum screening with human review and provider-neutral scheduling lifecycle exist. Real outbound/calendar provider execution remains incomplete.
-
-## M4 — AI Interview
-
-Persisted release units/plans/sessions/turns/transcript/evidence, controlled candidate intents, deterministic Brain, release gating, consent/device UX, media readiness/persistence, short-lived LiveKit credential issuance, browser transport harness and local media-worker boundaries exist. Real-candidate autonomous interview remains blocked and is not production-approved.
-
-## M5 — Assessments
-
-Assessment persistence and isolated-runner boundary exist. Real isolated execution worker remains pending.
-
-## M6 — Analytics + Enterprise hardening
-
-Analytics/privacy/retention/event foundations, tenant isolation, RBAC and audit are materially advanced. External integrations, observability and broader production hardening remain incomplete.
+Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, and VAD/STT/TTS provider boundaries.
 
 ---
 
-# 5. Realtime blockers are separate from Core Closure
+# 7. Production-readiness boundary
 
-Current workstation runtime blockers remain:
+Core Product Closure being green does **not** approve autonomous real-candidate interviewing. LiveKit/FFmpeg/whisper.cpp runtime validation, speech/realtime benchmarks, evaluator calibration, shadow testing, supervised pilot evidence and production approval remain governed by `production-readiness.md`.
 
-```text
-LiveKit Server executable                   ⏳ MISSING
-FFmpeg executable                           ⏳ MISSING
-whisper.cpp / whisper-cli executable        ⏳ MISSING
-```
-
-These executables are not needed to validate Core Product Closure. They are required later for realtime media transport/speech runtime validation.
-
-The npm package `livekit-client@2.21.0` is different: it is a JavaScript build dependency already declared by the Web workspace and must be supplied by the mandatory Dotin Nexus registry before the normal quality gate can install dependencies.
+External provider implementations (ATS/job board/email/calendar), the isolated assessment execution worker, and realtime media/speech runtime are separate milestones rather than hidden Core Closure debt.
 
 ---
 
-# 6. Immediate external action
+# 8. Repository governance
 
-From the repository root, verify the Nexus package path with:
-
-```powershell
-npm view livekit-client@2.21.0 version --registry=https://nexus3.dotin.ir/repository/Dotin-NPM/ --fetch-retries=0
-```
-
-Healthy result:
+The code-level quality gate is complete and green. `main` branch protection is currently not enabled in repository settings. Required production repository governance is:
 
 ```text
-2.21.0
+protect main
+require the GitHub Actions `quality` status check
+require branch to be up to date before merge
+block force pushes
+block branch deletion
 ```
 
-Current GitHub Actions result:
-
-```text
-E500 Internal Server Error
-GET https://nexus3.dotin.ir/repository/Dotin-NPM/livekit-client
-```
-
-After Nexus returns `2.21.0`, rerun the latest failed GitHub Actions workflow and continue only from evidence produced by that exact HEAD.
+This setting requires GitHub repository-administration permission and is not writable through the currently connected GitHub integration.

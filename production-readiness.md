@@ -992,17 +992,18 @@ The production goal is to safely remove large amounts of repetitive recruiter/in
 
 # 32. Current readiness
 
-As of 2026-08-31:
+As of 2026-09-02:
 
 ```text
 Architecture                    ✅ Defined
 Self-hosted interview design    ✅ Defined
 Production gates                ✅ Defined
-Implementation                  ⬜ Not started
+Core implementation             ✅ Advanced / Core Product Closure validated
+Realtime runtime validation     ⏳ Pending
 Calibration                     ⬜ Not started
 Shadow testing                  ⬜ Not started
 Pilot                           ⬜ Not started
 Production approval             ⬜ Not approved
 ```
 
-The next legitimate step is implementation and measurement, not declaring the product production-ready.
+The codebase has moved beyond foundation implementation, but autonomous real-candidate interviewing is not production-approved. The next legitimate steps are realtime/runtime measurement, calibration, shadow validation and supervised pilot evidence—not declaring controlled production from implementation status alone.
