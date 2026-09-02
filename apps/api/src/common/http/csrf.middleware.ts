@@ -18,7 +18,7 @@ export type CsrfDecision =
 export function evaluateCsrfProtection(input: {
   method: string;
   cookieAuthenticated: boolean;
-  origin: string | undefined;
+  origin?: string;
   configuredOrigins: CorsOriginConfig;
 }): CsrfDecision {
   if (SAFE_METHODS.has(input.method.toUpperCase()) || !input.cookieAuthenticated) {
@@ -52,10 +52,11 @@ export function csrfProtectionMiddleware(
     hasCookie(request, SESSION_POLICY.COOKIE_NAME) ||
     hasCookie(request, SESSION_POLICY.REFRESH_COOKIE_NAME) ||
     hasCookie(request, CANDIDATE_SESSION_COOKIE);
+  const origin = request.header("origin")?.trim();
   const decision = evaluateCsrfProtection({
     method: request.method,
     cookieAuthenticated,
-    origin: request.header("origin")?.trim(),
+    ...(origin ? { origin } : {}),
     configuredOrigins: buildCorsOrigin(getEnv().CORS_ORIGIN),
   });
 
