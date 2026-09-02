@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -53,7 +53,7 @@ export class ProductOperationsController {
   @Post("integrations")
   @RequirePermissions(Permissions.IntegrationManage)
   @AuditedAction("integration.configure", "integration")
-  @ApiOkResponse({ type: IntegrationConnectionResponseDto })
+  @ApiCreatedResponse({ type: IntegrationConnectionResponseDto })
   createIntegration(@Body() body: CreateIntegrationDto) {
     return this.operations.createIntegration(body);
   }
@@ -79,7 +79,7 @@ export class ProductOperationsController {
   @Post("automations")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.create", "automation_rule")
-  @ApiOkResponse({ type: AutomationRuleResponseDto })
+  @ApiCreatedResponse({ type: AutomationRuleResponseDto })
   createAutomation(@Body() body: CreateAutomationRuleDto) {
     return this.operations.createAutomation(body);
   }
@@ -95,7 +95,7 @@ export class ProductOperationsController {
   @Post("automations/:ruleId/runs")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.run.create", "automation_rule")
-  @ApiOkResponse({ type: AutomationRunCreatedResponseDto })
+  @ApiCreatedResponse({ type: AutomationRunCreatedResponseDto })
   createAutomationRun(@Param("ruleId") ruleId: string, @Body() body: CreateAutomationRunDto) {
     return this.operations.createAutomationRun(ruleId, body);
   }
@@ -103,7 +103,7 @@ export class ProductOperationsController {
   @Post("automation-runs/:runId/approve")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.run.approve", "automation_run")
-  @ApiOkResponse({ type: AutomationApprovalResponseDto })
+  @ApiCreatedResponse({ type: AutomationApprovalResponseDto })
   approveAutomationRun(@Param("runId") runId: string) {
     return this.operations.approveAutomationRun(runId);
   }
