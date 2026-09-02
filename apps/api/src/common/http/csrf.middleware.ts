@@ -18,7 +18,7 @@ export type CsrfDecision =
 export function evaluateCsrfProtection(input: {
   method: string;
   cookieAuthenticated: boolean;
-  origin?: string;
+  origin: string | undefined;
   configuredOrigins: CorsOriginConfig;
 }): CsrfDecision {
   if (SAFE_METHODS.has(input.method.toUpperCase()) || !input.cookieAuthenticated) {
