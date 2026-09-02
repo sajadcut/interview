@@ -14,6 +14,10 @@ async function verifyCandidateInvitation(page: Parameters<typeof signInRecruiter
   await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
 }
 
+function candidateAlert(page: Parameters<typeof signInRecruiter>[0], text: RegExp | string) {
+  return page.getByRole("alert").filter({ hasText: text });
+}
+
 test.describe("critical candidate flows", () => {
   test("candidate setup is protected without a candidate session", async ({ page }) => {
     await page.goto("/candidate/setup");
@@ -23,7 +27,7 @@ test.describe("critical candidate flows", () => {
 
   test("invalid invitation fails closed in the browser", async ({ page }) => {
     await page.goto(`/candidate/invitation?token=${"x".repeat(43)}`);
-    await expect(page.getByRole("alert")).toContainText(/invalid|expired|already used/i);
+    await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
     await expect(page.getByRole("button", { name: "Verify and continue" })).toHaveCount(0);
   });
 
@@ -57,12 +61,12 @@ test.describe("critical candidate flows", () => {
     await expect(page.getByRole("status")).toContainText("Network is ready.");
 
     await context.setOffline(true);
-    await expect(page.getByRole("alert")).toContainText("Network connection is offline");
+    await expect(candidateAlert(page, "Network connection is offline")).toBeVisible();
     await context.setOffline(false);
     await expect(page.getByRole("status")).toContainText("Network connection restored");
 
     await context.clearCookies();
     await page.goto(`${BASE_URL}/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
-    await expect(page.getByRole("alert")).toContainText(/invalid|expired|already used/i);
+    await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
   });
 });
