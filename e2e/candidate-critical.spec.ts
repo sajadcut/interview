@@ -11,6 +11,14 @@ async function verifyCandidateInvitation(
   await expect(page.getByRole("heading", { name: "Verify candidate access" })).toBeVisible();
   await expect(page.getByText(identity.displayName, { exact: true })).toBeVisible();
   await expect(page.getByText(identity.jobTitle, { exact: false })).toBeVisible();
+
+  // A mistyped code must fail closed without consuming the invitation, allowing a valid retry.
+  const wrongOtp = otp === "000000" ? "111111" : "000000";
+  await page.getByLabel("One-time verification code").fill(wrongOtp);
+  await page.getByRole("button", { name: "Verify and continue" }).click();
+  await expect(page.getByRole("alert")).toContainText("Candidate OTP is invalid");
+  await expect(page).toHaveURL(/\/candidate\/invitation\?token=/);
+
   await page.getByLabel("One-time verification code").fill(otp);
   await Promise.all([
     page.waitForURL(/\/candidate\/setup$/),
@@ -57,12 +65,8 @@ test.describe("critical candidate flows", () => {
     const continueButton = page.getByRole("button", { name: "Continue to interview" });
     await expect(continueButton).toBeDisabled();
 
-    await page.getByLabel(/Privacy disclosure/).check();
-    await page.getByLabel(/AI-assisted interview/).check();
-    await page.getByLabel(/Audio\/video recording/).check();
-    await expect(continueButton).toBeDisabled();
-
-    // Exercise the candidate-facing device failure path once, then recover with Chromium's real fake media devices.
+    // Exercise the device failure path once, then recover. Even with working devices,
+    // candidate consent must remain an independent gate.
     await page.evaluate(() => {
       const mediaDevices = navigator.mediaDevices;
       const original = mediaDevices.getUserMedia.bind(mediaDevices);
@@ -82,6 +86,14 @@ test.describe("critical candidate flows", () => {
 
     await page.getByRole("button", { name: "Check camera and microphone" }).click();
     await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+    await expect(continueButton).toBeDisabled();
+
+    // Each required consent is independently necessary; readiness appears only after all three.
+    await page.getByLabel(/Privacy disclosure/).check();
+    await expect(continueButton).toBeDisabled();
+    await page.getByLabel(/AI-assisted interview/).check();
+    await expect(continueButton).toBeDisabled();
+    await page.getByLabel(/Audio\/video recording/).check();
     await expect(continueButton).toBeEnabled();
 
     await Promise.all([
