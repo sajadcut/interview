@@ -31,7 +31,7 @@ test.describe("critical candidate flows", () => {
     await expect(page.getByRole("button", { name: "Verify and continue" })).toHaveCount(0);
   });
 
-  test("candidate verifies invitation, persists consent, checks devices and reaches interview gate", async ({ page, context }) => {
+  test("candidate verifies invitation, persists consent, recovers devices and reaches interview gate", async ({ page, context }) => {
     await signInRecruiter(page);
     const invitation = await createCandidateInvitation(page);
 
@@ -39,21 +39,49 @@ test.describe("critical candidate flows", () => {
     await page.evaluate(() => window.localStorage.clear());
     await verifyCandidateInvitation(page, invitation.developmentToken, invitation.developmentOtp);
 
+    // The candidate session is cookie-backed and must survive a full browser reload.
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+    await expect(page.getByText(/Ali Rahimi/)).toBeVisible();
+
+    // Interview access fails closed until persisted consent exists.
     await page.goto("/candidate/interview");
     await page.waitForURL(/\/candidate\/setup$/);
     await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
 
+    const continueButton = page.getByRole("button", { name: "Continue to interview" });
+    await expect(continueButton).toBeDisabled();
+
     await page.getByLabel(/Privacy disclosure/).check();
     await page.getByLabel(/AI-assisted interview/).check();
     await page.getByLabel(/Audio\/video recording/).check();
+    await expect(continueButton).toBeDisabled();
+
+    // Exercise the candidate-facing device failure path once, then recover with Chromium's real fake media devices.
+    await page.evaluate(() => {
+      const mediaDevices = navigator.mediaDevices;
+      const original = mediaDevices.getUserMedia.bind(mediaDevices);
+      let rejectOnce = true;
+      mediaDevices.getUserMedia = async (constraints: MediaStreamConstraints) => {
+        if (rejectOnce) {
+          rejectOnce = false;
+          throw new DOMException("E2E simulated device denial", "NotAllowedError");
+        }
+        return original(constraints);
+      };
+    });
+
+    await page.getByRole("button", { name: "Check camera and microphone" }).click();
+    await expect(candidateAlert(page, "E2E simulated device denial")).toBeVisible();
+    await expect(continueButton).toBeDisabled();
 
     await page.getByRole("button", { name: "Check camera and microphone" }).click();
     await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue to interview" })).toBeEnabled();
+    await expect(continueButton).toBeEnabled();
 
     await Promise.all([
       page.waitForURL(/\/candidate\/interview$/),
-      page.getByRole("button", { name: "Continue to interview" }).click(),
+      continueButton.click(),
     ]);
 
     await expect(page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" })).toBeVisible();
@@ -65,6 +93,12 @@ test.describe("critical candidate flows", () => {
     await context.setOffline(false);
     await expect(page.getByRole("status")).toContainText("Network connection restored");
 
+    // Both the candidate session and consent ledger must survive reload; device readiness is intentionally per-page.
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" })).toBeVisible();
+    await expect(page.getByText(/Hello Ali Rahimi/)).toBeVisible();
+
+    // Invitation secrets are single-use even after the authenticated session is discarded.
     await context.clearCookies();
     await page.goto(`${BASE_URL}/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
     await expect(candidateAlert(page, /invalid|expired|already used/i)).toBeVisible();
