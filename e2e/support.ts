@@ -4,6 +4,7 @@ export const BASE_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
 export const E2E_USER_EMAIL = process.env.E2E_USER_EMAIL ?? "browser.e2e@local.interview";
 export const E2E_USER_PASSWORD = process.env.E2E_USER_PASSWORD ?? "BrowserE2e!2026#Secure";
 
+export const SEEDED_JOB_ID = "11111111-1111-4111-8111-111111111111";
 export const SEEDED_CANDIDATE_ID = "22222222-2222-4222-8222-222222222222";
 export const SEEDED_APPLICATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
