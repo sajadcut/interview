@@ -35,6 +35,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-critical",
+      testIgnore: /browser-compat\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         permissions: ["camera", "microphone"],
@@ -48,6 +49,13 @@ export default defineConfig({
         ...devices["Pixel 7"],
         permissions: ["camera", "microphone"],
         launchOptions: { args: fakeMediaArgs },
+      },
+    },
+    {
+      name: "firefox-compat",
+      testMatch: /browser-compat\.spec\.ts/,
+      use: {
+        ...devices["Desktop Firefox"],
       },
     },
   ],
