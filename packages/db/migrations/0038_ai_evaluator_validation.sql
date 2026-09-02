@@ -1,6 +1,7 @@
 ALTER TABLE interview_evaluations
   ADD COLUMN IF NOT EXISTS idempotency_key varchar(200),
   ADD COLUMN IF NOT EXISTS input_fingerprint varchar(64),
+  ADD COLUMN IF NOT EXISTS draft_fingerprint varchar(64),
   ADD COLUMN IF NOT EXISTS provider varchar(80),
   ADD COLUMN IF NOT EXISTS model varchar(160),
   ADD COLUMN IF NOT EXISTS prompt_version varchar(120),
