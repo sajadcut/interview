@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -33,6 +33,7 @@ export class TalentOperationsController {
 
   @Get("talent/dedupe/reviews")
   @RequirePermissions(Permissions.CandidateRead)
+  @ApiQuery({ name: "state", required: false, type: String })
   listDuplicateReviews(@Query("state") state?: string) {
     return this.talent.listDuplicateReviews(state?.trim() || "pending");
   }
