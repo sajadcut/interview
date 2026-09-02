@@ -3,10 +3,12 @@ import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
+import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   InterviewMediaEventInputDto,
   InterviewMediaModeDto,
+  InterviewMediaReadinessDto,
   InterviewMediaReadinessQueryDto,
 } from "./interview-media.dto";
 import { InterviewMediaEventService } from "./interview-media-event.service";
@@ -25,7 +27,8 @@ export class InterviewMediaController {
 
   @Get("media/readiness")
   @RequirePermissions(Permissions.InterviewManage)
-  @ApiOkResponse({ description: "Provider-neutral realtime media readiness. No credentials are returned." })
+  @ApiOkResponse({ type: InterviewMediaReadinessDto, description: "Provider-neutral realtime media readiness. No credentials are returned." })
+  @ApiStandardErrorResponses()
   getReadiness(@Query() query: InterviewMediaReadinessQueryDto) {
     return this.media.getReadiness(query.mode ?? "audio");
   }
