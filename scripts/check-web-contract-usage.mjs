@@ -25,7 +25,7 @@ async function visit(directory) {
     const rules = [
       {
         name: "direct /api/backend fetch",
-        pattern: /\bfetch\s*\(\s*["'`]\/api\/backend\//,
+        pattern: /\bfetch\s*\(\s*["'`]\/api\/backend/,
         message: "Use apps/web/lib/api.ts typed client instead of direct backend fetch.",
       },
       {
