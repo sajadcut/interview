@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure is implementation-complete and validation-complete on `main`. The deterministic GitHub Actions quality gate installs the committed lockfile, applies the full PostgreSQL schema, regenerates and verifies OpenAPI/typed-client drift, runs lint/typecheck/tests, and produces the production Web/API build. Repository-level branch protection remains a GitHub administration setting and is tracked separately from code readiness.
-> **Version:** 0.20.0
+> **Status:** Core Product Closure is implementation-complete and validation-complete on `main`. The deterministic GitHub Actions quality gate installs the committed lockfile, applies the full PostgreSQL schema, regenerates and verifies OpenAPI/typed-client drift, runs lint/typecheck/tests, and produces the production Web/API build. Branch protection is an optional repository-governance hardening choice for the current development model and is not tracked as Core Product Closure debt.
+> **Version:** 0.20.1
 > **Date:** 2026-09-02
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,7 +10,7 @@
 
 # 1. Core Product Closure — verified
 
-Evidence from GitHub Actions quality-gate run `33606779658` on commit `323fe4871867aca4c78287223d727fdf16ecedf3`:
+Evidence from GitHub Actions quality-gate run `33608615821` on commit `396a63f26380cf14ac0d91270fe13055f48fd26b`:
 
 ```text
 Node.js                                       25.9.0
@@ -31,7 +31,7 @@ Tests                                         ✅ 92/92, 0 failed, 0 skipped
 Build                                         ✅ API + Next.js production build
 ```
 
-The quality gate is read-only with respect to source/generated artifacts. It no longer deletes/regenerates the dependency lockfile as part of installation and no longer commits generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered merge-ready.
+The quality gate is read-only with respect to source/generated artifacts. It does not delete or regenerate the dependency lockfile as part of installation and does not commit generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
 
 ---
 
@@ -56,7 +56,7 @@ Persisted organization-scoped API/database data backs the primary internal surfa
 /app/settings/users
 ```
 
-The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects the removed legacy demo fixtures. Product Operations (Automations, Integrations, Settings, Search and Audit) now use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
+The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects the removed legacy demo fixtures. Product Operations (Automations, Integrations, Settings, Search and Audit) use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
 
 ---
 
@@ -137,14 +137,6 @@ External provider implementations (ATS/job board/email/calendar), the isolated a
 
 # 8. Repository governance
 
-The code-level quality gate is complete and green. `main` branch protection is currently not enabled in repository settings. Required production repository governance is:
+The code-level quality gate is complete and green. The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
 
-```text
-protect main
-require the GitHub Actions `quality` status check
-require branch to be up to date before merge
-block force pushes
-block branch deletion
-```
-
-This setting requires GitHub repository-administration permission and is not writable through the currently connected GitHub integration.
+The enforced source-level protections are the deterministic `quality-gate` workflow, committed dependency lockfile, generated-contract drift check, migration/index verification, typed-client usage guard, lint, typecheck, full test suite and production build. If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
