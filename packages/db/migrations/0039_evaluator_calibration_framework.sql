@@ -90,7 +90,7 @@ BEGIN
     ALTER TABLE evaluator_calibration_cases
       ADD CONSTRAINT evaluator_calibration_cases_reference_review_fk
       FOREIGN KEY (organization_id, reference_review_id)
-      REFERENCES evaluator_calibration_human_reviews(organization_id, id) ON DELETE SET NULL;
+      REFERENCES evaluator_calibration_human_reviews(organization_id, id) ON DELETE RESTRICT;
   END IF;
 END $$;
 
@@ -141,7 +141,7 @@ BEGIN
     ALTER TABLE evaluator_calibration_runs
       ADD CONSTRAINT evaluator_calibration_runs_ai_evaluation_fk
       FOREIGN KEY (organization_id, ai_evaluation_id)
-      REFERENCES interview_evaluations(organization_id, id) ON DELETE SET NULL;
+      REFERENCES interview_evaluations(organization_id, id) ON DELETE RESTRICT;
   END IF;
 END $$;
 
