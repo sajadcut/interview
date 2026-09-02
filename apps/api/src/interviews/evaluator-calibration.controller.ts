@@ -4,6 +4,7 @@ import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
+import { EvaluatorCalibrationAnalyticsService } from "./evaluator-calibration-analytics.service";
 import { EvaluatorCalibrationService } from "./evaluator-calibration.service";
 
 @ApiExcludeController()
@@ -11,7 +12,10 @@ import { EvaluatorCalibrationService } from "./evaluator-calibration.service";
 @RequireTenant()
 @RequirePermissions(Permissions.InterviewEvaluate)
 export class EvaluatorCalibrationController {
-  constructor(private readonly calibration: EvaluatorCalibrationService) {}
+  constructor(
+    private readonly calibration: EvaluatorCalibrationService,
+    private readonly analytics: EvaluatorCalibrationAnalyticsService,
+  ) {}
 
   @Post("datasets")
   @AuditedAction("evaluator.calibration.dataset.create", "evaluator_calibration_dataset")
@@ -73,6 +77,14 @@ export class EvaluatorCalibrationController {
     @Query("evaluatorVersion") evaluatorVersion = "",
   ) {
     return this.calibration.summary(datasetId, evaluatorVersion);
+  }
+
+  @Get("datasets/:datasetId/analytics")
+  analyze(
+    @Param("datasetId", new ParseUUIDPipe()) datasetId: string,
+    @Query("evaluatorVersion") evaluatorVersion = "",
+  ) {
+    return this.analytics.analyze(datasetId, evaluatorVersion);
   }
 
   @Get("datasets/:datasetId/gate")
