@@ -1,0 +1,166 @@
+name: resume-embedding-sync-once
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch resume embedding orchestration
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path("apps/api/src/resumes/resume-ingestion.service.ts")
+          text = path.read_text(encoding="utf-8")
+          replacements = [
+            ('  HttpException,\n  Injectable,', '  HttpException,\n  Inject,\n  Injectable,'),
+            ('import { ResumeChunker, type ResumeChunk } from "./resume-chunker";\n', 'import { ResumeChunker, type ResumeChunk } from "./resume-chunker";\nimport { RESUME_EMBEDDING_PROVIDER, type ResumeEmbeddingBatch, type ResumeEmbeddingProvider } from "./resume-embedding-provider";\n'),
+            ('  chunk_count: string | number;\n  evidence_count: string | number;', '  chunk_count: string | number;\n  embedded_chunk_count: string | number;\n  evidence_count: string | number;'),
+            ('    private readonly chunker: ResumeChunker,\n  ) {}', '    private readonly chunker: ResumeChunker,\n    @Inject(RESUME_EMBEDDING_PROVIDER) private readonly embeddings: ResumeEmbeddingProvider,\n  ) {}'),
+            ('      if (chunks.length === 0) throw new UnprocessableEntityException("Resume produced no searchable chunks");\n\n      await this.persistProcessedResume({', '      if (chunks.length === 0) throw new UnprocessableEntityException("Resume produced no searchable chunks");\n      const embeddingBatch = await this.embedChunks(chunks);\n\n      await this.persistProcessedResume({'),
+            ('        profile,\n        chunks,\n      });', '        profile,\n        chunks,\n        embeddingBatch,\n      });'),
+            ('    profile: ParsedResumeProfile;\n    chunks: ResumeChunk[];\n  }): Promise<void> {', '    profile: ParsedResumeProfile;\n    chunks: ResumeChunk[];\n    embeddingBatch: ResumeEmbeddingBatch | null;\n  }): Promise<void> {'),
+            ('        (SELECT count(*) FROM resume_chunks c WHERE c.organization_id = r.organization_id AND c.resume_id = r.id) AS chunk_count,\n        (SELECT count(*) FROM evidence e', '        (SELECT count(*) FROM resume_chunks c WHERE c.organization_id = r.organization_id AND c.resume_id = r.id) AS chunk_count,\n        (SELECT count(*) FROM resume_chunk_embeddings ce WHERE ce.organization_id = r.organization_id AND ce.resume_id = r.id) AS embedded_chunk_count,\n        (SELECT count(*) FROM evidence e'),
+            ('    chunkCount: Number(row.chunk_count),\n    evidenceCount: Number(row.evidence_count),', '    chunkCount: Number(row.chunk_count),\n    embeddedChunkCount: Number(row.embedded_chunk_count),\n    evidenceCount: Number(row.evidence_count),'),
+          ]
+          for old, new in replacements:
+            if old not in text:
+              raise SystemExit("expected resume service fragment not found: " + old[:80])
+            text = text.replace(old, new, 1)
+
+          old_loop = """      const persistedChunks: Array<ResumeChunk & { id: string }> = [];
+      for (const chunk of input.chunks) {
+        const rows = await tx`
+          INSERT INTO resume_chunks (
+            organization_id, resume_id, chunk_index, text_content, content_hash,
+            start_char, end_char, embedding_state
+          ) VALUES (
+            ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
+            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar}, 'not_enabled'
+          )
+          RETURNING id
+        `;
+        persistedChunks.push({ ...chunk, id: (rows[0] as { id: string }).id });
+      }
+"""
+          new_loop = """      const persistedChunks: Array<ResumeChunk & { id: string }> = [];
+      for (const chunk of input.chunks) {
+        const embeddingVector = input.embeddingBatch?.vectors[chunk.index] ?? null;
+        const embeddingMetadata = embeddingVector && input.embeddingBatch
+          ? {
+              provider: input.embeddingBatch.provider,
+              model: input.embeddingBatch.model,
+              dimensions: input.embeddingBatch.dimensions,
+            }
+          : {};
+        const rows = await tx`
+          INSERT INTO resume_chunks (
+            organization_id, resume_id, chunk_index, text_content, content_hash,
+            start_char, end_char, embedding_state, embedding_metadata
+          ) VALUES (
+            ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
+            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar},
+            ${embeddingVector ? "completed" : "not_enabled"}, ${JSON.stringify(embeddingMetadata)}::jsonb
+          )
+          RETURNING id
+        `;
+        const chunkId = (rows[0] as { id: string }).id;
+        persistedChunks.push({ ...chunk, id: chunkId });
+        if (embeddingVector && input.embeddingBatch) {
+          const serializedVector = JSON.stringify(embeddingVector);
+          const vectorSha256 = createHash("sha256").update(serializedVector).digest("hex");
+          await tx`
+            INSERT INTO resume_chunk_embeddings (
+              organization_id, resume_id, chunk_id, provider, model, dimensions, embedding, vector_sha256
+            ) VALUES (
+              ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunkId}::uuid,
+              ${input.embeddingBatch.provider}, ${input.embeddingBatch.model}, ${input.embeddingBatch.dimensions},
+              ${serializedVector}::jsonb, ${vectorSha256}
+            )
+          `;
+        }
+      }
+"""
+          if old_loop not in text:
+            raise SystemExit("resume chunk persistence loop not found")
+          text = text.replace(old_loop, new_loop, 1)
+
+          anchor = '  private async markFailed(organizationId: string, resumeId: string, error: unknown): Promise<void> {'
+          helper = """  private async embedChunks(chunks: ResumeChunk[]): Promise<ResumeEmbeddingBatch | null> {
+    if (!this.embeddings.configured) return null;
+    const vectors: number[][] = [];
+    let provider: string | null = null;
+    let model: string | null = null;
+    let dimensions: number | null = null;
+
+    for (let offset = 0; offset < chunks.length; offset += 32) {
+      const batch = chunks.slice(offset, offset + 32);
+      const result = await this.embeddings.embed(batch.map((chunk) => chunk.text));
+      if (result.vectors.length !== batch.length || result.dimensions <= 0) {
+        throw new UnprocessableEntityException("Embedding provider returned invalid chunk coverage");
+      }
+      if (result.vectors.some((vector) => vector.length !== result.dimensions || vector.some((value) => !Number.isFinite(value)))) {
+        throw new UnprocessableEntityException("Embedding provider returned invalid vector dimensions");
+      }
+      if (provider === null) {
+        provider = result.provider;
+        model = result.model;
+        dimensions = result.dimensions;
+      } else if (provider !== result.provider || model !== result.model || dimensions !== result.dimensions) {
+        throw new UnprocessableEntityException("Embedding provider changed model or dimensions within one resume");
+      }
+      vectors.push(...result.vectors);
+    }
+
+    if (!provider || !model || !dimensions || vectors.length !== chunks.length) {
+      throw new UnprocessableEntityException("Embedding provider did not cover every resume chunk");
+    }
+    return { provider, model, dimensions, vectors };
+  }
+
+"""
+          if anchor not in text:
+            raise SystemExit("markFailed anchor not found")
+          text = text.replace(anchor, helper + anchor, 1)
+          path.write_text(text, encoding="utf-8")
+
+          test_path = Path("apps/api/src/resumes/resume-ingestion.postgres.integration.spec.ts")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_replacements = [
+            ('import { ResumeIngestionService } from "./resume-ingestion.service";\n', 'import type { ResumeEmbeddingProvider } from "./resume-embedding-provider";\nimport { ResumeIngestionService } from "./resume-ingestion.service";\n'),
+            ('    const service = new ResumeIngestionService(\n      database,\n      tenant,\n      storage,\n      new ResumeTextExtractor(),\n      new ResumeParser(),\n      new ResumeChunker(),\n    );', '    const embeddings: ResumeEmbeddingProvider = {\n      configured: true,\n      embed: async (texts) => ({\n        provider: "integration-test",\n        model: "resume-test-embedding-v1",\n        dimensions: 3,\n        vectors: texts.map((_, index) => [index + 0.1, index + 0.2, index + 0.3]),\n      }),\n    };\n    const service = new ResumeIngestionService(\n      database,\n      tenant,\n      storage,\n      new ResumeTextExtractor(),\n      new ResumeParser(),\n      new ResumeChunker(),\n      embeddings,\n    );'),
+            ('      assert.ok(first.chunkCount > 0);\n      assert.ok(first.evidenceCount >= 3);', '      assert.ok(first.chunkCount > 0);\n      assert.equal(first.embeddedChunkCount, first.chunkCount);\n      assert.ok(first.evidenceCount >= 3);'),
+            ('      assert.equal(resumeRows[0]?.count, 1);\n\n      await assert.rejects(', '      assert.equal(resumeRows[0]?.count, 1);\n\n      const embeddingRows = await database.sql`\n        SELECT count(*)::int AS count, min(dimensions)::int AS dimensions\n        FROM resume_chunk_embeddings\n        WHERE organization_id = ${orgA}::uuid AND resume_id = ${first.id}::uuid\n      `;\n      assert.equal(embeddingRows[0]?.count, first.chunkCount);\n      assert.equal(embeddingRows[0]?.dimensions, 3);\n\n      await assert.rejects('),
+          ]
+          for old, new in test_replacements:
+            if old not in test_text:
+              raise SystemExit("expected resume integration fragment not found: " + old[:80])
+            test_text = test_text.replace(old, new, 1)
+          test_path.write_text(test_text, encoding="utf-8")
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          registry-url: https://registry.npmjs.org
+      - name: Pin npm
+        run: npm install --global npm@11.6.2 --ignore-scripts
+      - name: Install exact lock
+        run: npm ci
+      - name: Regenerate OpenAPI and typed client
+        env:
+          DATABASE_URL: postgres://unused:unused@127.0.0.1:5432/unused
+        run: npm run api:sync
+      - name: Commit embedding orchestration and generated contracts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/resumes/resume-ingestion.service.ts apps/api/src/resumes/resume-ingestion.postgres.integration.spec.ts openapi/openapi.json packages/api-client/src/generated/schema.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: persist resume chunk embeddings"
+          git push
