@@ -6,8 +6,10 @@ on:
   pull_request:
 
 concurrency:
-  group: quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # GitHub can enqueue push events out of commit order. Scope concurrency to the
+  # exact commit so a late/stale event can never cancel validation for a newer HEAD.
+  group: quality-${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
