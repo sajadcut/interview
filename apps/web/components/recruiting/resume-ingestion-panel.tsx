@@ -15,7 +15,6 @@ const ACCEPTED_RESUME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
 ]);
-const RESUME_MANAGER_ROLES = new Set(["PLATFORM_ADMIN", "ORGANIZATION_ADMIN", "RECRUITER", "org_admin"]);
 
 function formatBytes(value: number): string {
   if (value < 1024) return `${value} B`;
@@ -48,7 +47,7 @@ export function ResumeIngestionPanel({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string>();
-  const canManageResume = access.roles.some((role) => RESUME_MANAGER_ROLES.has(role));
+  const canManageResume = access.can("candidate.resume_manage");
 
   useEffect(() => {
     if (providedIdentity) {
