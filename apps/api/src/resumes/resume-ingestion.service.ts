@@ -250,7 +250,7 @@ export class ResumeIngestionService {
             organization_id, candidate_id, identity_type, normalized_value, is_verified, temporary, metadata
           ) VALUES (
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, 'email', ${input.profile.email},
-            false, false, ${{ source: "resume", resumeId: input.resumeId }}::jsonb
+            false, false, ${JSON.stringify({ source: "resume", resumeId: input.resumeId })}::jsonb
           )
           ON CONFLICT (organization_id, identity_type, normalized_value) DO NOTHING
         `;
@@ -282,7 +282,7 @@ export class ResumeIngestionService {
           ) VALUES (
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, ${input.applicationId}::uuid,
             'resume_claim', 'resume', ${sourceReference}, ${chunk?.text.slice(0, 1200) ?? skill.label},
-            ${{ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb
+            ${JSON.stringify({ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb
           )
           ON CONFLICT DO NOTHING
         `;
@@ -311,7 +311,7 @@ export class ResumeIngestionService {
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, ${input.applicationId}::uuid,
             'resume_claim', 'resume', ${sourceReference},
             ${chunk?.text.slice(0, 1200) ?? `${experience.title} — ${experience.company}`},
-            ${{ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion }}::jsonb
+            ${JSON.stringify({ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb
           )
           ON CONFLICT DO NOTHING
         `;
@@ -321,7 +321,7 @@ export class ResumeIngestionService {
         UPDATE resumes SET
           status = 'completed',
           parser_version = ${input.profile.parserVersion},
-          structured_profile = ${input.profile}::jsonb,
+          structured_profile = ${JSON.stringify(input.profile)}::jsonb,
           failure_code = NULL,
           failure_message = NULL,
           processed_at = now(),

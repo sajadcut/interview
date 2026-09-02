@@ -660,6 +660,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/{candidateId}/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ResumeIngestionController_list"];
+        put?: never;
+        post: operations["ResumeIngestionController_ingest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidates/{candidateId}/resumes/{resumeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ResumeIngestionController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidates/{candidateId}/resumes/{resumeId}/read-reference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ResumeIngestionController_readReference"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/talent": {
         parameters: {
             query?: never;
@@ -2489,6 +2537,56 @@ export interface components {
             algorithmRecommendation?: string;
             algorithmOverallScore?: number;
             createdAt: string;
+        };
+        ResumeSkillDto: {
+            key: string;
+            label: string;
+            confidence: number;
+        };
+        ResumeExperienceDto: {
+            company: string;
+            title: string;
+            startedOn?: string | null;
+            endedOn?: string | null;
+            description?: string | null;
+            confidence: number;
+        };
+        ResumeStructuredProfileDto: {
+            email?: string | null;
+            phone?: string | null;
+            location?: string | null;
+            /** @enum {string|null} */
+            preferredLanguage?: "fa" | "en" | null;
+            currentRole?: string | null;
+            currentCompany?: string | null;
+            skills: components["schemas"]["ResumeSkillDto"][];
+            experiences: components["schemas"]["ResumeExperienceDto"][];
+            parserVersion: string;
+        };
+        ResumeDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            candidateId: string;
+            /** Format: uuid */
+            applicationId?: string | null;
+            /** @enum {string} */
+            status: "uploaded" | "extracting" | "parsing" | "completed" | "failed";
+            originalFilename: string;
+            contentType: string;
+            byteSize: number;
+            sha256: string;
+            failureCode?: string | null;
+            failureMessage?: string | null;
+            pageCount?: number | null;
+            chunkCount: number;
+            evidenceCount: number;
+            structuredProfile: components["schemas"]["ResumeStructuredProfileDto"];
+            processedAt?: string | null;
+            createdAt: string;
+        };
+        ResumeReadReferenceDto: {
+            url: string;
         };
         TalentCandidateDto: {
             candidateId: string;
@@ -5370,6 +5468,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScorecardReviewDto"];
+                };
+            };
+        };
+    };
+    ResumeIngestionController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    ResumeIngestionController_ingest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** Format: uuid */
+                    applicationId?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    ResumeIngestionController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+                resumeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    ResumeIngestionController_readReference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+                resumeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeReadReferenceDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
                 };
             };
         };
