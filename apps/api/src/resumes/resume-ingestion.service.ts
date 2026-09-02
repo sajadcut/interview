@@ -241,7 +241,7 @@ export class ResumeIngestionService {
           ) VALUES (
             ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
             ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar},
-            ${embeddingVector ? "completed" : "not_enabled"}, ${JSON.stringify(embeddingMetadata)}::jsonb
+            ${embeddingVector ? "completed" : "not_enabled"}, ${tx.json(embeddingMetadata)}
           )
           RETURNING id
         `;
@@ -256,7 +256,7 @@ export class ResumeIngestionService {
             ) VALUES (
               ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunkId}::uuid,
               ${input.embeddingBatch.provider}, ${input.embeddingBatch.model}, ${input.embeddingBatch.dimensions},
-              ${serializedVector}::jsonb, ${vectorSha256}
+              ${tx.json(embeddingVector)}, ${vectorSha256}
             )
           `;
         }
@@ -280,7 +280,7 @@ export class ResumeIngestionService {
             organization_id, candidate_id, identity_type, normalized_value, is_verified, temporary, metadata
           ) VALUES (
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, 'email', ${input.profile.email},
-            false, false, ${JSON.stringify({ source: "resume", resumeId: input.resumeId })}::jsonb
+            false, false, ${tx.json({ source: "resume", resumeId: input.resumeId })}
           )
           ON CONFLICT (organization_id, identity_type, normalized_value) DO NOTHING
         `;
@@ -312,7 +312,7 @@ export class ResumeIngestionService {
           ) VALUES (
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, ${input.applicationId}::uuid,
             'resume_claim', 'resume', ${sourceReference}, ${chunk?.text.slice(0, 1200) ?? skill.label},
-            ${JSON.stringify({ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb
+            ${tx.json({ claimType: "skill", skillKey: skill.key, confidence: skill.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}
           )
           ON CONFLICT DO NOTHING
         `;
@@ -341,7 +341,7 @@ export class ResumeIngestionService {
             ${input.organizationId}::uuid, ${input.candidateId}::uuid, ${input.applicationId}::uuid,
             'resume_claim', 'resume', ${sourceReference},
             ${chunk?.text.slice(0, 1200) ?? `${experience.title} — ${experience.company}`},
-            ${JSON.stringify({ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}::jsonb
+            ${tx.json({ claimType: "experience", fingerprint: experience.fingerprint, confidence: experience.confidence, resumeId: input.resumeId, chunkId: chunk?.id ?? null, parserVersion: input.profile.parserVersion })}
           )
           ON CONFLICT DO NOTHING
         `;
@@ -351,7 +351,7 @@ export class ResumeIngestionService {
         UPDATE resumes SET
           status = 'completed',
           parser_version = ${input.profile.parserVersion},
-          structured_profile = ${JSON.stringify(input.profile)}::jsonb,
+          structured_profile = ${tx.json(input.profile)},
           failure_code = NULL,
           failure_message = NULL,
           processed_at = now(),

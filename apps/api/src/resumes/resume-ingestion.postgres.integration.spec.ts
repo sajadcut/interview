@@ -121,12 +121,14 @@ test(
       assert.equal(resumeRows[0]?.count, 1);
 
       const embeddingRows = await database.sql`
-        SELECT count(*)::int AS count, min(dimensions)::int AS dimensions
+        SELECT count(*)::int AS count, min(dimensions)::int AS dimensions,
+               bool_and(jsonb_typeof(embedding) = 'array') AS all_arrays
         FROM resume_chunk_embeddings
         WHERE organization_id = ${orgA}::uuid AND resume_id = ${first.id}::uuid
       `;
       assert.equal(embeddingRows[0]?.count, first.chunkCount);
       assert.equal(embeddingRows[0]?.dimensions, 3);
+      assert.equal(embeddingRows[0]?.all_arrays, true);
 
       await assert.rejects(
         () => tenant.run(orgB, () => service.getResume(candidateB, first.id)),
