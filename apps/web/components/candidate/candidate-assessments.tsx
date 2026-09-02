@@ -1,20 +1,10 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 
-interface AssessmentSession {
-  session_id: string;
-  status: string;
-  title: string;
-  instructions: string;
-  assessment_type: string;
-  time_limit_minutes?: number;
-  job_title: string;
-  result_status?: string;
-  normalized_score?: number;
-  review_state?: string;
-}
+type AssessmentSession = components["schemas"]["CandidateAssessmentSessionDto"];
 
 function messageFrom(value: unknown, fallback: string): string {
   if (value && typeof value === "object" && "message" in value) {
@@ -39,9 +29,10 @@ export function CandidateAssessments() {
       window.location.href = "/candidate/login";
       return;
     }
-    if (result.error) throw new Error(messageFrom(result.error, "Assessments could not be loaded"));
-    const payload = result.data as { sessions?: AssessmentSession[] } | undefined;
-    setSessions(payload?.sessions ?? []);
+    if (result.error || !result.data) {
+      throw new Error(messageFrom(result.error, "Assessments could not be loaded"));
+    }
+    setSessions(result.data.sessions);
   }
 
   useEffect(() => {
