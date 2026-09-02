@@ -28,7 +28,7 @@
     "e2e:typecheck": "tsc --noEmit -p tsconfig.e2e.json",
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
-    "e2e:install": "playwright install --with-deps chromium firefox",
+    "e2e:install": "playwright install --with-deps chromium firefox webkit",
     "e2e:seed": "node scripts/bootstrap-development.mjs",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
