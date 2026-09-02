@@ -1,13 +1,21 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
+  AutomationApprovalResponseDto,
+  AutomationRuleResponseDto,
+  AutomationRunCreatedResponseDto,
+  AutomationWorkspaceResponseDto,
   CreateAutomationRuleDto,
   CreateAutomationRunDto,
   CreateIntegrationDto,
+  IntegrationConnectionResponseDto,
+  OrganizationSettingsResponseDto,
+  ProductAuditEventDto,
+  ProductSearchResultDto,
   UpdateAutomationRuleDto,
   UpdateIntegrationDto,
   UpdateOrganizationSettingsDto,
@@ -22,6 +30,7 @@ export class ProductOperationsController {
 
   @Get("settings")
   @RequirePermissions(Permissions.OrganizationRead)
+  @ApiOkResponse({ type: OrganizationSettingsResponseDto })
   getSettings() {
     return this.operations.getSettings();
   }
@@ -29,12 +38,14 @@ export class ProductOperationsController {
   @Patch("settings")
   @RequirePermissions(Permissions.SettingsManage)
   @AuditedAction("settings.update", "organization")
+  @ApiOkResponse({ type: OrganizationSettingsResponseDto })
   updateSettings(@Body() body: UpdateOrganizationSettingsDto) {
     return this.operations.updateSettings(body);
   }
 
   @Get("integrations")
   @RequirePermissions(Permissions.IntegrationManage)
+  @ApiOkResponse({ type: [IntegrationConnectionResponseDto] })
   listIntegrations() {
     return this.operations.listIntegrations();
   }
@@ -42,6 +53,7 @@ export class ProductOperationsController {
   @Post("integrations")
   @RequirePermissions(Permissions.IntegrationManage)
   @AuditedAction("integration.configure", "integration")
+  @ApiOkResponse({ type: IntegrationConnectionResponseDto })
   createIntegration(@Body() body: CreateIntegrationDto) {
     return this.operations.createIntegration(body);
   }
@@ -49,6 +61,7 @@ export class ProductOperationsController {
   @Patch("integrations/:integrationId")
   @RequirePermissions(Permissions.IntegrationManage)
   @AuditedAction("integration.update", "integration")
+  @ApiOkResponse({ type: IntegrationConnectionResponseDto })
   updateIntegration(
     @Param("integrationId") integrationId: string,
     @Body() body: UpdateIntegrationDto,
@@ -58,6 +71,7 @@ export class ProductOperationsController {
 
   @Get("automations")
   @RequirePermissions(Permissions.AutomationManage)
+  @ApiOkResponse({ type: AutomationWorkspaceResponseDto })
   listAutomations() {
     return this.operations.listAutomations();
   }
@@ -65,6 +79,7 @@ export class ProductOperationsController {
   @Post("automations")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.create", "automation_rule")
+  @ApiOkResponse({ type: AutomationRuleResponseDto })
   createAutomation(@Body() body: CreateAutomationRuleDto) {
     return this.operations.createAutomation(body);
   }
@@ -72,6 +87,7 @@ export class ProductOperationsController {
   @Patch("automations/:ruleId")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.update", "automation_rule")
+  @ApiOkResponse({ type: AutomationRuleResponseDto })
   updateAutomation(@Param("ruleId") ruleId: string, @Body() body: UpdateAutomationRuleDto) {
     return this.operations.updateAutomation(ruleId, body);
   }
@@ -79,6 +95,7 @@ export class ProductOperationsController {
   @Post("automations/:ruleId/runs")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.run.create", "automation_rule")
+  @ApiOkResponse({ type: AutomationRunCreatedResponseDto })
   createAutomationRun(@Param("ruleId") ruleId: string, @Body() body: CreateAutomationRunDto) {
     return this.operations.createAutomationRun(ruleId, body);
   }
@@ -86,17 +103,24 @@ export class ProductOperationsController {
   @Post("automation-runs/:runId/approve")
   @RequirePermissions(Permissions.AutomationManage)
   @AuditedAction("automation.run.approve", "automation_run")
+  @ApiOkResponse({ type: AutomationApprovalResponseDto })
   approveAutomationRun(@Param("runId") runId: string) {
     return this.operations.approveAutomationRun(runId);
   }
 
   @Get("search")
+  @ApiQuery({ name: "q", required: false, type: String })
+  @ApiOkResponse({ type: [ProductSearchResultDto] })
   search(@Query("q") q = "") {
     return this.operations.search(q);
   }
 
   @Get("audit/events")
   @RequirePermissions(Permissions.AuditRead)
+  @ApiQuery({ name: "action", required: false, type: String })
+  @ApiQuery({ name: "entityType", required: false, type: String })
+  @ApiQuery({ name: "limit", required: false, type: Number })
+  @ApiOkResponse({ type: [ProductAuditEventDto] })
   listAuditEvents(
     @Query("action") action?: string,
     @Query("entityType") entityType?: string,
