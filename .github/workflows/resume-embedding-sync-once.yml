@@ -16,6 +16,7 @@ jobs:
       - name: Patch resume embedding orchestration
         shell: python
         run: |
+          import base64
           from pathlib import Path
           path = Path("apps/api/src/resumes/resume-ingestion.service.ts")
           text = path.read_text(encoding="utf-8")
@@ -34,98 +35,13 @@ jobs:
             if old not in text:
               raise SystemExit("expected resume service fragment not found: " + old[:80])
             text = text.replace(old, new, 1)
-
-          old_loop = """      const persistedChunks: Array<ResumeChunk & { id: string }> = [];
-      for (const chunk of input.chunks) {
-        const rows = await tx`
-          INSERT INTO resume_chunks (
-            organization_id, resume_id, chunk_index, text_content, content_hash,
-            start_char, end_char, embedding_state
-          ) VALUES (
-            ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
-            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar}, 'not_enabled'
-          )
-          RETURNING id
-        `;
-        persistedChunks.push({ ...chunk, id: (rows[0] as { id: string }).id });
-      }
-"""
-          new_loop = """      const persistedChunks: Array<ResumeChunk & { id: string }> = [];
-      for (const chunk of input.chunks) {
-        const embeddingVector = input.embeddingBatch?.vectors[chunk.index] ?? null;
-        const embeddingMetadata = embeddingVector && input.embeddingBatch
-          ? {
-              provider: input.embeddingBatch.provider,
-              model: input.embeddingBatch.model,
-              dimensions: input.embeddingBatch.dimensions,
-            }
-          : {};
-        const rows = await tx`
-          INSERT INTO resume_chunks (
-            organization_id, resume_id, chunk_index, text_content, content_hash,
-            start_char, end_char, embedding_state, embedding_metadata
-          ) VALUES (
-            ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunk.index}, ${chunk.text},
-            ${chunk.contentHash}, ${chunk.startChar}, ${chunk.endChar},
-            ${embeddingVector ? "completed" : "not_enabled"}, ${JSON.stringify(embeddingMetadata)}::jsonb
-          )
-          RETURNING id
-        `;
-        const chunkId = (rows[0] as { id: string }).id;
-        persistedChunks.push({ ...chunk, id: chunkId });
-        if (embeddingVector && input.embeddingBatch) {
-          const serializedVector = JSON.stringify(embeddingVector);
-          const vectorSha256 = createHash("sha256").update(serializedVector).digest("hex");
-          await tx`
-            INSERT INTO resume_chunk_embeddings (
-              organization_id, resume_id, chunk_id, provider, model, dimensions, embedding, vector_sha256
-            ) VALUES (
-              ${input.organizationId}::uuid, ${input.resumeId}::uuid, ${chunkId}::uuid,
-              ${input.embeddingBatch.provider}, ${input.embeddingBatch.model}, ${input.embeddingBatch.dimensions},
-              ${serializedVector}::jsonb, ${vectorSha256}
-            )
-          `;
-        }
-      }
-"""
+          old_loop = base64.b64decode("ICAgICAgY29uc3QgcGVyc2lzdGVkQ2h1bmtzOiBBcnJheTxSZXN1bWVDaHVuayAmIHsgaWQ6IHN0cmluZyB9PiA9IFtdOwogICAgICBmb3IgKGNvbnN0IGNodW5rIG9mIGlucHV0LmNodW5rcykgewogICAgICAgIGNvbnN0IHJvd3MgPSBhd2FpdCB0eGAKICAgICAgICAgIElOU0VSVCBJTlRPIHJlc3VtZV9jaHVua3MgKAogICAgICAgICAgICBvcmdhbml6YXRpb25faWQsIHJlc3VtZV9pZCwgY2h1bmtfaW5kZXgsIHRleHRfY29udGVudCwgY29udGVudF9oYXNoLAogICAgICAgICAgICBzdGFydF9jaGFyLCBlbmRfY2hhciwgZW1iZWRkaW5nX3N0YXRlCiAgICAgICAgICApIFZBTFVFUyAoCiAgICAgICAgICAgICR7aW5wdXQub3JnYW5pemF0aW9uSWR9Ojp1dWlkLCAke2lucHV0LnJlc3VtZUlkfTo6dXVpZCwgJHtjaHVuay5pbmRleH0sICR7Y2h1bmsudGV4dH0sCiAgICAgICAgICAgICR7Y2h1bmsuY29udGVudEhhc2h9LCAke2NodW5rLnN0YXJ0Q2hhcn0sICR7Y2h1bmsuZW5kQ2hhcn0sICdub3RfZW5hYmxlZCcKICAgICAgICAgICkKICAgICAgICAgIFJFVFVSTklORyBpZAogICAgICAgIGA7CiAgICAgICAgcGVyc2lzdGVkQ2h1bmtzLnB1c2goeyAuLi5jaHVuaywgaWQ6IChyb3dzWzBdIGFzIHsgaWQ6IHN0cmluZyB9KS5pZCB9KTsKICAgICAgfQo=").decode()
+          new_loop = base64.b64decode("ICAgICAgY29uc3QgcGVyc2lzdGVkQ2h1bmtzOiBBcnJheTxSZXN1bWVDaHVuayAmIHsgaWQ6IHN0cmluZyB9PiA9IFtdOwogICAgICBmb3IgKGNvbnN0IGNodW5rIG9mIGlucHV0LmNodW5rcykgewogICAgICAgIGNvbnN0IGVtYmVkZGluZ1ZlY3RvciA9IGlucHV0LmVtYmVkZGluZ0JhdGNoPy52ZWN0b3JzW2NodW5rLmluZGV4XSA/PyBudWxsOwogICAgICAgIGNvbnN0IGVtYmVkZGluZ01ldGFkYXRhID0gZW1iZWRkaW5nVmVjdG9yICYmIGlucHV0LmVtYmVkZGluZ0JhdGNoCiAgICAgICAgICA/IHsKICAgICAgICAgICAgICBwcm92aWRlcjogaW5wdXQuZW1iZWRkaW5nQmF0Y2gucHJvdmlkZXIsCiAgICAgICAgICAgICAgbW9kZWw6IGlucHV0LmVtYmVkZGluZ0JhdGNoLm1vZGVsLAogICAgICAgICAgICAgIGRpbWVuc2lvbnM6IGlucHV0LmVtYmVkZGluZ0JhdGNoLmRpbWVuc2lvbnMsCiAgICAgICAgICAgIH0KICAgICAgICAgIDoge307CiAgICAgICAgY29uc3Qgcm93cyA9IGF3YWl0IHR4YAogICAgICAgICAgSU5TRVJUIElOVE8gcmVzdW1lX2NodW5rcyAoCiAgICAgICAgICAgIG9yZ2FuaXphdGlvbl9pZCwgcmVzdW1lX2lkLCBjaHVua19pbmRleCwgdGV4dF9jb250ZW50LCBjb250ZW50X2hhc2gsCiAgICAgICAgICAgIHN0YXJ0X2NoYXIsIGVuZF9jaGFyLCBlbWJlZGRpbmdfc3RhdGUsIGVtYmVkZGluZ19tZXRhZGF0YQogICAgICAgICAgKSBWQUxVRVMgKAogICAgICAgICAgICAke2lucHV0Lm9yZ2FuaXphdGlvbklkfTo6dXVpZCwgJHtpbnB1dC5yZXN1bWVJZH06OnV1aWQsICR7Y2h1bmsuaW5kZXh9LCAke2NodW5rLnRleHR9LAogICAgICAgICAgICAke2NodW5rLmNvbnRlbnRIYXNofSwgJHtjaHVuay5zdGFydENoYXJ9LCAke2NodW5rLmVuZENoYXJ9LAogICAgICAgICAgICAke2VtYmVkZGluZ1ZlY3RvciA/ICJjb21wbGV0ZWQiIDogIm5vdF9lbmFibGVkIn0sICR7SlNPTi5zdHJpbmdpZnkoZW1iZWRkaW5nTWV0YWRhdGEpfTo6anNvbmIKICAgICAgICAgICkKICAgICAgICAgIFJFVFVSTklORyBpZAogICAgICAgIGA7CiAgICAgICAgY29uc3QgY2h1bmtJZCA9IChyb3dzWzBdIGFzIHsgaWQ6IHN0cmluZyB9KS5pZDsKICAgICAgICBwZXJzaXN0ZWRDaHVua3MucHVzaCh7IC4uLmNodW5rLCBpZDogY2h1bmtJZCB9KTsKICAgICAgICBpZiAoZW1iZWRkaW5nVmVjdG9yICYmIGlucHV0LmVtYmVkZGluZ0JhdGNoKSB7CiAgICAgICAgICBjb25zdCBzZXJpYWxpemVkVmVjdG9yID0gSlNPTi5zdHJpbmdpZnkoZW1iZWRkaW5nVmVjdG9yKTsKICAgICAgICAgIGNvbnN0IHZlY3RvclNoYTI1NiA9IGNyZWF0ZUhhc2goInNoYTI1NiIpLnVwZGF0ZShzZXJpYWxpemVkVmVjdG9yKS5kaWdlc3QoImhleCIpOwogICAgICAgICAgYXdhaXQgdHhgCiAgICAgICAgICAgIElOU0VSVCBJTlRPIHJlc3VtZV9jaHVua19lbWJlZGRpbmdzICgKICAgICAgICAgICAgICBvcmdhbml6YXRpb25faWQsIHJlc3VtZV9pZCwgY2h1bmtfaWQsIHByb3ZpZGVyLCBtb2RlbCwgZGltZW5zaW9ucywgZW1iZWRkaW5nLCB2ZWN0b3Jfc2hhMjU2CiAgICAgICAgICAgICkgVkFMVUVTICgKICAgICAgICAgICAgICAke2lucHV0Lm9yZ2FuaXphdGlvbklkfTo6dXVpZCwgJHtpbnB1dC5yZXN1bWVJZH06OnV1aWQsICR7Y2h1bmtJZH06OnV1aWQsCiAgICAgICAgICAgICAgJHtpbnB1dC5lbWJlZGRpbmdCYXRjaC5wcm92aWRlcn0sICR7aW5wdXQuZW1iZWRkaW5nQmF0Y2gubW9kZWx9LCAke2lucHV0LmVtYmVkZGluZ0JhdGNoLmRpbWVuc2lvbnN9LAogICAgICAgICAgICAgICR7c2VyaWFsaXplZFZlY3Rvcn06Ompzb25iLCAke3ZlY3RvclNoYTI1Nn0KICAgICAgICAgICAgKQogICAgICAgICAgYDsKICAgICAgICB9CiAgICAgIH0K").decode()
           if old_loop not in text:
             raise SystemExit("resume chunk persistence loop not found")
           text = text.replace(old_loop, new_loop, 1)
-
           anchor = '  private async markFailed(organizationId: string, resumeId: string, error: unknown): Promise<void> {'
-          helper = """  private async embedChunks(chunks: ResumeChunk[]): Promise<ResumeEmbeddingBatch | null> {
-    if (!this.embeddings.configured) return null;
-    const vectors: number[][] = [];
-    let provider: string | null = null;
-    let model: string | null = null;
-    let dimensions: number | null = null;
-
-    for (let offset = 0; offset < chunks.length; offset += 32) {
-      const batch = chunks.slice(offset, offset + 32);
-      const result = await this.embeddings.embed(batch.map((chunk) => chunk.text));
-      if (result.vectors.length !== batch.length || result.dimensions <= 0) {
-        throw new UnprocessableEntityException("Embedding provider returned invalid chunk coverage");
-      }
-      if (result.vectors.some((vector) => vector.length !== result.dimensions || vector.some((value) => !Number.isFinite(value)))) {
-        throw new UnprocessableEntityException("Embedding provider returned invalid vector dimensions");
-      }
-      if (provider === null) {
-        provider = result.provider;
-        model = result.model;
-        dimensions = result.dimensions;
-      } else if (provider !== result.provider || model !== result.model || dimensions !== result.dimensions) {
-        throw new UnprocessableEntityException("Embedding provider changed model or dimensions within one resume");
-      }
-      vectors.push(...result.vectors);
-    }
-
-    if (!provider || !model || !dimensions || vectors.length !== chunks.length) {
-      throw new UnprocessableEntityException("Embedding provider did not cover every resume chunk");
-    }
-    return { provider, model, dimensions, vectors };
-  }
-
-"""
+          helper = base64.b64decode("ICBwcml2YXRlIGFzeW5jIGVtYmVkQ2h1bmtzKGNodW5rczogUmVzdW1lQ2h1bmtbXSk6IFByb21pc2U8UmVzdW1lRW1iZWRkaW5nQmF0Y2ggfCBudWxsPiB7CiAgICBpZiAoIXRoaXMuZW1iZWRkaW5ncy5jb25maWd1cmVkKSByZXR1cm4gbnVsbDsKICAgIGNvbnN0IHZlY3RvcnM6IG51bWJlcltdW10gPSBbXTsKICAgIGxldCBwcm92aWRlcjogc3RyaW5nIHwgbnVsbCA9IG51bGw7CiAgICBsZXQgbW9kZWw6IHN0cmluZyB8IG51bGwgPSBudWxsOwogICAgbGV0IGRpbWVuc2lvbnM6IG51bWJlciB8IG51bGwgPSBudWxsOwoKICAgIGZvciAobGV0IG9mZnNldCA9IDA7IG9mZnNldCA8IGNodW5rcy5sZW5ndGg7IG9mZnNldCArPSAzMikgewogICAgICBjb25zdCBiYXRjaCA9IGNodW5rcy5zbGljZShvZmZzZXQsIG9mZnNldCArIDMyKTsKICAgICAgY29uc3QgcmVzdWx0ID0gYXdhaXQgdGhpcy5lbWJlZGRpbmdzLmVtYmVkKGJhdGNoLm1hcCgoY2h1bmspID0+IGNodW5rLnRleHQpKTsKICAgICAgaWYgKHJlc3VsdC52ZWN0b3JzLmxlbmd0aCAhPT0gYmF0Y2gubGVuZ3RoIHx8IHJlc3VsdC5kaW1lbnNpb25zIDw9IDApIHsKICAgICAgICB0aHJvdyBuZXcgVW5wcm9jZXNzYWJsZUVudGl0eUV4Y2VwdGlvbigiRW1iZWRkaW5nIHByb3ZpZGVyIHJldHVybmVkIGludmFsaWQgY2h1bmsgY292ZXJhZ2UiKTsKICAgICAgfQogICAgICBpZiAocmVzdWx0LnZlY3RvcnMuc29tZSgodmVjdG9yKSA9PiB2ZWN0b3IubGVuZ3RoICE9PSByZXN1bHQuZGltZW5zaW9ucyB8fCB2ZWN0b3Iuc29tZSgodmFsdWUpID0+ICFOdW1iZXIuaXNGaW5pdGUodmFsdWUpKSkpIHsKICAgICAgICB0aHJvdyBuZXcgVW5wcm9jZXNzYWJsZUVudGl0eUV4Y2VwdGlvbigiRW1iZWRkaW5nIHByb3ZpZGVyIHJldHVybmVkIGludmFsaWQgdmVjdG9yIGRpbWVuc2lvbnMiKTsKICAgICAgfQogICAgICBpZiAocHJvdmlkZXIgPT09IG51bGwpIHsKICAgICAgICBwcm92aWRlciA9IHJlc3VsdC5wcm92aWRlcjsKICAgICAgICBtb2RlbCA9IHJlc3VsdC5tb2RlbDsKICAgICAgICBkaW1lbnNpb25zID0gcmVzdWx0LmRpbWVuc2lvbnM7CiAgICAgIH0gZWxzZSBpZiAocHJvdmlkZXIgIT09IHJlc3VsdC5wcm92aWRlciB8fCBtb2RlbCAhPT0gcmVzdWx0Lm1vZGVsIHx8IGRpbWVuc2lvbnMgIT09IHJlc3VsdC5kaW1lbnNpb25zKSB7CiAgICAgICAgdGhyb3cgbmV3IFVucHJvY2Vzc2FibGVFbnRpdHlFeGNlcHRpb24oIkVtYmVkZGluZyBwcm92aWRlciBjaGFuZ2VkIG1vZGVsIG9yIGRpbWVuc2lvbnMgd2l0aGluIG9uZSByZXN1bWUiKTsKICAgICAgfQogICAgICB2ZWN0b3JzLnB1c2goLi4ucmVzdWx0LnZlY3RvcnMpOwogICAgfQoKICAgIGlmICghcHJvdmlkZXIgfHwgIW1vZGVsIHx8ICFkaW1lbnNpb25zIHx8IHZlY3RvcnMubGVuZ3RoICE9PSBjaHVua3MubGVuZ3RoKSB7CiAgICAgIHRocm93IG5ldyBVbnByb2Nlc3NhYmxlRW50aXR5RXhjZXB0aW9uKCJFbWJlZGRpbmcgcHJvdmlkZXIgZGlkIG5vdCBjb3ZlciBldmVyeSByZXN1bWUgY2h1bmsiKTsKICAgIH0KICAgIHJldHVybiB7IHByb3ZpZGVyLCBtb2RlbCwgZGltZW5zaW9ucywgdmVjdG9ycyB9OwogIH0KCg==").decode()
           if anchor not in text:
             raise SystemExit("markFailed anchor not found")
           text = text.replace(anchor, helper + anchor, 1)
