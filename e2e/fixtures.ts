@@ -8,6 +8,7 @@ const expectedBackendClientFailures = [
   { method: "GET", path: "/api/backend/v1/candidate-auth/session", statuses: new Set([401]) },
   { method: "GET", path: "/api/backend/v1/candidate-consent", statuses: new Set([401]) },
   { method: "POST", path: "/api/backend/v1/candidate-auth/magic-link/validate", statuses: new Set([401]) },
+  { method: "POST", path: "/api/backend/v1/candidate-auth/otp/verify", statuses: new Set([401]) },
 ] as const;
 
 function isExpectedBackendClientFailure(response: Response): boolean {
