@@ -121,14 +121,7 @@ async function seedEvaluator(database: DatabaseService) {
        ${[segmentB]}::uuid[], 'Debugging evidence', 0.80)
   `;
 
-  return {
-    organizationId,
-    sessionId,
-    criterionA,
-    criterionB,
-    evidenceA,
-    evidenceB,
-  };
+  return { organizationId, sessionId, criterionA, criterionB, evidenceA, evidenceB };
 }
 
 test(
@@ -180,6 +173,17 @@ test(
       assert.equal(replay.evaluationId, first.evaluationId);
       assert.equal(replay.scorecardId, first.scorecardId);
       assert.deepEqual(replay.output, first.output);
+
+      await assert.rejects(
+        () =>
+          service.evaluateAndPersist(seeded.sessionId, {
+            ...request,
+            criterionResults: request.criterionResults.map((item, index) =>
+              index === 0 ? { ...item, score: 70 } : item,
+            ),
+          }),
+        /idempotency key/i,
+      );
 
       const evaluationRows = await database.sql`
         SELECT status, provider, model, prompt_version, overall_confidence,
