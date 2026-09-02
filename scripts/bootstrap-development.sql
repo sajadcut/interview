@@ -8,6 +8,18 @@ INSERT INTO users (email, display_name)
 VALUES (:'user_email', :'user_name')
 ON CONFLICT (email) DO UPDATE SET display_name = EXCLUDED.display_name, updated_at = now();
 
+INSERT INTO credentials (user_id, password_hash, failed_login_count, locked_until, reset_required, password_changed_at, updated_at)
+SELECT u.id, :'password_hash', 0, NULL, false, now(), now()
+FROM users u
+WHERE u.email = :'user_email' AND :'password_hash' <> ''
+ON CONFLICT (user_id) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  failed_login_count = 0,
+  locked_until = NULL,
+  reset_required = false,
+  password_changed_at = now(),
+  updated_at = now();
+
 INSERT INTO memberships (organization_id, user_id, status)
 SELECT o.id, u.id, 'active'
 FROM organizations o, users u
