@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   NODE_ENV: test
@@ -46,18 +46,18 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      - name: Pin npm
+        run: |
+          npm install --global npm@11.6.2 --ignore-scripts
+          test "$(npm --version)" = "11.6.2"
+
       - name: Validate migration contracts
         run: node scripts/check-migrations.mjs
 
       - name: Verify frontend contract usage
         run: npm run web:contracts
 
-      - name: Rebuild dependency lockfile from public registry
-        run: |
-          rm -f package-lock.json
-          npm install --package-lock-only --ignore-scripts
-
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci
 
       - name: Audit production dependencies
@@ -72,7 +72,7 @@ jobs:
       - name: Regenerate OpenAPI and typed client
         run: npm run api:sync
 
-      - name: Upload generated contracts
+      - name: Upload generated contract evidence
         uses: actions/upload-artifact@v4
         with:
           name: generated-contracts
@@ -82,9 +82,8 @@ jobs:
             packages/api-client/src/generated/schema.ts
           if-no-files-found: error
 
-      - name: Verify generated contracts are committed on pull requests
-        if: github.event_name == 'pull_request'
-        run: git diff --exit-code -- package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts
+      - name: Verify generated contracts are committed
+        run: git diff --exit-code -- openapi/openapi.json packages/api-client/src/generated/schema.ts
 
       - name: Lint
         run: npm run lint
@@ -97,16 +96,3 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Commit deterministic generated contracts on main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          if git diff --quiet -- package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts; then
-            echo "Generated contracts already synchronized."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json openapi/openapi.json packages/api-client/src/generated/schema.ts
-          git commit -m "chore: sync generated contracts"
-          git push
