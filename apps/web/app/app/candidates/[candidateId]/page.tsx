@@ -1,6 +1,6 @@
-import { CandidateIntelligenceWorkspace } from "../../../../components/recruiting/candidate-intelligence-workspace";
+import { CandidatePageWorkspace } from "../../../../components/recruiting/candidate-page-workspace";
 
 export default async function CandidatePage({ params }: { params: Promise<{ candidateId: string }> }) {
   const { candidateId } = await params;
-  return <CandidateIntelligenceWorkspace candidateId={candidateId} />;
+  return <CandidatePageWorkspace candidateId={candidateId} />;
 }
