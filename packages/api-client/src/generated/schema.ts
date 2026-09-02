@@ -3308,17 +3308,25 @@ export interface components {
             organization_id: string;
             default_locale: string;
             timezone: string;
-            hiring_policy: Record<string, never>;
-            notification_preferences: Record<string, never>;
-            updated_by_user_id?: Record<string, never> | null;
+            hiring_policy: {
+                [key: string]: unknown;
+            };
+            notification_preferences: {
+                [key: string]: unknown;
+            };
+            updated_by_user_id?: string | null;
             /** Format: date-time */
-            updated_at?: Record<string, never> | null;
+            updated_at?: string | null;
         };
         UpdateOrganizationSettingsDto: {
             defaultLocale?: string;
             timezone?: string;
-            hiringPolicy?: Record<string, never>;
-            notificationPreferences?: Record<string, never>;
+            hiringPolicy?: {
+                [key: string]: unknown;
+            };
+            notificationPreferences?: {
+                [key: string]: unknown;
+            };
         };
         IntegrationConnectionResponseDto: {
             id: string;
@@ -3326,11 +3334,13 @@ export interface components {
             connection_type: string;
             /** @enum {string} */
             status: "configured" | "verified" | "degraded" | "disabled";
-            credential_reference?: Record<string, never> | null;
-            config: Record<string, never>;
+            credential_reference?: string | null;
+            config: {
+                [key: string]: unknown;
+            };
             /** Format: date-time */
-            last_verified_at?: Record<string, never> | null;
-            last_error?: Record<string, never> | null;
+            last_verified_at?: string | null;
+            last_error?: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -3341,22 +3351,30 @@ export interface components {
             connectionType: string;
             /** @description Reference to an external secret; raw credentials are rejected. */
             credentialReference?: string;
-            config?: Record<string, never>;
+            config?: {
+                [key: string]: unknown;
+            };
         };
         UpdateIntegrationDto: {
             /** @enum {string} */
             status?: "configured" | "verified" | "degraded" | "disabled";
             credentialReference?: string;
-            config?: Record<string, never>;
+            config?: {
+                [key: string]: unknown;
+            };
         };
         AutomationRuleResponseDto: {
             id: string;
             name: string;
-            description?: Record<string, never> | null;
+            description?: string | null;
             trigger_type: string;
-            trigger_config?: Record<string, never>;
+            trigger_config?: {
+                [key: string]: unknown;
+            };
             action_type: string;
-            action_config?: Record<string, never>;
+            action_config?: {
+                [key: string]: unknown;
+            };
             approval_required: boolean;
             enabled: boolean;
             /** Format: date-time */
@@ -3367,18 +3385,22 @@ export interface components {
         AutomationRunResponseDto: {
             id: string;
             rule_id: string;
-            trigger_reference?: Record<string, never> | null;
+            trigger_reference?: string | null;
             idempotency_key: string;
             state: string;
-            input?: Record<string, never>;
-            output?: Record<string, never> | null;
-            error_message?: Record<string, never> | null;
+            input?: {
+                [key: string]: unknown;
+            };
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            error_message?: string | null;
             /** Format: date-time */
-            approved_at?: Record<string, never> | null;
+            approved_at?: string | null;
             /** Format: date-time */
-            started_at?: Record<string, never> | null;
+            started_at?: string | null;
             /** Format: date-time */
-            completed_at?: Record<string, never> | null;
+            completed_at?: string | null;
             /** Format: date-time */
             created_at: string;
         };
@@ -3390,9 +3412,13 @@ export interface components {
             name: string;
             description?: string;
             triggerType: string;
-            triggerConfig?: Record<string, never>;
+            triggerConfig?: {
+                [key: string]: unknown;
+            };
             actionType: string;
-            actionConfig?: Record<string, never>;
+            actionConfig?: {
+                [key: string]: unknown;
+            };
             approvalRequired?: boolean;
         };
         UpdateAutomationRuleDto: {
@@ -3402,23 +3428,29 @@ export interface components {
         CreateAutomationRunDto: {
             idempotencyKey: string;
             triggerReference?: string;
-            input?: Record<string, never>;
+            input?: {
+                [key: string]: unknown;
+            };
         };
         AutomationRunCreatedResponseDto: {
             id: string;
             rule_id: string;
-            trigger_reference?: Record<string, never> | null;
+            trigger_reference?: string | null;
             idempotency_key: string;
             state: string;
-            input?: Record<string, never>;
-            output?: Record<string, never> | null;
-            error_message?: Record<string, never> | null;
+            input?: {
+                [key: string]: unknown;
+            };
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            error_message?: string | null;
             /** Format: date-time */
-            approved_at?: Record<string, never> | null;
+            approved_at?: string | null;
             /** Format: date-time */
-            started_at?: Record<string, never> | null;
+            started_at?: string | null;
             /** Format: date-time */
-            completed_at?: Record<string, never> | null;
+            completed_at?: string | null;
             /** Format: date-time */
             created_at: string;
             executionBoundary: string;
@@ -3442,11 +3474,13 @@ export interface components {
         ProductAuditEventDto: {
             id: string;
             actor_type: string;
-            actor_user_id?: Record<string, never> | null;
+            actor_user_id?: string | null;
             action: string;
             entity_type: string;
-            entity_id?: Record<string, never> | null;
-            metadata?: Record<string, never> | null;
+            entity_id?: string | null;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /** Format: date-time */
             created_at: string;
         };

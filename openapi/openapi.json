@@ -10990,17 +10990,19 @@
             "type": "string"
           },
           "hiring_policy": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "notification_preferences": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "updated_by_user_id": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "updated_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           }
@@ -11023,10 +11025,12 @@
             "type": "string"
           },
           "hiringPolicy": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "notificationPreferences": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },
@@ -11052,19 +11056,20 @@
             ]
           },
           "credential_reference": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "last_verified_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
           "last_error": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "created_at": {
@@ -11100,7 +11105,8 @@
             "description": "Reference to an external secret; raw credentials are rejected."
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [
@@ -11124,7 +11130,8 @@
             "type": "string"
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },
@@ -11138,20 +11145,22 @@
             "type": "string"
           },
           "description": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "trigger_type": {
             "type": "string"
           },
           "trigger_config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "action_type": {
             "type": "string"
           },
           "action_config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "approval_required": {
             "type": "boolean"
@@ -11189,7 +11198,7 @@
             "type": "string"
           },
           "trigger_reference": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "idempotency_key": {
@@ -11199,28 +11208,30 @@
             "type": "string"
           },
           "input": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "output": {
             "type": "object",
+            "additionalProperties": true,
             "nullable": true
           },
           "error_message": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "approved_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
           "started_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
           "completed_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
@@ -11271,13 +11282,15 @@
             "type": "string"
           },
           "triggerConfig": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "actionType": {
             "type": "string"
           },
           "actionConfig": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "approvalRequired": {
             "type": "boolean"
@@ -11310,7 +11323,8 @@
             "type": "string"
           },
           "input": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "required": [
@@ -11327,7 +11341,7 @@
             "type": "string"
           },
           "trigger_reference": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "idempotency_key": {
@@ -11337,28 +11351,30 @@
             "type": "string"
           },
           "input": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "output": {
             "type": "object",
+            "additionalProperties": true,
             "nullable": true
           },
           "error_message": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "approved_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
           "started_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
           "completed_at": {
-            "type": "object",
+            "type": "string",
             "nullable": true,
             "format": "date-time"
           },
@@ -11448,7 +11464,7 @@
             "type": "string"
           },
           "actor_user_id": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "action": {
@@ -11458,11 +11474,12 @@
             "type": "string"
           },
           "entity_id": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "additionalProperties": true,
             "nullable": true
           },
           "created_at": {
