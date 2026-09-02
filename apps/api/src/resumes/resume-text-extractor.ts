@@ -62,7 +62,8 @@ export class ResumeTextExtractor {
 
 function normalizeExtractedText(value: string): string {
   return value
-    .replace(/\u0000/g, "")
+    .split(String.fromCharCode(0))
+    .join("")
     .replace(/\r\n?/g, "\n")
     .replace(/[\t\f\v]+/g, " ")
     .replace(/[ \u00a0]+\n/g, "\n")
