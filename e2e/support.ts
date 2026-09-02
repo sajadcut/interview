@@ -21,18 +21,22 @@ export interface CandidateE2EIdentity {
 }
 
 export function candidateIdentityForProject(projectName: string): CandidateE2EIdentity {
-  if (projectName === "chromium-mobile-candidate") {
-    return {
-      applicationId: SEEDED_SECONDARY_APPLICATION_ID,
-      displayName: "Sara Mohammadi",
-      jobTitle: "Senior Backend Engineer",
-    };
+  switch (projectName) {
+    case "chromium-mobile-candidate":
+      return {
+        applicationId: SEEDED_SECONDARY_APPLICATION_ID,
+        displayName: "Sara Mohammadi",
+        jobTitle: "Senior Backend Engineer",
+      };
+    case "chromium-critical":
+      return {
+        applicationId: SEEDED_APPLICATION_ID,
+        displayName: "Ali Rahimi",
+        jobTitle: "Senior Backend Engineer",
+      };
+    default:
+      throw new Error(`No candidate E2E identity is configured for Playwright project: ${projectName}`);
   }
-  return {
-    applicationId: SEEDED_APPLICATION_ID,
-    displayName: "Ali Rahimi",
-    jobTitle: "Senior Backend Engineer",
-  };
 }
 
 export async function signInRecruiter(page: Page): Promise<void> {
@@ -54,7 +58,7 @@ export async function activeOrganizationId(page: Page): Promise<string> {
 
 export async function createCandidateInvitation(
   page: Page,
-  applicationId = SEEDED_APPLICATION_ID,
+  applicationId: string,
 ): Promise<CandidateInvitationSecrets> {
   const organizationId = await activeOrganizationId(page);
   const response = await page.context().request.post(`${BASE_URL}/api/backend/v1/candidate-auth/invitations`, {
