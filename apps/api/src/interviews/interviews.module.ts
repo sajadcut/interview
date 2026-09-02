@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { EvaluatorCalibrationAnalyticsService } from "./evaluator-calibration-analytics.service";
 import { EvaluatorCalibrationController } from "./evaluator-calibration.controller";
 import { EvaluatorCalibrationService } from "./evaluator-calibration.service";
 import { InterviewBrainService } from "./interview-brain.service";
@@ -24,6 +25,7 @@ import { InterviewsService } from "./interviews.service";
     InterviewBrainService,
     InterviewEvaluatorService,
     EvaluatorCalibrationService,
+    EvaluatorCalibrationAnalyticsService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -34,6 +36,7 @@ import { InterviewsService } from "./interviews.service";
     InterviewBrainService,
     InterviewEvaluatorService,
     EvaluatorCalibrationService,
+    EvaluatorCalibrationAnalyticsService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
