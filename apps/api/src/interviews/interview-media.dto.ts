@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsIn, IsObject, IsOptional, IsString, Length } from "class-validator";
-import { RealtimeMediaModes } from "./interview-media.contracts";
+import { MediaComponents, RealtimeMediaModes } from "./interview-media.contracts";
 
 export const InterviewMediaEventTypes = [
   "preflight",
@@ -51,6 +51,36 @@ export class InterviewMediaReadinessQueryDto {
   @IsOptional()
   @IsIn(RealtimeMediaModes)
   mode?: "audio" | "avatar";
+}
+
+export class MediaProviderStatusDto {
+  @ApiProperty({ enum: MediaComponents })
+  component!: "transport" | "vad" | "stt" | "tts" | "avatar";
+
+  @ApiProperty() provider!: string;
+  @ApiProperty() configured!: boolean;
+  @ApiProperty() reachable!: boolean;
+  @ApiProperty() ready!: boolean;
+  @ApiPropertyOptional() version?: string;
+  @ApiPropertyOptional() reason?: string;
+  @ApiPropertyOptional({ format: "date-time" }) checkedAt?: string;
+}
+
+export class MediaPrivacyPolicyDto {
+  @ApiProperty({ enum: ["none"] }) candidateVideoAnalysis!: "none";
+  @ApiProperty({ enum: [false] }) biometricInferenceAllowed!: false;
+  @ApiProperty({ enum: [false] }) rawMediaPersistedByApi!: false;
+  @ApiProperty({ enum: [true] }) spokenTextOnlyToAvatar!: true;
+}
+
+export class InterviewMediaReadinessDto {
+  @ApiProperty() enabled!: boolean;
+  @ApiProperty({ enum: RealtimeMediaModes }) mode!: "audio" | "avatar";
+  @ApiProperty() ready!: boolean;
+  @ApiProperty({ type: [String] }) blockers!: string[];
+  @ApiProperty({ type: [MediaProviderStatusDto] }) providers!: MediaProviderStatusDto[];
+  @ApiProperty({ enum: MediaComponents, isArray: true }) requiredComponents!: Array<"transport" | "vad" | "stt" | "tts" | "avatar">;
+  @ApiProperty({ type: MediaPrivacyPolicyDto }) privacy!: MediaPrivacyPolicyDto;
 }
 
 export class InterviewMediaEventInputDto {
