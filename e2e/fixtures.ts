@@ -5,21 +5,27 @@ const genericClientErrorConsole = /^Failed to load resource: the server responde
 const webkitNextRscPrefetchAccessControlError =
   /^\/127\.0\.0\.1:3000\/app(?:\/[^\s?]+)+\?_rsc=[^\s]+ due to access control checks\.$/;
 
-const expectedBackendClientFailures = [
-  { method: "POST", path: "/api/backend/auth/login", statuses: new Set([401]) },
-  { method: "GET", path: "/api/backend/auth/session", statuses: new Set([401]) },
-  { method: "GET", path: "/api/backend/v1/candidate-auth/session", statuses: new Set([401]) },
-  { method: "GET", path: "/api/backend/v1/candidate-consent", statuses: new Set([401]) },
-  { method: "POST", path: "/api/backend/v1/candidate-auth/invitations", statuses: new Set([403]) },
-  { method: "POST", path: "/api/backend/v1/candidate-auth/magic-link/validate", statuses: new Set([401]) },
-  { method: "POST", path: "/api/backend/v1/candidate-auth/otp/verify", statuses: new Set([401]) },
-] as const;
+type ExpectedBackendFailure = {
+  method: string;
+  path: string;
+  statuses: readonly number[];
+};
+
+const expectedBackendClientFailures: readonly ExpectedBackendFailure[] = [
+  { method: "POST", path: "/api/backend/auth/login", statuses: [401] },
+  { method: "GET", path: "/api/backend/auth/session", statuses: [401] },
+  { method: "GET", path: "/api/backend/v1/candidate-auth/session", statuses: [401] },
+  { method: "GET", path: "/api/backend/v1/candidate-consent", statuses: [401] },
+  { method: "POST", path: "/api/backend/v1/candidate-auth/invitations", statuses: [403] },
+  { method: "POST", path: "/api/backend/v1/candidate-auth/magic-link/validate", statuses: [401] },
+  { method: "POST", path: "/api/backend/v1/candidate-auth/otp/verify", statuses: [401] },
+];
 
 function isExpectedBackendClientFailure(response: Response): boolean {
   const path = new URL(response.url()).pathname;
   const method = response.request().method();
   return expectedBackendClientFailures.some(
-    (entry) => entry.method === method && entry.path === path && entry.statuses.has(response.status() as never),
+    (entry) => entry.method === method && entry.path === path && entry.statuses.includes(response.status()),
   );
 }
 
