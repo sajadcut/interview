@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { api } from "../../lib/api";
 import { directionFor, getDefaultLocale, shellCopy } from "../../lib/i18n";
+import { clearRememberedOrganizationId } from "../../lib/tenant-client";
 import { Icon, type IconName } from "./icon";
 import { requiredPermissionForInternalPath, useInternalAccess } from "./internal-access";
 
@@ -75,12 +77,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const access = useInternalAccess();
   const locale = getDefaultLocale();
   const copy = shellCopy[locale];
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string>();
   const header = locale === "fa"
     ? {
         search: "جستجوی کاندیدا، موقعیت یا مصاحبه...",
         ask: "از AI بپرس",
         create: "ایجاد موقعیت",
         automation: "اتوماسیون",
+        logout: "خروج امن",
+        logoutFailed: "خروج امن انجام نشد. دوباره تلاش کنید.",
         aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
         notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
       }
@@ -89,6 +95,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         ask: "Ask AI",
         create: "Create Job",
         automation: "Automation",
+        logout: "Sign out",
+        logoutFailed: "Secure sign out failed. Please try again.",
         aiPending: "The global AI assistant is not wired to this control yet",
         notificationsPending: "Notification center is not wired yet",
       };
@@ -104,6 +112,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   const displayName = access.user?.displayName || access.user?.email || "Organization member";
   const roleLabel = readableRole(access.roles[0]);
   const canCreateJob = access.can("job.create");
+
+  async function signOut() {
+    if (signingOut) return;
+    setSigningOut(true);
+    setLogoutError(undefined);
+    try {
+      const result = await api.POST("/auth/logout");
+      if (!result.response.ok || result.error) throw new Error(header.logoutFailed);
+      clearRememberedOrganizationId();
+      window.location.replace("/login");
+    } catch {
+      setLogoutError(header.logoutFailed);
+      setSigningOut(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[236px_minmax(0,1fr)]" dir={directionFor(locale)}>
@@ -134,7 +157,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           {canCreateJob ? <Link href="/app/jobs/new" aria-label={header.create} className="inline-flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-indigo-700 sm:px-3.5"><Icon name="plus" size={14} /><span className="hidden sm:inline">{header.create}</span></Link> : null}
           <button type="button" disabled title={header.notificationsPending} className="relative grid h-10 w-10 shrink-0 cursor-not-allowed place-items-center rounded-[10px] border border-slate-200 bg-slate-100 text-slate-400"><Icon name="bell" size={15} /></button>
           <div className="hidden min-w-0 text-end sm:block"><div className="max-w-36 truncate text-[10px] font-semibold text-slate-700">{displayName}</div><div className="max-w-36 truncate text-[9px] text-slate-400">{roleLabel}</div></div>
+          <button
+            type="button"
+            aria-label={header.logout}
+            disabled={signingOut}
+            onClick={() => void signOut()}
+            className="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-slate-200 bg-white px-2.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:px-3"
+          >
+            <span aria-hidden="true">↪</span><span className="hidden sm:inline">{signingOut ? "…" : header.logout}</span>
+          </button>
         </header>
+        {logoutError ? <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700 sm:px-6">{logoutError}</div> : null}
         <nav className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden" aria-label={copy.mobileNavigationLabel}>{navigation.map(([label, href]) => <MobileNavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
         <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir="ltr">{children}</main>
       </div>
