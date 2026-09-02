@@ -20,14 +20,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const raw = exception instanceof HttpException ? exception.getResponse() : undefined;
     const message = this.resolveMessage(raw, exception);
 
+    // Keep the runtime response aligned with ApiErrorDto/OpenAPI so typed clients can
+    // reliably surface actionable backend messages instead of falling back to generic copy.
+    // Correlation remains available through the x-request-id response header.
     response.status(status).json({
-      error: {
-        code: this.codeFor(status),
-        message,
-        requestId: request.requestId ?? null,
-        timestamp: new Date().toISOString(),
-        path: (request as Request).originalUrl,
-      },
+      message,
+      statusCode: status,
+      error: this.codeFor(status),
     });
   }
 
