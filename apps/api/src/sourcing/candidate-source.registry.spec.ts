@@ -22,7 +22,11 @@ test("candidate source registry exposes internal talent as the only configured s
     requiresApproval: false,
   });
 
-  for (const sourceType of [ApprovedSourceTypes.Ats, ApprovedSourceTypes.JobBoard]) {
+  for (const sourceType of [
+    ApprovedSourceTypes.Ats,
+    ApprovedSourceTypes.ApprovedJobBoard,
+    ApprovedSourceTypes.ApprovedExternal,
+  ]) {
     const capability = capabilities.find((item) => item.sourceType === sourceType);
     assert.equal(capability?.configured, false);
     assert.equal(capability?.requiresApproval, true);
@@ -33,12 +37,15 @@ test("candidate source registry exposes internal talent as the only configured s
 test("unconfigured external candidate sources fail closed", () => {
   const sources = registry();
   assert.equal(sources.get(ApprovedSourceTypes.InternalTalentPool).providerKey, "internal-postgres");
-  assert.throws(
-    () => sources.get(ApprovedSourceTypes.Ats),
-    /adapter ats is not configured/i,
-  );
-  assert.throws(
-    () => sources.get(ApprovedSourceTypes.JobBoard),
-    /adapter job_board is not configured/i,
-  );
+
+  for (const sourceType of [
+    ApprovedSourceTypes.Ats,
+    ApprovedSourceTypes.ApprovedJobBoard,
+    ApprovedSourceTypes.ApprovedExternal,
+  ]) {
+    assert.throws(
+      () => sources.get(sourceType),
+      new RegExp(`adapter ${sourceType} is not configured`, "i"),
+    );
+  }
 });
