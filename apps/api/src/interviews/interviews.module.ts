@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { InterviewBrainService } from "./interview-brain.service";
+import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { InterviewMediaController } from "./interview-media.controller";
 import { InterviewMediaEventService } from "./interview-media-event.service";
 import { InterviewMediaService } from "./interview-media.service";
@@ -14,6 +15,7 @@ import { InterviewsService } from "./interviews.service";
   providers: [
     InterviewsService,
     InterviewBrainService,
+    InterviewEvaluatorService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -22,6 +24,7 @@ import { InterviewsService } from "./interviews.service";
   exports: [
     InterviewsService,
     InterviewBrainService,
+    InterviewEvaluatorService,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,

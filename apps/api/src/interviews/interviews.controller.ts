@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiExcludeEndpoint, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import { InterviewBrainService } from "./interview-brain.service";
+import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import {
   AppendInterviewTurnDto,
   CreateInterviewSessionDto,
@@ -26,6 +27,7 @@ export class InterviewsController {
   constructor(
     private readonly interviews: InterviewsService,
     private readonly interviewBrain: InterviewBrainService,
+    private readonly evaluator: InterviewEvaluatorService,
   ) {}
 
   @Post("interviews/sessions")
@@ -72,6 +74,14 @@ export class InterviewsController {
   @ApiOkResponse({ type: InterviewEvidenceDto })
   recordEvidence(@Param("sessionId") sessionId: string, @Body() body: InterviewEvidenceInputDto) {
     return this.interviews.recordEvidence(sessionId, body);
+  }
+
+  @Post("interviews/:sessionId/evaluations")
+  @ApiExcludeEndpoint()
+  @RequirePermissions(Permissions.InterviewEvaluate)
+  @AuditedAction("interview.evaluation.record", "interview_session")
+  evaluate(@Param("sessionId") sessionId: string, @Body() body: unknown) {
+    return this.evaluator.evaluateAndPersist(sessionId, body);
   }
 
   @Get("interviews/:sessionId/review")
