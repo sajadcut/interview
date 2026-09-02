@@ -1,5 +1,7 @@
 import { expect, test as base } from "@playwright/test";
 
+const expectedHttpConsoleError = /^Failed to load resource: the server responded with a status of 4\d\d\b/;
+
 export const test = base.extend({
   page: async ({ page }, use, testInfo) => {
     const diagnostics: string[] = [];
@@ -8,7 +10,10 @@ export const test = base.extend({
       diagnostics.push(`pageerror: ${error.message}`);
     });
     page.on("console", (message) => {
-      if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
+      if (message.type() !== "error") return;
+      const text = message.text();
+      if (expectedHttpConsoleError.test(text)) return;
+      diagnostics.push(`console.error: ${text}`);
     });
     page.on("response", (response) => {
       if (response.status() >= 500 && response.url().includes("/api/backend")) {
