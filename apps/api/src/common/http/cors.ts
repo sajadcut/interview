@@ -35,10 +35,11 @@ export function assertProductionCorsPolicy(
   nodeEnv: "development" | "test" | "production",
   origins: CorsOriginConfig,
 ): void {
-  if (nodeEnv === "production" && origins === "*") {
+  if (nodeEnv !== "production") return;
+  if (origins === "*") {
     throw new Error("CORS_ORIGIN='*' is not allowed in production");
   }
-  if (nodeEnv === "production" && origins.some((origin) => origin.startsWith("http://"))) {
+  if (origins.some((origin: string) => origin.startsWith("http://"))) {
     throw new Error("Production CORS origins must use https://");
   }
 }
