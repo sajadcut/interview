@@ -20,7 +20,7 @@ export async function signInRecruiter(page: Page): Promise<void> {
     page.waitForURL(/\/app(?:\/)?$/),
     page.getByRole("button", { name: "Sign in" }).click(),
   ]);
-  await expect(page.getByRole("navigation", { name: "Primary navigation", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hiring command center" })).toBeVisible();
 }
 
 export async function activeOrganizationId(page: Page): Promise<string> {
@@ -40,8 +40,18 @@ export async function createCandidateInvitation(page: Page): Promise<CandidateIn
     data: { applicationId: SEEDED_APPLICATION_ID },
   });
 
-  expect(response.ok(), `candidate invitation API returned ${response.status()}`).toBeTruthy();
-  const body = (await response.json()) as Partial<CandidateInvitationSecrets>;
+  const rawBody = await response.text();
+  expect(
+    response.ok(),
+    `candidate invitation API returned ${response.status()}: ${rawBody.slice(0, 1000)}`,
+  ).toBeTruthy();
+
+  let body: Partial<CandidateInvitationSecrets>;
+  try {
+    body = JSON.parse(rawBody) as Partial<CandidateInvitationSecrets>;
+  } catch {
+    throw new Error(`candidate invitation API returned non-JSON success payload: ${rawBody.slice(0, 1000)}`);
+  }
   expect(body.developmentToken).toBeTruthy();
   expect(body.developmentOtp).toMatch(/^\d{6}$/);
   return body as CandidateInvitationSecrets;
