@@ -14,16 +14,17 @@ test.describe("browser security boundaries", () => {
     await page.getByLabel("Work email").fill(E2E_USER_EMAIL);
     await page.getByLabel("Password").fill("DefinitelyWrong!2026#Password");
 
-    const loginResponse = page.waitForResponse((response) => {
+    const loginResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
       return url.pathname === "/api/backend/auth/login" && response.request().method() === "POST";
     });
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    await expect(await loginResponse).toHaveProperty("status", 401);
+    const loginResponse = await loginResponsePromise;
+    expect(loginResponse.status()).toBe(401);
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByText(/invalid email or password/i)).toBeVisible();
-    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBeNull();
+    expect(await page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).toBeNull();
   });
 
   test("recruiter session cannot cross into the candidate security surface", async ({ page }) => {
@@ -62,7 +63,7 @@ test.describe("browser security boundaries", () => {
     );
 
     expect(result.status, `cross-tenant invitation unexpectedly returned: ${result.body.slice(0, 1000)}`).toBe(403);
-    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBe(
+    expect(await page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).toBe(
       authorizedOrganizationId,
     );
   });
