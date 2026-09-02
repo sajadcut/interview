@@ -351,7 +351,7 @@ export class ResumeIngestionService {
         UPDATE resumes SET
           status = 'completed',
           parser_version = ${input.profile.parserVersion},
-          structured_profile = ${tx.json(input.profile)},
+          structured_profile = ${tx.json(JSON.parse(JSON.stringify(input.profile)))},
           failure_code = NULL,
           failure_message = NULL,
           processed_at = now(),
