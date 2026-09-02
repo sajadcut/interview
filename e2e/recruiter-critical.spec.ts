@@ -54,13 +54,13 @@ test.describe("critical recruiter flows", () => {
 
     const suffix = Date.now().toString(36);
     const jobTitle = `E2E Platform Engineer ${suffix}`;
-    await page.getByPlaceholder("Senior Backend Engineer").fill(jobTitle);
-    await page.getByPlaceholder("Engineering").fill("Platform Engineering");
-    await page.getByPlaceholder("Tehran / Hybrid").fill("Remote");
-    await page.getByPlaceholder("Senior").fill("Senior");
-    await page.getByPlaceholder("C#/.NET\nDistributed systems\nPostgreSQL").fill("TypeScript\nPostgreSQL\nDistributed systems");
-    await page.getByPlaceholder("Azure\nKafka").fill("Kubernetes\nObservability");
-    await page.getByPlaceholder("System design\nBackend depth\nReliability reasoning\nCommunication").fill("System design\nReliability reasoning");
+    await page.getByRole("textbox", { name: "عنوان", exact: true }).fill(jobTitle);
+    await page.getByRole("textbox", { name: "دپارتمان", exact: true }).fill("Platform Engineering");
+    await page.getByRole("textbox", { name: "موقعیت", exact: true }).fill("Remote");
+    await page.getByRole("textbox", { name: "Seniority", exact: true }).fill("Senior");
+    await page.getByRole("textbox", { name: /Must-have requirements/ }).fill("TypeScript\nPostgreSQL\nDistributed systems");
+    await page.getByRole("textbox", { name: /Nice-to-have requirements/ }).fill("Kubernetes\nObservability");
+    await page.getByRole("textbox", { name: /Rubric criteria/ }).fill("System design\nReliability reasoning");
 
     await Promise.all([
       page.waitForURL(/\/app\/jobs\/[0-9a-f-]{36}$/i),
