@@ -126,4 +126,19 @@ test.describe("critical recruiter flows", () => {
     ]);
     await expect(page.getByText(jobTitle, { exact: false }).first()).toBeVisible();
   });
+
+  test("recruiter securely signs out and cannot reuse the protected workspace", async ({ page }) => {
+    await signInRecruiter(page);
+    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBeTruthy();
+
+    await Promise.all([
+      page.waitForURL(/\/login$/),
+      page.getByRole("button", { name: "Sign out" }).click(),
+    ]);
+    await expect(page.getByRole("heading", { name: "Sign in to your organization" })).toBeVisible();
+    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBeNull();
+
+    await page.goto("/app");
+    await expect(page.getByRole("heading", { name: "ورود سازمانی لازم است" })).toBeVisible();
+  });
 });
