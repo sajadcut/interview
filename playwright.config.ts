@@ -35,7 +35,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium-critical",
-      testIgnore: /browser-compat\.spec\.ts/,
+      testIgnore: /(?:browser-compat|recruiter-mobile)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         permissions: ["camera", "microphone"],
@@ -49,6 +49,13 @@ export default defineConfig({
         ...devices["Pixel 7"],
         permissions: ["camera", "microphone"],
         launchOptions: { args: fakeMediaArgs },
+      },
+    },
+    {
+      name: "chromium-mobile-recruiter",
+      testMatch: /recruiter-mobile\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
       },
     },
     {
