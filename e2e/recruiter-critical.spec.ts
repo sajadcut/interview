@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { SEEDED_CANDIDATE_ID, signInRecruiter } from "./support";
+import { SEEDED_CANDIDATE_ID, SEEDED_JOB_ID, signInRecruiter } from "./support";
 
 test.describe("critical recruiter flows", () => {
   test("unauthenticated internal workspace is gated", async ({ page }) => {
@@ -20,6 +20,38 @@ test.describe("critical recruiter flows", () => {
     await expect(page.getByRole("heading", { name: "Resume ingestion" })).toBeVisible();
     await expect(page.getByText("Backend Lead", { exact: false })).toBeVisible();
     await expect(page.getByText("Digikala", { exact: false })).toBeVisible();
+  });
+
+  test("recruiter records a reasoned pipeline move and saves a human shortlist", async ({ page }) => {
+    await signInRecruiter(page);
+    await page.goto(`/app/jobs/${SEEDED_JOB_ID}`);
+    await expect(page.getByRole("heading", { name: "Senior Backend Engineer" })).toBeVisible();
+
+    let saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
+    await expect(saraRow).toBeVisible();
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("screening");
+
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("prompt");
+      await dialog.accept("E2E verified recruiter stage transition");
+    });
+    await saraRow.getByRole("button", { name: "interview", exact: true }).click();
+    await expect(page.getByText("Application moved to interview.", { exact: true })).toBeVisible();
+
+    saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("interview");
+
+    // Verify the mutation is persisted rather than only reflected in local React state.
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Senior Backend Engineer" })).toBeVisible();
+    saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("interview");
+
+    await saraRow.getByRole("checkbox").check();
+    const saveShortlist = page.getByRole("button", { name: "Save shortlist (1)" });
+    await expect(saveShortlist).toBeEnabled();
+    await saveShortlist.click();
+    await expect(page.getByText("1 candidates saved to shortlist.", { exact: true })).toBeVisible();
   });
 
   test("recruiter rejects unsupported resume input then ingests a real resume with evidence", async ({ page }) => {
