@@ -34,9 +34,8 @@ export class ResumeTextExtractor {
       }
       const pdf = await getDocumentProxy(input.data);
       const result = await extractText(pdf, { mergePages: true });
-      text = typeof result.text === "string" ? result.text : result.text.join("\n\n");
+      text = result.text;
       pageCount = result.totalPages;
-      await pdf.destroy();
     } else if (
       input.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
