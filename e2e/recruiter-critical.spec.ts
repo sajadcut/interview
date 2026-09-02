@@ -29,6 +29,19 @@ test.describe("critical recruiter flows", () => {
 
     let saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
     await expect(saraRow).toBeVisible();
+
+    // The seeded database is intentionally persistent across CI retries. Repair the fixture through
+    // the same audited UI mutation if a previous failed attempt stopped after moving Sara forward.
+    const currentStage = (await saraRow.getByRole("cell").nth(2).innerText()).trim();
+    if (currentStage !== "screening") {
+      page.once("dialog", async (dialog) => {
+        expect(dialog.type()).toBe("prompt");
+        await dialog.accept("E2E retry fixture reset to screening");
+      });
+      await saraRow.getByRole("button", { name: "screening", exact: true }).click();
+      await expect(page.getByText("Application moved to screening.", { exact: true })).toBeVisible();
+      saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
+    }
     await expect(saraRow.getByRole("cell").nth(2)).toContainText("screening");
 
     // Consequential pipeline mutations require an explicit human reason. Cancelling the prompt
@@ -61,6 +74,17 @@ test.describe("critical recruiter flows", () => {
     await expect(saveShortlist).toBeEnabled();
     await saveShortlist.click();
     await expect(page.getByText("1 candidates saved to shortlist.", { exact: true })).toBeVisible();
+
+    // Return the durable seeded pipeline fixture to its canonical state. If the test fails before
+    // this cleanup, the repair step at the start makes the next retry deterministic.
+    page.once("dialog", async (dialog) => {
+      expect(dialog.type()).toBe("prompt");
+      await dialog.accept("E2E fixture cleanup to screening");
+    });
+    await saraRow.getByRole("button", { name: "screening", exact: true }).click();
+    await expect(page.getByText("Application moved to screening.", { exact: true })).toBeVisible();
+    saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("screening");
   });
 
   test("recruiter rejects unsupported resume input then ingests a real resume with evidence", async ({ page }) => {
@@ -129,14 +153,14 @@ test.describe("critical recruiter flows", () => {
 
   test("recruiter securely signs out and cannot reuse the protected workspace", async ({ page }) => {
     await signInRecruiter(page);
-    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBeTruthy();
+    expect(await page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).toBeTruthy();
 
     await Promise.all([
       page.waitForURL(/\/login$/),
       page.getByRole("button", { name: "Sign out" }).click(),
     ]);
     await expect(page.getByRole("heading", { name: "Sign in to your organization" })).toBeVisible();
-    await expect(page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).resolves.toBeNull();
+    expect(await page.evaluate(() => window.localStorage.getItem("interview.organizationId"))).toBeNull();
 
     await page.goto("/app");
     await expect(page.getByRole("heading", { name: "ورود سازمانی لازم است" })).toBeVisible();
