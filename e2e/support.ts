@@ -20,7 +20,7 @@ export async function signInRecruiter(page: Page): Promise<void> {
     page.waitForURL(/\/app(?:\/)?$/),
     page.getByRole("button", { name: "Sign in" }).click(),
   ]);
-  await expect(page.getByRole("navigation", { name: /Primary navigation/i })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary navigation", exact: true })).toBeVisible();
 }
 
 export async function activeOrganizationId(page: Page): Promise<string> {
