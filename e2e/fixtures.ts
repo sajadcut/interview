@@ -1,9 +1,9 @@
-import { expect, test as base, type Response } from "@playwright/test";
+import { expect, test as base, type Request, type Response } from "@playwright/test";
 import { candidateIdentityForProject, type CandidateE2EIdentity } from "./support";
 
 const genericClientErrorConsole = /^Failed to load resource: the server responded with a status of 4\d\d\b/;
 const webkitNextRscPrefetchAccessControlError =
-  /^\/127\.0\.0\.1:3000\/app(?:\/[^\s?]+)+\?_rsc=[^\s]+ due to access control checks\.$/;
+  /^\/127\.0\.0\.1:3000\/app(?:\/[^\s?]+)*\?_rsc=[^\s]+ due to access control checks\.$/;
 
 type ExpectedBackendFailure = {
   method: string;
@@ -21,11 +21,25 @@ const expectedBackendClientFailures: readonly ExpectedBackendFailure[] = [
   { method: "POST", path: "/api/backend/v1/candidate-auth/otp/verify", statuses: [401] },
 ];
 
+const navigationAbortedLogoutPaths = new Set([
+  "/api/backend/auth/logout",
+  "/api/backend/v1/candidate-auth/logout",
+]);
+
 function isExpectedBackendClientFailure(response: Response): boolean {
   const path = new URL(response.url()).pathname;
   const method = response.request().method();
   return expectedBackendClientFailures.some(
     (entry) => entry.method === method && entry.path === path && entry.statuses.includes(response.status()),
+  );
+}
+
+function isExpectedBackendRequestFailure(request: Request): boolean {
+  const path = new URL(request.url()).pathname;
+  return (
+    request.method() === "POST" &&
+    navigationAbortedLogoutPaths.has(path) &&
+    request.failure()?.errorText === "net::ERR_ABORTED"
   );
 }
 
@@ -72,6 +86,10 @@ export const test = base.extend<E2EFixtures>({
     });
     page.on("requestfailed", (request) => {
       if (!request.url().includes("/api/backend")) return;
+      // Browser navigation can cancel the client-side fetch after logout has already invalidated
+      // the cookie-backed session. Only the two explicit logout endpoints + ERR_ABORTED are allowed;
+      // each corresponding E2E flow then re-opens a protected route to prove the session is gone.
+      if (isExpectedBackendRequestFailure(request)) return;
       diagnostics.push(
         `backend request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText ?? "unknown error"})`,
       );
