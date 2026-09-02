@@ -24,6 +24,7 @@ export type UiPermission =
   | "candidate.contact"
   | "candidate.move_stage"
   | "candidate.score"
+  | "candidate.resume_manage"
   | "sourcing.run"
   | "talent.manage"
   | "screening.manage"
@@ -81,6 +82,7 @@ const ALL_PERMISSIONS: UiPermission[] = [
   "candidate.contact",
   "candidate.move_stage",
   "candidate.score",
+  "candidate.resume_manage",
   "sourcing.run",
   "talent.manage",
   "screening.manage",
@@ -136,6 +138,7 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "candidate.contact",
     "candidate.move_stage",
     "candidate.score",
+    "candidate.resume_manage",
     "sourcing.run",
     "talent.manage",
     "screening.manage",
