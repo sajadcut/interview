@@ -14,6 +14,10 @@ import { InterviewOrchestrationService } from "./interview-orchestration.service
 import { InterviewSpeechService } from "./interview-speech.service";
 import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
+import { SupervisedPilotAwareInterviewsService } from "./supervised-pilot-aware-interviews.service";
+import { SupervisedPilotController } from "./supervised-pilot.controller";
+import { SupervisedPilotRuntimeGateService } from "./supervised-pilot-runtime-gate.service";
+import { SupervisedPilotService } from "./supervised-pilot.service";
 
 @Module({
   controllers: [
@@ -22,9 +26,13 @@ import { InterviewsService } from "./interviews.service";
     InterviewOrchestrationController,
     EvaluatorCalibrationController,
     EvaluatorShadowTestingController,
+    SupervisedPilotController,
   ],
   providers: [
-    InterviewsService,
+    SupervisedPilotRuntimeGateService,
+    SupervisedPilotService,
+    SupervisedPilotAwareInterviewsService,
+    { provide: InterviewsService, useExisting: SupervisedPilotAwareInterviewsService },
     InterviewBrainService,
     InterviewEvaluatorService,
     EvaluatorCalibrationService,
@@ -46,6 +54,8 @@ import { InterviewsService } from "./interviews.service";
     InterviewMediaEventService,
     InterviewSpeechService,
     InterviewOrchestrationService,
+    SupervisedPilotRuntimeGateService,
+    SupervisedPilotService,
   ],
 })
 export class InterviewsModule {}

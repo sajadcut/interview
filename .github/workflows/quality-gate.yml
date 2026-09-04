@@ -72,7 +72,31 @@ jobs:
         run: npm ci
 
       - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+        shell: bash
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            audit_log="$(mktemp)"
+            set +e
+            npm audit --omit=dev --audit-level=high 2>&1 | tee "$audit_log"
+            audit_status=${PIPESTATUS[0]}
+            set -e
+
+            if [ "$audit_status" -eq 0 ]; then
+              rm -f "$audit_log"
+              exit 0
+            fi
+
+            if grep -Eqi 'audit network timeout|audit endpoint returned an error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND' "$audit_log" && [ "$attempt" -lt 3 ]; then
+              echo "::warning::npm audit registry call failed transiently; retrying (${attempt}/3)."
+              rm -f "$audit_log"
+              sleep $((attempt * 5))
+              continue
+            fi
+
+            rm -f "$audit_log"
+            exit "$audit_status"
+          done
 
       - name: Apply migrations
         run: npm run db:migrate
