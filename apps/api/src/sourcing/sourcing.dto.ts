@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from "class-validator";
 import { ApprovedSourceTypes, type ApprovedSourceType } from "./candidate-source.adapter";
 
@@ -82,6 +82,12 @@ export class SourcingRunRequestDto {
   @IsOptional()
   @IsIn(sourceTypes)
   sourceType?: ApprovedSourceType;
+
+  @ApiHideProperty()
+  @IsOptional()
+  @IsString()
+  @Length(2, 80)
+  providerKey?: string;
 
   @ApiPropertyOptional({ minLength: 8, maxLength: 200 })
   @IsOptional()
