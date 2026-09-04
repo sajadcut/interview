@@ -4,6 +4,7 @@ import {
   DisabledCalendarProvider,
   DisabledEmailProvider,
 } from "./disabled-engagement.providers";
+import { EmailAwareEngagementService } from "./email-aware-engagement.service";
 import { EmailDeliveryService } from "./email-delivery.service";
 import {
   CALENDAR_PROVIDER,
@@ -28,7 +29,8 @@ import { EngagementService } from "./engagement.service";
     EngagementWorkspaceController,
   ],
   providers: [
-    EngagementService,
+    EmailAwareEngagementService,
+    { provide: EngagementService, useExisting: EmailAwareEngagementService },
     EngagementOperationsService,
     EngagementWorkspaceService,
     EmailDeliveryService,
