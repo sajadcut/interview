@@ -1,12 +1,12 @@
 import { createHash, createHmac, randomUUID } from "node:crypto";
-import net from "node:net";
-import tls from "node:tls";
+import * as net from "node:net";
+import * as tls from "node:tls";
 import { Injectable } from "@nestjs/common";
 import { getEnv, type AppEnv } from "../config/env";
-import {
-  type DeliveryResult,
-  type EmailProvider,
-  type OutboundEmailMessage,
+import type {
+  EmailDeliveryRequest,
+  EmailDeliveryResult,
+  EmailProvider,
 } from "./engagement-provider.contracts";
 
 const EMAIL_ADDRESS = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
@@ -57,7 +57,6 @@ export type SendGridEmailProviderConfig = CommonEmailProviderConfig & {
 };
 
 type SmtpReply = { code: number; lines: string[]; text: string };
-
 type ReplyWaiter = {
   resolve: (reply: SmtpReply) => void;
   reject: (error: Error) => void;
@@ -128,7 +127,7 @@ export function sesConfigFromEnv(env: AppEnv = getEnv()): SesEmailProviderConfig
     accessKeyId: env.SES_ACCESS_KEY_ID,
     secretAccessKey: env.SES_SECRET_ACCESS_KEY,
     sessionToken: env.SES_SESSION_TOKEN || null,
-    endpoint: env.SES_ENDPOINT?.toString() || null,
+    endpoint: env.SES_ENDPOINT || null,
   };
 }
 
@@ -136,13 +135,12 @@ export function sendGridConfigFromEnv(env: AppEnv = getEnv()): SendGridEmailProv
   return {
     ...commonConfig(env),
     apiKey: env.SENDGRID_API_KEY,
-    baseUrl: env.SENDGRID_BASE_URL?.toString() || "https://api.sendgrid.com/v3",
+    baseUrl: env.SENDGRID_BASE_URL || "https://api.sendgrid.com/v3",
   };
 }
 
 function backoffMs(baseMs: number, attempt: number): number {
-  const raw = baseMs * 2 ** Math.max(0, attempt - 1);
-  return Math.min(raw, 10_000);
+  return Math.min(baseMs * 2 ** Math.max(0, attempt - 1), 10_000);
 }
 
 async function delay(ms: number): Promise<void> {
@@ -152,22 +150,26 @@ async function delay(ms: number): Promise<void> {
 function asDeliveryError(provider: string, error: unknown): EmailDeliveryError {
   if (error instanceof EmailDeliveryError) return error;
   const message = error instanceof Error ? error.message : "Unknown email provider error";
-  const code = error instanceof Error && "code" in error && typeof error.code === "string"
-    ? error.code
-    : "PROVIDER_ERROR";
-  return new EmailDeliveryError(provider, code, true, message);
+  const candidate = error instanceof Error && "code" in error
+    ? (error as Error & { code?: unknown }).code
+    : undefined;
+  return new EmailDeliveryError(
+    provider,
+    typeof candidate === "string" ? candidate : "PROVIDER_ERROR",
+    true,
+    message,
+  );
 }
 
 async function withRetry<T>(
   provider: string,
   config: CommonEmailProviderConfig,
   operation: () => Promise<T>,
-): Promise<{ value: T; attempts: number; latencyMs: number }> {
-  const startedAt = Date.now();
+): Promise<T> {
   let lastError: EmailDeliveryError | null = null;
   for (let attempt = 1; attempt <= config.maxAttempts; attempt += 1) {
     try {
-      return { value: await operation(), attempts: attempt, latencyMs: Date.now() - startedAt };
+      return await operation();
     } catch (error) {
       lastError = asDeliveryError(provider, error);
       if (!lastError.retryable || attempt >= config.maxAttempts) break;
@@ -181,8 +183,8 @@ class SmtpReplyReader {
   private buffer = "";
   private responseLines: string[] = [];
   private responseCode: number | null = null;
-  private replies: SmtpReply[] = [];
-  private waiters: ReplyWaiter[] = [];
+  private readonly replies: SmtpReply[] = [];
+  private readonly waiters: ReplyWaiter[] = [];
   private terminalError: Error | null = null;
   private readonly onData = (chunk: Buffer | string) => this.consume(String(chunk));
   private readonly onError = (error: Error) => this.fail(error);
@@ -206,7 +208,8 @@ class SmtpReplyReader {
   }
 
   next(timeoutMs: number): Promise<SmtpReply> {
-    if (this.replies.length > 0) return Promise.resolve(this.replies.shift() as SmtpReply);
+    const queued = this.replies.shift();
+    if (queued) return Promise.resolve(queued);
     if (this.terminalError) return Promise.reject(this.terminalError);
     return new Promise<SmtpReply>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -278,11 +281,13 @@ function requireSmtp(reply: SmtpReply, stage: string, accepted: number[]): void 
 
 async function connectSocket(config: SmtpEmailProviderConfig): Promise<net.Socket | tls.TLSSocket> {
   return await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new EmailDeliveryError("smtp", "SMTP_CONNECT_TIMEOUT", true, "SMTP connection timed out")), config.timeoutMs);
-    const options = { host: config.host, port: config.port };
+    const timer = setTimeout(
+      () => reject(new EmailDeliveryError("smtp", "SMTP_CONNECT_TIMEOUT", true, "SMTP connection timed out")),
+      config.timeoutMs,
+    );
     const socket = config.secure
-      ? tls.connect({ ...options, servername: config.tlsServername || config.host })
-      : net.createConnection(options);
+      ? tls.connect({ host: config.host, port: config.port, servername: config.tlsServername || config.host })
+      : net.createConnection({ host: config.host, port: config.port });
     const connectedEvent = config.secure ? "secureConnect" : "connect";
     const cleanup = () => {
       clearTimeout(timer);
@@ -314,10 +319,14 @@ async function writeCommand(
 }
 
 function capabilities(reply: SmtpReply): Set<string> {
-  return new Set(reply.lines.map((line) => line.slice(4).trim().split(/\s+/)[0]?.toUpperCase()).filter(Boolean));
+  return new Set(
+    reply.lines
+      .map((line) => line.slice(4).trim().split(/\s+/)[0]?.toUpperCase())
+      .filter((value): value is string => Boolean(value)),
+  );
 }
 
-function buildSmtpMessage(config: SmtpEmailProviderConfig, input: OutboundEmailMessage): string {
+function buildSmtpMessage(config: SmtpEmailProviderConfig, input: EmailDeliveryRequest): string {
   const recipient = assertEmailAddress(input.recipient, "recipient");
   const from = assertEmailAddress(config.fromAddress, "EMAIL_FROM_ADDRESS");
   const subject = safeHeader(input.subject, "subject");
@@ -341,15 +350,15 @@ function buildSmtpMessage(config: SmtpEmailProviderConfig, input: OutboundEmailM
 
 export async function sendSmtpEmail(
   config: SmtpEmailProviderConfig,
-  input: OutboundEmailMessage,
-): Promise<DeliveryResult> {
+  input: EmailDeliveryRequest,
+): Promise<EmailDeliveryResult> {
   assertEmailAddress(config.fromAddress, "EMAIL_FROM_ADDRESS");
   const recipient = assertEmailAddress(input.recipient, "recipient");
   let socket = await connectSocket(config);
   let reader = new SmtpReplyReader(socket);
   try {
     requireSmtp(await reader.next(config.timeoutMs), "banner", [220]);
-    let ehlo = await writeCommand(socket, reader, `EHLO interview-platform`, config.timeoutMs);
+    let ehlo = await writeCommand(socket, reader, "EHLO interview-platform", config.timeoutMs);
     requireSmtp(ehlo, "EHLO", [250]);
     let caps = capabilities(ehlo);
 
@@ -361,7 +370,10 @@ export async function sendSmtpEmail(
       reader.detach();
       socket = await new Promise<tls.TLSSocket>((resolve, reject) => {
         const upgraded = tls.connect({ socket, servername: config.tlsServername || config.host });
-        const timer = setTimeout(() => reject(new EmailDeliveryError("smtp", "SMTP_TLS_TIMEOUT", true, "SMTP TLS negotiation timed out")), config.timeoutMs);
+        const timer = setTimeout(
+          () => reject(new EmailDeliveryError("smtp", "SMTP_TLS_TIMEOUT", true, "SMTP TLS negotiation timed out")),
+          config.timeoutMs,
+        );
         upgraded.once("secureConnect", () => {
           clearTimeout(timer);
           resolve(upgraded);
@@ -378,15 +390,25 @@ export async function sendSmtpEmail(
     }
 
     if (config.username) {
-      if (!config.password) throw new EmailDeliveryError("smtp", "SMTP_AUTH_CONFIG", false, "SMTP password is required when username is configured");
+      if (!config.password) {
+        throw new EmailDeliveryError("smtp", "SMTP_AUTH_CONFIG", false, "SMTP password is required when username is configured");
+      }
       const authLine = ehlo.lines.find((line) => line.slice(4).toUpperCase().startsWith("AUTH "))?.slice(4).toUpperCase() || "";
       if (authLine.includes("PLAIN")) {
         const payload = Buffer.from(`\0${config.username}\0${config.password}`).toString("base64");
         requireSmtp(await writeCommand(socket, reader, `AUTH PLAIN ${payload}`, config.timeoutMs), "AUTH PLAIN", [235]);
       } else if (authLine.includes("LOGIN") || caps.has("AUTH")) {
         requireSmtp(await writeCommand(socket, reader, "AUTH LOGIN", config.timeoutMs), "AUTH LOGIN", [334]);
-        requireSmtp(await writeCommand(socket, reader, Buffer.from(config.username).toString("base64"), config.timeoutMs), "AUTH username", [334]);
-        requireSmtp(await writeCommand(socket, reader, Buffer.from(config.password).toString("base64"), config.timeoutMs), "AUTH password", [235]);
+        requireSmtp(
+          await writeCommand(socket, reader, Buffer.from(config.username).toString("base64"), config.timeoutMs),
+          "AUTH username",
+          [334],
+        );
+        requireSmtp(
+          await writeCommand(socket, reader, Buffer.from(config.password).toString("base64"), config.timeoutMs),
+          "AUTH password",
+          [235],
+        );
       } else {
         throw new EmailDeliveryError("smtp", "SMTP_AUTH_UNSUPPORTED", false, "SMTP server does not advertise a supported AUTH mechanism");
       }
@@ -400,11 +422,12 @@ export async function sendSmtpEmail(
     try {
       await writeCommand(socket, reader, "QUIT", Math.min(config.timeoutMs, 2_000));
     } catch {
-      // Delivery has already been accepted; QUIT failures do not change delivery state.
+      // The server already accepted DATA; a QUIT failure is not a delivery failure.
     }
     return {
       provider: "smtp",
       providerReference: dataReply.text.slice(0, 512) || `smtp:${idempotencyHash(input.idempotencyKey)}`,
+      acceptedAt: new Date().toISOString(),
     };
   } finally {
     reader.detach();
@@ -437,15 +460,15 @@ async function responseMessage(response: Response): Promise<string> {
     const candidate = parsed.message ?? parsed.Message ?? parsed.error;
     if (typeof candidate === "string") return candidate.slice(0, 400);
   } catch {
-    // fall through to bounded text
+    // Fall back to bounded response text.
   }
   return text.replace(/\s+/g, " ").slice(0, 400);
 }
 
 export async function sendSesEmail(
   config: SesEmailProviderConfig,
-  input: OutboundEmailMessage,
-): Promise<DeliveryResult> {
+  input: EmailDeliveryRequest,
+): Promise<EmailDeliveryResult> {
   const recipient = assertEmailAddress(input.recipient, "recipient");
   const from = assertEmailAddress(config.fromAddress, "EMAIL_FROM_ADDRESS");
   const subject = safeHeader(input.subject, "subject");
@@ -463,8 +486,7 @@ export async function sendSesEmail(
     EmailTags: [{ Name: "interview-idempotency", Value: idempotencyHash(input.idempotencyKey).slice(0, 64) }],
     ...(config.replyTo ? { ReplyToAddresses: [assertEmailAddress(config.replyTo, "EMAIL_REPLY_TO")] } : {}),
   });
-  const now = new Date();
-  const { amzDate, dateStamp } = awsTimestamp(now);
+  const { amzDate, dateStamp } = awsTimestamp(new Date());
   const payloadHash = sha256(body);
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -474,7 +496,9 @@ export async function sendSesEmail(
   };
   if (config.sessionToken) headers["x-amz-security-token"] = config.sessionToken;
   const headerNames = Object.keys(headers).sort();
-  const canonicalHeaders = headerNames.map((key) => `${key}:${canonicalHeaderValue(headers[key] ?? "")}\n`).join("");
+  const canonicalHeaders = headerNames
+    .map((key) => `${key}:${canonicalHeaderValue(headers[key] ?? "")}\n`)
+    .join("");
   const signedHeaders = headerNames.join(";");
   const canonicalRequest = [
     "POST",
@@ -515,22 +539,22 @@ export async function sendSesEmail(
     );
   }
   const parsed = await response.json() as Record<string, unknown>;
-  const reference = typeof parsed.MessageId === "string" ? parsed.MessageId : null;
-  if (!reference) throw new EmailDeliveryError("ses", "SES_INVALID_RESPONSE", true, "Amazon SES response did not include MessageId");
-  return { provider: "ses", providerReference: reference };
+  if (typeof parsed.MessageId !== "string" || !parsed.MessageId) {
+    throw new EmailDeliveryError("ses", "SES_INVALID_RESPONSE", true, "Amazon SES response did not include MessageId");
+  }
+  return { provider: "ses", providerReference: parsed.MessageId, acceptedAt: new Date().toISOString() };
 }
 
 export async function sendSendGridEmail(
   config: SendGridEmailProviderConfig,
-  input: OutboundEmailMessage,
-): Promise<DeliveryResult> {
+  input: EmailDeliveryRequest,
+): Promise<EmailDeliveryResult> {
   const recipient = assertEmailAddress(input.recipient, "recipient");
   const from = assertEmailAddress(config.fromAddress, "EMAIL_FROM_ADDRESS");
   const subject = safeHeader(input.subject, "subject");
-  const baseUrl = config.baseUrl.replace(/\/$/, "");
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/mail/send`, {
+    response = await fetch(`${config.baseUrl.replace(/\/$/, "")}/mail/send`, {
       method: "POST",
       headers: {
         authorization: `Bearer ${config.apiKey}`,
@@ -563,47 +587,45 @@ export async function sendSendGridEmail(
   }
   const reference = response.headers.get("x-message-id")?.trim()
     || `sendgrid:${idempotencyHash(input.idempotencyKey)}`;
-  return { provider: "sendgrid", providerReference: reference.slice(0, 512) };
+  return { provider: "sendgrid", providerReference: reference.slice(0, 512), acceptedAt: new Date().toISOString() };
 }
 
 @Injectable()
 export class SmtpEmailProvider implements EmailProvider {
-  readonly name = "smtp";
-  isEnabled(): boolean {
+  readonly providerKey = "smtp";
+  get configured(): boolean {
     const env = getEnv();
     return env.EMAIL_PROVIDER === "smtp" && Boolean(env.EMAIL_FROM_ADDRESS && env.SMTP_HOST);
   }
-  async send(input: OutboundEmailMessage): Promise<DeliveryResult> {
+  async send(input: EmailDeliveryRequest): Promise<EmailDeliveryResult> {
     const config = smtpConfigFromEnv();
-    const result = await withRetry(this.name, config, () => sendSmtpEmail(config, input));
-    return { ...result.value, attemptCount: result.attempts, latencyMs: result.latencyMs };
+    return withRetry(this.providerKey, config, () => sendSmtpEmail(config, input));
   }
 }
 
 @Injectable()
 export class SesEmailProvider implements EmailProvider {
-  readonly name = "ses";
-  isEnabled(): boolean {
+  readonly providerKey = "ses";
+  get configured(): boolean {
     const env = getEnv();
-    return env.EMAIL_PROVIDER === "ses" && Boolean(env.EMAIL_FROM_ADDRESS && env.SES_ACCESS_KEY_ID && env.SES_SECRET_ACCESS_KEY);
+    return env.EMAIL_PROVIDER === "ses"
+      && Boolean(env.EMAIL_FROM_ADDRESS && env.SES_ACCESS_KEY_ID && env.SES_SECRET_ACCESS_KEY);
   }
-  async send(input: OutboundEmailMessage): Promise<DeliveryResult> {
+  async send(input: EmailDeliveryRequest): Promise<EmailDeliveryResult> {
     const config = sesConfigFromEnv();
-    const result = await withRetry(this.name, config, () => sendSesEmail(config, input));
-    return { ...result.value, attemptCount: result.attempts, latencyMs: result.latencyMs };
+    return withRetry(this.providerKey, config, () => sendSesEmail(config, input));
   }
 }
 
 @Injectable()
 export class SendGridEmailProvider implements EmailProvider {
-  readonly name = "sendgrid";
-  isEnabled(): boolean {
+  readonly providerKey = "sendgrid";
+  get configured(): boolean {
     const env = getEnv();
     return env.EMAIL_PROVIDER === "sendgrid" && Boolean(env.EMAIL_FROM_ADDRESS && env.SENDGRID_API_KEY);
   }
-  async send(input: OutboundEmailMessage): Promise<DeliveryResult> {
+  async send(input: EmailDeliveryRequest): Promise<EmailDeliveryResult> {
     const config = sendGridConfigFromEnv();
-    const result = await withRetry(this.name, config, () => sendSendGridEmail(config, input));
-    return { ...result.value, attemptCount: result.attempts, latencyMs: result.latencyMs };
+    return withRetry(this.providerKey, config, () => sendSendGridEmail(config, input));
   }
 }
