@@ -92,4 +92,40 @@ export class ExternalSourceConnectionService {
       return false;
     }
   }
+
+  async resolveProviderKey(organizationId: string): Promise<ExternalSourceProviderKey> {
+    const keys: ExternalSourceProviderKey[] = ["people_data_labs", "coresignal"];
+    const configured: Array<{ key: ExternalSourceProviderKey; isDefault: boolean }> = [];
+
+    for (const key of keys) {
+      const connection = await this.find(organizationId, key);
+      if (!connection || !approvedForRecruiting(connection.config)) continue;
+      try {
+        this.apiKey(connection);
+      } catch {
+        continue;
+      }
+      configured.push({
+        key,
+        isDefault: connection.config.defaultForSourcing === true,
+      });
+    }
+
+    const defaults = configured.filter((item) => item.isDefault);
+    if (defaults.length === 1) return defaults[0]!.key;
+    if (defaults.length > 1) {
+      throw new BadRequestException(
+        "Multiple external candidate-source integrations are marked defaultForSourcing=true; configure exactly one default provider",
+      );
+    }
+    if (configured.length === 1) return configured[0]!.key;
+    if (configured.length === 0) {
+      throw new NotFoundException(
+        "No approved external candidate-source provider is configured with available credentials for this organization",
+      );
+    }
+    throw new BadRequestException(
+      "Multiple external candidate-source providers are configured; mark exactly one integration config with defaultForSourcing=true",
+    );
+  }
 }
