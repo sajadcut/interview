@@ -22,6 +22,15 @@ function databaseStub(passwordHash: string): { database: DatabaseService; calls:
     async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const text = Array.from(strings).join("?");
       calls.push({ text, values });
+      if (text.includes("INSERT INTO auth_rate_limits")) {
+        return [
+          {
+            attempts: 1,
+            window_started_at: new Date(),
+            blocked_until: null,
+          },
+        ];
+      }
       if (text.includes("FROM users u") && text.includes("JOIN credentials c")) {
         return [
           {
