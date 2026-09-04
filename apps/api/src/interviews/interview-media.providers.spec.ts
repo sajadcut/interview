@@ -55,6 +55,9 @@ function env(overrides: Partial<AppEnv> = {}): AppEnv {
     TURN_URLS: "",
     VAD_PROVIDER: "disabled",
     STT_PROVIDER: "disabled",
+    STT_REQUEST_TIMEOUT_MS: 130000,
+    STT_MAX_ATTEMPTS: 3,
+    STT_RETRY_BASE_MS: 250,
     TTS_PROVIDER: "disabled",
     AVATAR_PROVIDER: "disabled",
     ...overrides,
@@ -106,7 +109,7 @@ test("successful health probe marks a configured provider ready", async () => {
 
 test("non-2xx health response is reachable but not ready", async () => {
   const descriptors = buildMediaProviderDescriptors(
-    env({ STT_PROVIDER: "whisper-http", STT_BASE_URL: "http://127.0.0.1:9020" }),
+    env({ STT_PROVIDER: "whisper-http", STT_BASE_URL: "http://127.0.0.1:9020", MEDIA_WORKER_SHARED_SECRET: "test-secret" }),
   ).filter((descriptor) => descriptor.component === "stt");
   const statuses = await probeMediaProviders(descriptors, 100, async () =>
     new Response(null, { status: 503 }),
