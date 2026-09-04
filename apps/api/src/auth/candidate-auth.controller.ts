@@ -43,6 +43,7 @@ function setCandidateCookie(response: Response, issued: IssuedCandidateSession):
     httpOnly: true,
     sameSite: SESSION_POLICY.cookie.sameSite,
     secure: SESSION_POLICY.cookie.secure,
+    priority: SESSION_POLICY.cookie.priority,
     path: "/",
     maxAge: Math.max(0, issued.expiresAt.getTime() - Date.now()),
   });
