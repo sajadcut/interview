@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from "@nestjs/common";
-import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiExcludeController, ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -15,6 +15,7 @@ import {
 } from "./ats-integration.dto";
 import { AtsIntegrationService } from "./ats-integration.service";
 
+@ApiExcludeController()
 @ApiTags("ats-integrations")
 @Controller("v1/ats")
 @RequireTenant()
