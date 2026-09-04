@@ -64,7 +64,10 @@ SET recorded_by_user_id = COALESCE(h.recorded_by_user_id, h.reviewer_user_id),
     blind_review_confirmed = COALESCE(h.blind_review_confirmed, true),
     reviewer_independent = COALESCE(
       h.reviewer_independent,
-      h.reviewer_user_id IS DISTINCT FROM r.created_by_user_id
+      CASE
+        WHEN h.reviewer_user_id IS DISTINCT FROM r.created_by_user_id THEN true
+        ELSE NULL
+      END
     )
 FROM evaluator_shadow_runs r
 WHERE r.organization_id = h.organization_id
