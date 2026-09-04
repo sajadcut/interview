@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, Whisper STT Integration Contract v1, and FFmpeg Integration Layer v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.35.0
+> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, Whisper STT Integration Contract v1, FFmpeg Integration Layer v1, and LLM Provider Layer v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.36.0
 > **Date:** 2026-09-05
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,7 +10,7 @@
 
 # 1. Current validated baseline
 
-The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, FFmpeg integration-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
+The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, FFmpeg integration-contract validation, LLM provider-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
 
@@ -134,6 +134,25 @@ FFmpeg Integration Layer v1
   Browser E2E critical flows                  ✅
   result                                      ✅ success
   real FFmpeg build/codecs/runtime evidence   deployment/runtime-specific / pending
+
+LLM Provider Layer v1
+  validated main commit                       bf6fceb1ed4afbec009ec9c6cfab10cdfe1618e2
+  quality-gate                                33924586603 / run #597
+  source of truth                             contracts/llm-provider.v1.json
+  layer                                       services/ai-worker/src/llm-provider.mjs
+  prompt versioning                           explicit immutable id/version + exact variables; no implicit latest
+  structured output                           JSON/schema fail-closed validation
+  retry                                       bounded per-provider exponential retry
+  timeout                                     per-attempt AbortSignal timeout
+  budget                                      prompt preflight + token/costMicros caps + failed-attempt usage charging
+  fallback                                    ordered providers after local retry exhaustion
+  result provenance                           prompt id/version + provider/model + attempts + aggregate usage; no rendered prompt echo
+  contract check                              ✅ npm run llm-provider:contract:check
+  dependency-free scripted-provider tests     ✅ 9 scenarios; no model/API key/network/paid inference
+  lint / typecheck / full tests / build       ✅
+  Browser E2E critical flows                  ✅
+  result                                      ✅ success
+  real provider/model/cost/quality evidence   deployment/runtime-specific / pending
 ```
 
 The quality gate is read-only with respect to source/generated artifacts. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
@@ -240,6 +259,8 @@ Whisper transport behavior is governed by `contracts/whisper-stt.v1.json`, `Whis
 
 FFmpeg process behavior is governed by `contracts/ffmpeg-integration.v1.json`, `services/media-worker/ffmpeg_layer.py`, and `docs/operations/ffmpeg-integration-layer.md`. The layer builds fixed argument vectors instead of shell commands, restricts file paths to owned temporary workspaces, isolates child process groups, applies bounded timeout/cancellation with terminate→kill escalation, validates non-empty outputs, sanitizes/bounds diagnostics, cleans temporary workspaces on both success and failure, and records only contracted low-cardinality metrics. `GET /ffmpeg/health` and realtime readiness honor `FFMPEG_ENABLED` fail-closed. CI exercises this lifecycle with controlled Python child processes and does not install or invoke FFmpeg.
 
+LLM execution behavior is governed by `contracts/llm-provider.v1.json`, `services/ai-worker/src/llm-provider.mjs`, and `docs/operations/llm-provider-layer.md`. The layer requires explicit immutable prompt versions, validates structured JSON output fail-closed, bounds local provider retries and per-attempt timeouts, enforces request-scoped token/cost budgets across failed attempts and fallbacks, and selects fallback providers deterministically. CI proves these semantics with scripted in-memory providers and does not install, credential, call, or bill a real model.
+
 ---
 
 # 6. Current milestone state beyond Core Closure
@@ -248,7 +269,7 @@ FFmpeg process behavior is governed by `contracts/ffmpeg-integration.v1.json`, `
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
-M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + realtime/alerting + LiveKit deployment + Whisper STT + FFmpeg integration contracts/layers implemented; actual realtime provider runtime and representative Gate F evidence pending
+M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + LLM provider layer + monitoring + realtime/alerting + LiveKit deployment + Whisper STT + FFmpeg integration contracts/layers implemented; actual LLM/realtime provider runtime and representative Gate F evidence pending
 M5 Assessments                      isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   privacy deletion + retention + security hardening + operational monitoring + alerting contract materially implemented and CI-validated
 ```
@@ -259,7 +280,7 @@ The Privacy Deletion Worker performs verified object deletion plus derived-data 
 
 The Coding Assessment Sandbox remains a separate specialized worker. The core API persists/leases jobs and results but never executes candidate source code. There is deliberately no direct host-process fallback.
 
-The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. Calibration and Shadow frameworks persist the evidence needed for qualified-human comparison while keeping real production release authority outside those framework results.
+The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. Calibration and Shadow frameworks persist the evidence needed for qualified-human comparison while keeping real production release authority outside those framework results. The LLM Provider Layer now centralizes prompt provenance, structured-output validation, provider retry/timeout mechanics, request budget accounting and ordered fallback so future model adapters do not duplicate those controls.
 
 Operational Monitoring covers API, PostgreSQL, all four durable worker queues, lease state, persisted Interview/media lifecycle, and the media-worker realtime contract surface. Alerting Contract v1 adds CI-validated Prometheus rules across collector health, API errors/latency, PostgreSQL, queue backlog/leases/failures, worker availability, stalled interviews, media heartbeat/error health, Gate F E2E latency, Whisper, LiveKit, and FFmpeg.
 
@@ -277,6 +298,7 @@ actual TURN/firewall/TLS validation under real network conditions
 actual FFmpeg media-pipeline execution telemetry
 real whisper.cpp model/host performance and quality evidence
 real Whisper request latency/error/RTF observations through the v1 HTTP contract
+real LLM provider credentials, selected model behavior, structured-output reliability, latency, token/cost and fallback observations
 100+ representative realtime interview benchmark required by Gate F
 speech/realtime quality, reconnect and load evidence
 representative evaluator calibration data + qualified-human adjudication
@@ -298,10 +320,12 @@ The LiveKit Deployment Contract proves configuration policy, health wiring, toke
 
 The FFmpeg Integration Layer proves command/process lifecycle semantics, cleanup, timeout/cancellation, error mapping, output validation, readiness policy and telemetry wiring without installing FFmpeg in CI. It does not prove the target FFmpeg build, codec availability, corrupt-input behavior, media quality, host CPU/GPU/memory behavior, real-time factor, tail latency or production throughput. Those remain deployment/runtime evidence.
 
+The LLM Provider Layer proves prompt-version provenance, structured-output validation, retry/timeout behavior, budget enforcement and fallback sequencing without any real inference dependency. It does not prove a production model's quality, evaluator calibration, provider availability, quota/rate-limit behavior, real token accounting/cost, latency, schema adherence under production load, or fallback quality. Those remain provider/runtime evidence.
+
 ---
 
 # 8. Repository governance
 
-The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run ffmpeg:contract:check`, `npm run whisper:contract:check`, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime/Whisper contract tests, dependency-free Python media-worker/FFmpeg fake-process tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
+The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run llm-provider:contract:check`, `npm run ffmpeg:contract:check`, `npm run whisper:contract:check`, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime/Whisper contract tests, dependency-free Node LLM scripted-provider tests, dependency-free Python media-worker/FFmpeg fake-process tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
 If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
