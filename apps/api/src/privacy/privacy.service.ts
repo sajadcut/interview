@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
+import { PrivacyDeletionQueueService } from "./privacy-deletion-queue.service";
 
 const PRIVACY_REQUEST_TYPES = new Set(["access", "deletion", "withdraw_consent"]);
 
@@ -11,6 +12,7 @@ export class PrivacyService {
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly authContext: AuthContextService,
+    private readonly deletionQueue: PrivacyDeletionQueueService,
   ) {}
 
   async listRetentionPolicies() {
@@ -107,7 +109,8 @@ export class PrivacyService {
         'pending_review',
         ${this.database.sql.json(metadata as never)}
       )
-      RETURNING id, candidate_id, request_type, status, requested_at, review_notes, completed_at, metadata
+      RETURNING id, candidate_id, request_type, status, requested_at, review_notes,
+                completed_at, metadata, subject_digest
     `;
     return this.mapRequest(rows[0]);
   }
@@ -116,13 +119,15 @@ export class PrivacyService {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = status
       ? await this.database.sql`
-          SELECT id, candidate_id, request_type, status, requested_at, review_notes, completed_at, metadata
+          SELECT id, candidate_id, request_type, status, requested_at, review_notes,
+                 completed_at, metadata, subject_digest
           FROM privacy_requests
           WHERE organization_id = ${organizationId}::uuid AND status = ${status}
           ORDER BY requested_at DESC
         `
       : await this.database.sql`
-          SELECT id, candidate_id, request_type, status, requested_at, review_notes, completed_at, metadata
+          SELECT id, candidate_id, request_type, status, requested_at, review_notes,
+                 completed_at, metadata, subject_digest
           FROM privacy_requests
           WHERE organization_id = ${organizationId}::uuid
           ORDER BY requested_at DESC
@@ -139,18 +144,27 @@ export class PrivacyService {
     if (!reviewer) throw new Error("Authenticated reviewer is required");
 
     const organizationId = this.tenantContext.require().organizationId;
-    const status = value.decision === "approve" ? "approved_pending_execution" : "rejected";
+    if (value.decision === "approve") {
+      return this.deletionQueue.approvePrivacyRequest({
+        organizationId,
+        requestId,
+        reviewerUserId: reviewer.userId,
+        reviewNotes: value.reviewNotes.trim(),
+      });
+    }
+
     const rows = await this.database.sql`
       UPDATE privacy_requests
-      SET status = ${status},
+      SET status = 'rejected',
           reviewed_by_user_id = ${reviewer.userId}::uuid,
           review_notes = ${value.reviewNotes.trim()},
-          completed_at = ${value.decision === "reject" ? new Date() : null},
+          completed_at = now(),
           updated_at = now()
       WHERE organization_id = ${organizationId}::uuid
         AND id = ${requestId}::uuid
         AND status = 'pending_review'
-      RETURNING id, candidate_id, request_type, status, requested_at, review_notes, completed_at, metadata
+      RETURNING id, candidate_id, request_type, status, requested_at, review_notes,
+                completed_at, metadata, subject_digest
     `;
     if (!rows.length) throw new Error("Pending privacy request not found");
     return this.mapRequest(rows[0]);
@@ -158,9 +172,14 @@ export class PrivacyService {
 
   private mapRequest(row: Record<string, unknown> | undefined) {
     if (!row) throw new Error("Privacy persistence returned no row");
+    const candidateId = row.candidate_id
+      ? String(row.candidate_id)
+      : row.subject_digest
+        ? `deleted:${String(row.subject_digest)}`
+        : "deleted";
     return {
       id: String(row.id),
-      candidateId: String(row.candidate_id),
+      candidateId,
       requestType: String(row.request_type),
       status: String(row.status),
       requestedAt: new Date(String(row.requested_at)).toISOString(),
