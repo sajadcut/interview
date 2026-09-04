@@ -3,7 +3,6 @@ import { Injectable } from "@nestjs/common";
 import { getEnv } from "../config/env";
 import type {
   SpeechToTextAdapter,
-  SpeechToTextContentType,
   SpeechToTextReadiness,
   SpeechToTextRequest,
   SpeechToTextResult,
@@ -64,7 +63,7 @@ export class WhisperClientError extends Error {
   readonly retryable: boolean;
   readonly attempts: number;
   readonly requestId: string;
-  readonly httpStatus?: number;
+  readonly httpStatus: number | undefined;
 
   constructor(
     code: WhisperClientErrorCode,
@@ -129,7 +128,6 @@ export function mapWhisperHttpFailure(
     400: { code: "invalid_request", retryable: false },
     401: { code: "unauthorized", retryable: false },
     403: { code: "forbidden", retryable: false },
-    408: { code: "provider_timeout", retryable: true },
     409: { code: "contract_mismatch", retryable: false },
     413: { code: "payload_too_large", retryable: false },
     415: { code: "unsupported_media_type", retryable: false },
@@ -167,78 +165,70 @@ async function readBoundedText(response: Response, maximumBytes: number): Promis
   return text;
 }
 
-function parseSuccessResponse(
+async function parseSuccessResponse(
   response: Response,
   requestId: string,
   attempts: number,
 ): Promise<SpeechToTextResult> {
-  return (async () => {
-    if (response.headers.get("x-stt-contract-version") !== WHISPER_STT_CONTRACT_VERSION) {
-      throw new WhisperClientError("invalid_response", {
-        retryable: false,
-        attempts,
-        requestId,
-        httpStatus: response.status,
-      });
-    }
-    if (normalizedContentType(response.headers.get("content-type")) !== "application/json") {
-      throw new WhisperClientError("invalid_response", {
-        retryable: false,
-        attempts,
-        requestId,
-        httpStatus: response.status,
-      });
-    }
-
-    let payload: unknown;
-    try {
-      payload = JSON.parse(await readBoundedText(response, MAX_SUCCESS_RESPONSE_BYTES));
-    } catch (cause) {
-      if (cause instanceof WhisperClientError) throw cause;
-      throw new WhisperClientError("invalid_response", {
-        retryable: false,
-        attempts,
-        requestId,
-        httpStatus: response.status,
-      });
-    }
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      throw new WhisperClientError("invalid_response", {
-        retryable: false,
-        attempts,
-        requestId,
-        httpStatus: response.status,
-      });
-    }
-    const row = payload as Record<string, unknown>;
-    if (
-      row.contractVersion !== WHISPER_STT_CONTRACT_VERSION ||
-      row.requestId !== requestId ||
-      row.provider !== "whisper.cpp" ||
-      typeof row.text !== "string" ||
-      row.text.length > MAX_SUCCESS_RESPONSE_BYTES ||
-      row.isFinal !== true ||
-      typeof row.language !== "string" ||
-      row.language.length === 0 ||
-      row.language.length > 64
-    ) {
-      throw new WhisperClientError("invalid_response", {
-        retryable: false,
-        attempts,
-        requestId,
-        httpStatus: response.status,
-      });
-    }
-    return {
-      contractVersion: WHISPER_STT_CONTRACT_VERSION,
-      provider: "whisper.cpp",
-      requestId,
-      text: row.text,
-      isFinal: true,
-      language: row.language,
+  if (
+    response.headers.get("x-stt-contract-version") !== WHISPER_STT_CONTRACT_VERSION ||
+    normalizedContentType(response.headers.get("content-type")) !== "application/json"
+  ) {
+    throw new WhisperClientError("invalid_response", {
+      retryable: false,
       attempts,
-    };
-  })();
+      requestId,
+      httpStatus: response.status,
+    });
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await readBoundedText(response, MAX_SUCCESS_RESPONSE_BYTES));
+  } catch {
+    throw new WhisperClientError("invalid_response", {
+      retryable: false,
+      attempts,
+      requestId,
+      httpStatus: response.status,
+    });
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new WhisperClientError("invalid_response", {
+      retryable: false,
+      attempts,
+      requestId,
+      httpStatus: response.status,
+    });
+  }
+  const row = payload as Record<string, unknown>;
+  if (
+    row.contractVersion !== WHISPER_STT_CONTRACT_VERSION ||
+    row.requestId !== requestId ||
+    row.provider !== "whisper.cpp" ||
+    typeof row.text !== "string" ||
+    Buffer.byteLength(row.text, "utf8") > MAX_SUCCESS_RESPONSE_BYTES ||
+    row.isFinal !== true ||
+    typeof row.language !== "string" ||
+    row.language.length === 0 ||
+    row.language.length > 64
+  ) {
+    throw new WhisperClientError("invalid_response", {
+      retryable: false,
+      attempts,
+      requestId,
+      httpStatus: response.status,
+    });
+  }
+  return {
+    contractVersion: WHISPER_STT_CONTRACT_VERSION,
+    provider: "whisper.cpp",
+    requestId,
+    text: row.text,
+    isFinal: true,
+    language: row.language,
+    attempts,
+  };
 }
 
 @Injectable()
@@ -289,14 +279,12 @@ export class WhisperHttpClient implements SpeechToTextAdapter {
         cache: "no-store",
         redirect: "manual",
       });
-      if (!response.ok) {
-        return { reachable: true, ready: false, reason: `http_${response.status}` };
-      }
-      if (response.headers.get("x-stt-contract-version") !== WHISPER_STT_CONTRACT_VERSION) {
+      if (!response.ok) return { reachable: true, ready: false, reason: `http_${response.status}` };
+      if (
+        response.headers.get("x-stt-contract-version") !== WHISPER_STT_CONTRACT_VERSION ||
+        normalizedContentType(response.headers.get("content-type")) !== "application/json"
+      ) {
         return { reachable: true, ready: false, reason: "contract_mismatch" };
-      }
-      if (normalizedContentType(response.headers.get("content-type")) !== "application/json") {
-        return { reachable: true, ready: false, reason: "invalid_response" };
       }
       let payload: unknown;
       try {
@@ -315,11 +303,7 @@ export class WhisperHttpClient implements SpeechToTextAdapter {
       ) {
         return { reachable: true, ready: false, reason: "invalid_response" };
       }
-      return {
-        reachable: true,
-        ready: true,
-        contractVersion: WHISPER_STT_CONTRACT_VERSION,
-      };
+      return { reachable: true, ready: true, contractVersion: WHISPER_STT_CONTRACT_VERSION };
     } catch (cause) {
       return {
         reachable: false,
@@ -340,43 +324,23 @@ export class WhisperHttpClient implements SpeechToTextAdapter {
       });
     }
     if (!this.enabled) {
-      throw new WhisperClientError("stt_disabled", {
-        retryable: false,
-        attempts: 0,
-        requestId,
-      });
+      throw new WhisperClientError("stt_disabled", { retryable: false, attempts: 0, requestId });
     }
     if (!this.configured || !env.STT_BASE_URL) {
-      throw new WhisperClientError("not_configured", {
-        retryable: false,
-        attempts: 0,
-        requestId,
-      });
+      throw new WhisperClientError("not_configured", { retryable: false, attempts: 0, requestId });
     }
-    if (!WHISPER_SUPPORTED_CONTENT_TYPES.includes(request.contentType as SpeechToTextContentType)) {
-      throw new WhisperClientError("unsupported_media_type", {
-        retryable: false,
-        attempts: 0,
-        requestId,
-      });
+    if (!WHISPER_SUPPORTED_CONTENT_TYPES.some((value) => value === request.contentType)) {
+      throw new WhisperClientError("unsupported_media_type", { retryable: false, attempts: 0, requestId });
     }
     if (request.audio.byteLength === 0) {
-      throw new WhisperClientError("invalid_request", {
-        retryable: false,
-        attempts: 0,
-        requestId,
-      });
+      throw new WhisperClientError("invalid_request", { retryable: false, attempts: 0, requestId });
     }
     if (request.audio.byteLength > WHISPER_MAX_AUDIO_BYTES) {
-      throw new WhisperClientError("payload_too_large", {
-        retryable: false,
-        attempts: 0,
-        requestId,
-      });
+      throw new WhisperClientError("payload_too_large", { retryable: false, attempts: 0, requestId });
     }
 
     for (let attempt = 1; attempt <= env.STT_MAX_ATTEMPTS; attempt += 1) {
-      let failure: WhisperClientError | undefined;
+      let failure: WhisperClientError;
       let retryAfterMs: number | undefined;
       try {
         const response = await fetch(endpoint(env.STT_BASE_URL, "finalize"), {
@@ -407,10 +371,7 @@ export class WhisperHttpClient implements SpeechToTextAdapter {
 
       if (!failure.retryable || attempt >= env.STT_MAX_ATTEMPTS) throw failure;
       await new Promise((resolve) =>
-        setTimeout(
-          resolve,
-          computeWhisperRetryDelayMs(attempt, env.STT_RETRY_BASE_MS, retryAfterMs),
-        ),
+        setTimeout(resolve, computeWhisperRetryDelayMs(attempt, env.STT_RETRY_BASE_MS, retryAfterMs)),
       );
     }
 
