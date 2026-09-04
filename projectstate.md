@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, and Whisper STT Integration Contract v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.34.0
+> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, Whisper STT Integration Contract v1, and FFmpeg Integration Layer v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.35.0
 > **Date:** 2026-09-05
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,7 +10,7 @@
 
 # 1. Current validated baseline
 
-The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
+The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, FFmpeg integration-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
 
@@ -113,6 +113,27 @@ Whisper STT Integration Contract v1
   Browser E2E critical flows                  ✅
   result                                      ✅ success
   real whisper.cpp runtime/quality evidence   deployment/runtime-specific / pending
+
+FFmpeg Integration Layer v1
+  validated main commit                       d834e1271f260ae2d658172a6c85e189bc46576f
+  quality-gate                                33921937959 / run #595
+  source of truth                             contracts/ffmpeg-integration.v1.json
+  layer                                       services/media-worker/ffmpeg_layer.py
+  operations                                  ingest / transcode / mux / segment / recording_finalize
+  command safety                              argv only; shell=false; stdin disabled; workspace-only paths
+  process isolation                           separate process group/session
+  timeout/cancel                              bounded polling + terminate→kill escalation
+  diagnostics                                 bounded 8192-byte sanitized stderr tail
+  cleanup                                     owned temporary workspace removed on success/failure
+  outputs                                     required file existence + non-empty validation
+  readiness                                   FFMPEG_ENABLED fail-closed + GET /ffmpeg/health
+  telemetry                                   Realtime Metrics v1 FFmpeg jobs/exits/active/bytes/latency/RTF
+  contract check                              ✅ npm run ffmpeg:contract:check
+  dependency-free fake-process tests          ✅
+  lint / typecheck / full tests / build       ✅
+  Browser E2E critical flows                  ✅
+  result                                      ✅ success
+  real FFmpeg build/codecs/runtime evidence   deployment/runtime-specific / pending
 ```
 
 The quality gate is read-only with respect to source/generated artifacts. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
@@ -209,13 +230,15 @@ CI requires zero generated-contract drift. Internal worker lease APIs remain exc
 
 The API `GET /metrics` is deliberately excluded from public OpenAPI. It exposes aggregate Prometheus text only and must be deployed on an internal/protected operational network path. Runtime HTTP/process counters are in-process; durable DB/queue/worker/interview state is derived from PostgreSQL at scrape time so operational state survives API restarts. Snapshot collection is cached/coalesced and uses a bounded database statement timeout.
 
-The media worker separately exposes `GET /metrics`. Its metric behavior is governed by `contracts/realtime-metrics.v1.json` and `docs/operations/realtime-metrics-contract.md`. The registry rejects unknown metric families, missing/extra labels, and label values outside finite allowlists. Contract-only LiveKit/FFmpeg families remain absent until an actual adapter records measured observations; this prevents synthetic telemetry from being mistaken for runtime evidence.
+The media worker separately exposes `GET /metrics`. Its metric behavior is governed by `contracts/realtime-metrics.v1.json` and `docs/operations/realtime-metrics-contract.md`. The registry rejects unknown metric families, missing/extra labels, and label values outside finite allowlists. Contract-only LiveKit families remain absent until an actual adapter records measured observations; FFmpeg series are emitted only when the integration layer records actual process attempts/observations. This prevents synthetic telemetry from being mistaken for runtime evidence.
 
 Alert behavior is separately governed by `ops/monitoring/alerting-contract.v1.json`. Prometheus rules must pass `npm run alerting:check`, which validates required categories, contracted rule names, warning/critical family semantics, bounded static labels, positive `for` durations, runbook anchors, balanced expressions, and realtime metric references against the Realtime Metrics Contract. The contract deliberately describes routing intent without embedding Alertmanager receiver credentials or deployment secrets.
 
 LiveKit deployment wiring is governed by the runtime config in `apps/api/src/config/env.ts`, `LiveKitTransportAdapter`, the internal `GET /health/livekit` endpoint, and `npm run livekit:config:check`. The deployment template intentionally contains placeholders only and never production credentials.
 
 Whisper transport behavior is governed by `contracts/whisper-stt.v1.json`, `WhisperHttpClient`, `services/media-worker/whisper_contract.py`, and `docs/operations/whisper-integration-contract.md`. The core API validates the complete successful response contract before accepting transcript text, does not follow redirects while sending audio/credentials, and retries only explicitly transient failures. The worker returns bounded structured errors instead of raw subprocess diagnostics.
+
+FFmpeg process behavior is governed by `contracts/ffmpeg-integration.v1.json`, `services/media-worker/ffmpeg_layer.py`, and `docs/operations/ffmpeg-integration-layer.md`. The layer builds fixed argument vectors instead of shell commands, restricts file paths to owned temporary workspaces, isolates child process groups, applies bounded timeout/cancellation with terminate→kill escalation, validates non-empty outputs, sanitizes/bounds diagnostics, cleans temporary workspaces on both success and failure, and records only contracted low-cardinality metrics. `GET /ffmpeg/health` and realtime readiness honor `FFMPEG_ENABLED` fail-closed. CI exercises this lifecycle with controlled Python child processes and does not install or invoke FFmpeg.
 
 ---
 
@@ -225,12 +248,12 @@ Whisper transport behavior is governed by `contracts/whisper-stt.v1.json`, `Whis
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
-M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + realtime/alerting + LiveKit deployment + Whisper integration contracts implemented; actual realtime provider runtime and representative Gate F evidence pending
+M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + realtime/alerting + LiveKit deployment + Whisper STT + FFmpeg integration contracts/layers implemented; actual realtime provider runtime and representative Gate F evidence pending
 M5 Assessments                      isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   privacy deletion + retention + security hardening + operational monitoring + alerting contract materially implemented and CI-validated
 ```
 
-Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, VAD/STT/TTS provider boundaries, a frozen low-cardinality metrics contract for LiveKit/whisper.cpp/FFmpeg and E2E turn latency, deployment wiring for LiveKit, and a versioned HTTP contract for Whisper STT.
+Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, VAD/STT/TTS provider boundaries, a frozen low-cardinality metrics contract for LiveKit/whisper.cpp/FFmpeg and E2E turn latency, deployment wiring for LiveKit, a versioned HTTP contract for Whisper STT, and a versioned shell-free FFmpeg process integration layer.
 
 The Privacy Deletion Worker performs verified object deletion plus derived-data cleanup, blocks on legal holds/shared-object safety conditions, and writes de-identified durable receipts. The Retention Worker delegates candidate erasure through the privacy deletion boundary rather than bypassing verified deletion semantics.
 
@@ -273,10 +296,12 @@ The Realtime Metrics Contract guarantees that future provider data has a stable,
 
 The LiveKit Deployment Contract proves configuration policy, health wiring, token issuance and CI consistency without proving real media transport. The Whisper STT Integration Contract proves client/worker HTTP semantics, timeout/retry behavior, error mapping and response validation without proving model accuracy, production host performance, or language quality. Those require environment-specific evidence.
 
+The FFmpeg Integration Layer proves command/process lifecycle semantics, cleanup, timeout/cancellation, error mapping, output validation, readiness policy and telemetry wiring without installing FFmpeg in CI. It does not prove the target FFmpeg build, codec availability, corrupt-input behavior, media quality, host CPU/GPU/memory behavior, real-time factor, tail latency or production throughput. Those remain deployment/runtime evidence.
+
 ---
 
 # 8. Repository governance
 
-The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run whisper:contract:check`, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime/Whisper contract tests, dependency-free Python media-worker tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
+The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run ffmpeg:contract:check`, `npm run whisper:contract:check`, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime/Whisper contract tests, dependency-free Python media-worker/FFmpeg fake-process tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
 If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
