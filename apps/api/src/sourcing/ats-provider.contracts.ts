@@ -16,9 +16,9 @@ export interface AtsJob {
   externalId: string;
   title: string;
   status: string;
-  location?: string;
-  department?: string;
-  sourceUrl?: string;
+  location?: string | undefined;
+  department?: string | undefined;
+  sourceUrl?: string | undefined;
 }
 
 export interface AtsExportCandidate {
@@ -35,7 +35,7 @@ export interface AtsExportCandidate {
 }
 
 export interface AtsExportResult {
-  provider: AtsProviderKey;
+  provider?: AtsProviderKey | undefined;
   providerCandidateReference: string;
   providerApplicationReference: string;
   providerJobReference: string;
