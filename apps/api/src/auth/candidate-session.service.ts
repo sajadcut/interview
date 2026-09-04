@@ -3,7 +3,13 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DatabaseService } from "../database/database.service";
 import { SESSION_POLICY } from "./session-policy";
 
-export const CANDIDATE_SESSION_COOKIE = "interview_candidate_session";
+export function candidateSessionCookieName(nodeEnv = process.env.NODE_ENV): string {
+  return nodeEnv === "production"
+    ? "__Host-interview_candidate_session"
+    : "interview_candidate_session";
+}
+
+export const CANDIDATE_SESSION_COOKIE = candidateSessionCookieName();
 
 export interface IssuedCandidateSession {
   sessionId: string;
