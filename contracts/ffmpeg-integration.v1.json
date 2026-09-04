@@ -1,0 +1,59 @@
+{
+  "version": "ffmpeg-integration.v1",
+  "provider": "ffmpeg",
+  "operations": [
+    "ingest",
+    "transcode",
+    "mux",
+    "segment",
+    "recording_finalize"
+  ],
+  "commandBuilder": {
+    "shell": false,
+    "stdin": "disabled",
+    "workspaceOnlyPaths": true,
+    "globalArgs": ["-hide_banner", "-nostdin", "-loglevel", "error", "-y"],
+    "profiles": {
+      "ingest": "mono-pcm16-16khz-wav",
+      "transcode": "h264-aac-faststart",
+      "mux": "video-copy-aac-shortest",
+      "segment": "copy-segment-reset-timestamps",
+      "recording_finalize": "stream-copy-faststart"
+    }
+  },
+  "process": {
+    "timeoutSeconds": {"min": 0.05, "default": 120, "max": 600},
+    "terminationGraceSeconds": {"min": 0.05, "default": 2, "max": 10},
+    "pollIntervalSeconds": 0.02,
+    "processGroupIsolation": true,
+    "terminateThenKill": true,
+    "diagnosticMaxBytes": 8192
+  },
+  "cleanup": {
+    "temporaryWorkspace": true,
+    "removeOnSuccess": true,
+    "removeOnFailure": true,
+    "doesNotMaskPrimaryError": true
+  },
+  "errors": [
+    {"code": "invalid_request", "result": "error", "retryable": false},
+    {"code": "executable_not_found", "result": "unavailable", "retryable": false},
+    {"code": "process_start_failed", "result": "unavailable", "retryable": false},
+    {"code": "process_timeout", "result": "timeout", "retryable": true},
+    {"code": "process_cancelled", "result": "cancelled", "retryable": false},
+    {"code": "process_failed", "result": "error", "retryable": false},
+    {"code": "output_missing", "result": "error", "retryable": false},
+    {"code": "output_empty", "result": "error", "retryable": false},
+    {"code": "cleanup_failed", "result": "error", "retryable": false}
+  ],
+  "telemetry": {
+    "contract": "realtime-metrics.v1",
+    "operations": ["ingest", "transcode", "mux", "segment", "recording_finalize"],
+    "results": ["success", "error", "timeout", "cancelled", "unavailable"],
+    "exitClasses": ["zero", "nonzero", "signal", "timeout"]
+  },
+  "runtimeEvidence": {
+    "requiresRealFFmpeg": true,
+    "contractTestsRequireRealFFmpeg": false
+  }
+}
