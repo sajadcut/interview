@@ -539,7 +539,7 @@ export class PrivacyDeletionQueueService {
           SET state='failed', last_error=${message.slice(0, 4000)}, updated_at=now()
           WHERE organization_id=${organizationId}::uuid AND id=${object.id}::uuid
         `;
-        throw new Error(`Failed to erase storage object ${object.storage_key}: ${message}`);
+        throw new Error(`Failed to erase storage object ${object.storage_key}: ${message}`, { cause: error });
       }
     }
   }
