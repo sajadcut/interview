@@ -3,6 +3,7 @@ import { AtsConnectionService } from "./ats-connection.service";
 import { AtsIntegrationController } from "./ats-integration.controller";
 import { AtsIntegrationService } from "./ats-integration.service";
 import { CandidateSourceRegistry } from "./candidate-source.registry";
+import { ConfiguredAtsSourceAdapter } from "./configured-ats-source.adapter";
 import { GreenhouseAtsProvider } from "./greenhouse-ats.provider";
 import { InternalTalentPoolAdapter } from "./internal-talent-pool.adapter";
 import { LeverAtsProvider } from "./lever-ats.provider";
@@ -25,6 +26,7 @@ import { TalentOperationsService } from "./talent-operations.service";
     AtsConnectionService,
     GreenhouseAtsProvider,
     LeverAtsProvider,
+    ConfiguredAtsSourceAdapter,
     CandidateSourceRegistry,
     AtsIntegrationService,
     SourcingService,
