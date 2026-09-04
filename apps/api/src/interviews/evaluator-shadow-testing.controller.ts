@@ -51,6 +51,15 @@ export class EvaluatorShadowTestingController {
     return this.shadow.recordRun(programId, body);
   }
 
+  @Post("programs/:programId/failures")
+  @AuditedAction("evaluator.shadow.run.failure", "evaluator_shadow_run")
+  recordFailure(
+    @Param("programId", new ParseUUIDPipe()) programId: string,
+    @Body() body: unknown,
+  ) {
+    return this.shadow.recordFailure(programId, body);
+  }
+
   @Get("runs/:runId")
   getRun(@Param("runId", new ParseUUIDPipe()) runId: string) {
     return this.shadow.getRun(runId);

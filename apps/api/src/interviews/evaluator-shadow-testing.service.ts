@@ -28,6 +28,13 @@ const SHADOW_RECOMMENDATIONS = [
   "not_recommended",
   "insufficient_evidence",
 ] as const;
+const SHADOW_FAILURE_CATEGORIES = [
+  "timeout",
+  "provider_error",
+  "invalid_output",
+  "cancelled",
+  "internal_error",
+] as const;
 const ROOT_CAUSE_CATEGORIES = [
   "rubric_ambiguity",
   "evidence_gap",
@@ -41,6 +48,7 @@ const ROOT_CAUSE_CATEGORIES = [
 const ROOT_CAUSE_SEVERITIES = ["low", "moderate", "high", "critical"] as const;
 
 type ShadowSourceType = (typeof SHADOW_SOURCE_TYPES)[number];
+type ShadowFailureCategory = (typeof SHADOW_FAILURE_CATEGORIES)[number];
 type RootCauseSeverity = (typeof ROOT_CAUSE_SEVERITIES)[number];
 
 interface ShadowThresholds {
@@ -52,6 +60,9 @@ interface ShadowThresholds {
   minimumCriterionCoverageRate: number;
   maximumLowConfidenceRate: number;
   minimumSpearmanRankingCorrelation: number;
+  maximumEvaluatorFailureRate: number;
+  minimumEvidenceAgreementRate: number;
+  minimumEvidenceAgreementCoverageRate: number;
 }
 
 const DEFAULT_THRESHOLDS: ShadowThresholds = {
@@ -63,6 +74,9 @@ const DEFAULT_THRESHOLDS: ShadowThresholds = {
   minimumCriterionCoverageRate: 0.95,
   maximumLowConfidenceRate: 0.25,
   minimumSpearmanRankingCorrelation: 0.75,
+  maximumEvaluatorFailureRate: 0.05,
+  minimumEvidenceAgreementRate: 0.7,
+  minimumEvidenceAgreementCoverageRate: 0.9,
 };
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -161,6 +175,9 @@ function thresholds(value: unknown): ShadowThresholds {
     minimumCriterionCoverageRate: pick("minimumCriterionCoverageRate", 0, 1),
     maximumLowConfidenceRate: pick("maximumLowConfidenceRate", 0, 1),
     minimumSpearmanRankingCorrelation: pick("minimumSpearmanRankingCorrelation", -1, 1),
+    maximumEvaluatorFailureRate: pick("maximumEvaluatorFailureRate", 0, 1),
+    minimumEvidenceAgreementRate: pick("minimumEvidenceAgreementRate", 0, 1),
+    minimumEvidenceAgreementCoverageRate: pick("minimumEvidenceAgreementCoverageRate", 0, 1),
   };
 }
 
@@ -192,6 +209,27 @@ function isoDate(value: unknown, field: string): string {
 function round(value: number, places = 4): number {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
+}
+
+function nonNegativeInteger(value: unknown, field: string): number {
+  const parsed = numberBetween(value, field, 0, Number.MAX_SAFE_INTEGER);
+  if (!Number.isInteger(parsed)) throw new BadRequestException(`${field} must be an integer`);
+  return parsed;
+}
+
+function shadowFailureCategory(value: unknown): ShadowFailureCategory {
+  const text = requiredString(value, "failureCategory");
+  if (!(SHADOW_FAILURE_CATEGORIES as readonly string[]).includes(text)) {
+    throw new BadRequestException("failureCategory is not supported");
+  }
+  return text as ShadowFailureCategory;
+}
+
+function percentile(values: number[], fraction: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.max(0, Math.ceil(fraction * sorted.length) - 1);
+  return sorted[index] ?? null;
 }
 
 @Injectable()
@@ -344,382 +382,684 @@ export class EvaluatorShadowTestingService {
   }
 
   async recordRun(programId: string, body: unknown) {
-    const request = asObject(body);
-    const sessionId = requiredUuid(request.sessionId, "sessionId");
-    if (request.draft === undefined) throw new BadRequestException("draft is required");
-    const organizationId = this.tenantContext.require().organizationId;
-    const userId = actorId(this.authContext);
-    const programs = await this.database.sql`
-      SELECT p.id::text, p.release_unit_id::text, p.status, p.evaluator_version,
-             r.lifecycle_stage, r.evaluator_version AS release_evaluator_version
-      FROM evaluator_shadow_programs p
-      JOIN interview_release_units r
-        ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
-      WHERE p.organization_id = ${organizationId}::uuid AND p.id = ${programId}::uuid
-      LIMIT 1
-    `;
-    const program = programs[0];
-    if (!program) throw new NotFoundException("Shadow program not found");
-    if (String(program.status) !== "active") throw new BadRequestException("Shadow program is not active");
-    if (String(program.lifecycle_stage) !== "SHADOW") {
-      throw new BadRequestException("Shadow runs are accepted only while the release unit remains in SHADOW stage");
-    }
+  const request = asObject(body);
+  const sessionId = requiredUuid(request.sessionId, "sessionId");
+  if (request.draft === undefined) throw new BadRequestException("draft is required");
+  const latencyMs = request.latencyMs === undefined ? null : nonNegativeInteger(request.latencyMs, "latencyMs");
+  const retryCount = request.retryCount === undefined ? 0 : nonNegativeInteger(request.retryCount, "retryCount");
+  const organizationId = this.tenantContext.require().organizationId;
+  const userId = actorId(this.authContext);
+  const programs = await this.database.sql`
+    SELECT p.id::text, p.release_unit_id::text, p.status, p.evaluator_version,
+           p.activated_at, r.lifecycle_stage, r.evaluator_version AS release_evaluator_version
+    FROM evaluator_shadow_programs p
+    JOIN interview_release_units r
+      ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
+    WHERE p.organization_id = ${organizationId}::uuid AND p.id = ${programId}::uuid
+    LIMIT 1
+  `;
+  const program = programs[0];
+  if (!program) throw new NotFoundException("Shadow program not found");
+  if (String(program.status) !== "active") throw new BadRequestException("Shadow program is not active");
+  if (String(program.lifecycle_stage) !== "SHADOW") {
+    throw new BadRequestException("Shadow runs are accepted only while the release unit remains in SHADOW stage");
+  }
+  if (!program.activated_at) throw new BadRequestException("Shadow program has no activation timestamp");
 
-    const sessionRows = await this.database.sql`
-      SELECT p.release_unit_id::text
-      FROM interview_sessions s
-      JOIN interview_plans p ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
-      WHERE s.organization_id = ${organizationId}::uuid AND s.id = ${sessionId}::uuid
-      LIMIT 1
-    `;
-    if (!sessionRows[0]) throw new NotFoundException("Interview session not found");
-    if (String(sessionRows[0].release_unit_id) !== String(program.release_unit_id)) {
-      throw new BadRequestException("Interview session does not belong to the shadow program release unit");
-    }
-
-    const input = await this.evaluator.buildInput(sessionId);
-    if (input.sessionStatus !== "completed") {
-      throw new BadRequestException("Only completed interview sessions can enter shadow evaluation");
-    }
-    if (input.evaluatorVersion !== String(program.evaluator_version)) {
-      throw new BadRequestException("Interview evaluator version does not match the active shadow program");
-    }
-
-    let draft;
-    let output: InterviewEvaluatorOutput;
-    try {
-      draft = parseInterviewEvaluatorDraft(request.draft);
-      output = evaluateInterviewDraft(input, draft);
-    } catch (error) {
-      if (error instanceof InterviewEvaluationValidationError) {
-        throw new BadRequestException({
-          message: "Shadow evaluator output failed validation",
-          issues: error.issues,
-        });
-      }
-      throw error;
-    }
-    const inputFingerprint = fingerprint(input);
-    const draftFingerprint = fingerprint(draft);
-    const inserted = await this.database.sql`
-      INSERT INTO evaluator_shadow_runs (
-        organization_id, shadow_program_id, interview_session_id, application_id,
-        rubric_version_id, evaluator_version, idempotency_key, input_fingerprint,
-        draft_fingerprint, provider, model, prompt_version, evaluator_trace_reference,
-        ai_status, ai_criterion_results, ai_recommendation, ai_overall_score,
-        ai_overall_confidence, evidence_complete, validation_report, output_snapshot,
-        created_by_user_id
-      ) VALUES (
-        ${organizationId}::uuid,
-        ${programId}::uuid,
-        ${sessionId}::uuid,
-        ${input.applicationId}::uuid,
-        ${input.rubricVersionId}::uuid,
-        ${input.evaluatorVersion},
-        ${draft.idempotencyKey},
-        ${inputFingerprint},
-        ${draftFingerprint},
-        ${draft.provenance.provider},
-        ${draft.provenance.model ?? null},
-        ${draft.provenance.promptVersion},
-        ${draft.provenance.traceReference ?? null},
-        ${output.status},
-        ${this.database.sql.json(output.criterionResults as never)},
-        ${output.recommendation},
-        ${output.overallScore},
-        ${output.overallConfidence},
-        ${output.evidenceComplete},
-        ${this.database.sql.json(output.validation as never)},
-        ${this.database.sql.json(output as never)},
-        ${userId}::uuid
-      )
-      ON CONFLICT (organization_id, shadow_program_id, interview_session_id, idempotency_key)
-      DO NOTHING
-      RETURNING id::text, created_at
-    `;
-
-    let runId: string;
-    let idempotentReplay = false;
-    if (inserted[0]) {
-      runId = String(inserted[0].id);
-    } else {
-      const existing = await this.database.sql`
-        SELECT id::text, input_fingerprint, draft_fingerprint
-        FROM evaluator_shadow_runs
-        WHERE organization_id = ${organizationId}::uuid
-          AND shadow_program_id = ${programId}::uuid
-          AND interview_session_id = ${sessionId}::uuid
-          AND idempotency_key = ${draft.idempotencyKey}
-        LIMIT 1
-      `;
-      const row = existing[0];
-      if (!row) throw new Error("Unable to resolve idempotent shadow replay");
-      if (String(row.input_fingerprint) !== inputFingerprint || String(row.draft_fingerprint) !== draftFingerprint) {
-        throw new BadRequestException("Shadow idempotency key was already used with different input or output");
-      }
-      runId = String(row.id);
-      idempotentReplay = true;
-    }
-
-    const outcome = await this.database.sql`
-      SELECT 1 FROM evaluator_shadow_human_outcomes
-      WHERE organization_id = ${organizationId}::uuid AND shadow_run_id = ${runId}::uuid
-      LIMIT 1
-    `;
-    return {
-      runId,
-      idempotentReplay,
-      visibilityState: outcome[0] ? "unblinded_after_human_outcome" : "sealed",
-      decisionInfluenceProhibited: true,
-      writesHiringDecisionData: false,
-      humanOutcomeRecorded: Boolean(outcome[0]),
-    };
+  const sessionRows = await this.database.sql`
+    SELECT p.release_unit_id::text, s.completed_at
+    FROM interview_sessions s
+    JOIN interview_plans p ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+    WHERE s.organization_id = ${organizationId}::uuid AND s.id = ${sessionId}::uuid
+    LIMIT 1
+  `;
+  const session = sessionRows[0];
+  if (!session) throw new NotFoundException("Interview session not found");
+  if (String(session.release_unit_id) !== String(program.release_unit_id)) {
+    throw new BadRequestException("Interview session does not belong to the shadow program release unit");
+  }
+  if (!session.completed_at) throw new BadRequestException("Only completed interview sessions can enter shadow evaluation");
+  const completedAt = new Date(String(session.completed_at));
+  const activatedAt = new Date(String(program.activated_at));
+  if (completedAt.getTime() < activatedAt.getTime()) {
+    throw new BadRequestException("Shadow sampling is prospective-only; pre-activation sessions cannot be backfilled");
   }
 
+  const input = await this.evaluator.buildInput(sessionId);
+  if (input.sessionStatus !== "completed") {
+    throw new BadRequestException("Only completed interview sessions can enter shadow evaluation");
+  }
+  if (input.evaluatorVersion !== String(program.evaluator_version)) {
+    throw new BadRequestException("Interview evaluator version does not match the active shadow program");
+  }
+
+  let draft;
+  let output: InterviewEvaluatorOutput;
+  try {
+    draft = parseInterviewEvaluatorDraft(request.draft);
+    output = evaluateInterviewDraft(input, draft);
+  } catch (error) {
+    if (error instanceof InterviewEvaluationValidationError) {
+      throw new BadRequestException({
+        message: "Shadow evaluator output failed validation",
+        issues: error.issues,
+      });
+    }
+    throw error;
+  }
+  const inputFingerprint = fingerprint(input);
+  const draftFingerprint = fingerprint(draft);
+  const inserted = await this.database.sql`
+    INSERT INTO evaluator_shadow_runs (
+      organization_id, shadow_program_id, interview_session_id, application_id,
+      rubric_version_id, evaluator_version, idempotency_key, input_fingerprint,
+      draft_fingerprint, input_snapshot, session_completed_at, execution_status,
+      provider, model, prompt_version, evaluator_trace_reference,
+      ai_status, ai_criterion_results, ai_recommendation, ai_overall_score,
+      ai_overall_confidence, evidence_complete, validation_report, output_snapshot,
+      evaluator_latency_ms, retry_count, created_by_user_id
+    ) VALUES (
+      ${organizationId}::uuid,
+      ${programId}::uuid,
+      ${sessionId}::uuid,
+      ${input.applicationId}::uuid,
+      ${input.rubricVersionId}::uuid,
+      ${input.evaluatorVersion},
+      ${draft.idempotencyKey},
+      ${inputFingerprint},
+      ${draftFingerprint},
+      ${this.database.sql.json(input as never)},
+      ${completedAt.toISOString()}::timestamptz,
+      'succeeded',
+      ${draft.provenance.provider},
+      ${draft.provenance.model ?? null},
+      ${draft.provenance.promptVersion},
+      ${draft.provenance.traceReference ?? null},
+      ${output.status},
+      ${this.database.sql.json(output.criterionResults as never)},
+      ${output.recommendation},
+      ${output.overallScore},
+      ${output.overallConfidence},
+      ${output.evidenceComplete},
+      ${this.database.sql.json(output.validation as never)},
+      ${this.database.sql.json(output as never)},
+      ${latencyMs},
+      ${retryCount},
+      ${userId}::uuid
+    )
+    ON CONFLICT (organization_id, shadow_program_id, interview_session_id)
+    DO NOTHING
+    RETURNING id::text, created_at
+  `;
+
+  let runId: string;
+  let idempotentReplay = false;
+  if (inserted[0]) {
+    runId = String(inserted[0].id);
+  } else {
+    const existing = await this.database.sql`
+      SELECT id::text, execution_status, idempotency_key, input_fingerprint, draft_fingerprint
+      FROM evaluator_shadow_runs
+      WHERE organization_id = ${organizationId}::uuid
+        AND shadow_program_id = ${programId}::uuid
+        AND interview_session_id = ${sessionId}::uuid
+      LIMIT 1
+    `;
+    const row = existing[0];
+    if (!row) throw new Error("Unable to resolve shadow sample conflict");
+    if (
+      String(row.execution_status) !== "succeeded" ||
+      String(row.idempotency_key) !== draft.idempotencyKey ||
+      String(row.input_fingerprint) !== inputFingerprint ||
+      String(row.draft_fingerprint) !== draftFingerprint
+    ) {
+      throw new BadRequestException("Interview session already has a sealed shadow sample");
+    }
+    runId = String(row.id);
+    idempotentReplay = true;
+  }
+
+  const outcome = await this.database.sql`
+    SELECT 1 FROM evaluator_shadow_human_outcomes
+    WHERE organization_id = ${organizationId}::uuid AND shadow_run_id = ${runId}::uuid
+    LIMIT 1
+  `;
+  return {
+    runId,
+    idempotentReplay,
+    visibilityState: outcome[0] ? "unblinded_after_human_outcome" : "sealed",
+    executionStatus: "succeeded" as const,
+    decisionInfluenceProhibited: true,
+    writesHiringDecisionData: false,
+    humanOutcomeRecorded: Boolean(outcome[0]),
+  };
+}
+
+async recordFailure(programId: string, body: unknown) {
+  const request = asObject(body);
+  const sessionId = requiredUuid(request.sessionId, "sessionId");
+  const idempotencyKey = requiredString(request.idempotencyKey, "idempotencyKey");
+  const provider = requiredString(request.provider, "provider");
+  const model = optionalString(request.model);
+  const promptVersion = requiredString(request.promptVersion, "promptVersion");
+  const traceReference = optionalString(request.traceReference);
+  const category = shadowFailureCategory(request.failureCategory);
+  const failureDetail = optionalObject(request.failureDetail);
+  const latencyMs = request.latencyMs === undefined ? null : nonNegativeInteger(request.latencyMs, "latencyMs");
+  const retryCount = request.retryCount === undefined ? 0 : nonNegativeInteger(request.retryCount, "retryCount");
+  const organizationId = this.tenantContext.require().organizationId;
+  const userId = actorId(this.authContext);
+  const programs = await this.database.sql`
+    SELECT p.id::text, p.release_unit_id::text, p.status, p.evaluator_version,
+           p.activated_at, r.lifecycle_stage
+    FROM evaluator_shadow_programs p
+    JOIN interview_release_units r
+      ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
+    WHERE p.organization_id = ${organizationId}::uuid AND p.id = ${programId}::uuid
+    LIMIT 1
+  `;
+  const program = programs[0];
+  if (!program) throw new NotFoundException("Shadow program not found");
+  if (String(program.status) !== "active") throw new BadRequestException("Shadow program is not active");
+  if (String(program.lifecycle_stage) !== "SHADOW") {
+    throw new BadRequestException("Shadow failures are accepted only while the release unit remains in SHADOW stage");
+  }
+  if (!program.activated_at) throw new BadRequestException("Shadow program has no activation timestamp");
+
+  const sessionRows = await this.database.sql`
+    SELECT p.release_unit_id::text, s.completed_at
+    FROM interview_sessions s
+    JOIN interview_plans p ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+    WHERE s.organization_id = ${organizationId}::uuid AND s.id = ${sessionId}::uuid
+    LIMIT 1
+  `;
+  const session = sessionRows[0];
+  if (!session) throw new NotFoundException("Interview session not found");
+  if (String(session.release_unit_id) !== String(program.release_unit_id)) {
+    throw new BadRequestException("Interview session does not belong to the shadow program release unit");
+  }
+  if (!session.completed_at) throw new BadRequestException("Only completed interview sessions can enter shadow evaluation");
+  const completedAt = new Date(String(session.completed_at));
+  if (completedAt.getTime() < new Date(String(program.activated_at)).getTime()) {
+    throw new BadRequestException("Shadow sampling is prospective-only; pre-activation sessions cannot be backfilled");
+  }
+
+  const input = await this.evaluator.buildInput(sessionId);
+  if (input.sessionStatus !== "completed") {
+    throw new BadRequestException("Only completed interview sessions can enter shadow evaluation");
+  }
+  if (input.evaluatorVersion !== String(program.evaluator_version)) {
+    throw new BadRequestException("Interview evaluator version does not match the active shadow program");
+  }
+  const inputFingerprint = fingerprint(input);
+  const failureFingerprint = fingerprint({
+    category,
+    failureDetail,
+    provider,
+    model: model ?? null,
+    promptVersion,
+    traceReference: traceReference ?? null,
+    latencyMs,
+    retryCount,
+  });
+  const inserted = await this.database.sql`
+    INSERT INTO evaluator_shadow_runs (
+      organization_id, shadow_program_id, interview_session_id, application_id,
+      rubric_version_id, evaluator_version, idempotency_key, input_fingerprint,
+      draft_fingerprint, input_snapshot, session_completed_at, execution_status,
+      failure_category, failure_detail, provider, model, prompt_version,
+      evaluator_trace_reference, ai_status, ai_criterion_results, ai_recommendation,
+      ai_overall_score, ai_overall_confidence, evidence_complete, validation_report,
+      output_snapshot, evaluator_latency_ms, retry_count, created_by_user_id
+    ) VALUES (
+      ${organizationId}::uuid,
+      ${programId}::uuid,
+      ${sessionId}::uuid,
+      ${input.applicationId}::uuid,
+      ${input.rubricVersionId}::uuid,
+      ${input.evaluatorVersion},
+      ${idempotencyKey},
+      ${inputFingerprint},
+      ${failureFingerprint},
+      ${this.database.sql.json(input as never)},
+      ${completedAt.toISOString()}::timestamptz,
+      'failed',
+      ${category},
+      ${this.database.sql.json(failureDetail as never)},
+      ${provider},
+      ${model ?? null},
+      ${promptVersion},
+      ${traceReference ?? null},
+      ${null},
+      ${this.database.sql.json([] as never)},
+      ${null},
+      ${null},
+      ${null},
+      ${null},
+      ${this.database.sql.json({ failureCategory: category, failureDetail } as never)},
+      ${this.database.sql.json({} as never)},
+      ${latencyMs},
+      ${retryCount},
+      ${userId}::uuid
+    )
+    ON CONFLICT (organization_id, shadow_program_id, interview_session_id)
+    DO NOTHING
+    RETURNING id::text
+  `;
+
+  let runId: string;
+  let idempotentReplay = false;
+  if (inserted[0]) {
+    runId = String(inserted[0].id);
+  } else {
+    const existing = await this.database.sql`
+      SELECT id::text, execution_status, idempotency_key, input_fingerprint, draft_fingerprint
+      FROM evaluator_shadow_runs
+      WHERE organization_id = ${organizationId}::uuid
+        AND shadow_program_id = ${programId}::uuid
+        AND interview_session_id = ${sessionId}::uuid
+      LIMIT 1
+    `;
+    const row = existing[0];
+    if (!row) throw new Error("Unable to resolve shadow sample conflict");
+    if (
+      String(row.execution_status) !== "failed" ||
+      String(row.idempotency_key) !== idempotencyKey ||
+      String(row.input_fingerprint) !== inputFingerprint ||
+      String(row.draft_fingerprint) !== failureFingerprint
+    ) {
+      throw new BadRequestException("Interview session already has a sealed shadow sample");
+    }
+    runId = String(row.id);
+    idempotentReplay = true;
+  }
+  return {
+    runId,
+    idempotentReplay,
+    executionStatus: "failed" as const,
+    failureCategory: category,
+    visibilityState: "failed_no_ai_result" as const,
+    decisionInfluenceProhibited: true,
+    writesHiringDecisionData: false,
+    humanOutcomeRecorded: false,
+  };
+}
+
   async getRun(runId: string) {
-    const organizationId = this.tenantContext.require().organizationId;
-    const rows = await this.database.sql`
-      SELECT r.id::text, r.shadow_program_id::text, r.interview_session_id::text,
-             r.application_id::text, r.rubric_version_id::text, r.evaluator_version,
-             r.provider, r.model, r.prompt_version, r.ai_status, r.ai_recommendation,
-             r.ai_overall_score, r.ai_overall_confidence, r.ai_criterion_results,
-             r.validation_report, r.output_snapshot, r.decision_influence_prohibited,
-             r.result_visibility_policy, r.created_at,
-             h.id::text AS human_outcome_id, h.source_type, h.source_reference,
-             h.recommendation AS human_recommendation, h.overall_score AS human_overall_score,
-             h.criterion_results AS human_criterion_results, h.application_status,
-             h.pipeline_stage, h.decision_recorded_at,
-             c.id::text AS comparison_id, c.criterion_comparisons, c.coverage_rate,
-             c.mean_absolute_score_delta, c.root_mean_squared_score_delta,
-             c.max_absolute_score_delta, c.mean_signed_score_delta,
-             c.recommendation_agreement, c.overall_score_delta, c.false_reject,
-             c.false_promotion, c.low_confidence, c.requires_root_cause_review,
-             c.root_cause_review_state
+  const organizationId = this.tenantContext.require().organizationId;
+  const rows = await this.database.sql`
+    SELECT r.id::text, r.shadow_program_id::text, r.interview_session_id::text,
+           r.application_id::text, r.rubric_version_id::text, r.evaluator_version,
+           r.provider, r.model, r.prompt_version, r.ai_status, r.ai_recommendation,
+           r.ai_overall_score, r.ai_overall_confidence, r.ai_criterion_results,
+           r.validation_report, r.output_snapshot, r.decision_influence_prohibited,
+           r.result_visibility_policy, r.execution_status, r.failure_category,
+           r.failure_detail, r.evaluator_latency_ms, r.retry_count,
+           r.input_fingerprint, r.draft_fingerprint, r.session_completed_at, r.created_at,
+           h.id::text AS human_outcome_id, h.source_type, h.source_reference,
+           h.recommendation AS human_recommendation, h.overall_score AS human_overall_score,
+           h.criterion_results AS human_criterion_results, h.application_status,
+           h.pipeline_stage, h.decision_recorded_at, h.blind_review_confirmed,
+           h.reviewer_independent, h.outcome_fingerprint,
+           c.id::text AS comparison_id, c.criterion_comparisons, c.coverage_rate,
+           c.mean_absolute_score_delta, c.root_mean_squared_score_delta,
+           c.max_absolute_score_delta, c.mean_signed_score_delta,
+           c.recommendation_agreement, c.overall_score_delta, c.false_reject,
+           c.false_promotion, c.low_confidence, c.requires_root_cause_review,
+           c.root_cause_review_state, c.mean_evidence_agreement_rate,
+           c.evidence_agreement_coverage_rate, c.comparison_fingerprint
+    FROM evaluator_shadow_runs r
+    LEFT JOIN evaluator_shadow_human_outcomes h
+      ON h.organization_id = r.organization_id AND h.shadow_run_id = r.id
+    LEFT JOIN evaluator_shadow_comparisons c
+      ON c.organization_id = r.organization_id AND c.shadow_run_id = r.id
+    WHERE r.organization_id = ${organizationId}::uuid AND r.id = ${runId}::uuid
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row) throw new NotFoundException("Shadow run not found");
+  const executionStatus = String(row.execution_status);
+  const base = {
+    runId: String(row.id),
+    programId: String(row.shadow_program_id),
+    interviewSessionId: String(row.interview_session_id),
+    applicationId: String(row.application_id),
+    evaluatorVersion: String(row.evaluator_version),
+    executionStatus,
+    sessionCompletedAt: row.session_completed_at
+      ? new Date(String(row.session_completed_at)).toISOString()
+      : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    decisionInfluenceProhibited: true,
+    writesHiringDecisionData: false,
+  };
+  if (executionStatus === "failed") {
+    return {
+      ...base,
+      visibilityState: "failed_no_ai_result",
+      humanOutcomeRecorded: false,
+      aiResult: null,
+      humanOutcome: null,
+      comparison: null,
+      execution: {
+        failureCategory: row.failure_category ? String(row.failure_category) : null,
+        failureDetail: row.failure_detail,
+        latencyMs: row.evaluator_latency_ms === null ? null : Number(row.evaluator_latency_ms),
+        retryCount: Number(row.retry_count ?? 0),
+        provider: String(row.provider),
+        model: row.model ? String(row.model) : null,
+        promptVersion: String(row.prompt_version),
+        inputFingerprint: String(row.input_fingerprint),
+        failureFingerprint: String(row.draft_fingerprint),
+      },
+    };
+  }
+  if (!row.human_outcome_id) {
+    return {
+      ...base,
+      visibilityState: "sealed",
+      humanOutcomeRecorded: false,
+      aiResult: null,
+      comparison: null,
+    };
+  }
+  const rootCauses = row.comparison_id
+    ? await this.database.sql`
+        SELECT id::text, categories, severity, notes, created_at
+        FROM evaluator_shadow_root_cause_reviews
+        WHERE organization_id = ${organizationId}::uuid
+          AND shadow_comparison_id = ${String(row.comparison_id)}::uuid
+        ORDER BY created_at, id
+      `
+    : [];
+  return {
+    ...base,
+    visibilityState: "unblinded_after_human_outcome",
+    humanOutcomeRecorded: true,
+    aiResult: row.output_snapshot as InterviewEvaluatorOutput,
+    execution: {
+      latencyMs: row.evaluator_latency_ms === null ? null : Number(row.evaluator_latency_ms),
+      retryCount: Number(row.retry_count ?? 0),
+      provider: String(row.provider),
+      model: row.model ? String(row.model) : null,
+      promptVersion: String(row.prompt_version),
+      inputFingerprint: String(row.input_fingerprint),
+      draftFingerprint: String(row.draft_fingerprint),
+    },
+    humanOutcome: {
+      id: String(row.human_outcome_id),
+      sourceType: String(row.source_type),
+      sourceReference: row.source_reference ? String(row.source_reference) : null,
+      recommendation: String(row.human_recommendation),
+      overallScore: row.human_overall_score === null ? null : Number(row.human_overall_score),
+      criterionResults: row.human_criterion_results,
+      applicationStatus: row.application_status ? String(row.application_status) : null,
+      pipelineStage: row.pipeline_stage ? String(row.pipeline_stage) : null,
+      decisionRecordedAt: new Date(String(row.decision_recorded_at)).toISOString(),
+      blindReviewConfirmed: Boolean(row.blind_review_confirmed),
+      reviewerIndependent: Boolean(row.reviewer_independent),
+      outcomeFingerprint: row.outcome_fingerprint ? String(row.outcome_fingerprint) : null,
+    },
+    comparison: row.comparison_id
+      ? {
+          id: String(row.comparison_id),
+          criterionComparisons: row.criterion_comparisons,
+          coverageRate: Number(row.coverage_rate),
+          meanAbsoluteScoreDelta: row.mean_absolute_score_delta === null ? null : Number(row.mean_absolute_score_delta),
+          rootMeanSquaredScoreDelta: row.root_mean_squared_score_delta === null ? null : Number(row.root_mean_squared_score_delta),
+          maxAbsoluteScoreDelta: row.max_absolute_score_delta === null ? null : Number(row.max_absolute_score_delta),
+          meanSignedScoreDelta: row.mean_signed_score_delta === null ? null : Number(row.mean_signed_score_delta),
+          recommendationAgreement: Boolean(row.recommendation_agreement),
+          overallScoreDelta: row.overall_score_delta === null ? null : Number(row.overall_score_delta),
+          falseReject: Boolean(row.false_reject),
+          falsePromotion: Boolean(row.false_promotion),
+          lowConfidence: Boolean(row.low_confidence),
+          meanEvidenceAgreementRate: row.mean_evidence_agreement_rate === null
+            ? null
+            : Number(row.mean_evidence_agreement_rate),
+          evidenceAgreementCoverageRate: row.evidence_agreement_coverage_rate === null
+            ? 0
+            : Number(row.evidence_agreement_coverage_rate),
+          comparisonFingerprint: row.comparison_fingerprint ? String(row.comparison_fingerprint) : null,
+          requiresRootCauseReview: Boolean(row.requires_root_cause_review),
+          rootCauseReviewState: String(row.root_cause_review_state),
+          rootCauseReviews: rootCauses.map((review) => ({
+            id: String(review.id),
+            categories: review.categories,
+            severity: String(review.severity),
+            notes: String(review.notes),
+            createdAt: new Date(String(review.created_at)).toISOString(),
+          })),
+        }
+      : null,
+  };
+}
+
+  async recordHumanOutcome(runId: string, body: unknown) {
+  const input = asObject(body);
+  const organizationId = this.tenantContext.require().organizationId;
+  const recordedByUserId = actorId(this.authContext);
+  const source = sourceType(input.sourceType);
+  const criteria = criterionResults(input.criterionResults);
+  const sourceReference = optionalString(input.sourceReference);
+  const notes = optionalString(input.notes);
+
+  return this.database.sql.begin(async (tx) => {
+    const runs = await tx`
+      SELECT r.id::text, r.application_id::text, r.rubric_version_id::text,
+             r.interview_session_id::text, r.output_snapshot, r.execution_status,
+             r.created_by_user_id::text, a.status AS application_status, a.pipeline_stage
       FROM evaluator_shadow_runs r
-      LEFT JOIN evaluator_shadow_human_outcomes h
-        ON h.organization_id = r.organization_id AND h.shadow_run_id = r.id
-      LEFT JOIN evaluator_shadow_comparisons c
-        ON c.organization_id = r.organization_id AND c.shadow_run_id = r.id
+      JOIN applications a ON a.organization_id = r.organization_id AND a.id = r.application_id
       WHERE r.organization_id = ${organizationId}::uuid AND r.id = ${runId}::uuid
       LIMIT 1
     `;
-    const row = rows[0];
-    if (!row) throw new NotFoundException("Shadow run not found");
-    const base = {
-      runId: String(row.id),
-      programId: String(row.shadow_program_id),
-      interviewSessionId: String(row.interview_session_id),
-      applicationId: String(row.application_id),
-      evaluatorVersion: String(row.evaluator_version),
-      createdAt: new Date(String(row.created_at)).toISOString(),
+    const run = runs[0];
+    if (!run) throw new NotFoundException("Shadow run not found");
+    if (String(run.execution_status) !== "succeeded") {
+      throw new BadRequestException("A failed shadow run has no AI result to compare with a human outcome");
+    }
+    if (!run.created_by_user_id) {
+      throw new BadRequestException("Shadow reviewer independence cannot be verified for this run");
+    }
+    const existing = await tx`
+      SELECT id::text FROM evaluator_shadow_human_outcomes
+      WHERE organization_id = ${organizationId}::uuid AND shadow_run_id = ${runId}::uuid
+      LIMIT 1
+    `;
+    if (existing[0]) throw new BadRequestException("Shadow human outcome is immutable once recorded");
+
+    const rubricRows = await tx`
+      SELECT criterion_key
+      FROM rubric_criteria
+      WHERE organization_id = ${organizationId}::uuid
+        AND rubric_version_id = ${String(run.rubric_version_id)}::uuid
+      ORDER BY display_order, criterion_key
+    `;
+    if (rubricRows.length === 0) throw new BadRequestException("Shadow rubric has no criteria");
+    const validKeys = new Set(rubricRows.map((row) => String(row.criterion_key)));
+    const providedKeys = new Set(criteria.map((item) => item.criterionKey));
+    const invalid = criteria.map((item) => item.criterionKey).filter((key) => !validKeys.has(key));
+    if (invalid.length) throw new BadRequestException(`Human outcome contains unknown rubric criteria: ${invalid.join(", ")}`);
+    const missing = [...validKeys].filter((key) => !providedKeys.has(key));
+    if (missing.length) {
+      throw new BadRequestException(`Human outcome must cover the complete rubric; missing criteria: ${missing.join(", ")}`);
+    }
+
+    const evidenceRows = await tx`
+      SELECT id::text
+      FROM interview_evidence
+      WHERE organization_id = ${organizationId}::uuid
+        AND interview_session_id = ${String(run.interview_session_id)}::uuid
+    `;
+    const validEvidenceIds = new Set(evidenceRows.map((row) => String(row.id)));
+    const suppliedEvidenceIds = criteria.flatMap((item) => item.evidenceRefs ?? []);
+    const invalidEvidenceIds = [...new Set(suppliedEvidenceIds.filter((id) => !validEvidenceIds.has(id)))];
+    if (invalidEvidenceIds.length) {
+      throw new BadRequestException(`Human outcome contains evidence outside the shadow interview: ${invalidEvidenceIds.join(", ")}`);
+    }
+
+    let humanRecommendation: ShadowHumanRecommendation;
+    let humanOverallScore: number | undefined;
+    let decisionRecordedAt: string;
+    let reviewerUserId = recordedByUserId;
+    let blindReviewConfirmed = input.blindReviewConfirmed === true;
+    if (source === "scorecard_review") {
+      if (!sourceReference || !UUID_PATTERN.test(sourceReference)) {
+        throw new BadRequestException("scorecard_review source requires a UUID sourceReference");
+      }
+      const reviewRows = await tx`
+        SELECT human_recommendation, human_overall_score, reviewer_user_id::text, created_at
+        FROM scorecard_reviews
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${sourceReference}::uuid
+          AND application_id = ${String(run.application_id)}::uuid
+        LIMIT 1
+      `;
+      const review = reviewRows[0];
+      if (!review) throw new NotFoundException("Scorecard human review not found for shadow application");
+      if (!review.reviewer_user_id) throw new BadRequestException("Scorecard review has no attributable human reviewer");
+      reviewerUserId = String(review.reviewer_user_id);
+      blindReviewConfirmed = true;
+      humanRecommendation = recommendation(
+        review.human_recommendation ?? input.recommendation,
+        "recommendation",
+      );
+      humanOverallScore = review.human_overall_score === null || review.human_overall_score === undefined
+        ? (input.overallScore === undefined ? undefined : numberBetween(input.overallScore, "overallScore", 0, 100))
+        : Number(review.human_overall_score);
+      decisionRecordedAt = new Date(String(review.created_at)).toISOString();
+    } else {
+      if (!blindReviewConfirmed) {
+        throw new BadRequestException("blindReviewConfirmed must be true before a manual shadow human outcome is accepted");
+      }
+      humanRecommendation = recommendation(input.recommendation, "recommendation");
+      humanOverallScore = input.overallScore === undefined
+        ? undefined
+        : numberBetween(input.overallScore, "overallScore", 0, 100);
+      decisionRecordedAt = isoDate(input.decisionRecordedAt, "decisionRecordedAt");
+    }
+    if (reviewerUserId === String(run.created_by_user_id)) {
+      throw new BadRequestException("Shadow human reviewer must be independent from the AI-run recorder");
+    }
+
+    const human: ShadowHumanOutcome = {
+      recommendation: humanRecommendation,
+      ...(humanOverallScore !== undefined ? { overallScore: humanOverallScore } : {}),
+      criterionResults: criteria,
+    };
+    const humanOutcomeFingerprint = fingerprint({
+      source,
+      sourceReference: sourceReference ?? null,
+      reviewerUserId,
+      recommendation: humanRecommendation,
+      overallScore: humanOverallScore ?? null,
+      criterionResults: criteria,
+      applicationStatus: String(run.application_status),
+      pipelineStage: String(run.pipeline_stage),
+      decisionRecordedAt,
+      blindReviewConfirmed,
+    });
+    const ai = run.output_snapshot as InterviewEvaluatorOutput;
+    const comparison = compareShadowEvaluation(ai, human, {
+      lowConfidenceThreshold: DEFAULT_SHADOW_LOW_CONFIDENCE_THRESHOLD,
+    });
+    const evidenceAgreementValues = comparison.criterionComparisons.flatMap((item) =>
+      item.evidenceAgreementRate === null ? [] : [item.evidenceAgreementRate],
+    );
+    const meanEvidenceAgreementRate = evidenceAgreementValues.length
+      ? round(evidenceAgreementValues.reduce((sum, value) => sum + value, 0) / evidenceAgreementValues.length)
+      : null;
+    const evidenceAgreementCoverageRate = comparison.referenceCriterionCount
+      ? round(evidenceAgreementValues.length / comparison.referenceCriterionCount)
+      : 0;
+    const comparisonFingerprint = fingerprint({
+      comparison,
+      meanEvidenceAgreementRate,
+      evidenceAgreementCoverageRate,
+      humanOutcomeFingerprint,
+    });
+    const outcomeRows = await tx`
+      INSERT INTO evaluator_shadow_human_outcomes (
+        organization_id, shadow_run_id, reviewer_user_id, recorded_by_user_id,
+        source_type, source_reference, recommendation, overall_score, criterion_results,
+        application_status, pipeline_stage, decision_recorded_at, notes,
+        blind_review_confirmed, reviewer_independent, outcome_fingerprint
+      ) VALUES (
+        ${organizationId}::uuid,
+        ${runId}::uuid,
+        ${reviewerUserId}::uuid,
+        ${recordedByUserId}::uuid,
+        ${source},
+        ${sourceReference ?? null},
+        ${humanRecommendation},
+        ${humanOverallScore ?? null},
+        ${this.database.sql.json(criteria as never)},
+        ${String(run.application_status)},
+        ${String(run.pipeline_stage)},
+        ${decisionRecordedAt}::timestamptz,
+        ${notes ?? null},
+        ${blindReviewConfirmed},
+        true,
+        ${humanOutcomeFingerprint}
+      )
+      RETURNING id::text
+    `;
+    const humanOutcomeId = String(outcomeRows[0]?.id);
+    const comparisonRows = await tx`
+      INSERT INTO evaluator_shadow_comparisons (
+        organization_id, shadow_run_id, human_outcome_id, policy_version,
+        criterion_comparisons, reference_criterion_count, matched_criterion_count,
+        coverage_rate, mean_absolute_score_delta, root_mean_squared_score_delta,
+        max_absolute_score_delta, mean_signed_score_delta, recommendation_agreement,
+        overall_score_delta, false_reject, false_promotion, low_confidence,
+        mean_evidence_agreement_rate, evidence_agreement_coverage_rate,
+        comparison_fingerprint, requires_root_cause_review, root_cause_review_state
+      ) VALUES (
+        ${organizationId}::uuid,
+        ${runId}::uuid,
+        ${humanOutcomeId}::uuid,
+        ${comparison.policyVersion},
+        ${this.database.sql.json(comparison.criterionComparisons as never)},
+        ${comparison.referenceCriterionCount},
+        ${comparison.matchedCriterionCount},
+        ${comparison.coverageRate},
+        ${comparison.meanAbsoluteScoreDelta},
+        ${comparison.rootMeanSquaredScoreDelta},
+        ${comparison.maxAbsoluteScoreDelta},
+        ${comparison.meanSignedScoreDelta},
+        ${comparison.recommendationAgreement},
+        ${comparison.overallScoreDelta},
+        ${comparison.falseReject},
+        ${comparison.falsePromotion},
+        ${comparison.lowConfidence},
+        ${meanEvidenceAgreementRate},
+        ${evidenceAgreementCoverageRate},
+        ${comparisonFingerprint},
+        ${comparison.requiresRootCauseReview},
+        ${comparison.requiresRootCauseReview ? "pending" : "not_required"}
+      )
+      RETURNING id::text
+    `;
+    return {
+      runId,
+      humanOutcomeId,
+      comparisonId: String(comparisonRows[0]?.id),
+      visibilityState: "unblinded_after_human_outcome",
       decisionInfluenceProhibited: true,
       writesHiringDecisionData: false,
-    };
-    if (!row.human_outcome_id) {
-      return {
-        ...base,
-        visibilityState: "sealed",
-        humanOutcomeRecorded: false,
-        aiResult: null,
-        comparison: null,
-      };
-    }
-    const rootCauses = row.comparison_id
-      ? await this.database.sql`
-          SELECT id::text, categories, severity, notes, created_at
-          FROM evaluator_shadow_root_cause_reviews
-          WHERE organization_id = ${organizationId}::uuid
-            AND shadow_comparison_id = ${String(row.comparison_id)}::uuid
-          ORDER BY created_at, id
-        `
-      : [];
-    return {
-      ...base,
-      visibilityState: "unblinded_after_human_outcome",
-      humanOutcomeRecorded: true,
-      aiResult: row.output_snapshot as InterviewEvaluatorOutput,
-      humanOutcome: {
-        id: String(row.human_outcome_id),
-        sourceType: String(row.source_type),
-        sourceReference: row.source_reference ? String(row.source_reference) : null,
-        recommendation: String(row.human_recommendation),
-        overallScore: row.human_overall_score === null ? null : Number(row.human_overall_score),
-        criterionResults: row.human_criterion_results,
-        applicationStatus: row.application_status ? String(row.application_status) : null,
-        pipelineStage: row.pipeline_stage ? String(row.pipeline_stage) : null,
-        decisionRecordedAt: new Date(String(row.decision_recorded_at)).toISOString(),
+      blindReviewConfirmed,
+      reviewerIndependent: true,
+      humanOutcomeFingerprint,
+      comparisonFingerprint,
+      comparison: {
+        ...comparison,
+        meanEvidenceAgreementRate,
+        evidenceAgreementCoverageRate,
       },
-      comparison: row.comparison_id
-        ? {
-            id: String(row.comparison_id),
-            criterionComparisons: row.criterion_comparisons,
-            coverageRate: Number(row.coverage_rate),
-            meanAbsoluteScoreDelta: row.mean_absolute_score_delta === null ? null : Number(row.mean_absolute_score_delta),
-            rootMeanSquaredScoreDelta: row.root_mean_squared_score_delta === null ? null : Number(row.root_mean_squared_score_delta),
-            maxAbsoluteScoreDelta: row.max_absolute_score_delta === null ? null : Number(row.max_absolute_score_delta),
-            meanSignedScoreDelta: row.mean_signed_score_delta === null ? null : Number(row.mean_signed_score_delta),
-            recommendationAgreement: Boolean(row.recommendation_agreement),
-            overallScoreDelta: row.overall_score_delta === null ? null : Number(row.overall_score_delta),
-            falseReject: Boolean(row.false_reject),
-            falsePromotion: Boolean(row.false_promotion),
-            lowConfidence: Boolean(row.low_confidence),
-            requiresRootCauseReview: Boolean(row.requires_root_cause_review),
-            rootCauseReviewState: String(row.root_cause_review_state),
-            rootCauseReviews: rootCauses.map((review) => ({
-              id: String(review.id),
-              categories: review.categories,
-              severity: String(review.severity),
-              notes: String(review.notes),
-              createdAt: new Date(String(review.created_at)).toISOString(),
-            })),
-          }
-        : null,
     };
-  }
-
-  async recordHumanOutcome(runId: string, body: unknown) {
-    const input = asObject(body);
-    const organizationId = this.tenantContext.require().organizationId;
-    const reviewerUserId = actorId(this.authContext);
-    const source = sourceType(input.sourceType);
-    const criteria = criterionResults(input.criterionResults);
-    const sourceReference = optionalString(input.sourceReference);
-    const notes = optionalString(input.notes);
-
-    return this.database.sql.begin(async (tx) => {
-      const runs = await tx`
-        SELECT r.id::text, r.application_id::text, r.rubric_version_id::text,
-               r.output_snapshot, a.status AS application_status, a.pipeline_stage
-        FROM evaluator_shadow_runs r
-        JOIN applications a ON a.organization_id = r.organization_id AND a.id = r.application_id
-        WHERE r.organization_id = ${organizationId}::uuid AND r.id = ${runId}::uuid
-        LIMIT 1
-      `;
-      const run = runs[0];
-      if (!run) throw new NotFoundException("Shadow run not found");
-      const existing = await tx`
-        SELECT id::text FROM evaluator_shadow_human_outcomes
-        WHERE organization_id = ${organizationId}::uuid AND shadow_run_id = ${runId}::uuid
-        LIMIT 1
-      `;
-      if (existing[0]) throw new BadRequestException("Shadow human outcome is immutable once recorded");
-
-      const rubricRows = await tx`
-        SELECT criterion_key
-        FROM rubric_criteria
-        WHERE organization_id = ${organizationId}::uuid
-          AND rubric_version_id = ${String(run.rubric_version_id)}::uuid
-      `;
-      const validKeys = new Set(rubricRows.map((row) => String(row.criterion_key)));
-      const invalid = criteria.map((item) => item.criterionKey).filter((key) => !validKeys.has(key));
-      if (invalid.length) throw new BadRequestException(`Human outcome contains unknown rubric criteria: ${invalid.join(", ")}`);
-
-      let humanRecommendation: ShadowHumanRecommendation;
-      let humanOverallScore: number | undefined;
-      let decisionRecordedAt: string;
-      if (source === "scorecard_review") {
-        if (!sourceReference || !UUID_PATTERN.test(sourceReference)) {
-          throw new BadRequestException("scorecard_review source requires a UUID sourceReference");
-        }
-        const reviewRows = await tx`
-          SELECT human_recommendation, human_overall_score, created_at
-          FROM scorecard_reviews
-          WHERE organization_id = ${organizationId}::uuid
-            AND id = ${sourceReference}::uuid
-            AND application_id = ${String(run.application_id)}::uuid
-          LIMIT 1
-        `;
-        const review = reviewRows[0];
-        if (!review) throw new NotFoundException("Scorecard human review not found for shadow application");
-        humanRecommendation = recommendation(
-          review.human_recommendation ?? input.recommendation,
-          "recommendation",
-        );
-        humanOverallScore = review.human_overall_score === null || review.human_overall_score === undefined
-          ? (input.overallScore === undefined ? undefined : numberBetween(input.overallScore, "overallScore", 0, 100))
-          : Number(review.human_overall_score);
-        decisionRecordedAt = new Date(String(review.created_at)).toISOString();
-      } else {
-        humanRecommendation = recommendation(input.recommendation, "recommendation");
-        humanOverallScore = input.overallScore === undefined
-          ? undefined
-          : numberBetween(input.overallScore, "overallScore", 0, 100);
-        decisionRecordedAt = isoDate(input.decisionRecordedAt, "decisionRecordedAt");
-      }
-
-      const human: ShadowHumanOutcome = {
-        recommendation: humanRecommendation,
-        ...(humanOverallScore !== undefined ? { overallScore: humanOverallScore } : {}),
-        criterionResults: criteria,
-      };
-      const ai = run.output_snapshot as InterviewEvaluatorOutput;
-      const comparison = compareShadowEvaluation(ai, human, {
-        lowConfidenceThreshold: DEFAULT_SHADOW_LOW_CONFIDENCE_THRESHOLD,
-      });
-      const outcomeRows = await tx`
-        INSERT INTO evaluator_shadow_human_outcomes (
-          organization_id, shadow_run_id, reviewer_user_id, source_type,
-          source_reference, recommendation, overall_score, criterion_results,
-          application_status, pipeline_stage, decision_recorded_at, notes
-        ) VALUES (
-          ${organizationId}::uuid,
-          ${runId}::uuid,
-          ${reviewerUserId}::uuid,
-          ${source},
-          ${sourceReference ?? null},
-          ${humanRecommendation},
-          ${humanOverallScore ?? null},
-          ${this.database.sql.json(criteria as never)},
-          ${String(run.application_status)},
-          ${String(run.pipeline_stage)},
-          ${decisionRecordedAt}::timestamptz,
-          ${notes ?? null}
-        )
-        RETURNING id::text
-      `;
-      const humanOutcomeId = String(outcomeRows[0]?.id);
-      const comparisonRows = await tx`
-        INSERT INTO evaluator_shadow_comparisons (
-          organization_id, shadow_run_id, human_outcome_id, policy_version,
-          criterion_comparisons, reference_criterion_count, matched_criterion_count,
-          coverage_rate, mean_absolute_score_delta, root_mean_squared_score_delta,
-          max_absolute_score_delta, mean_signed_score_delta, recommendation_agreement,
-          overall_score_delta, false_reject, false_promotion, low_confidence,
-          requires_root_cause_review, root_cause_review_state
-        ) VALUES (
-          ${organizationId}::uuid,
-          ${runId}::uuid,
-          ${humanOutcomeId}::uuid,
-          ${comparison.policyVersion},
-          ${this.database.sql.json(comparison.criterionComparisons as never)},
-          ${comparison.referenceCriterionCount},
-          ${comparison.matchedCriterionCount},
-          ${comparison.coverageRate},
-          ${comparison.meanAbsoluteScoreDelta},
-          ${comparison.rootMeanSquaredScoreDelta},
-          ${comparison.maxAbsoluteScoreDelta},
-          ${comparison.meanSignedScoreDelta},
-          ${comparison.recommendationAgreement},
-          ${comparison.overallScoreDelta},
-          ${comparison.falseReject},
-          ${comparison.falsePromotion},
-          ${comparison.lowConfidence},
-          ${comparison.requiresRootCauseReview},
-          ${comparison.requiresRootCauseReview ? "pending" : "not_required"}
-        )
-        RETURNING id::text
-      `;
-      return {
-        runId,
-        humanOutcomeId,
-        comparisonId: String(comparisonRows[0]?.id),
-        visibilityState: "unblinded_after_human_outcome",
-        decisionInfluenceProhibited: true,
-        writesHiringDecisionData: false,
-        comparison,
-      };
-    });
-  }
+  });
+}
 
   async recordRootCauseReview(comparisonId: string, body: unknown) {
     const input = asObject(body);
@@ -772,130 +1112,189 @@ export class EvaluatorShadowTestingService {
   }
 
   async summary(programId: string) {
-    const organizationId = this.tenantContext.require().organizationId;
-    const programRows = await this.database.sql`
-      SELECT p.id::text, p.release_unit_id::text, p.name, p.status, p.evaluator_version,
-             p.policy_version, p.target_sample_size, p.thresholds,
-             p.decision_influence_prohibited, r.lifecycle_stage, r.job_family,
-             r.language, r.interview_type
-      FROM evaluator_shadow_programs p
-      JOIN interview_release_units r
-        ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
-      WHERE p.organization_id = ${organizationId}::uuid AND p.id = ${programId}::uuid
-      LIMIT 1
-    `;
-    const program = programRows[0];
-    if (!program) throw new NotFoundException("Shadow program not found");
-    const rows = await this.database.sql`
-      SELECT r.id::text, r.ai_overall_score, r.ai_overall_confidence,
-             h.id::text AS human_outcome_id, h.overall_score AS human_overall_score,
-             c.id::text AS comparison_id, c.coverage_rate, c.mean_absolute_score_delta,
-             c.recommendation_agreement, c.false_reject, c.false_promotion,
-             c.low_confidence, c.requires_root_cause_review, c.root_cause_review_state
-      FROM evaluator_shadow_runs r
-      LEFT JOIN evaluator_shadow_human_outcomes h
-        ON h.organization_id = r.organization_id AND h.shadow_run_id = r.id
-      LEFT JOIN evaluator_shadow_comparisons c
-        ON c.organization_id = r.organization_id AND c.shadow_run_id = r.id
-      WHERE r.organization_id = ${organizationId}::uuid
-        AND r.shadow_program_id = ${programId}::uuid
-      ORDER BY r.created_at, r.id
-    `;
-    const totalRuns = rows.length;
-    const humanOutcomeCount = rows.filter((row) => row.human_outcome_id).length;
-    const comparisons = rows.filter((row) => row.comparison_id);
-    const comparisonCount = comparisons.length;
-    const ratio = (count: number, denominator: number) => denominator ? round(count / denominator) : 0;
-    const humanOutcomeRate = ratio(humanOutcomeCount, totalRuns);
-    const recommendationAgreementRate = ratio(
-      comparisons.filter((row) => row.recommendation_agreement === true).length,
+  const organizationId = this.tenantContext.require().organizationId;
+  const programRows = await this.database.sql`
+    SELECT p.id::text, p.release_unit_id::text, p.name, p.status, p.evaluator_version,
+           p.policy_version, p.target_sample_size, p.thresholds,
+           p.decision_influence_prohibited, r.lifecycle_stage, r.job_family,
+           r.language, r.interview_type
+    FROM evaluator_shadow_programs p
+    JOIN interview_release_units r
+      ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
+    WHERE p.organization_id = ${organizationId}::uuid AND p.id = ${programId}::uuid
+    LIMIT 1
+  `;
+  const program = programRows[0];
+  if (!program) throw new NotFoundException("Shadow program not found");
+  const rows = await this.database.sql`
+    SELECT r.id::text, r.execution_status, r.failure_category,
+           r.evaluator_latency_ms, r.retry_count, r.ai_overall_score,
+           h.id::text AS human_outcome_id, h.overall_score AS human_overall_score,
+           c.id::text AS comparison_id, c.coverage_rate, c.mean_absolute_score_delta,
+           c.recommendation_agreement, c.false_reject, c.false_promotion,
+           c.low_confidence, c.requires_root_cause_review, c.root_cause_review_state,
+           c.mean_evidence_agreement_rate, c.evidence_agreement_coverage_rate
+    FROM evaluator_shadow_runs r
+    LEFT JOIN evaluator_shadow_human_outcomes h
+      ON h.organization_id = r.organization_id AND h.shadow_run_id = r.id
+    LEFT JOIN evaluator_shadow_comparisons c
+      ON c.organization_id = r.organization_id AND c.shadow_run_id = r.id
+    WHERE r.organization_id = ${organizationId}::uuid
+      AND r.shadow_program_id = ${programId}::uuid
+    ORDER BY r.created_at, r.id
+  `;
+  const totalRuns = rows.length;
+  const successfulRows = rows.filter((row) => String(row.execution_status) === "succeeded");
+  const failedRows = rows.filter((row) => String(row.execution_status) === "failed");
+  const successfulRuns = successfulRows.length;
+  const failedRuns = failedRows.length;
+  const humanOutcomeCount = successfulRows.filter((row) => row.human_outcome_id).length;
+  const comparisons = successfulRows.filter((row) => row.comparison_id);
+  const comparisonCount = comparisons.length;
+  const ratio = (count: number, denominator: number) => denominator ? round(count / denominator) : 0;
+  const humanOutcomeRate = ratio(humanOutcomeCount, successfulRuns);
+  const evaluatorFailureRate = ratio(failedRuns, totalRuns);
+  const recommendationAgreementRate = ratio(
+    comparisons.filter((row) => row.recommendation_agreement === true).length,
+    comparisonCount,
+  );
+  const falseRejectRate = ratio(comparisons.filter((row) => row.false_reject === true).length, comparisonCount);
+  const falsePromotionRate = ratio(comparisons.filter((row) => row.false_promotion === true).length, comparisonCount);
+  const lowConfidenceRate = ratio(comparisons.filter((row) => row.low_confidence === true).length, comparisonCount);
+  const maeValues = comparisons
+    .filter((row) => row.mean_absolute_score_delta !== null && row.mean_absolute_score_delta !== undefined)
+    .map((row) => Number(row.mean_absolute_score_delta));
+  const coverageValues = comparisons.map((row) => Number(row.coverage_rate));
+  const evidenceAgreementValues = comparisons
+    .filter((row) => row.mean_evidence_agreement_rate !== null && row.mean_evidence_agreement_rate !== undefined)
+    .map((row) => Number(row.mean_evidence_agreement_rate));
+  const evidenceCoverageValues = comparisons
+    .filter((row) => row.evidence_agreement_coverage_rate !== null && row.evidence_agreement_coverage_rate !== undefined)
+    .map((row) => Number(row.evidence_agreement_coverage_rate));
+  const meanAbsoluteScoreDelta = maeValues.length
+    ? round(maeValues.reduce((sum, value) => sum + value, 0) / maeValues.length)
+    : null;
+  const meanCriterionCoverageRate = coverageValues.length
+    ? round(coverageValues.reduce((sum, value) => sum + value, 0) / coverageValues.length)
+    : 0;
+  const meanEvidenceAgreementRate = evidenceAgreementValues.length
+    ? round(evidenceAgreementValues.reduce((sum, value) => sum + value, 0) / evidenceAgreementValues.length)
+    : null;
+  const meanEvidenceAgreementCoverageRate = evidenceCoverageValues.length
+    ? round(evidenceCoverageValues.reduce((sum, value) => sum + value, 0) / evidenceCoverageValues.length)
+    : 0;
+  const rankingPairs = successfulRows.flatMap((row) =>
+    row.ai_overall_score !== null && row.human_overall_score !== null && row.human_overall_score !== undefined
+      ? [{ aiScore: Number(row.ai_overall_score), humanScore: Number(row.human_overall_score) }]
+      : [],
+  );
+  const ranking = calculateRankingAgreement(rankingPairs);
+  const rootCausePendingCount = comparisons.filter(
+    (row) => row.requires_root_cause_review === true && String(row.root_cause_review_state) === "pending",
+  ).length;
+  const failureCategoryCounts = Object.fromEntries(
+    SHADOW_FAILURE_CATEGORIES.map((category) => [
+      category,
+      failedRows.filter((row) => String(row.failure_category) === category).length,
+    ]),
+  );
+  const latencyValues = rows.flatMap((row) =>
+    row.evaluator_latency_ms === null || row.evaluator_latency_ms === undefined
+      ? []
+      : [Number(row.evaluator_latency_ms)],
+  );
+  const retryValues = rows.map((row) => Number(row.retry_count ?? 0));
+  const evaluatorLatencyMs = {
+    sampleCount: latencyValues.length,
+    p50: percentile(latencyValues, 0.5),
+    p95: percentile(latencyValues, 0.95),
+    max: latencyValues.length ? Math.max(...latencyValues) : null,
+    mean: latencyValues.length
+      ? round(latencyValues.reduce((sum, value) => sum + value, 0) / latencyValues.length)
+      : null,
+  };
+  const meanRetryCount = retryValues.length
+    ? round(retryValues.reduce((sum, value) => sum + value, 0) / retryValues.length)
+    : 0;
+  const configured = thresholds(program.thresholds);
+  const targetSampleSize = Number(program.target_sample_size);
+  const evidenceReady = totalRuns >= targetSampleSize;
+  const checks = {
+    targetSampleSize: evidenceReady,
+    evaluatorFailureRate: evaluatorFailureRate <= configured.maximumEvaluatorFailureRate,
+    humanOutcomeRate: humanOutcomeRate >= configured.minimumHumanOutcomeRate,
+    recommendationAgreementRate:
+      recommendationAgreementRate >= configured.minimumRecommendationAgreementRate,
+    falseRejectRate: falseRejectRate <= configured.maximumFalseRejectRate,
+    falsePromotionRate: falsePromotionRate <= configured.maximumFalsePromotionRate,
+    meanAbsoluteScoreDelta:
+      meanAbsoluteScoreDelta !== null && meanAbsoluteScoreDelta <= configured.maximumMeanAbsoluteScoreDelta,
+    criterionCoverageRate: meanCriterionCoverageRate >= configured.minimumCriterionCoverageRate,
+    evidenceAgreementRate:
+      meanEvidenceAgreementRate !== null && meanEvidenceAgreementRate >= configured.minimumEvidenceAgreementRate,
+    evidenceAgreementCoverageRate:
+      meanEvidenceAgreementCoverageRate >= configured.minimumEvidenceAgreementCoverageRate,
+    lowConfidenceRate: lowConfidenceRate <= configured.maximumLowConfidenceRate,
+    rankingCorrelation:
+      ranking.spearmanRankingCorrelation !== null &&
+      ranking.spearmanRankingCorrelation >= configured.minimumSpearmanRankingCorrelation,
+    rootCauseReview: rootCausePendingCount === 0,
+  };
+  const gateStatus = !evidenceReady
+    ? "not_ready"
+    : Object.values(checks).every(Boolean)
+      ? "passed"
+      : "failed";
+  return {
+    program: {
+      id: String(program.id),
+      releaseUnitId: String(program.release_unit_id),
+      name: String(program.name),
+      status: String(program.status),
+      evaluatorVersion: String(program.evaluator_version),
+      policyVersion: String(program.policy_version),
+      lifecycleStage: String(program.lifecycle_stage),
+      jobFamily: String(program.job_family),
+      language: String(program.language),
+      interviewType: String(program.interview_type),
+      targetSampleSize,
+    },
+    metrics: {
+      totalRuns,
+      totalSamples: totalRuns,
+      successfulRuns,
+      failedRuns,
+      evaluatorFailureRate,
+      failureCategoryCounts,
+      evaluatorLatencyMs,
+      meanRetryCount,
+      humanOutcomeCount,
       comparisonCount,
-    );
-    const falseRejectRate = ratio(comparisons.filter((row) => row.false_reject === true).length, comparisonCount);
-    const falsePromotionRate = ratio(comparisons.filter((row) => row.false_promotion === true).length, comparisonCount);
-    const lowConfidenceRate = ratio(comparisons.filter((row) => row.low_confidence === true).length, comparisonCount);
-    const maeValues = comparisons
-      .filter((row) => row.mean_absolute_score_delta !== null && row.mean_absolute_score_delta !== undefined)
-      .map((row) => Number(row.mean_absolute_score_delta));
-    const coverageValues = comparisons.map((row) => Number(row.coverage_rate));
-    const meanAbsoluteScoreDelta = maeValues.length
-      ? round(maeValues.reduce((sum, value) => sum + value, 0) / maeValues.length)
-      : null;
-    const meanCriterionCoverageRate = coverageValues.length
-      ? round(coverageValues.reduce((sum, value) => sum + value, 0) / coverageValues.length)
-      : 0;
-    const rankingPairs = rows.flatMap((row) =>
-      row.ai_overall_score !== null && row.human_overall_score !== null && row.human_overall_score !== undefined
-        ? [{ aiScore: Number(row.ai_overall_score), humanScore: Number(row.human_overall_score) }]
-        : [],
-    );
-    const ranking = calculateRankingAgreement(rankingPairs);
-    const rootCausePendingCount = comparisons.filter(
-      (row) => row.requires_root_cause_review === true && String(row.root_cause_review_state) === "pending",
-    ).length;
-    const configured = thresholds(program.thresholds);
-    const targetSampleSize = Number(program.target_sample_size);
-    const evidenceReady = totalRuns >= targetSampleSize && comparisonCount >= targetSampleSize;
-    const checks = {
-      targetSampleSize: evidenceReady,
-      humanOutcomeRate: humanOutcomeRate >= configured.minimumHumanOutcomeRate,
-      recommendationAgreementRate:
-        recommendationAgreementRate >= configured.minimumRecommendationAgreementRate,
-      falseRejectRate: falseRejectRate <= configured.maximumFalseRejectRate,
-      falsePromotionRate: falsePromotionRate <= configured.maximumFalsePromotionRate,
-      meanAbsoluteScoreDelta:
-        meanAbsoluteScoreDelta !== null && meanAbsoluteScoreDelta <= configured.maximumMeanAbsoluteScoreDelta,
-      criterionCoverageRate: meanCriterionCoverageRate >= configured.minimumCriterionCoverageRate,
-      lowConfidenceRate: lowConfidenceRate <= configured.maximumLowConfidenceRate,
-      rankingCorrelation:
-        ranking.spearmanRankingCorrelation !== null &&
-        ranking.spearmanRankingCorrelation >= configured.minimumSpearmanRankingCorrelation,
-      rootCauseReview: rootCausePendingCount === 0,
-    };
-    const gateStatus = !evidenceReady
-      ? "not_ready"
-      : Object.values(checks).every(Boolean)
-        ? "passed"
-        : "failed";
-    return {
-      program: {
-        id: String(program.id),
-        releaseUnitId: String(program.release_unit_id),
-        name: String(program.name),
-        status: String(program.status),
-        evaluatorVersion: String(program.evaluator_version),
-        policyVersion: String(program.policy_version),
-        lifecycleStage: String(program.lifecycle_stage),
-        jobFamily: String(program.job_family),
-        language: String(program.language),
-        interviewType: String(program.interview_type),
-        targetSampleSize,
-      },
-      metrics: {
-        totalRuns,
-        humanOutcomeCount,
-        comparisonCount,
-        humanOutcomeRate,
-        recommendationAgreementRate,
-        falseRejectRate,
-        falsePromotionRate,
-        lowConfidenceRate,
-        meanAbsoluteScoreDelta,
-        meanCriterionCoverageRate,
-        rootCausePendingCount,
-        ranking,
-      },
-      gate: {
-        status: gateStatus,
-        thresholds: configured,
-        checks,
-        releaseAuthority: false,
-        note: "Shadow evidence is decision-support validation only and cannot approve production or hiring decisions by itself.",
-      },
-      decisionInfluenceProhibited: true,
-      writesHiringDecisionData: false,
-    };
-  }
+      humanOutcomeRate,
+      recommendationAgreementRate,
+      falseRejectRate,
+      falsePromotionRate,
+      lowConfidenceRate,
+      meanAbsoluteScoreDelta,
+      meanCriterionCoverageRate,
+      meanEvidenceAgreementRate,
+      meanEvidenceAgreementCoverageRate,
+      rootCausePendingCount,
+      ranking,
+    },
+    gate: {
+      status: gateStatus,
+      thresholds: configured,
+      checks,
+      releaseAuthority: false,
+      note: "Shadow evidence is decision-support validation only and cannot approve production or hiring decisions by itself.",
+    },
+    prospectiveOnly: true,
+    oneSamplePerInterviewSession: true,
+    decisionInfluenceProhibited: true,
+    writesHiringDecisionData: false,
+  };
+}
 
   private programRow(row: Record<string, unknown> | undefined) {
     if (!row) throw new Error("Shadow program persistence returned no row");

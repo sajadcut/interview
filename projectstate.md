@@ -1,8 +1,8 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
-> **Version:** 0.23.0
-> **Date:** 2026-09-03
+> **Version:** 0.24.0
+> **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
@@ -95,7 +95,7 @@ Consequential hiring decisions remain human-controlled and score/evidence bounda
 
 # 4. Database and migration operations
 
-The current schema contains append-only migrations through `0040_evaluator_shadow_testing_framework.sql`. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
+The current schema contains append-only migrations through `0042_evaluator_shadow_testing_hardening.sql`, including supervised-pilot control-plane persistence and Shadow v2 integrity/telemetry hardening. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
 
 ```text
 expand/contract schema changes
@@ -169,15 +169,18 @@ release-unit-scoped Shadow programs with explicit target sample and thresholds
 activation only while the release unit lifecycle is SHADOW
 dedicated Shadow-run persistence separate from consequential scorecards and pipeline state
 AI results sealed until an independent human outcome is recorded
-idempotent input/output fingerprints and provider/model/prompt provenance
-immutable human outcome snapshot after AI execution
+one immutable sample per interview session, with prospective-only admission after Shadow activation
+idempotent input/output fingerprints plus persisted evaluator-input snapshots and provider/model/prompt provenance
+explicit evaluator execution success/failure, latency and retry telemetry so failed executions remain in the denominator
+immutable blind human outcome snapshot after AI execution with enforced reviewer independence and full-rubric coverage
 criterion-level Human ↔ AI score and evidence comparison
+aggregate evidence-agreement and evidence-reference coverage metrics
 coverage / MAE / RMSE / max delta / signed bias
 recommendation agreement and overall-score delta
 false-reject / false-promotion / low-confidence measurement
 Pearson and Spearman ranking agreement across completed comparisons
 mandatory root-cause queue for meaningful disagreements
-program-level readiness summary and thresholds with no release authority
+program-level readiness summary with failure-rate/evidence-agreement gates and no release authority
 PostgreSQL isolation tests proving Shadow runs do not create scorecards,
 AI candidate-criterion evaluations, or mutate application status/pipeline stage
 ```
