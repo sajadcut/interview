@@ -7,6 +7,7 @@ const paths = {
   metrics: resolve(root, "contracts/realtime-metrics.v1.json"),
   env: resolve(root, ".env.example"),
   layer: resolve(root, "services/media-worker/ffmpeg_layer.py"),
+  server: resolve(root, "services/media-worker/server.py"),
   tests: resolve(root, "services/media-worker/test/test_ffmpeg_layer.py"),
   package: resolve(root, "package.json"),
 };
@@ -15,11 +16,12 @@ function invariant(condition, message) {
   if (!condition) throw new Error(`FFmpeg integration contract check failed: ${message}`);
 }
 
-const [contractText, metricsText, envExample, layerSource, testSource, packageText] = await Promise.all([
+const [contractText, metricsText, envExample, layerSource, serverSource, testSource, packageText] = await Promise.all([
   readFile(paths.contract, "utf8"),
   readFile(paths.metrics, "utf8"),
   readFile(paths.env, "utf8"),
   readFile(paths.layer, "utf8"),
+  readFile(paths.server, "utf8"),
   readFile(paths.tests, "utf8"),
   readFile(paths.package, "utf8"),
 ]);
@@ -111,6 +113,14 @@ for (const marker of [
   "DIAGNOSTIC_MAX_BYTES = 8192",
 ]) {
   invariant(layerSource.includes(marker), `implementation marker missing: ${marker}`);
+}
+
+for (const marker of [
+  "from ffmpeg_layer import ffmpeg_status",
+  'return bool(ffmpeg_status()["ready"])',
+  'self.path == "/ffmpeg/health"',
+]) {
+  invariant(serverSource.includes(marker), `media-worker readiness marker missing: ${marker}`);
 }
 
 for (const marker of [
