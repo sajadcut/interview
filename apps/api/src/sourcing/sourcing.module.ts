@@ -4,6 +4,11 @@ import { AtsIntegrationController } from "./ats-integration.controller";
 import { AtsIntegrationService } from "./ats-integration.service";
 import { CandidateSourceRegistry } from "./candidate-source.registry";
 import { ConfiguredAtsSourceAdapter } from "./configured-ats-source.adapter";
+import { ExternalSourceConnectionService } from "./external-source-connection.service";
+import {
+  CoresignalCandidateSourceProvider,
+  PeopleDataLabsCandidateSourceProvider,
+} from "./external-source.providers";
 import { GreenhouseAtsProvider } from "./greenhouse-ats.provider";
 import { InternalTalentPoolAdapter } from "./internal-talent-pool.adapter";
 import { LeverAtsProvider } from "./lever-ats.provider";
@@ -27,6 +32,9 @@ import { TalentOperationsService } from "./talent-operations.service";
     GreenhouseAtsProvider,
     LeverAtsProvider,
     ConfiguredAtsSourceAdapter,
+    ExternalSourceConnectionService,
+    PeopleDataLabsCandidateSourceProvider,
+    CoresignalCandidateSourceProvider,
     CandidateSourceRegistry,
     AtsIntegrationService,
     SourcingService,

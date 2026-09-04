@@ -157,7 +157,7 @@ export class SourcingService {
   async runSource(jobId: string, input: SourcingRunRequestDto) {
     const organizationId = this.tenantContext.require().organizationId;
     const sourceType = input.sourceType ?? ApprovedSourceTypes.InternalTalentPool;
-    const adapter = this.sourceRegistry.get(sourceType);
+    const adapter = this.sourceRegistry.get(sourceType, input.providerKey);
     const actorUserId = this.authContext.getOptional()?.userId;
     const query = input.query.trim();
     if (!query) throw new BadRequestException("A sourcing query is required");
@@ -280,16 +280,17 @@ export class SourcingService {
     }
 
     const sourceType = String(run.requested_source_type) as ApprovedSourceType;
-    const adapter = this.sourceRegistry.get(sourceType);
+    const strategy = (run.strategy ?? {}) as Record<string, unknown>;
+    const storedProviderKey = typeof strategy.providerKey === "string" ? strategy.providerKey : undefined;
+    const adapter = this.sourceRegistry.get(sourceType, storedProviderKey);
     const actorUserId = this.authContext.getOptional()?.userId;
     const policy = evaluateSourcePolicy({
       sourceType,
-      requestedLimit: Number((run.strategy as Record<string, unknown> | undefined)?.limit ?? 25),
+      requestedLimit: Number(strategy.limit ?? 25),
       adapter,
       approvalConfirmed: input.approvalConfirmed,
       approverUserId: actorUserId,
     });
-    const strategy = (run.strategy ?? {}) as Record<string, unknown>;
     const query = typeof strategy.query === "string" ? strategy.query.trim() : "";
     if (!query) throw new BadRequestException("Stored sourcing run has no retryable query");
 
