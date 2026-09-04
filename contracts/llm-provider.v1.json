@@ -1,0 +1,124 @@
+{
+  "version": "llm-provider.v1",
+  "scope": "provider-neutral structured LLM execution",
+  "runtimeModelRequired": false,
+  "promptVersioning": {
+    "explicitIdAndVersion": true,
+    "mutablePublishedVersion": false,
+    "exactVariables": true,
+    "versionPattern": "^v[1-9]\\d*$"
+  },
+  "structuredOutput": {
+    "jsonOnly": true,
+    "schemaRequired": true,
+    "failClosed": true,
+    "supportedSchemaTypes": [
+      "object",
+      "array",
+      "string",
+      "number",
+      "integer",
+      "boolean",
+      "null"
+    ]
+  },
+  "retry": {
+    "maxAttemptsPerProvider": {
+      "default": 2,
+      "min": 1,
+      "max": 5
+    },
+    "initialDelayMs": {
+      "default": 100,
+      "min": 0,
+      "max": 60000
+    },
+    "maxDelayMs": {
+      "default": 2000,
+      "min": 0,
+      "max": 60000
+    },
+    "multiplier": {
+      "default": 2,
+      "min": 1,
+      "max": 10
+    },
+    "retryableCodes": [
+      "PROVIDER_UNAVAILABLE",
+      "PROVIDER_TIMEOUT",
+      "PROVIDER_FAILURE",
+      "STRUCTURED_OUTPUT_INVALID"
+    ]
+  },
+  "timeout": {
+    "perAttemptMs": {
+      "default": 30000,
+      "min": 10,
+      "max": 300000
+    },
+    "abortSignalRequiredForProvider": true,
+    "timeoutAbortsProviderSignal": true
+  },
+  "budget": {
+    "accountingUnit": "provider-reported tokens plus integer costMicros",
+    "failedAttemptUsageIsCharged": true,
+    "preflightPromptEstimate": true,
+    "default": {
+      "maxInputTokens": 12000,
+      "maxOutputTokens": 4000,
+      "maxTotalTokens": 16000,
+      "maxCostMicros": 1000000
+    },
+    "failClosedOnMissingUsage": true,
+    "failClosedOnInvalidUsage": true,
+    "outputCapPassedToProvider": true
+  },
+  "fallback": {
+    "orderedProviders": true,
+    "afterProviderRetriesExhausted": true,
+    "fallbackCodes": [
+      "PROVIDER_UNAVAILABLE",
+      "PROVIDER_TIMEOUT",
+      "PROVIDER_FAILURE",
+      "STRUCTURED_OUTPUT_INVALID"
+    ],
+    "neverFallbackCodes": [
+      "INVALID_REQUEST",
+      "UNKNOWN_PROMPT",
+      "PROMPT_VARIABLE_MISMATCH",
+      "USAGE_INVALID",
+      "BUDGET_EXCEEDED",
+      "REQUEST_ABORTED"
+    ]
+  },
+  "result": {
+    "includesPromptIdAndVersion": true,
+    "includesChosenProvider": true,
+    "includesAttemptMetadata": true,
+    "includesAggregateUsage": true,
+    "doesNotIncludeRenderedPrompt": true
+  },
+  "errors": [
+    { "code": "INVALID_REQUEST", "retryable": false },
+    { "code": "UNKNOWN_PROMPT", "retryable": false },
+    { "code": "PROMPT_VARIABLE_MISMATCH", "retryable": false },
+    { "code": "PROVIDER_UNAVAILABLE", "retryable": true },
+    { "code": "PROVIDER_TIMEOUT", "retryable": true },
+    { "code": "PROVIDER_FAILURE", "retryable": true },
+    { "code": "STRUCTURED_OUTPUT_INVALID", "retryable": true },
+    { "code": "USAGE_INVALID", "retryable": false },
+    { "code": "BUDGET_EXCEEDED", "retryable": false },
+    { "code": "REQUEST_ABORTED", "retryable": false }
+  ],
+  "testEvidence": {
+    "realProviderRequired": false,
+    "apiKeyRequired": false,
+    "scriptedProviderRequired": true,
+    "coversPromptVersions": true,
+    "coversStructuredOutput": true,
+    "coversRetry": true,
+    "coversTimeoutAbort": true,
+    "coversBudget": true,
+    "coversFallback": true
+  }
+}

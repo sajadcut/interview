@@ -2,7 +2,7 @@
 
 `services/ai-worker` is the provider-neutral background execution runtime for AI/evaluator workloads.
 
-It is intentionally usable before an LLM is installed. The worker owns execution mechanics only; model/provider code is registered as a capability processor later.
+It is intentionally usable before an LLM is installed. The worker owns durable execution mechanics and a provider-neutral LLM boundary; real provider adapters are registered later.
 
 ## Implemented runtime boundary
 
@@ -16,7 +16,69 @@ It is intentionally usable before an LLM is installed. The worker owns execution
 - Idempotent enqueue keys per organization.
 - Worker concurrency lanes and graceful SIGINT/SIGTERM shutdown.
 - Shared-secret authenticated internal API; the secret is never carried in job payloads.
-- No production LLM is faked. `system.healthcheck` is the only built-in processor and exists only to validate worker plumbing.
+
+## LLM Provider Layer v1
+
+`src/llm-provider.mjs` is the model-independent execution boundary used by future evaluator/brain processors.
+
+It provides:
+
+- explicit immutable prompt IDs and versions;
+- exact prompt-variable contracts;
+- JSON structured output with fail-closed schema validation;
+- bounded per-provider retries;
+- per-attempt timeout using `AbortSignal`;
+- token and `costMicros` budget enforcement;
+- charging of usage reported by failed attempts;
+- ordered fallback providers after retry exhaustion;
+- bounded attempt metadata and aggregate usage in results;
+- no rendered prompt text in returned execution metadata;
+- typed/safe provider errors without leaking raw provider diagnostics.
+
+No OpenAI, Anthropic, Gemini, local-model, or other vendor SDK is installed by this layer. Tests use scripted in-memory providers and require no model, API key, network request, or paid inference.
+
+Contract:
+
+```bash
+npm run llm-provider:contract:check
+```
+
+Worker tests:
+
+```bash
+npm run ai-worker:test
+```
+
+The LLM contract checker and scripted-provider tests are part of the root `npm test` quality gate.
+
+### Provider adapter shape
+
+A real adapter can be added later without changing the queue/runtime contract:
+
+```js
+const provider = {
+  name: "provider-name",
+  async generate({ prompt, schema, maxOutputTokens, metadata, signal }) {
+    // Invoke the real provider using the supplied AbortSignal.
+    // Return only structured output plus actual usage accounting.
+    return {
+      output: { /* JSON value matching schema */ },
+      model: "deployment-model-id",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        costMicros: 0,
+      },
+    };
+  },
+};
+```
+
+Provider adapters must honor `signal`, respect `maxOutputTokens`, and return non-negative integer usage. Missing or invalid usage is rejected fail-closed because the budget cannot otherwise be trusted.
+
+### Prompt versioning
+
+Published prompt behavior is selected by `{ id, version }`; there is no implicit "latest" prompt. A changed prompt must receive a new version instead of mutating an existing version in place. This keeps evaluator evidence reproducible and makes prompt provenance available in every successful result.
 
 ## Local configuration
 
@@ -38,23 +100,10 @@ Run the API/database migrations first, then:
 npm run ai-worker:dev
 ```
 
-Tests:
+The root `npm test` also runs the worker tests. PostgreSQL queue lifecycle coverage runs in the API suite when `AUTH_INTEGRATION_DATABASE_URL` is present, matching the repository's existing integration-test convention.
 
-```bash
-npm run ai-worker:test
-```
+## Registering model-backed capabilities later
 
-The root `npm test` also runs these worker tests. PostgreSQL queue lifecycle coverage runs in the API suite when `AUTH_INTEGRATION_DATABASE_URL` is present, matching the repository's existing integration-test convention.
+Capability processors remain registered in `src/main.mjs` (or a dedicated registry module) and should call `LLMProviderLayer.generateStructured(...)` instead of implementing retries, timeout, budget, prompt rendering, or fallback themselves.
 
-## Adding an LLM later
-
-Add a processor to the registry in `src/main.mjs` (or extract a provider-specific registry module) with this shape:
-
-```js
-async ({ job, payload, signal, workerId }) => {
-  // call the real provider using signal for cancellation
-  return { /* structured JSON result */ };
-}
-```
-
-Use `RetryableJobError` for temporary provider/network/rate-limit failures and `PermanentJobError` for invalid/non-retryable work. The queue lifecycle does not need to change when the real model is installed.
+Use queue-level `RetryableJobError` only after the provider layer has exhausted its own provider retry/fallback policy and the whole job should be rescheduled. Use `PermanentJobError` for invalid job payloads or policy failures. Provider adapters should use `LLMProviderError` for provider-local failure classification.
