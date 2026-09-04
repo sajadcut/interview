@@ -48,7 +48,12 @@ export class SupervisedPilotAwareInterviewsService extends InterviewsService {
     const realCandidate = value.candidateIsRealCustomerCandidate === true;
 
     if (lifecycleStage !== "SUPERVISED_PILOT" || !realCandidate) {
-      return super.createSession(body);
+      const session = await super.createSession(body);
+      return {
+        ...session,
+        humanReviewRequired: false,
+        aiFinalDecisionProhibited: false,
+      };
     }
 
     const consentRows = await this.pilotDatabase.sql`
