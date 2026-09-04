@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import type { Sql } from "postgres";
+import type { TransactionSql } from "postgres";
 import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
@@ -727,7 +727,7 @@ export class SupervisedPilotService {
     });
   }
 
-  private async assertAllApprovalsWithTx(tx: Sql, organizationId: string, programId: string) {
+  private async assertAllApprovalsWithTx(tx: TransactionSql, organizationId: string, programId: string) {
     const rows = await tx`
       SELECT count(*)::int AS total,
              count(*) FILTER (WHERE status = 'approved')::int AS approved
@@ -753,7 +753,7 @@ export class SupervisedPilotService {
     if (!rows[0]) throw new BadRequestException(`User ${userId} is not an active organization member`);
   }
 
-  private async assertActiveMemberWithTx(tx: Sql, userId: string) {
+  private async assertActiveMemberWithTx(tx: TransactionSql, userId: string) {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await tx`
       SELECT 1
