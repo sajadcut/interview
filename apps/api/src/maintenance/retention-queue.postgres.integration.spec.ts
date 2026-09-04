@@ -128,7 +128,7 @@ test(
       assert.ok(previewJob);
       const previewResult = await queue.execute(
         previewJob.jobId,
-        previewJob.leaseToken,
+        String(previewJob.leaseToken),
         "retention-integration-preview",
       );
       assert.equal(previewResult.dryRun, true);
@@ -153,7 +153,7 @@ test(
       assert.ok(executionJob);
       const execution = await queue.execute(
         executionJob.jobId,
-        executionJob.leaseToken,
+        String(executionJob.leaseToken),
         "retention-integration-execute",
       );
       assert.equal(execution.dryRun, false);
