@@ -1,6 +1,6 @@
 import { createHash, sign } from "node:crypto";
 import { Injectable } from "@nestjs/common";
-import { getEnv, type AppEnv } from "../config/env";
+import { getCalendarEnv, type CalendarEnv } from "./calendar.config";
 import type {
   CalendarProvider,
   CalendarReservationRequest,
@@ -27,7 +27,7 @@ function sha256(value: string): string {
 }
 
 function stableGoogleEventId(idempotencyKey: string): string {
-  // Google custom event IDs accept base32hex characters; a-f/0-9 plus the i prefix are valid.
+  // Google custom event IDs accept base32hex characters. i + hex is valid and deterministic.
   return `i${sha256(idempotencyKey)}`;
 }
 
@@ -92,24 +92,19 @@ async function responseFailure(response: Response, provider: string): Promise<Ca
 }
 
 async function fetchWithRetry(
-  env: AppEnv,
+  env: CalendarEnv,
   provider: string,
   url: string,
   init: RequestInit,
 ): Promise<Response> {
-  let lastError: unknown;
   for (let attempt = 1; attempt <= env.CALENDAR_MAX_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetch(url, {
-        ...init,
-        signal: AbortSignal.timeout(env.CALENDAR_TIMEOUT_MS),
-      });
+      const response = await fetch(url, { ...init, signal: AbortSignal.timeout(env.CALENDAR_TIMEOUT_MS) });
       if (response.ok || !retryableStatus(response.status) || attempt === env.CALENDAR_MAX_ATTEMPTS) {
         return response;
       }
       await pause(retryAfterMs(response) ?? Math.min(env.CALENDAR_RETRY_BASE_MS * 2 ** (attempt - 1), 5_000));
-    } catch (error) {
-      lastError = error;
+    } catch {
       if (attempt === env.CALENDAR_MAX_ATTEMPTS) break;
       await pause(Math.min(env.CALENDAR_RETRY_BASE_MS * 2 ** (attempt - 1), 5_000));
     }
@@ -118,8 +113,7 @@ async function fetchWithRetry(
     `${provider} calendar request failed before a response was received`,
     `${provider.toUpperCase()}_NETWORK_ERROR`,
     true,
-    undefined,
-  , { cause: lastError } as never);
+  );
 }
 
 interface AccessTokenCache {
@@ -131,7 +125,7 @@ interface AccessTokenCache {
 export class GoogleCalendarProvider implements CalendarProvider {
   readonly providerKey = "google";
   readonly configured: boolean;
-  private readonly env = getEnv();
+  private readonly env = getCalendarEnv();
   private tokenCache?: AccessTokenCache;
 
   constructor() {
@@ -157,9 +151,17 @@ export class GoogleCalendarProvider implements CalendarProvider {
     const unsigned = `${header}.${payload}`;
     let signature: string;
     try {
-      signature = sign("RSA-SHA256", Buffer.from(unsigned), normalizedPrivateKey(this.env.GOOGLE_CALENDAR_PRIVATE_KEY)).toString("base64url");
-    } catch (error) {
-      throw new CalendarProviderError("Google Calendar private key could not sign an OAuth assertion", "GOOGLE_INVALID_PRIVATE_KEY", false, undefined, { cause: error } as never);
+      signature = sign(
+        "RSA-SHA256",
+        Buffer.from(unsigned),
+        normalizedPrivateKey(this.env.GOOGLE_CALENDAR_PRIVATE_KEY),
+      ).toString("base64url");
+    } catch {
+      throw new CalendarProviderError(
+        "Google Calendar private key could not sign an OAuth assertion",
+        "GOOGLE_INVALID_PRIVATE_KEY",
+        false,
+      );
     }
 
     const response = await fetchWithRetry(this.env, "google-auth", tokenUrl, {
@@ -173,7 +175,11 @@ export class GoogleCalendarProvider implements CalendarProvider {
     if (!response.ok) throw await responseFailure(response, "google-auth");
     const body = (await response.json()) as { access_token?: string; expires_in?: number };
     if (!body.access_token) {
-      throw new CalendarProviderError("Google OAuth response did not contain an access token", "GOOGLE_TOKEN_RESPONSE_INVALID", false);
+      throw new CalendarProviderError(
+        "Google OAuth response did not contain an access token",
+        "GOOGLE_TOKEN_RESPONSE_INVALID",
+        false,
+      );
     }
     this.tokenCache = {
       token: body.access_token,
@@ -204,15 +210,22 @@ export class GoogleCalendarProvider implements CalendarProvider {
       attendees: request.attendeeEmails.map((email) => ({ email })),
       extendedProperties: { private: { interviewSchedulingKey: marker } },
       ...(this.env.GOOGLE_CALENDAR_CREATE_MEET
-        ? { conferenceData: { createRequest: { requestId: marker, conferenceSolutionKey: { type: "hangoutsMeet" } } } }
+        ? {
+            conferenceData: {
+              createRequest: {
+                requestId: marker,
+                conferenceSolutionKey: { type: "hangoutsMeet" },
+              },
+            },
+          }
         : {}),
     };
+
     const response = await fetchWithRetry(this.env, "google", `${this.eventUrl()}?${params}`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-
     if (response.status === 409) {
       const existing = await fetchWithRetry(this.env, "google", this.eventUrl(eventId), {
         headers: { authorization: `Bearer ${token}` },
@@ -228,8 +241,19 @@ export class GoogleCalendarProvider implements CalendarProvider {
     }
     if (!response.ok) throw await responseFailure(response, "google");
     const event = (await response.json()) as { id?: string };
-    if (!event.id) throw new CalendarProviderError("Google Calendar response did not contain an event id", "GOOGLE_EVENT_RESPONSE_INVALID", false);
-    return { provider: this.providerKey, providerReference: event.id, startsAt: request.startsAt, endsAt: request.endsAt };
+    if (!event.id) {
+      throw new CalendarProviderError(
+        "Google Calendar response did not contain an event id",
+        "GOOGLE_EVENT_RESPONSE_INVALID",
+        false,
+      );
+    }
+    return {
+      provider: this.providerKey,
+      providerReference: event.id,
+      startsAt: request.startsAt,
+      endsAt: request.endsAt,
+    };
   }
 
   async cancel(providerReference: string, idempotencyKey: string): Promise<void> {
@@ -250,7 +274,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
 export class MicrosoftCalendarProvider implements CalendarProvider {
   readonly providerKey = "microsoft";
   readonly configured: boolean;
-  private readonly env = getEnv();
+  private readonly env = getCalendarEnv();
   private tokenCache?: AccessTokenCache;
 
   constructor() {
@@ -258,8 +282,10 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
   }
 
   private tokenUrl(): string {
-    return this.env.MICROSOFT_CALENDAR_TOKEN_URL
-      ?? `https://login.microsoftonline.com/${encodeURIComponent(this.env.MICROSOFT_CALENDAR_TENANT_ID)}/oauth2/v2.0/token`;
+    return (
+      this.env.MICROSOFT_CALENDAR_TOKEN_URL
+      ?? `https://login.microsoftonline.com/${encodeURIComponent(this.env.MICROSOFT_CALENDAR_TENANT_ID)}/oauth2/v2.0/token`
+    );
   }
 
   private async accessToken(): Promise<string> {
@@ -277,7 +303,11 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     if (!response.ok) throw await responseFailure(response, "microsoft-auth");
     const body = (await response.json()) as { access_token?: string; expires_in?: number };
     if (!body.access_token) {
-      throw new CalendarProviderError("Microsoft OAuth response did not contain an access token", "MICROSOFT_TOKEN_RESPONSE_INVALID", false);
+      throw new CalendarProviderError(
+        "Microsoft OAuth response did not contain an access token",
+        "MICROSOFT_TOKEN_RESPONSE_INVALID",
+        false,
+      );
     }
     this.tokenCache = {
       token: body.access_token,
@@ -322,8 +352,19 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     });
     if (!response.ok) throw await responseFailure(response, "microsoft");
     const event = (await response.json()) as { id?: string };
-    if (!event.id) throw new CalendarProviderError("Microsoft Calendar response did not contain an event id", "MICROSOFT_EVENT_RESPONSE_INVALID", false);
-    return { provider: this.providerKey, providerReference: event.id, startsAt: request.startsAt, endsAt: request.endsAt };
+    if (!event.id) {
+      throw new CalendarProviderError(
+        "Microsoft Calendar response did not contain an event id",
+        "MICROSOFT_EVENT_RESPONSE_INVALID",
+        false,
+      );
+    }
+    return {
+      provider: this.providerKey,
+      providerReference: event.id,
+      startsAt: request.startsAt,
+      endsAt: request.endsAt,
+    };
   }
 
   async cancel(providerReference: string, idempotencyKey: string): Promise<void> {
