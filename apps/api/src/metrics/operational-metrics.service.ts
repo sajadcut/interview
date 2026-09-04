@@ -35,7 +35,7 @@ function asNumber(value: unknown): number {
 function labels(values: Record<string, string>): string {
   const rendered = Object.entries(values)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, value]) => `${key}=\"${escapePrometheusLabel(value)}\"`)
+    .map(([key, value]) => `${key}="${escapePrometheusLabel(value)}"`)
     .join(",");
   return rendered ? `{${rendered}}` : "";
 }

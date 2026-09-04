@@ -99,8 +99,8 @@ export class MetricsService {
       `interview_process_heap_used_bytes ${memory.heapUsed}`,
       "# HELP interview_process_cpu_seconds_total CPU seconds consumed by the API process.",
       "# TYPE interview_process_cpu_seconds_total counter",
-      `interview_process_cpu_seconds_total{mode=\"user\"} ${(cpu.user / 1_000_000).toFixed(6)}`,
-      `interview_process_cpu_seconds_total{mode=\"system\"} ${(cpu.system / 1_000_000).toFixed(6)}`,
+      `interview_process_cpu_seconds_total{mode="user"} ${(cpu.user / 1_000_000).toFixed(6)}`,
+      `interview_process_cpu_seconds_total{mode="system"} ${(cpu.system / 1_000_000).toFixed(6)}`,
       "# HELP interview_http_requests_in_flight HTTP requests currently being processed by this API process.",
       "# TYPE interview_http_requests_in_flight gauge",
       `interview_http_requests_in_flight ${this.inFlightRequests}`,
@@ -120,26 +120,26 @@ export class MetricsService {
       const firstSpace = key.indexOf(" ");
       const method = key.slice(0, firstSpace);
       const route = key.slice(firstSpace + 1);
-      const labels = `method=\"${escapePrometheusLabel(method)}\",route=\"${escapePrometheusLabel(route)}\"`;
+      const labels = `method="${escapePrometheusLabel(method)}",route="${escapePrometheusLabel(route)}"`;
       lines.push(`interview_http_requests_total{${labels}} ${bucket.count}`);
       lines.push(`interview_http_request_errors_total{${labels}} ${bucket.errorCount}`);
       lines.push(`interview_http_request_duration_ms_total{${labels}} ${bucket.totalDurationMs.toFixed(3)}`);
       for (const statusClass of RESPONSE_CLASSES) {
         lines.push(
-          `interview_http_responses_total{${labels},status_class=\"${statusClass}\"} ${bucket.responseClassCounts[statusClass] ?? 0}`,
+          `interview_http_responses_total{${labels},status_class="${statusClass}"} ${bucket.responseClassCounts[statusClass] ?? 0}`,
         );
       }
       if (bucket.responseClassCounts.other) {
         lines.push(
-          `interview_http_responses_total{${labels},status_class=\"other\"} ${bucket.responseClassCounts.other}`,
+          `interview_http_responses_total{${labels},status_class="other"} ${bucket.responseClassCounts.other}`,
         );
       }
       for (let index = 0; index < HTTP_DURATION_BUCKETS_SECONDS.length; index += 1) {
         lines.push(
-          `interview_http_request_duration_seconds_bucket{${labels},le=\"${HTTP_DURATION_BUCKETS_SECONDS[index]}\"} ${bucket.durationBucketCounts[index] ?? 0}`,
+          `interview_http_request_duration_seconds_bucket{${labels},le="${HTTP_DURATION_BUCKETS_SECONDS[index]}"} ${bucket.durationBucketCounts[index] ?? 0}`,
         );
       }
-      lines.push(`interview_http_request_duration_seconds_bucket{${labels},le=\"+Inf\"} ${bucket.count}`);
+      lines.push(`interview_http_request_duration_seconds_bucket{${labels},le="+Inf"} ${bucket.count}`);
       lines.push(
         `interview_http_request_duration_seconds_sum{${labels}} ${(bucket.totalDurationMs / 1000).toFixed(6)}`,
       );
@@ -151,7 +151,7 @@ export class MetricsService {
       "# TYPE interview_metrics_collection_errors_total counter",
     );
     for (const [collector, count] of [...this.collectionErrors.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      lines.push(`interview_metrics_collection_errors_total{collector=\"${escapePrometheusLabel(collector)}\"} ${count}`);
+      lines.push(`interview_metrics_collection_errors_total{collector="${escapePrometheusLabel(collector)}"} ${count}`);
     }
 
     return `${lines.join("\n")}\n`;
