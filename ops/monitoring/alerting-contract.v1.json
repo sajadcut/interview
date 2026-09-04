@@ -1,1 +1,47 @@
-PLACEHOLDER
+{
+  "contractVersion": "v1",
+  "ruleFile": "ops/monitoring/prometheus-alerts.yml",
+  "runbookFile": "docs/operations/alerting-runbook.md",
+  "principles": {
+    "thresholdsAreInitialOperationalPolicy": true,
+    "thresholdsAreProductionSloEvidence": false,
+    "deliveryConfigurationIsDeploymentSpecific": true,
+    "dynamicAlertLabelsForbidden": true,
+    "destructiveAutoRemediationForbidden": true
+  },
+  "routingPolicy": {
+    "groupBy": ["alertname", "component", "alert_family", "queue", "media", "direction", "operation"],
+    "warning": {"routeClass": "team-channel", "targetAcknowledgeMinutes": 30},
+    "critical": {"routeClass": "pager", "targetAcknowledgeMinutes": 10},
+    "recommendedInhibitionEqual": ["alert_family", "component", "queue", "media", "direction", "operation"]
+  },
+  "allowedRuleLabels": ["severity", "component", "alert_family"],
+  "forbiddenRuleLabels": ["organization_id", "candidate_id", "application_id", "interview_session_id", "room_name", "room_sid", "participant_sid", "track_sid", "job_id", "worker_id", "token", "email", "user_id", "request_id"],
+  "requiredCategories": ["monitoring", "api_error", "api_latency", "database", "queue", "worker", "interview", "realtime"],
+  "families": {
+    "api_5xx": {"category": "api_error", "component": "api", "warning": "InterviewApiHigh5xxRatio", "critical": "InterviewApiCritical5xxRatio", "runbookAnchor": "api-errors"},
+    "api_latency": {"category": "api_latency", "component": "api", "warning": "InterviewApiHighP95Latency", "critical": "InterviewApiCriticalP95Latency", "runbookAnchor": "api-latency"},
+    "queue_backlog": {"category": "queue", "component": "queue", "warning": "InterviewQueueBacklogOld", "critical": "InterviewQueueBacklogCritical", "runbookAnchor": "queues"},
+    "queue_expired_leases": {"category": "queue", "component": "queue", "warning": "InterviewQueueExpiredLeases", "critical": "InterviewQueueExpiredLeasesCritical", "runbookAnchor": "queues"},
+    "queue_failures": {"category": "queue", "component": "queue", "warning": "InterviewQueueFailureVolumeHigh", "critical": "InterviewQueueFailureVolumeCritical", "runbookAnchor": "queues"},
+    "worker_availability": {"category": "worker", "component": "worker", "warning": "InterviewQueueReadyWithoutActiveWorker", "critical": "InterviewQueueReadyWithoutWorkerCritical", "runbookAnchor": "workers"},
+    "realtime_error_burst": {"category": "realtime", "component": "realtime", "warning": "InterviewRealtimeErrorBurst", "critical": "InterviewRealtimeErrorBurstCritical", "runbookAnchor": "realtime"},
+    "realtime_e2e_latency": {"category": "realtime", "component": "realtime", "warning": "InterviewRealtimeE2EP95AboveGateF", "critical": "InterviewRealtimeE2EP95Critical", "runbookAnchor": "realtime"},
+    "whisper_errors": {"category": "realtime", "component": "realtime", "warning": "InterviewWhisperHighErrorRatio", "critical": "InterviewWhisperCriticalErrorRatio", "runbookAnchor": "realtime"},
+    "whisper_rtf": {"category": "realtime", "component": "realtime", "warning": "InterviewWhisperRealtimeFactorHigh", "critical": "InterviewWhisperRealtimeFactorCritical", "runbookAnchor": "realtime"},
+    "livekit_control": {"category": "realtime", "component": "realtime", "warning": "InterviewLiveKitControlPlaneErrors", "critical": "InterviewLiveKitControlPlaneErrorsCritical", "runbookAnchor": "realtime"},
+    "livekit_packet_loss": {"category": "realtime", "component": "realtime", "warning": "InterviewLiveKitPacketLossHigh", "critical": "InterviewLiveKitPacketLossCritical", "runbookAnchor": "realtime"},
+    "livekit_rtt": {"category": "realtime", "component": "realtime", "warning": "InterviewLiveKitRttHigh", "critical": "InterviewLiveKitRttCritical", "runbookAnchor": "realtime"},
+    "ffmpeg_failures": {"category": "realtime", "component": "realtime", "warning": "InterviewFFmpegJobFailures", "critical": "InterviewFFmpegJobFailuresCritical", "runbookAnchor": "realtime"}
+  },
+  "singleAlerts": [
+    {"name": "InterviewMetricsCollectionFailed", "category": "monitoring", "severity": "critical", "component": "monitoring", "family": "metrics_collection", "runbookAnchor": "monitoring-collector"},
+    {"name": "InterviewMetricsSnapshotStale", "category": "monitoring", "severity": "warning", "component": "monitoring", "family": "metrics_snapshot", "runbookAnchor": "monitoring-collector"},
+    {"name": "InterviewDatabaseUnavailable", "category": "database", "severity": "critical", "component": "database", "family": "db_availability", "runbookAnchor": "database"},
+    {"name": "InterviewDatabaseDeadlocks", "category": "database", "severity": "warning", "component": "database", "family": "db_deadlocks", "runbookAnchor": "database"},
+    {"name": "InterviewDatabaseIdleInTransaction", "category": "database", "severity": "warning", "component": "database", "family": "db_idle_transaction", "runbookAnchor": "database"},
+    {"name": "InterviewDatabaseCacheHitRatioLow", "category": "database", "severity": "warning", "component": "database", "family": "db_cache", "runbookAnchor": "database"},
+    {"name": "InterviewLifecycleStalledSessions", "category": "interview", "severity": "warning", "component": "interview", "family": "interview_stalled", "runbookAnchor": "interview-lifecycle"},
+    {"name": "InterviewRealtimeStaleMediaSessions", "category": "realtime", "severity": "critical", "component": "realtime", "family": "realtime_media_heartbeat", "runbookAnchor": "realtime"}
+  ]
+}
