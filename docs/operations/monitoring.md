@@ -1,15 +1,21 @@
 # Monitoring and operational metrics
 
-The API exposes Prometheus text format at `GET /metrics`. The endpoint is excluded from the public OpenAPI contract and returns aggregate operational data only: no organization, candidate, job, worker, token, email, transcript, or other tenant identifiers are labels.
+The platform exposes Prometheus text from two operational boundaries:
+
+- the API at `GET /metrics`, for API/process, PostgreSQL, durable queue/worker, and persisted interview lifecycle metrics;
+- the media worker at `GET /metrics`, for the versioned realtime metrics contract and measured whisper.cpp telemetry, plus LiveKit/FFmpeg/realtime-orchestrator series once those adapters emit real observations.
+
+Both endpoints are operational surfaces, excluded from the customer-facing API contract. Metrics must not contain organization, candidate, application, session, room, worker, job, token, email, transcript, or other tenant identifiers as labels.
 
 ## Collection model
 
-Monitoring is split into two layers:
+Monitoring is split into three layers:
 
 1. **Runtime API metrics** are kept in-process for HTTP throughput, 5xx responses, in-flight requests, latency histograms, process CPU/memory, and collector failures.
-2. **Durable operational metrics** are derived from PostgreSQL on scrape for DB health, durable queues, worker leases, and interview/media lifecycle. This means queue and interview state survive API restarts and are not inferred from volatile counters.
+2. **Durable operational metrics** are derived from PostgreSQL on scrape for DB health, durable queues, worker leases, and interview/media lifecycle. Queue and interview state therefore survive API restarts and are not inferred from volatile counters.
+3. **Realtime provider/process metrics** follow `contracts/realtime-metrics.v1.json`. The media worker already emits measured whisper.cpp observations. LiveKit RTP/provider data, FFmpeg runtime data, and end-to-end orchestrator timings are emitted only when a real adapter/runtime measures them; missing provider series are never replaced with synthetic zeroes.
 
-Operational snapshots are coalesced and cached for 5 seconds by default. PostgreSQL collection runs with a statement timeout so a slow monitoring query cannot indefinitely occupy the metrics endpoint.
+Operational API snapshots are coalesced and cached for 5 seconds by default. PostgreSQL collection runs with a statement timeout so a slow monitoring query cannot indefinitely occupy the metrics endpoint.
 
 Optional environment tuning:
 
@@ -38,7 +44,7 @@ METRICS_DB_TIMEOUT_MS=2000
 - `interview_metrics_collection_duration_seconds`
 - `interview_metrics_snapshot_age_seconds`
 
-Unmatched HTTP paths collapse to `__unmatched__`; UUID, numeric and long opaque route segments are normalized. This prevents PII/token leakage and cardinality attacks through metric labels.
+Unmatched HTTP paths collapse to `__unmatched__`; UUID, numeric, and long opaque route segments are normalized. This prevents PII/token leakage and cardinality attacks through metric labels.
 
 ### PostgreSQL
 
@@ -67,7 +73,7 @@ The queue label is one of `ai`, `assessment`, `privacy`, or `retention`.
 - `interview_worker_active_instances{queue}`
 - `interview_worker_last_activity_timestamp_seconds{queue}`
 
-Worker liveness is intentionally defined from durable lease ownership. `active_instances` means distinct worker IDs currently holding an unexpired lease; it does not claim that an idle polling process is alive. For process-level worker liveness, deployment infrastructure should additionally scrape/supervise each worker process.
+Worker liveness is intentionally defined from durable lease ownership. `active_instances` means distinct worker IDs currently holding an unexpired lease; it does not claim that an idle polling process is alive. Production infrastructure should additionally supervise/scrape each worker process.
 
 ### Interview lifecycle
 
@@ -88,11 +94,19 @@ Worker liveness is intentionally defined from durable lease ownership. `active_i
 
 These metrics are operational aggregates; transcript text, evidence summaries, candidate IDs, room references, and media payloads are never exported.
 
+### Realtime metrics contract
+
+`contracts/realtime-metrics.v1.json` is the source of truth for bounded LiveKit, whisper.cpp, FFmpeg, and realtime-turn metric names, labels, histogram buckets, ownership/source, and wiring status.
+
+The contract includes LiveKit control-plane and RTP metrics; whisper.cpp request/result, duration and realtime-factor metrics; FFmpeg job/process/media metrics; and realtime turn duration/results including the current 1.8-second Gate F E2E bucket.
+
+A metric marked `provider_data_pending` or `recorder_contract` does not imply that production data exists. Alerting and dashboards must tolerate an absent series until a real runtime emits it.
+
 ## Scraping and access
 
-A 15-30 second Prometheus scrape interval is appropriate. Keep `/metrics` on an internal service/network path or protect it at the ingress/service-mesh layer; it is an operational endpoint, not a customer-facing API. The endpoint sets `Cache-Control: no-store` and is excluded from generated API contracts.
+A 15-30 second scrape interval is appropriate for both operational endpoints. Keep them on an internal service/network path or protect them at the ingress/service-mesh layer.
 
-Example Prometheus job:
+Example:
 
 ```yaml
 scrape_configs:
@@ -101,6 +115,37 @@ scrape_configs:
     metrics_path: /metrics
     static_configs:
       - targets: ["interview-api:4100"]
+
+  - job_name: interview-media-worker
+    scrape_interval: 15s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["interview-media-worker:9010"]
 ```
 
-Baseline alert rules are committed at `ops/monitoring/prometheus-alerts.yml`. Thresholds are starting points and must be tuned against real production traffic and SLOs. Alert delivery, Prometheus/Alertmanager/Grafana deployment, long-term metric retention, and worker process exporters remain deployment-specific and are not implied by code-level validation.
+The exact production service discovery/TLS/auth configuration is deployment-specific.
+
+## Alerting contract
+
+Alerting has a versioned policy contract at `ops/monitoring/alerting-contract.v1.json`. It defines required alert categories, warning/critical routing intent, stable low-cardinality rule labels, threshold families, and runbook anchors. The Prometheus rules live at `ops/monitoring/prometheus-alerts.yml` and must satisfy:
+
+```text
+npm run alerting:check
+```
+
+`alerting:check` is part of the root test suite. It fails on duplicate or uncontracted rules, missing required categories, invalid severity/`for` semantics, missing runbook anchors, unapproved rule labels, incomplete warning/critical families, unbalanced expressions, or realtime metric references outside `contracts/realtime-metrics.v1.json`.
+
+The committed rules cover:
+
+- metrics collector failure/staleness;
+- API 5xx ratio and p95 latency with warning/critical tiers;
+- PostgreSQL availability, deadlocks, sustained idle transactions, and cache degradation;
+- queue backlog age, expired leases, and failure volume;
+- ready work without active lease-holding workers;
+- stalled interview sessions;
+- stale realtime media heartbeats and persisted error bursts;
+- realtime E2E latency, whisper error/RTF, LiveKit control-plane/RTP, and FFmpeg failure families.
+
+Every rule carries only static `severity`, `component`, and `alert_family` labels in addition to bounded labels inherited from its source metric. Runbook URLs point to `docs/operations/alerting-runbook.md`. The runbook defines recommended Alertmanager grouping/inhibition semantics so a critical member of an `alert_family` can supersede its warning without duplicate pages.
+
+Thresholds are **starting operational policy** and must be tuned against representative staging/production traffic. They are not production SLO evidence. Prometheus/Alertmanager/Grafana deployment, receiver credentials, real paging/escalation delivery, maintenance silences, long-term retention, dashboard tuning, and incident-response evidence remain deployment-specific and are not implied by repository CI.
