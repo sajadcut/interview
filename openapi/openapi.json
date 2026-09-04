@@ -2374,6 +2374,983 @@
         ]
       }
     },
+    "/v1/interviews/sessions": {
+      "post": {
+        "operationId": "InterviewsController_createSession",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInterviewSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewSessionStartDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/brain/next-turn": {
+      "post": {
+        "operationId": "InterviewsController_nextBrainTurn",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewBrainNextTurnInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewBrainTurnDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/turns": {
+      "post": {
+        "operationId": "InterviewsController_appendTurn",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendInterviewTurnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewTurnDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/transcript-segments": {
+      "post": {
+        "operationId": "InterviewsController_appendTranscriptSegment",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscriptSegmentInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptSegmentDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/evidence": {
+      "post": {
+        "operationId": "InterviewsController_recordEvidence",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewEvidenceInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewEvidenceDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/review": {
+      "get": {
+        "operationId": "InterviewsController_getReview",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interview-release-units/{releaseUnitId}/preflight": {
+      "post": {
+        "operationId": "InterviewsController_preflightRelease",
+        "parameters": [
+          {
+            "name": "releaseUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/media/readiness": {
+      "get": {
+        "operationId": "InterviewMediaController_getReadiness",
+        "parameters": [
+          {
+            "name": "mode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "audio",
+              "type": "string",
+              "enum": [
+                "audio",
+                "avatar"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider-neutral realtime media readiness. No credentials are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewMediaReadinessDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/preflight": {
+      "post": {
+        "operationId": "InterviewMediaController_preflight",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewMediaModeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consent, release and provider readiness for a realtime media session."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions": {
+      "post": {
+        "operationId": "InterviewMediaController_createMediaSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewMediaModeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Persist a media lifecycle session after a successful preflight."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/connection": {
+      "post": {
+        "operationId": "InterviewMediaController_issueConnection",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaSessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Issue a short-lived room-scoped LiveKit token for a synthetic/internal candidate. Token is never persisted."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/turns/{turnId}/audio": {
+      "post": {
+        "operationId": "InterviewMediaController_synthesizePersistedTurn",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaSessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "turnId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream WAV synthesized only from the persisted finalized Interview Brain spoken_text. No client-supplied text is accepted."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions/latest": {
+      "get": {
+        "operationId": "InterviewMediaController_getLatestMediaSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Latest persisted media lifecycle state for the interview session."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
+      "get": {
+        "operationId": "InterviewMediaController_listParticipants",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaSessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider-neutral participant lifecycle state without credentials or raw media."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
+      "post": {
+        "operationId": "InterviewMediaController_appendEvent",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mediaSessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewMediaEventInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Idempotently append an operational media event without raw media, transcript text or credentials."
+          }
+        },
+        "tags": [
+          "interview-media"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/interview-plans/generate": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_generatePlan",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateInterviewPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interview-plans/{planId}/publish": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_publishPlan",
+        "parameters": [
+          {
+            "name": "planId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/evaluator-input": {
+      "get": {
+        "operationId": "InterviewOrchestrationController_evaluatorInput",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterviewEvaluatorInputDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/cases": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_createCalibrationCase",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEvaluatorCalibrationCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/cases/{caseId}/runs": {
+      "post": {
+        "operationId": "InterviewOrchestrationController_recordCalibrationRun",
+        "parameters": [
+          {
+            "name": "caseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordEvaluatorCalibrationRunDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorCalibrationRunDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/evaluator/calibration/summary": {
+      "get": {
+        "operationId": "InterviewOrchestrationController_calibrationSummary",
+        "parameters": [
+          {
+            "name": "evaluatorVersion",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluatorCalibrationSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
     "/v1/candidates/{candidateId}/resumes": {
       "post": {
         "operationId": "ResumeIngestionController_ingest",
@@ -3973,983 +4950,6 @@
         },
         "tags": [
           "engagement-workspace"
-        ]
-      }
-    },
-    "/v1/interviews/sessions": {
-      "post": {
-        "operationId": "InterviewsController_createSession",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateInterviewSessionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewSessionStartDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/brain/next-turn": {
-      "post": {
-        "operationId": "InterviewsController_nextBrainTurn",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InterviewBrainNextTurnInputDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewBrainTurnDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/turns": {
-      "post": {
-        "operationId": "InterviewsController_appendTurn",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AppendInterviewTurnDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewTurnDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/transcript-segments": {
-      "post": {
-        "operationId": "InterviewsController_appendTranscriptSegment",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TranscriptSegmentInputDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TranscriptSegmentDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/evidence": {
-      "post": {
-        "operationId": "InterviewsController_recordEvidence",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InterviewEvidenceInputDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewEvidenceDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/review": {
-      "get": {
-        "operationId": "InterviewsController_getReview",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interview-release-units/{releaseUnitId}/preflight": {
-      "post": {
-        "operationId": "InterviewsController_preflightRelease",
-        "parameters": [
-          {
-            "name": "releaseUnitId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/media/readiness": {
-      "get": {
-        "operationId": "InterviewMediaController_getReadiness",
-        "parameters": [
-          {
-            "name": "mode",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "default": "audio",
-              "type": "string",
-              "enum": [
-                "audio",
-                "avatar"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Provider-neutral realtime media readiness. No credentials are returned.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewMediaReadinessDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/preflight": {
-      "post": {
-        "operationId": "InterviewMediaController_preflight",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InterviewMediaModeDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Consent, release and provider readiness for a realtime media session."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions": {
-      "post": {
-        "operationId": "InterviewMediaController_createMediaSession",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InterviewMediaModeDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Persist a media lifecycle session after a successful preflight."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/connection": {
-      "post": {
-        "operationId": "InterviewMediaController_issueConnection",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "mediaSessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Issue a short-lived room-scoped LiveKit token for a synthetic/internal candidate. Token is never persisted."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/turns/{turnId}/audio": {
-      "post": {
-        "operationId": "InterviewMediaController_synthesizePersistedTurn",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "mediaSessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "turnId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Stream WAV synthesized only from the persisted finalized Interview Brain spoken_text. No client-supplied text is accepted."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions/latest": {
-      "get": {
-        "operationId": "InterviewMediaController_getLatestMediaSession",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Latest persisted media lifecycle state for the interview session."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
-      "get": {
-        "operationId": "InterviewMediaController_listParticipants",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "mediaSessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Provider-neutral participant lifecycle state without credentials or raw media."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
-      "post": {
-        "operationId": "InterviewMediaController_appendEvent",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "mediaSessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InterviewMediaEventInputDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Idempotently append an operational media event without raw media, transcript text or credentials."
-          }
-        },
-        "tags": [
-          "interview-media"
-        ]
-      }
-    },
-    "/v1/jobs/{jobId}/interview-plans/generate": {
-      "post": {
-        "operationId": "InterviewOrchestrationController_generatePlan",
-        "parameters": [
-          {
-            "name": "jobId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenerateInterviewPlanDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interview-plans/{planId}/publish": {
-      "post": {
-        "operationId": "InterviewOrchestrationController_publishPlan",
-        "parameters": [
-          {
-            "name": "planId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewPlanGeneratedDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/interviews/{sessionId}/evaluator-input": {
-      "get": {
-        "operationId": "InterviewOrchestrationController_evaluatorInput",
-        "parameters": [
-          {
-            "name": "sessionId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InterviewEvaluatorInputDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/evaluator/calibration/cases": {
-      "post": {
-        "operationId": "InterviewOrchestrationController_createCalibrationCase",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateEvaluatorCalibrationCaseDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/evaluator/calibration/cases/{caseId}/runs": {
-      "post": {
-        "operationId": "InterviewOrchestrationController_recordCalibrationRun",
-        "parameters": [
-          {
-            "name": "caseId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RecordEvaluatorCalibrationRunDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluatorCalibrationRunDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
-        ]
-      }
-    },
-    "/v1/evaluator/calibration/summary": {
-      "get": {
-        "operationId": "InterviewOrchestrationController_calibrationSummary",
-        "parameters": [
-          {
-            "name": "evaluatorVersion",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EvaluatorCalibrationSummaryDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "interviews"
         ]
       }
     },
@@ -8219,6 +8219,957 @@
           "createdAt"
         ]
       },
+      "CreateInterviewSessionDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string"
+          },
+          "interviewPlanId": {
+            "type": "string"
+          },
+          "consentRecordId": {
+            "type": "string"
+          },
+          "candidateIsRealCustomerCandidate": {
+            "type": "boolean",
+            "default": false
+          },
+          "synchronousHumanSupervisorPresent": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "applicationId",
+          "interviewPlanId",
+          "consentRecordId",
+          "candidateIsRealCustomerCandidate",
+          "synchronousHumanSupervisorPresent"
+        ]
+      },
+      "InterviewSessionStartDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lifecycleStage": {
+            "type": "string"
+          },
+          "releaseMode": {
+            "type": "string"
+          },
+          "planVersion": {
+            "type": "number"
+          },
+          "remainingSeconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "lifecycleStage",
+          "releaseMode",
+          "planVersion",
+          "remainingSeconds"
+        ]
+      },
+      "InterviewBrainNextTurnInputDto": {
+        "type": "object",
+        "properties": {
+          "latestCandidateText": {
+            "type": "string",
+            "description": "Latest finalized candidate transcript text for state/context only."
+          },
+          "candidateIntent": {
+            "type": "string",
+            "enum": [
+              "ANSWER",
+              "CLARIFICATION_REQUEST",
+              "SKIP_REQUEST",
+              "INTERRUPTION",
+              "SILENCE_TIMEOUT",
+              "RECONNECT",
+              "CANDIDATE_QUESTION",
+              "POLICY_REFUSAL"
+            ]
+          },
+          "elapsedSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 600,
+            "default": 0
+          }
+        }
+      },
+      "InterviewBrainTurnDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "probe",
+              "clarify",
+              "transition",
+              "close",
+              "escalate"
+            ]
+          },
+          "criterion": {
+            "type": "object"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "spokenText": {
+            "type": "string"
+          },
+          "expectedEvidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "candidateIntent": {
+            "type": "string",
+            "enum": [
+              "ANSWER",
+              "CLARIFICATION_REQUEST",
+              "SKIP_REQUEST",
+              "INTERRUPTION",
+              "SILENCE_TIMEOUT",
+              "RECONNECT",
+              "CANDIDATE_QUESTION",
+              "POLICY_REFUSAL"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "number"
+          },
+          "finalized": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "questionId": {
+            "type": "string"
+          },
+          "brainVersion": {
+            "type": "string"
+          },
+          "brainReason": {
+            "type": "string"
+          },
+          "remainingSeconds": {
+            "type": "number"
+          },
+          "evidenceCoverage": {
+            "type": "object"
+          },
+          "releaseMode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "objective",
+          "spokenText",
+          "expectedEvidence",
+          "id",
+          "sequence",
+          "finalized",
+          "createdAt",
+          "questionId",
+          "brainVersion",
+          "brainReason",
+          "remainingSeconds",
+          "evidenceCoverage",
+          "releaseMode"
+        ]
+      },
+      "AppendInterviewTurnDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "probe",
+              "clarify",
+              "transition",
+              "close",
+              "escalate"
+            ]
+          },
+          "criterion": {
+            "type": "object"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "spokenText": {
+            "type": "string"
+          },
+          "expectedEvidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "candidateIntent": {
+            "type": "string",
+            "enum": [
+              "ANSWER",
+              "CLARIFICATION_REQUEST",
+              "SKIP_REQUEST",
+              "INTERRUPTION",
+              "SILENCE_TIMEOUT",
+              "RECONNECT",
+              "CANDIDATE_QUESTION",
+              "POLICY_REFUSAL"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "objective",
+          "spokenText",
+          "expectedEvidence"
+        ]
+      },
+      "InterviewTurnDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "probe",
+              "clarify",
+              "transition",
+              "close",
+              "escalate"
+            ]
+          },
+          "criterion": {
+            "type": "object"
+          },
+          "objective": {
+            "type": "string"
+          },
+          "spokenText": {
+            "type": "string"
+          },
+          "expectedEvidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "candidateIntent": {
+            "type": "string",
+            "enum": [
+              "ANSWER",
+              "CLARIFICATION_REQUEST",
+              "SKIP_REQUEST",
+              "INTERRUPTION",
+              "SILENCE_TIMEOUT",
+              "RECONNECT",
+              "CANDIDATE_QUESTION",
+              "POLICY_REFUSAL"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "number"
+          },
+          "finalized": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "objective",
+          "spokenText",
+          "expectedEvidence",
+          "id",
+          "sequence",
+          "finalized",
+          "createdAt"
+        ]
+      },
+      "TranscriptSegmentInputDto": {
+        "type": "object",
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "interviewer",
+              "system"
+            ]
+          },
+          "startMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "endMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "default": true
+          },
+          "sttConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "speaker",
+          "startMs",
+          "endMs",
+          "text",
+          "isFinal"
+        ]
+      },
+      "TranscriptSegmentDto": {
+        "type": "object",
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "interviewer",
+              "system"
+            ]
+          },
+          "startMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "endMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string"
+          },
+          "isFinal": {
+            "type": "boolean",
+            "default": true
+          },
+          "sttConfidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker",
+          "startMs",
+          "endMs",
+          "text",
+          "isFinal",
+          "id",
+          "createdAt"
+        ]
+      },
+      "InterviewEvidenceInputDto": {
+        "type": "object",
+        "properties": {
+          "criterionId": {
+            "type": "string"
+          },
+          "turnId": {
+            "type": "string"
+          },
+          "transcriptSegmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "transcriptSegmentIds",
+          "summary"
+        ]
+      },
+      "InterviewEvidenceDto": {
+        "type": "object",
+        "properties": {
+          "criterionId": {
+            "type": "string"
+          },
+          "turnId": {
+            "type": "string"
+          },
+          "transcriptSegmentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "transcriptSegmentIds",
+          "summary",
+          "id",
+          "createdAt"
+        ]
+      },
+      "MediaProviderStatusDto": {
+        "type": "object",
+        "properties": {
+          "component": {
+            "type": "string",
+            "enum": [
+              "transport",
+              "vad",
+              "stt",
+              "tts",
+              "avatar"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "component",
+          "provider",
+          "configured",
+          "reachable",
+          "ready"
+        ]
+      },
+      "MediaPrivacyPolicyDto": {
+        "type": "object",
+        "properties": {
+          "candidateVideoAnalysis": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          "biometricInferenceAllowed": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "rawMediaPersistedByApi": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "spokenTextOnlyToAvatar": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "candidateVideoAnalysis",
+          "biometricInferenceAllowed",
+          "rawMediaPersistedByApi",
+          "spokenTextOnlyToAvatar"
+        ]
+      },
+      "InterviewMediaReadinessDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "avatar"
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaProviderStatusDto"
+            }
+          },
+          "requiredComponents": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "transport",
+                "vad",
+                "stt",
+                "tts",
+                "avatar"
+              ]
+            }
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/MediaPrivacyPolicyDto"
+          }
+        },
+        "required": [
+          "enabled",
+          "mode",
+          "ready",
+          "blockers",
+          "providers",
+          "requiredComponents",
+          "privacy"
+        ]
+      },
+      "InterviewMediaModeDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "audio",
+              "avatar"
+            ]
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "InterviewMediaEventInputDto": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200,
+            "description": "Stable caller-generated key. Retrying the same event with this key returns the original journal entry."
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "preflight",
+              "provider_status",
+              "connecting",
+              "connected",
+              "degraded",
+              "disconnected",
+              "reconnected",
+              "participant_joined",
+              "participant_left",
+              "turn_failure",
+              "vad_speech_start",
+              "vad_speech_end",
+              "stt_final",
+              "brain_turn",
+              "tts_started",
+              "tts_ended",
+              "avatar_started",
+              "avatar_ended",
+              "heartbeat",
+              "ended",
+              "error"
+            ]
+          },
+          "sourceComponent": {
+            "type": "string",
+            "enum": [
+              "transport",
+              "vad",
+              "stt",
+              "brain",
+              "tts",
+              "avatar",
+              "api"
+            ]
+          },
+          "payload": {
+            "type": "object",
+            "description": "Operational metadata only. Raw media, transcript text and credentials are rejected."
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "eventType"
+        ]
+      },
+      "GenerateInterviewPlanDto": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": "string",
+            "default": "en"
+          },
+          "interviewType": {
+            "type": "string",
+            "default": "structured_competency"
+          },
+          "timeBudgetMinutes": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 180,
+            "default": 45
+          },
+          "minDepth": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 1
+          },
+          "maxDepth": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 3
+          },
+          "interviewerPolicyVersion": {
+            "type": "string",
+            "default": "interviewer-policy-v1"
+          },
+          "speechAvatarStackVersion": {
+            "type": "string",
+            "default": "pre-realtime-contract-v1"
+          },
+          "evaluatorVersion": {
+            "type": "string",
+            "default": "evidence-evaluator-v1"
+          },
+          "forbiddenTopics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "InterviewPlanGeneratedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "jobId": {
+            "type": "string"
+          },
+          "rubricVersionId": {
+            "type": "string"
+          },
+          "releaseUnitId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "interviewType": {
+            "type": "string"
+          },
+          "timeBudgetMinutes": {
+            "type": "number"
+          },
+          "questionStrategy": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "rubricVersionId",
+          "releaseUnitId",
+          "version",
+          "status",
+          "language",
+          "interviewType",
+          "timeBudgetMinutes",
+          "questionStrategy"
+        ]
+      },
+      "InterviewEvaluatorInputDto": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "sessionStatus": {
+            "type": "string"
+          },
+          "rubricVersionId": {
+            "type": "string"
+          },
+          "planVersion": {
+            "type": "number"
+          },
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "boundaries": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "sessionId",
+          "applicationId",
+          "sessionStatus",
+          "rubricVersionId",
+          "planVersion",
+          "evaluatorVersion",
+          "criteria",
+          "transcript",
+          "evidence",
+          "boundaries"
+        ]
+      },
+      "EvaluatorCriterionBenchmarkDto": {
+        "type": "object",
+        "properties": {
+          "criterionKey": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "criterionKey",
+          "score"
+        ]
+      },
+      "CreateEvaluatorCalibrationCaseDto": {
+        "type": "object",
+        "properties": {
+          "rubricVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "transcriptFixture": {
+            "description": "Final transcript fixture segments used for deterministic evaluator testing.",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "expectedCriteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
+            }
+          },
+          "expectedRecommendation": {
+            "type": "string"
+          },
+          "tolerance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 10
+          }
+        },
+        "required": [
+          "rubricVersionId",
+          "name",
+          "transcriptFixture",
+          "expectedCriteria"
+        ]
+      },
+      "RecordEvaluatorCalibrationRunDto": {
+        "type": "object",
+        "properties": {
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "criterionResults": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
+            }
+          },
+          "recommendation": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluatorVersion",
+          "criterionResults"
+        ]
+      },
+      "EvaluatorCalibrationRunDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "caseId": {
+            "type": "string"
+          },
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "meanAbsoluteScoreDelta": {
+            "type": "number"
+          },
+          "recommendationAgreement": {
+            "type": "boolean"
+          },
+          "withinTolerance": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "caseId",
+          "evaluatorVersion",
+          "recommendationAgreement",
+          "withinTolerance",
+          "createdAt"
+        ]
+      },
+      "EvaluatorCalibrationSummaryDto": {
+        "type": "object",
+        "properties": {
+          "evaluatorVersion": {
+            "type": "string"
+          },
+          "runCount": {
+            "type": "number"
+          },
+          "withinToleranceRate": {
+            "type": "number"
+          },
+          "recommendationAgreementRate": {
+            "type": "number"
+          },
+          "meanAbsoluteScoreDelta": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "evaluatorVersion",
+          "runCount",
+          "withinToleranceRate",
+          "recommendationAgreementRate"
+        ]
+      },
       "ResumeSkillDto": {
         "type": "object",
         "properties": {
@@ -9802,957 +10753,6 @@
           "notifications",
           "knowledge",
           "policy"
-        ]
-      },
-      "CreateInterviewSessionDto": {
-        "type": "object",
-        "properties": {
-          "applicationId": {
-            "type": "string"
-          },
-          "interviewPlanId": {
-            "type": "string"
-          },
-          "consentRecordId": {
-            "type": "string"
-          },
-          "candidateIsRealCustomerCandidate": {
-            "type": "boolean",
-            "default": false
-          },
-          "synchronousHumanSupervisorPresent": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        "required": [
-          "applicationId",
-          "interviewPlanId",
-          "consentRecordId",
-          "candidateIsRealCustomerCandidate",
-          "synchronousHumanSupervisorPresent"
-        ]
-      },
-      "InterviewSessionStartDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "lifecycleStage": {
-            "type": "string"
-          },
-          "releaseMode": {
-            "type": "string"
-          },
-          "planVersion": {
-            "type": "number"
-          },
-          "remainingSeconds": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "status",
-          "lifecycleStage",
-          "releaseMode",
-          "planVersion",
-          "remainingSeconds"
-        ]
-      },
-      "InterviewBrainNextTurnInputDto": {
-        "type": "object",
-        "properties": {
-          "latestCandidateText": {
-            "type": "string",
-            "description": "Latest finalized candidate transcript text for state/context only."
-          },
-          "candidateIntent": {
-            "type": "string",
-            "enum": [
-              "ANSWER",
-              "CLARIFICATION_REQUEST",
-              "SKIP_REQUEST",
-              "INTERRUPTION",
-              "SILENCE_TIMEOUT",
-              "RECONNECT",
-              "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
-            ]
-          },
-          "elapsedSeconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 600,
-            "default": 0
-          }
-        }
-      },
-      "InterviewBrainTurnDto": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "ask",
-              "probe",
-              "clarify",
-              "transition",
-              "close",
-              "escalate"
-            ]
-          },
-          "criterion": {
-            "type": "object"
-          },
-          "objective": {
-            "type": "string"
-          },
-          "spokenText": {
-            "type": "string"
-          },
-          "expectedEvidence": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "candidateIntent": {
-            "type": "string",
-            "enum": [
-              "ANSWER",
-              "CLARIFICATION_REQUEST",
-              "SKIP_REQUEST",
-              "INTERRUPTION",
-              "SILENCE_TIMEOUT",
-              "RECONNECT",
-              "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "sequence": {
-            "type": "number"
-          },
-          "finalized": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "questionId": {
-            "type": "string"
-          },
-          "brainVersion": {
-            "type": "string"
-          },
-          "brainReason": {
-            "type": "string"
-          },
-          "remainingSeconds": {
-            "type": "number"
-          },
-          "evidenceCoverage": {
-            "type": "object"
-          },
-          "releaseMode": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "action",
-          "objective",
-          "spokenText",
-          "expectedEvidence",
-          "id",
-          "sequence",
-          "finalized",
-          "createdAt",
-          "questionId",
-          "brainVersion",
-          "brainReason",
-          "remainingSeconds",
-          "evidenceCoverage",
-          "releaseMode"
-        ]
-      },
-      "AppendInterviewTurnDto": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "ask",
-              "probe",
-              "clarify",
-              "transition",
-              "close",
-              "escalate"
-            ]
-          },
-          "criterion": {
-            "type": "object"
-          },
-          "objective": {
-            "type": "string"
-          },
-          "spokenText": {
-            "type": "string"
-          },
-          "expectedEvidence": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "candidateIntent": {
-            "type": "string",
-            "enum": [
-              "ANSWER",
-              "CLARIFICATION_REQUEST",
-              "SKIP_REQUEST",
-              "INTERRUPTION",
-              "SILENCE_TIMEOUT",
-              "RECONNECT",
-              "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
-            ]
-          }
-        },
-        "required": [
-          "action",
-          "objective",
-          "spokenText",
-          "expectedEvidence"
-        ]
-      },
-      "InterviewTurnDto": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "ask",
-              "probe",
-              "clarify",
-              "transition",
-              "close",
-              "escalate"
-            ]
-          },
-          "criterion": {
-            "type": "object"
-          },
-          "objective": {
-            "type": "string"
-          },
-          "spokenText": {
-            "type": "string"
-          },
-          "expectedEvidence": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "candidateIntent": {
-            "type": "string",
-            "enum": [
-              "ANSWER",
-              "CLARIFICATION_REQUEST",
-              "SKIP_REQUEST",
-              "INTERRUPTION",
-              "SILENCE_TIMEOUT",
-              "RECONNECT",
-              "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
-            ]
-          },
-          "id": {
-            "type": "string"
-          },
-          "sequence": {
-            "type": "number"
-          },
-          "finalized": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "action",
-          "objective",
-          "spokenText",
-          "expectedEvidence",
-          "id",
-          "sequence",
-          "finalized",
-          "createdAt"
-        ]
-      },
-      "TranscriptSegmentInputDto": {
-        "type": "object",
-        "properties": {
-          "speaker": {
-            "type": "string",
-            "enum": [
-              "candidate",
-              "interviewer",
-              "system"
-            ]
-          },
-          "startMs": {
-            "type": "number",
-            "minimum": 0
-          },
-          "endMs": {
-            "type": "number",
-            "minimum": 0
-          },
-          "text": {
-            "type": "string"
-          },
-          "isFinal": {
-            "type": "boolean",
-            "default": true
-          },
-          "sttConfidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
-        },
-        "required": [
-          "speaker",
-          "startMs",
-          "endMs",
-          "text",
-          "isFinal"
-        ]
-      },
-      "TranscriptSegmentDto": {
-        "type": "object",
-        "properties": {
-          "speaker": {
-            "type": "string",
-            "enum": [
-              "candidate",
-              "interviewer",
-              "system"
-            ]
-          },
-          "startMs": {
-            "type": "number",
-            "minimum": 0
-          },
-          "endMs": {
-            "type": "number",
-            "minimum": 0
-          },
-          "text": {
-            "type": "string"
-          },
-          "isFinal": {
-            "type": "boolean",
-            "default": true
-          },
-          "sttConfidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "id": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "speaker",
-          "startMs",
-          "endMs",
-          "text",
-          "isFinal",
-          "id",
-          "createdAt"
-        ]
-      },
-      "InterviewEvidenceInputDto": {
-        "type": "object",
-        "properties": {
-          "criterionId": {
-            "type": "string"
-          },
-          "turnId": {
-            "type": "string"
-          },
-          "transcriptSegmentIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "summary": {
-            "type": "string"
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
-        },
-        "required": [
-          "transcriptSegmentIds",
-          "summary"
-        ]
-      },
-      "InterviewEvidenceDto": {
-        "type": "object",
-        "properties": {
-          "criterionId": {
-            "type": "string"
-          },
-          "turnId": {
-            "type": "string"
-          },
-          "transcriptSegmentIds": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "summary": {
-            "type": "string"
-          },
-          "confidence": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          },
-          "id": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "transcriptSegmentIds",
-          "summary",
-          "id",
-          "createdAt"
-        ]
-      },
-      "MediaProviderStatusDto": {
-        "type": "object",
-        "properties": {
-          "component": {
-            "type": "string",
-            "enum": [
-              "transport",
-              "vad",
-              "stt",
-              "tts",
-              "avatar"
-            ]
-          },
-          "provider": {
-            "type": "string"
-          },
-          "configured": {
-            "type": "boolean"
-          },
-          "reachable": {
-            "type": "boolean"
-          },
-          "ready": {
-            "type": "boolean"
-          },
-          "version": {
-            "type": "string"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "checkedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "component",
-          "provider",
-          "configured",
-          "reachable",
-          "ready"
-        ]
-      },
-      "MediaPrivacyPolicyDto": {
-        "type": "object",
-        "properties": {
-          "candidateVideoAnalysis": {
-            "type": "string",
-            "enum": [
-              "none"
-            ]
-          },
-          "biometricInferenceAllowed": {
-            "type": "boolean",
-            "enum": [
-              false
-            ]
-          },
-          "rawMediaPersistedByApi": {
-            "type": "boolean",
-            "enum": [
-              false
-            ]
-          },
-          "spokenTextOnlyToAvatar": {
-            "type": "boolean",
-            "enum": [
-              true
-            ]
-          }
-        },
-        "required": [
-          "candidateVideoAnalysis",
-          "biometricInferenceAllowed",
-          "rawMediaPersistedByApi",
-          "spokenTextOnlyToAvatar"
-        ]
-      },
-      "InterviewMediaReadinessDto": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "mode": {
-            "type": "string",
-            "enum": [
-              "audio",
-              "avatar"
-            ]
-          },
-          "ready": {
-            "type": "boolean"
-          },
-          "blockers": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "providers": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/MediaProviderStatusDto"
-            }
-          },
-          "requiredComponents": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "transport",
-                "vad",
-                "stt",
-                "tts",
-                "avatar"
-              ]
-            }
-          },
-          "privacy": {
-            "$ref": "#/components/schemas/MediaPrivacyPolicyDto"
-          }
-        },
-        "required": [
-          "enabled",
-          "mode",
-          "ready",
-          "blockers",
-          "providers",
-          "requiredComponents",
-          "privacy"
-        ]
-      },
-      "InterviewMediaModeDto": {
-        "type": "object",
-        "properties": {
-          "mode": {
-            "type": "string",
-            "enum": [
-              "audio",
-              "avatar"
-            ]
-          }
-        },
-        "required": [
-          "mode"
-        ]
-      },
-      "InterviewMediaEventInputDto": {
-        "type": "object",
-        "properties": {
-          "idempotencyKey": {
-            "type": "string",
-            "minLength": 8,
-            "maxLength": 200,
-            "description": "Stable caller-generated key. Retrying the same event with this key returns the original journal entry."
-          },
-          "eventType": {
-            "type": "string",
-            "enum": [
-              "preflight",
-              "provider_status",
-              "connecting",
-              "connected",
-              "degraded",
-              "disconnected",
-              "reconnected",
-              "participant_joined",
-              "participant_left",
-              "turn_failure",
-              "vad_speech_start",
-              "vad_speech_end",
-              "stt_final",
-              "brain_turn",
-              "tts_started",
-              "tts_ended",
-              "avatar_started",
-              "avatar_ended",
-              "heartbeat",
-              "ended",
-              "error"
-            ]
-          },
-          "sourceComponent": {
-            "type": "string",
-            "enum": [
-              "transport",
-              "vad",
-              "stt",
-              "brain",
-              "tts",
-              "avatar",
-              "api"
-            ]
-          },
-          "payload": {
-            "type": "object",
-            "description": "Operational metadata only. Raw media, transcript text and credentials are rejected."
-          }
-        },
-        "required": [
-          "idempotencyKey",
-          "eventType"
-        ]
-      },
-      "GenerateInterviewPlanDto": {
-        "type": "object",
-        "properties": {
-          "language": {
-            "type": "string",
-            "default": "en"
-          },
-          "interviewType": {
-            "type": "string",
-            "default": "structured_competency"
-          },
-          "timeBudgetMinutes": {
-            "type": "number",
-            "minimum": 5,
-            "maximum": 180,
-            "default": 45
-          },
-          "minDepth": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 10,
-            "default": 1
-          },
-          "maxDepth": {
-            "type": "number",
-            "minimum": 1,
-            "maximum": 10,
-            "default": 3
-          },
-          "interviewerPolicyVersion": {
-            "type": "string",
-            "default": "interviewer-policy-v1"
-          },
-          "speechAvatarStackVersion": {
-            "type": "string",
-            "default": "pre-realtime-contract-v1"
-          },
-          "evaluatorVersion": {
-            "type": "string",
-            "default": "evidence-evaluator-v1"
-          },
-          "forbiddenTopics": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      },
-      "InterviewPlanGeneratedDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "jobId": {
-            "type": "string"
-          },
-          "rubricVersionId": {
-            "type": "string"
-          },
-          "releaseUnitId": {
-            "type": "string"
-          },
-          "version": {
-            "type": "number"
-          },
-          "status": {
-            "type": "string"
-          },
-          "language": {
-            "type": "string"
-          },
-          "interviewType": {
-            "type": "string"
-          },
-          "timeBudgetMinutes": {
-            "type": "number"
-          },
-          "questionStrategy": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "id",
-          "jobId",
-          "rubricVersionId",
-          "releaseUnitId",
-          "version",
-          "status",
-          "language",
-          "interviewType",
-          "timeBudgetMinutes",
-          "questionStrategy"
-        ]
-      },
-      "InterviewEvaluatorInputDto": {
-        "type": "object",
-        "properties": {
-          "schemaVersion": {
-            "type": "string"
-          },
-          "sessionId": {
-            "type": "string"
-          },
-          "applicationId": {
-            "type": "string"
-          },
-          "sessionStatus": {
-            "type": "string"
-          },
-          "rubricVersionId": {
-            "type": "string"
-          },
-          "planVersion": {
-            "type": "number"
-          },
-          "evaluatorVersion": {
-            "type": "string"
-          },
-          "criteria": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "transcript": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "evidence": {
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "boundaries": {
-            "type": "object"
-          }
-        },
-        "required": [
-          "schemaVersion",
-          "sessionId",
-          "applicationId",
-          "sessionStatus",
-          "rubricVersionId",
-          "planVersion",
-          "evaluatorVersion",
-          "criteria",
-          "transcript",
-          "evidence",
-          "boundaries"
-        ]
-      },
-      "EvaluatorCriterionBenchmarkDto": {
-        "type": "object",
-        "properties": {
-          "criterionKey": {
-            "type": "string"
-          },
-          "score": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100
-          }
-        },
-        "required": [
-          "criterionKey",
-          "score"
-        ]
-      },
-      "CreateEvaluatorCalibrationCaseDto": {
-        "type": "object",
-        "properties": {
-          "rubricVersionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "transcriptFixture": {
-            "description": "Final transcript fixture segments used for deterministic evaluator testing.",
-            "type": "array",
-            "items": {
-              "type": "object"
-            }
-          },
-          "expectedCriteria": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
-            }
-          },
-          "expectedRecommendation": {
-            "type": "string"
-          },
-          "tolerance": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100,
-            "default": 10
-          }
-        },
-        "required": [
-          "rubricVersionId",
-          "name",
-          "transcriptFixture",
-          "expectedCriteria"
-        ]
-      },
-      "RecordEvaluatorCalibrationRunDto": {
-        "type": "object",
-        "properties": {
-          "evaluatorVersion": {
-            "type": "string"
-          },
-          "criterionResults": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EvaluatorCriterionBenchmarkDto"
-            }
-          },
-          "recommendation": {
-            "type": "string"
-          },
-          "notes": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "evaluatorVersion",
-          "criterionResults"
-        ]
-      },
-      "EvaluatorCalibrationRunDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "caseId": {
-            "type": "string"
-          },
-          "evaluatorVersion": {
-            "type": "string"
-          },
-          "meanAbsoluteScoreDelta": {
-            "type": "number"
-          },
-          "recommendationAgreement": {
-            "type": "boolean"
-          },
-          "withinTolerance": {
-            "type": "boolean"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "caseId",
-          "evaluatorVersion",
-          "recommendationAgreement",
-          "withinTolerance",
-          "createdAt"
-        ]
-      },
-      "EvaluatorCalibrationSummaryDto": {
-        "type": "object",
-        "properties": {
-          "evaluatorVersion": {
-            "type": "string"
-          },
-          "runCount": {
-            "type": "number"
-          },
-          "withinToleranceRate": {
-            "type": "number"
-          },
-          "recommendationAgreementRate": {
-            "type": "number"
-          },
-          "meanAbsoluteScoreDelta": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "evaluatorVersion",
-          "runCount",
-          "withinToleranceRate",
-          "recommendationAgreementRate"
         ]
       },
       "InterviewAssignmentSessionOptionDto": {

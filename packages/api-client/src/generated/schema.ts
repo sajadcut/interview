@@ -660,6 +660,342 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interviews/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/brain/next-turn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_nextBrainTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_appendTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/transcript-segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_appendTranscriptSegment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_recordEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewsController_getReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-release-units/{releaseUnitId}/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewsController_preflightRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/media/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewMediaController_getReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/preflight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewMediaController_preflight"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewMediaController_createMediaSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewMediaController_issueConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/turns/{turnId}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewMediaController_synthesizePersistedTurn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewMediaController_getLatestMediaSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewMediaController_listParticipants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewMediaController_appendEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/interview-plans/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_generatePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-plans/{planId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_publishPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interviews/{sessionId}/evaluator-input": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewOrchestrationController_evaluatorInput"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_createCalibrationCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/cases/{caseId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewOrchestrationController_recordCalibrationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/evaluator/calibration/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewOrchestrationController_calibrationSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates/{candidateId}/resumes": {
         parameters: {
             query?: never;
@@ -1212,342 +1548,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["EngagementWorkspaceController_getWorkspace"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_createSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/brain/next-turn": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_nextBrainTurn"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/turns": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_appendTurn"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/transcript-segments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_appendTranscriptSegment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/evidence": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_recordEvidence"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/review": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewsController_getReview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interview-release-units/{releaseUnitId}/preflight": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewsController_preflightRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/media/readiness": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewMediaController_getReadiness"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/preflight": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewMediaController_preflight"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewMediaController_createMediaSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/connection": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewMediaController_issueConnection"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/turns/{turnId}/audio": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewMediaController_synthesizePersistedTurn"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewMediaController_getLatestMediaSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/participants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewMediaController_listParticipants"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/media/sessions/{mediaSessionId}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewMediaController_appendEvent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/jobs/{jobId}/interview-plans/generate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewOrchestrationController_generatePlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interview-plans/{planId}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewOrchestrationController_publishPlan"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/interviews/{sessionId}/evaluator-input": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewOrchestrationController_evaluatorInput"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/evaluator/calibration/cases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewOrchestrationController_createCalibrationCase"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/evaluator/calibration/cases/{caseId}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["InterviewOrchestrationController_recordCalibrationRun"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/evaluator/calibration/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["InterviewOrchestrationController_calibrationSummary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2538,6 +2538,240 @@ export interface components {
             algorithmOverallScore?: number;
             createdAt: string;
         };
+        CreateInterviewSessionDto: {
+            applicationId: string;
+            interviewPlanId: string;
+            consentRecordId: string;
+            /** @default false */
+            candidateIsRealCustomerCandidate: boolean;
+            /** @default false */
+            synchronousHumanSupervisorPresent: boolean;
+        };
+        InterviewSessionStartDto: {
+            id: string;
+            status: string;
+            lifecycleStage: string;
+            releaseMode: string;
+            planVersion: number;
+            remainingSeconds: number;
+        };
+        InterviewBrainNextTurnInputDto: {
+            /** @description Latest finalized candidate transcript text for state/context only. */
+            latestCandidateText?: string;
+            /** @enum {string} */
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            /** @default 0 */
+            elapsedSeconds: number;
+        };
+        InterviewBrainTurnDto: {
+            /** @enum {string} */
+            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
+            criterion?: Record<string, never>;
+            objective: string;
+            spokenText: string;
+            expectedEvidence: string[];
+            /** @enum {string} */
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            id: string;
+            sequence: number;
+            finalized: boolean;
+            createdAt: string;
+            questionId: string;
+            brainVersion: string;
+            brainReason: string;
+            remainingSeconds: number;
+            evidenceCoverage: Record<string, never>;
+            releaseMode: string;
+        };
+        AppendInterviewTurnDto: {
+            /** @enum {string} */
+            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
+            criterion?: Record<string, never>;
+            objective: string;
+            spokenText: string;
+            expectedEvidence: string[];
+            /** @enum {string} */
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+        };
+        InterviewTurnDto: {
+            /** @enum {string} */
+            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
+            criterion?: Record<string, never>;
+            objective: string;
+            spokenText: string;
+            expectedEvidence: string[];
+            /** @enum {string} */
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            id: string;
+            sequence: number;
+            finalized: boolean;
+            createdAt: string;
+        };
+        TranscriptSegmentInputDto: {
+            /** @enum {string} */
+            speaker: "candidate" | "interviewer" | "system";
+            startMs: number;
+            endMs: number;
+            text: string;
+            /** @default true */
+            isFinal: boolean;
+            sttConfidence?: number;
+        };
+        TranscriptSegmentDto: {
+            /** @enum {string} */
+            speaker: "candidate" | "interviewer" | "system";
+            startMs: number;
+            endMs: number;
+            text: string;
+            /** @default true */
+            isFinal: boolean;
+            sttConfidence?: number;
+            id: string;
+            createdAt: string;
+        };
+        InterviewEvidenceInputDto: {
+            criterionId?: string;
+            turnId?: string;
+            transcriptSegmentIds: string[];
+            summary: string;
+            confidence?: number;
+        };
+        InterviewEvidenceDto: {
+            criterionId?: string;
+            turnId?: string;
+            transcriptSegmentIds: string[];
+            summary: string;
+            confidence?: number;
+            id: string;
+            createdAt: string;
+        };
+        MediaProviderStatusDto: {
+            /** @enum {string} */
+            component: "transport" | "vad" | "stt" | "tts" | "avatar";
+            provider: string;
+            configured: boolean;
+            reachable: boolean;
+            ready: boolean;
+            version?: string;
+            reason?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+        };
+        MediaPrivacyPolicyDto: {
+            /** @enum {string} */
+            candidateVideoAnalysis: "none";
+            /** @enum {boolean} */
+            biometricInferenceAllowed: false;
+            /** @enum {boolean} */
+            rawMediaPersistedByApi: false;
+            /** @enum {boolean} */
+            spokenTextOnlyToAvatar: true;
+        };
+        InterviewMediaReadinessDto: {
+            enabled: boolean;
+            /** @enum {string} */
+            mode: "audio" | "avatar";
+            ready: boolean;
+            blockers: string[];
+            providers: components["schemas"]["MediaProviderStatusDto"][];
+            requiredComponents: ("transport" | "vad" | "stt" | "tts" | "avatar")[];
+            privacy: components["schemas"]["MediaPrivacyPolicyDto"];
+        };
+        InterviewMediaModeDto: {
+            /** @enum {string} */
+            mode: "audio" | "avatar";
+        };
+        InterviewMediaEventInputDto: {
+            /** @description Stable caller-generated key. Retrying the same event with this key returns the original journal entry. */
+            idempotencyKey: string;
+            /** @enum {string} */
+            eventType: "preflight" | "provider_status" | "connecting" | "connected" | "degraded" | "disconnected" | "reconnected" | "participant_joined" | "participant_left" | "turn_failure" | "vad_speech_start" | "vad_speech_end" | "stt_final" | "brain_turn" | "tts_started" | "tts_ended" | "avatar_started" | "avatar_ended" | "heartbeat" | "ended" | "error";
+            /** @enum {string} */
+            sourceComponent?: "transport" | "vad" | "stt" | "brain" | "tts" | "avatar" | "api";
+            /** @description Operational metadata only. Raw media, transcript text and credentials are rejected. */
+            payload?: Record<string, never>;
+        };
+        GenerateInterviewPlanDto: {
+            /** @default en */
+            language: string;
+            /** @default structured_competency */
+            interviewType: string;
+            /** @default 45 */
+            timeBudgetMinutes: number;
+            /** @default 1 */
+            minDepth: number;
+            /** @default 3 */
+            maxDepth: number;
+            /** @default interviewer-policy-v1 */
+            interviewerPolicyVersion: string;
+            /** @default pre-realtime-contract-v1 */
+            speechAvatarStackVersion: string;
+            /** @default evidence-evaluator-v1 */
+            evaluatorVersion: string;
+            forbiddenTopics?: string[];
+        };
+        InterviewPlanGeneratedDto: {
+            id: string;
+            jobId: string;
+            rubricVersionId: string;
+            releaseUnitId: string;
+            version: number;
+            status: string;
+            language: string;
+            interviewType: string;
+            timeBudgetMinutes: number;
+            questionStrategy: Record<string, never>;
+        };
+        InterviewEvaluatorInputDto: {
+            schemaVersion: string;
+            sessionId: string;
+            applicationId: string;
+            sessionStatus: string;
+            rubricVersionId: string;
+            planVersion: number;
+            evaluatorVersion: string;
+            criteria: Record<string, never>[];
+            transcript: Record<string, never>[];
+            evidence: Record<string, never>[];
+            boundaries: Record<string, never>;
+        };
+        EvaluatorCriterionBenchmarkDto: {
+            criterionKey: string;
+            score: number;
+        };
+        CreateEvaluatorCalibrationCaseDto: {
+            /** Format: uuid */
+            rubricVersionId: string;
+            name: string;
+            /** @description Final transcript fixture segments used for deterministic evaluator testing. */
+            transcriptFixture: Record<string, never>[];
+            expectedCriteria: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
+            expectedRecommendation?: string;
+            /** @default 10 */
+            tolerance: number;
+        };
+        RecordEvaluatorCalibrationRunDto: {
+            evaluatorVersion: string;
+            criterionResults: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
+            recommendation?: string;
+            notes?: string;
+        };
+        EvaluatorCalibrationRunDto: {
+            id: string;
+            caseId: string;
+            evaluatorVersion: string;
+            meanAbsoluteScoreDelta?: number;
+            recommendationAgreement: boolean;
+            withinTolerance: boolean;
+            createdAt: string;
+        };
+        EvaluatorCalibrationSummaryDto: {
+            evaluatorVersion: string;
+            runCount: number;
+            withinToleranceRate: number;
+            recommendationAgreementRate: number;
+            meanAbsoluteScoreDelta?: number;
+        };
         ResumeSkillDto: {
             key: string;
             label: string;
@@ -2959,240 +3193,6 @@ export interface components {
             notifications: components["schemas"]["EngagementNotificationDto"][];
             knowledge: components["schemas"]["EngagementKnowledgeDto"][];
             policy: components["schemas"]["EngagementWorkspacePolicyDto"];
-        };
-        CreateInterviewSessionDto: {
-            applicationId: string;
-            interviewPlanId: string;
-            consentRecordId: string;
-            /** @default false */
-            candidateIsRealCustomerCandidate: boolean;
-            /** @default false */
-            synchronousHumanSupervisorPresent: boolean;
-        };
-        InterviewSessionStartDto: {
-            id: string;
-            status: string;
-            lifecycleStage: string;
-            releaseMode: string;
-            planVersion: number;
-            remainingSeconds: number;
-        };
-        InterviewBrainNextTurnInputDto: {
-            /** @description Latest finalized candidate transcript text for state/context only. */
-            latestCandidateText?: string;
-            /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
-            /** @default 0 */
-            elapsedSeconds: number;
-        };
-        InterviewBrainTurnDto: {
-            /** @enum {string} */
-            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
-            criterion?: Record<string, never>;
-            objective: string;
-            spokenText: string;
-            expectedEvidence: string[];
-            /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
-            id: string;
-            sequence: number;
-            finalized: boolean;
-            createdAt: string;
-            questionId: string;
-            brainVersion: string;
-            brainReason: string;
-            remainingSeconds: number;
-            evidenceCoverage: Record<string, never>;
-            releaseMode: string;
-        };
-        AppendInterviewTurnDto: {
-            /** @enum {string} */
-            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
-            criterion?: Record<string, never>;
-            objective: string;
-            spokenText: string;
-            expectedEvidence: string[];
-            /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
-        };
-        InterviewTurnDto: {
-            /** @enum {string} */
-            action: "ask" | "probe" | "clarify" | "transition" | "close" | "escalate";
-            criterion?: Record<string, never>;
-            objective: string;
-            spokenText: string;
-            expectedEvidence: string[];
-            /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
-            id: string;
-            sequence: number;
-            finalized: boolean;
-            createdAt: string;
-        };
-        TranscriptSegmentInputDto: {
-            /** @enum {string} */
-            speaker: "candidate" | "interviewer" | "system";
-            startMs: number;
-            endMs: number;
-            text: string;
-            /** @default true */
-            isFinal: boolean;
-            sttConfidence?: number;
-        };
-        TranscriptSegmentDto: {
-            /** @enum {string} */
-            speaker: "candidate" | "interviewer" | "system";
-            startMs: number;
-            endMs: number;
-            text: string;
-            /** @default true */
-            isFinal: boolean;
-            sttConfidence?: number;
-            id: string;
-            createdAt: string;
-        };
-        InterviewEvidenceInputDto: {
-            criterionId?: string;
-            turnId?: string;
-            transcriptSegmentIds: string[];
-            summary: string;
-            confidence?: number;
-        };
-        InterviewEvidenceDto: {
-            criterionId?: string;
-            turnId?: string;
-            transcriptSegmentIds: string[];
-            summary: string;
-            confidence?: number;
-            id: string;
-            createdAt: string;
-        };
-        MediaProviderStatusDto: {
-            /** @enum {string} */
-            component: "transport" | "vad" | "stt" | "tts" | "avatar";
-            provider: string;
-            configured: boolean;
-            reachable: boolean;
-            ready: boolean;
-            version?: string;
-            reason?: string;
-            /** Format: date-time */
-            checkedAt?: string;
-        };
-        MediaPrivacyPolicyDto: {
-            /** @enum {string} */
-            candidateVideoAnalysis: "none";
-            /** @enum {boolean} */
-            biometricInferenceAllowed: false;
-            /** @enum {boolean} */
-            rawMediaPersistedByApi: false;
-            /** @enum {boolean} */
-            spokenTextOnlyToAvatar: true;
-        };
-        InterviewMediaReadinessDto: {
-            enabled: boolean;
-            /** @enum {string} */
-            mode: "audio" | "avatar";
-            ready: boolean;
-            blockers: string[];
-            providers: components["schemas"]["MediaProviderStatusDto"][];
-            requiredComponents: ("transport" | "vad" | "stt" | "tts" | "avatar")[];
-            privacy: components["schemas"]["MediaPrivacyPolicyDto"];
-        };
-        InterviewMediaModeDto: {
-            /** @enum {string} */
-            mode: "audio" | "avatar";
-        };
-        InterviewMediaEventInputDto: {
-            /** @description Stable caller-generated key. Retrying the same event with this key returns the original journal entry. */
-            idempotencyKey: string;
-            /** @enum {string} */
-            eventType: "preflight" | "provider_status" | "connecting" | "connected" | "degraded" | "disconnected" | "reconnected" | "participant_joined" | "participant_left" | "turn_failure" | "vad_speech_start" | "vad_speech_end" | "stt_final" | "brain_turn" | "tts_started" | "tts_ended" | "avatar_started" | "avatar_ended" | "heartbeat" | "ended" | "error";
-            /** @enum {string} */
-            sourceComponent?: "transport" | "vad" | "stt" | "brain" | "tts" | "avatar" | "api";
-            /** @description Operational metadata only. Raw media, transcript text and credentials are rejected. */
-            payload?: Record<string, never>;
-        };
-        GenerateInterviewPlanDto: {
-            /** @default en */
-            language: string;
-            /** @default structured_competency */
-            interviewType: string;
-            /** @default 45 */
-            timeBudgetMinutes: number;
-            /** @default 1 */
-            minDepth: number;
-            /** @default 3 */
-            maxDepth: number;
-            /** @default interviewer-policy-v1 */
-            interviewerPolicyVersion: string;
-            /** @default pre-realtime-contract-v1 */
-            speechAvatarStackVersion: string;
-            /** @default evidence-evaluator-v1 */
-            evaluatorVersion: string;
-            forbiddenTopics?: string[];
-        };
-        InterviewPlanGeneratedDto: {
-            id: string;
-            jobId: string;
-            rubricVersionId: string;
-            releaseUnitId: string;
-            version: number;
-            status: string;
-            language: string;
-            interviewType: string;
-            timeBudgetMinutes: number;
-            questionStrategy: Record<string, never>;
-        };
-        InterviewEvaluatorInputDto: {
-            schemaVersion: string;
-            sessionId: string;
-            applicationId: string;
-            sessionStatus: string;
-            rubricVersionId: string;
-            planVersion: number;
-            evaluatorVersion: string;
-            criteria: Record<string, never>[];
-            transcript: Record<string, never>[];
-            evidence: Record<string, never>[];
-            boundaries: Record<string, never>;
-        };
-        EvaluatorCriterionBenchmarkDto: {
-            criterionKey: string;
-            score: number;
-        };
-        CreateEvaluatorCalibrationCaseDto: {
-            /** Format: uuid */
-            rubricVersionId: string;
-            name: string;
-            /** @description Final transcript fixture segments used for deterministic evaluator testing. */
-            transcriptFixture: Record<string, never>[];
-            expectedCriteria: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
-            expectedRecommendation?: string;
-            /** @default 10 */
-            tolerance: number;
-        };
-        RecordEvaluatorCalibrationRunDto: {
-            evaluatorVersion: string;
-            criterionResults: components["schemas"]["EvaluatorCriterionBenchmarkDto"][];
-            recommendation?: string;
-            notes?: string;
-        };
-        EvaluatorCalibrationRunDto: {
-            id: string;
-            caseId: string;
-            evaluatorVersion: string;
-            meanAbsoluteScoreDelta?: number;
-            recommendationAgreement: boolean;
-            withinTolerance: boolean;
-            createdAt: string;
-        };
-        EvaluatorCalibrationSummaryDto: {
-            evaluatorVersion: string;
-            runCount: number;
-            withinToleranceRate: number;
-            recommendationAgreementRate: number;
-            meanAbsoluteScoreDelta?: number;
         };
         InterviewAssignmentSessionOptionDto: {
             /** Format: uuid */
@@ -5473,6 +5473,704 @@ export interface operations {
             };
         };
     };
+    InterviewsController_createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInterviewSessionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewSessionStartDto"];
+                };
+            };
+        };
+    };
+    InterviewsController_nextBrainTurn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewBrainNextTurnInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewBrainTurnDto"];
+                };
+            };
+        };
+    };
+    InterviewsController_appendTurn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppendInterviewTurnDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewTurnDto"];
+                };
+            };
+        };
+    };
+    InterviewsController_appendTranscriptSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranscriptSegmentInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptSegmentDto"];
+                };
+            };
+        };
+    };
+    InterviewsController_recordEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewEvidenceInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewEvidenceDto"];
+                };
+            };
+        };
+    };
+    InterviewsController_getReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewsController_preflightRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_getReadiness: {
+        parameters: {
+            query?: {
+                mode?: "audio" | "avatar";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider-neutral realtime media readiness. No credentials are returned. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewMediaReadinessDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewMediaController_preflight: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewMediaModeDto"];
+            };
+        };
+        responses: {
+            /** @description Consent, release and provider readiness for a realtime media session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_createMediaSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewMediaModeDto"];
+            };
+        };
+        responses: {
+            /** @description Persist a media lifecycle session after a successful preflight. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_issueConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+                mediaSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Issue a short-lived room-scoped LiveKit token for a synthetic/internal candidate. Token is never persisted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_synthesizePersistedTurn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+                mediaSessionId: string;
+                turnId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream WAV synthesized only from the persisted finalized Interview Brain spoken_text. No client-supplied text is accepted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_getLatestMediaSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest persisted media lifecycle state for the interview session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_listParticipants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+                mediaSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider-neutral participant lifecycle state without credentials or raw media. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewMediaController_appendEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+                mediaSessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterviewMediaEventInputDto"];
+            };
+        };
+        responses: {
+            /** @description Idempotently append an operational media event without raw media, transcript text or credentials. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewOrchestrationController_generatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateInterviewPlanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_publishPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                planId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_evaluatorInput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewEvaluatorInputDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_createCalibrationCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEvaluatorCalibrationCaseDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_recordCalibrationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordEvaluatorCalibrationRunDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorCalibrationRunDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_calibrationSummary: {
+        parameters: {
+            query: {
+                evaluatorVersion: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluatorCalibrationSummaryDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
     ResumeIngestionController_list: {
         parameters: {
             query?: never;
@@ -6596,704 +7294,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EngagementWorkspaceDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_createSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateInterviewSessionDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewSessionStartDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_nextBrainTurn: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InterviewBrainNextTurnInputDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewBrainTurnDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_appendTurn: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AppendInterviewTurnDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewTurnDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_appendTranscriptSegment: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TranscriptSegmentInputDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TranscriptSegmentDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_recordEvidence: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InterviewEvidenceInputDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewEvidenceDto"];
-                };
-            };
-        };
-    };
-    InterviewsController_getReview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewsController_preflightRelease: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseUnitId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_getReadiness: {
-        parameters: {
-            query?: {
-                mode?: "audio" | "avatar";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Provider-neutral realtime media readiness. No credentials are returned. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewMediaReadinessDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewMediaController_preflight: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InterviewMediaModeDto"];
-            };
-        };
-        responses: {
-            /** @description Consent, release and provider readiness for a realtime media session. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_createMediaSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InterviewMediaModeDto"];
-            };
-        };
-        responses: {
-            /** @description Persist a media lifecycle session after a successful preflight. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_issueConnection: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-                mediaSessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Issue a short-lived room-scoped LiveKit token for a synthetic/internal candidate. Token is never persisted. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_synthesizePersistedTurn: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-                mediaSessionId: string;
-                turnId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Stream WAV synthesized only from the persisted finalized Interview Brain spoken_text. No client-supplied text is accepted. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_getLatestMediaSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Latest persisted media lifecycle state for the interview session. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_listParticipants: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-                mediaSessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Provider-neutral participant lifecycle state without credentials or raw media. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewMediaController_appendEvent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-                mediaSessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InterviewMediaEventInputDto"];
-            };
-        };
-        responses: {
-            /** @description Idempotently append an operational media event without raw media, transcript text or credentials. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    InterviewOrchestrationController_generatePlan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                jobId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GenerateInterviewPlanDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewOrchestrationController_publishPlan: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                planId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewOrchestrationController_evaluatorInput: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                sessionId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["InterviewEvaluatorInputDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewOrchestrationController_createCalibrationCase: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateEvaluatorCalibrationCaseDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewOrchestrationController_recordCalibrationRun: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                caseId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RecordEvaluatorCalibrationRunDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvaluatorCalibrationRunDto"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiErrorDto"];
-                };
-            };
-        };
-    };
-    InterviewOrchestrationController_calibrationSummary: {
-        parameters: {
-            query: {
-                evaluatorVersion: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EvaluatorCalibrationSummaryDto"];
                 };
             };
             400: {
