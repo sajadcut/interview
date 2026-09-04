@@ -1,69 +1,62 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid), real Calendar providers (Google Calendar / Microsoft 365 Calendar), ATS provider code, external candidate sourcing providers, and the isolated Coding Assessment Sandbox worker are implemented. The Coding Assessment Sandbox code path is CI-validated on Node 25/PostgreSQL including migration, contract drift, lint, typecheck, tests, build and Browser E2E; real hardened sandbox-host security/runtime validation remains deployment-specific and is not claimed without deployment evidence. External credentialed connectivity, real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval remain pending and release-gated by `production-readiness.md`.
-> **Version:** 0.26.0
+> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, and base/advanced operational Monitoring for API, PostgreSQL, durable queues, workers, and Interview lifecycle. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment, real evaluator calibration/shadow/pilot evidence, realtime runtime validation, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.30.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
 ---
 
-# 1. Core Product Closure — verified
+# 1. Current validated baseline
 
-The deterministic GitHub Actions quality gate installs the committed lockfile, applies the PostgreSQL schema, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, tests, production builds, deterministic browser fixtures, and critical browser E2E flows.
+The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
 
 ```text
-AI Evaluator core
-  main commit                                 b2f8feb19d74408057827721d7b61554978a8c8b
-  main quality-gate                           33680724740 / run #433
-  result                                      ✅ success
-
-Evaluator Calibration Framework
-  main commit                                 77dd561ce4c0030817d631e0fe85f23cd52a9123
-  pull request                                #5
-  main quality-gate                           33684053908 / run #443
-  result                                      ✅ success
-
-Evaluator Shadow Testing Framework
-  validated change head                      341249f284d3d1cf1d9691ee33578a84154eb573
-  pull request                                #6
-  quality-gate                                33687421974 / run #445
-  migration contracts                        ✅
-  PostgreSQL migrations (through 0040)       ✅
-  operational DB indexes                     ✅
-  OpenAPI / typed-client drift               ✅ clean
-  lint                                        ✅
-  typecheck                                   ✅
-  tests incl. PostgreSQL isolation            ✅
-  build                                       ✅
-  Browser E2E critical flows                  ✅
-
-Email + Calendar providers
-  pull request                                #9
-  providers                                   SMTP / SES / SendGrid / Google / Microsoft
-  external production credential smoke test  deployment-specific / pending credentials
-
 Coding Assessment Sandbox worker
   validated main commit                       b5aafb702e30b34d9ad47380108235ea8f9df8a6
   quality-gate                                33881153098 / run #509
   boundary                                    independent specialized worker
   execution                                   Docker/Podman container only; no host-process fallback
   initial language allowlist                  JavaScript / Python
-  migration contracts                         ✅
-  PostgreSQL migrations (through 0045)       ✅
+  result                                      ✅ success
+  real hardened sandbox-host smoke test       deployment-specific / pending
+
+Security Hardening baseline
+  validated main commit                       bb3f2db35c89e673948515543a053df634ab7d68
+  quality-gate                                33902965785 / run #554
+  secret handling                             centralized validation + constant-time worker secret comparison
+  log/audit redaction                         application + PostgreSQL defense-in-depth
+  headers                                     API + Next security headers / CSP / HSTS production policy
+  token security                              hardened production cookies + existing rotation/reuse controls
+  permission audit                            grant/deny audit coverage
+  result                                      ✅ success
+
+Base + Advanced Monitoring
+  validated main commit                       06f80608a095a7ccbb13ab597498bff5bdb461ff
+  quality-gate                                33905072061 / run #556
+  endpoint                                    GET /metrics; Prometheus text; public OpenAPI excluded
+  API runtime                                 throughput / in-flight / 5xx / status class / latency histogram / CPU / memory
+  PostgreSQL                                  connectivity / connections / size / transactions / cache / deadlocks / temp bytes
+  durable queues                              AI / Assessment / Privacy / Retention depth, ready backlog, age, attempts, failures
+  workers                                     active leases / expired leases / lease-derived active workers / last activity
+  interview lifecycle                         session states / stalled sessions / duration / transcript / evidence / media heartbeat/errors/reconnects
+  scrape protection                           coalesced cached snapshots + bounded PostgreSQL statement timeout
+  cardinality/privacy                         no org/candidate/job/worker/token identifiers exported as metric labels
+  alert rules                                 Prometheus baseline alerts under ops/monitoring/prometheus-alerts.yml
+  PostgreSQL migrations (through 0052)        ✅
   operational DB indexes                     ✅
   OpenAPI / typed-client drift               ✅ clean
   lint                                        ✅
   typecheck                                   ✅
-  tests incl. assessment-worker tests         ✅
+  tests incl. PostgreSQL monitoring           ✅
   build                                       ✅
   Browser E2E critical flows                  ✅
-  real hardened sandbox-host smoke test       deployment-specific / pending
 ```
 
-The quality gate is read-only with respect to source/generated artifacts. It does not delete or regenerate the dependency lockfile as part of installation and does not commit generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
+The quality gate is read-only with respect to source/generated artifacts. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
 
 ---
 
@@ -88,11 +81,11 @@ Persisted organization-scoped API/database data backs the primary internal surfa
 /app/settings/users
 ```
 
-The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects the removed legacy demo fixtures. Product Operations (Automations, Integrations, Settings, Search and Audit) use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
+The Web contract guard rejects direct `/api/backend` fetches in production source/helpers and rejects removed legacy demo fixtures. Product Operations use generated typed API paths and schemas rather than a dynamic manual-fetch helper.
 
 ---
 
-# 3. Identity, authorization and tenant safety
+# 3. Identity, authorization, security and tenant safety
 
 Implemented and covered:
 
@@ -107,6 +100,12 @@ candidate identity/session flow
 organization invitation/user lifecycle
 RBAC + permission guard
 tenant access resolution
+permission grant/deny audit trail
+central secret validation and worker shared-secret hardening
+recursive structured-log and audit redaction
+PostgreSQL audit secret-redaction trigger
+production cookie hardening
+API + Web security headers / CSP / HSTS policy
 PostgreSQL recruiting tenant-isolation test
 audit export tenant-isolation test
 ```
@@ -117,21 +116,26 @@ Consequential hiring decisions remain human-controlled and score/evidence bounda
 
 # 4. Database and migration operations
 
-The current schema contains append-only migrations through `0045_assessment_worker_runtime.sql`, including supervised-pilot control-plane persistence, Shadow v2 integrity/telemetry hardening, calendar-provider operation-attempt persistence, ATS Greenhouse/Lever persistence, and durable lease/retry state for isolated assessment execution. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
+The append-only schema is current through `0052_monitoring_indexes.sql`.
+
+Recent operational migrations include:
 
 ```text
-expand/contract schema changes
-pre-deploy backup evidence
-application rollback while schema remains compatible
-forward corrective migration for schema defects
-verified database restore for destructive/unrecoverable incidents
+0045_assessment_worker_runtime.sql       durable assessment lease/retry runtime
+0046_privacy_deletion_worker.sql        durable verified privacy deletion jobs/objects/receipts
+0047_retention_worker.sql               automatic durable retention execution
+0048_privacy_receipt_conflict_target.sql
+0049_audit_export_indexes.sql
+0050_auth_rate_limit_hardening.sql
+0051_audit_secret_redaction.sql         PostgreSQL audit defense-in-depth
+0052_monitoring_indexes.sql             queue/interview/media monitoring read paths
 ```
 
-Automatic destructive down-migrations are intentionally not the production rollback strategy.
+The migration runner uses checksum tracking, an advisory lock and transactional application. `docs/database-migration-runbook.md` defines expand/contract changes, pre-deploy backup evidence, compatible application rollback, forward corrective migrations, and verified restore for destructive incidents. Automatic destructive down-migrations are intentionally not the production rollback strategy.
 
 ---
 
-# 5. API contract boundary
+# 5. API and operational contract boundary
 
 Controller DTOs are the public OpenAPI source of truth. `npm run api:sync` regenerates:
 
@@ -140,9 +144,9 @@ openapi/openapi.json
 packages/api-client/src/generated/schema.ts
 ```
 
-CI regenerates both and requires zero diff against committed artifacts. `package-lock.json` is independently canonical and consumed by `npm ci`.
+CI requires zero generated-contract drift. Internal worker lease APIs remain excluded from public OpenAPI and use dedicated shared-secret boundaries. Candidate code never receives an API credential and is never executed by the core API.
 
-The full Calibration and Shadow Testing Framework APIs are intentionally internal and permission-guarded while evaluation governance and real evidence are being established. The Assessment Sandbox lease API is also internal and excluded from public OpenAPI; it uses a dedicated shared-secret worker boundary and never grants candidate code an API credential. Existing public product contracts remain compatible until internal boundaries are intentionally promoted.
+`GET /metrics` is also deliberately excluded from public OpenAPI. It exposes aggregate Prometheus text only and must be deployed on an internal/protected operational network path. Runtime HTTP/process counters are in-process; durable DB/queue/worker/interview state is derived from PostgreSQL at scrape time so operational state survives API restarts. Snapshot collection is cached/coalesced and uses a bounded database statement timeout.
 
 ---
 
@@ -152,45 +156,50 @@ The full Calibration and Shadow Testing Framework APIs are intentionally interna
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
-M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; realtime runtime and real validation evidence pending
-M5 Assessments                      domain/runner contract + isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
-M6 Analytics/Enterprise hardening   materially advanced
+M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; monitoring implemented; realtime runtime/real validation evidence pending
+M5 Assessments                      isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
+M6 Analytics/Enterprise hardening   privacy deletion + retention + security hardening + operational monitoring materially implemented and CI-validated
 ```
 
 Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, and VAD/STT/TTS provider boundaries.
 
-The Email integration has real provider adapters for SMTP, Amazon SES v2 and SendGrid v3. Approved outbound messages and recruitment notifications use provider acceptance before being marked sent, delivery attempts/provider references are persisted, configuration fails closed, and protocol tests run against local SMTP/HTTP fakes without committing credentials.
+The Privacy Deletion Worker performs verified object deletion plus derived-data cleanup, blocks on legal holds/shared-object safety conditions, and writes de-identified durable receipts. The Retention Worker delegates candidate erasure through the privacy deletion boundary rather than bypassing verified deletion semantics.
 
-The Calendar integration has real Google Calendar and Microsoft 365 Calendar adapters. Google uses service-account JWT OAuth with deterministic custom event IDs for duplicate prevention; Microsoft uses Entra client-credentials OAuth and Graph event `transactionId`. Scheduling confirmation persists a remote provider reference only after event creation succeeds, cancellation removes an existing remote event before local cancellation, provider mismatch/disabled states fail closed for existing remote events, and reserve/cancel attempts are persisted. No deployment credential is committed or claimed as externally smoke-tested.
+The Coding Assessment Sandbox remains a separate specialized worker. The core API persists/leases jobs and results but never executes candidate source code. There is deliberately no direct host-process fallback.
 
-The Coding Assessment Sandbox is a separate specialized worker under `services/assessment-worker`. The core API persists/leases jobs and results but never executes candidate source code. The worker supports an initial JavaScript/Python allowlist and executes hidden deterministic test cases only inside Docker/Podman containers with network disabled, read-only root/source filesystems, dropped capabilities, `no-new-privileges`, non-root execution, CPU/memory/PID/output/time bounds, pre-pulled images, lease heartbeats, bounded retries and stale-lease rejection. There is deliberately no direct host-process fallback. The code path has passed the repository quality gate; production activation still requires a dedicated hardened Linux worker host, rootless runtime where practical, digest-pinned images, and real isolation/smoke/load evidence.
+The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. Calibration and Shadow frameworks persist the evidence needed for qualified-human comparison while keeping real production release authority outside those framework results.
 
-The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. It validates rubric criteria and persisted evidence, requires candidate-grounded finalized transcript evidence, computes conservative confidence, refuses unsupported scoring, persists provenance/idempotency state, and delegates deterministic final score computation to the domain score engine. Human review remains mandatory.
-
-The Calibration Framework provides versioned datasets, qualified-human references, criterion/overall agreement metrics, false-reject/false-promotion analysis, confidence calibration, slices, immutable comparison provenance and dataset-specific gates.
-
-The Shadow Testing Framework provides release-unit-scoped programs, prospective blind evaluation, sealed AI results, independent human outcomes, failure/latency telemetry, disagreement/root-cause queues, aggregate agreement metrics and PostgreSQL isolation proving Shadow does not mutate consequential scorecards or pipeline state.
-
-No real candidate calibration corpus, real shadow corpus, hardened production assessment sandbox evidence, or production acceptance evidence is claimed by these implementations.
+Operational Monitoring now covers API, PostgreSQL, all four durable worker queues, lease state, and persisted Interview/media lifecycle. `ops/monitoring/prometheus-alerts.yml` includes starting alerts for collector/DB failure, API 5xx and p95 latency, old queue backlog, expired leases, ready work without an active lease holder, stalled interviews, stale media heartbeats, and realtime error bursts. Thresholds are initial operational defaults, not production SLO evidence.
 
 ---
 
 # 7. Production-readiness boundary
 
-Core Product Closure, provider integrations, the AI Evaluator implementation, Calibration Framework, Shadow Testing Framework, and Assessment Sandbox code being green do **not** approve autonomous real-candidate interviewing.
+A green repository does **not** by itself approve autonomous real-candidate interviewing.
 
-The framework needed to collect and compare qualified-human and AI evaluation evidence is implemented. Gate H remains evidence-pending until representative real calibration data is collected and adjudicated. The SHADOW lifecycle now has a code-complete evidence-capture/comparison framework, but the real Shadow stage is not complete until representative real interviews have produced sealed AI outputs, independent qualified-human outcomes, disagreement/root-cause evidence, and accepted aggregate metrics. Neither a calibration result nor a shadow-program gate has production-release authority by itself.
+Still requiring real environment/evidence validation:
 
-LiveKit/FFmpeg/whisper.cpp runtime validation, speech/realtime benchmarks, real evaluator calibration evidence, real shadow evidence, supervised pilot evidence, and production approval remain governed by `production-readiness.md`.
+```text
+LiveKit / FFmpeg / whisper.cpp runtime integration and benchmarks
+speech/realtime quality, reconnect and load evidence
+representative evaluator calibration data + qualified-human adjudication
+representative shadow evidence
+supervised pilot evidence
+hardened production assessment-worker host and pinned-image provenance
+real email/calendar/ATS/sourcing credentials and provider-side permissions
+production backup/replica/object-version privacy-erasure lifecycle evidence
+Prometheus / Alertmanager / Grafana deployment and alert-delivery evidence
+worker process/service-level liveness supervision beyond lease-derived metrics
+long-term metrics retention, dashboard/SLO tuning, paging policy and capacity baselines
+final production approval
+```
 
-The isolated assessment execution worker is implemented independently from realtime/media/AI workers, but hardened production-host validation, container isolation evidence, pinned-image provenance and load/abuse testing remain required before treating arbitrary candidate code execution as production-ready. Email/calendar/ATS/sourcing provider code is implemented, but actual third-party account connectivity still requires deployment credentials and provider-side permissions/configuration.
+Monitoring code is CI-validated against PostgreSQL and Browser E2E, but that is distinct from proving a production metrics backend, alert receiver, dashboard, retention policy, or on-call response path.
 
 ---
 
 # 8. Repository governance
 
-The Coding Assessment Sandbox implementation is code-level validated on `main`: quality-gate run #509 passed migration contracts, PostgreSQL migration/application checks, generated OpenAPI/client drift checks, lint, typecheck, tests, build and critical Browser E2E. Deployment readiness for arbitrary candidate code still separately requires real hardened-host isolation, smoke/load/abuse evidence and pinned-image provenance.
+The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
-The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
-
-The enforced source-level protections are the deterministic `quality-gate` workflow, committed dependency lockfile, generated-contract drift check, migration/index verification, typed-client usage guard, lint, typecheck, full test suite (including the dependency-free assessment-worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows. If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
+If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
