@@ -91,7 +91,8 @@ LiveKit Deployment Contract
   real LiveKit/TURN/RTP evidence              deployment/runtime-specific / pending
 
 Whisper STT Integration Contract v1
-  feature commit                              520749592d2c2339afdc7d413fc587a1cac2c91c
+  validated main commit                       9ddc5d1f611a02b52729d3650ba3af89197aea19
+  quality-gate                                33919266035 / run #583
   source of truth                             contracts/whisper-stt.v1.json
   provider abstraction                        SPEECH_TO_TEXT_ADAPTER
   API client                                  WhisperHttpClient
@@ -105,7 +106,12 @@ Whisper STT Integration Contract v1
   production transport                       https:// required; strong media-worker secret required
   privacy/security                            raw audio not persisted by API; redirects disabled; stderr/provider diagnostics not returned
   internal health                             GET /health/whisper; public OpenAPI excluded
-  contract check                              npm run whisper:contract:check
+  contract check                              ✅ npm run whisper:contract:check
+  TypeScript client tests                     ✅
+  dependency-free Python HTTP contract tests  ✅
+  lint / typecheck / full tests / build       ✅
+  Browser E2E critical flows                  ✅
+  result                                      ✅ success
   real whisper.cpp runtime/quality evidence   deployment/runtime-specific / pending
 ```
 
