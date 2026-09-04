@@ -83,16 +83,6 @@ export class SourcingRunRequestDto {
   @IsIn(sourceTypes)
   sourceType?: ApprovedSourceType;
 
-  @ApiPropertyOptional({
-    description: "Provider selector for provider-backed source types. approved_external currently supports people_data_labs and coresignal.",
-    minLength: 2,
-    maxLength: 80,
-  })
-  @IsOptional()
-  @IsString()
-  @Length(2, 80)
-  providerKey?: string;
-
   @ApiPropertyOptional({ minLength: 8, maxLength: 200 })
   @IsOptional()
   @IsString()
