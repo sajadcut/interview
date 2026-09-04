@@ -28,7 +28,7 @@ const request = {
 test("People Data Labs provider uses official search endpoint and maps provenance", async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = "";
-  let requestedHeaders: HeadersInit | undefined;
+  let requestedHeaders: unknown;
   globalThis.fetch = async (input, init) => {
     requestedUrl = String(input);
     requestedHeaders = init?.headers;
@@ -46,7 +46,7 @@ test("People Data Labs provider uses official search endpoint and maps provenanc
   try {
     const results = await new PeopleDataLabsCandidateSourceProvider(connectionService("people_data_labs")).search(request);
     assert.equal(requestedUrl, "https://api.peopledatalabs.com/v5/person/search");
-    assert.equal(new Headers(requestedHeaders).get("x-api-key"), "test-key");
+    assert.equal(new Headers(requestedHeaders as ConstructorParameters<typeof Headers>[0]).get("x-api-key"), "test-key");
     assert.equal(results.length, 1);
     assert.equal(results[0]?.displayName, "Ada Lovelace");
     assert.equal(results[0]?.provenance.providerKey, "people_data_labs");
@@ -59,7 +59,7 @@ test("People Data Labs provider uses official search endpoint and maps provenanc
 test("Coresignal provider uses official preview endpoint and never invents skills", async () => {
   const originalFetch = globalThis.fetch;
   let requestedUrl = "";
-  let requestedHeaders: HeadersInit | undefined;
+  let requestedHeaders: unknown;
   globalThis.fetch = async (input, init) => {
     requestedUrl = String(input);
     requestedHeaders = init?.headers;
@@ -78,7 +78,7 @@ test("Coresignal provider uses official preview endpoint and never invents skill
   try {
     const results = await new CoresignalCandidateSourceProvider(connectionService("coresignal")).search(request);
     assert.match(requestedUrl, /^https:\/\/api\.coresignal\.com\/cdapi\/v2\/employee_multi_source\/search\/es_dsl\/preview/);
-    assert.equal(new Headers(requestedHeaders).get("apikey"), "test-key");
+    assert.equal(new Headers(requestedHeaders as ConstructorParameters<typeof Headers>[0]).get("apikey"), "test-key");
     assert.equal(results.length, 1);
     assert.equal(results[0]?.provenance.providerKey, "coresignal");
     assert.deepEqual(results[0]?.skills, []);
