@@ -24,6 +24,7 @@ const PRODUCTION_SECRET_NAMES = [
   "LIVEKIT_API_SECRET",
 ] as const;
 
+const DEVELOPMENT_DATABASE_URL = "postgresql://interview:interview@localhost:5432/interview";
 const PLACEHOLDER_SECRET = /^(?:change-?me|changeme|replace-?me|password|secret|example|sample|dummy|development|local|test)$/i;
 
 function containsControlCharacter(value: string): boolean {
@@ -71,6 +72,16 @@ export function assertProductionSecretPolicy(
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
   if (environment.NODE_ENV !== "production") return;
+
+  const databaseUrl = environment.DATABASE_URL?.trim() ?? "";
+  if (!databaseUrl) {
+    throw new Error("Invalid production secret configuration: DATABASE_URL must be explicitly configured");
+  }
+  if (databaseUrl === DEVELOPMENT_DATABASE_URL) {
+    throw new Error(
+      "Invalid production secret configuration: DATABASE_URL must not use the development default credential",
+    );
+  }
 
   for (const name of INTERNAL_SHARED_SECRET_NAMES) {
     const value = environment[name]?.trim();
