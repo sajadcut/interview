@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { TenantContextService } from "../tenant/tenant-context.service";
 import {
   ApprovedSourceTypes,
   type ApprovedSourceType,
@@ -15,6 +16,7 @@ export class CandidateSourceRegistry {
   private readonly atsProviders: Map<AtsProviderKey, AtsProvider>;
 
   constructor(
+    private readonly tenantContext: TenantContextService,
     private readonly internalTalentPool: InternalTalentPoolAdapter,
     private readonly configuredAts: ConfiguredAtsSourceAdapter,
     greenhouse: GreenhouseAtsProvider,
@@ -43,10 +45,11 @@ export class CandidateSourceRegistry {
   }
 
   async capabilities(organizationId?: string) {
+    const tenantOrganizationId = organizationId ?? this.tenantContext.getOptional()?.organizationId;
     const ats = await Promise.all(
       [...this.atsProviders.values()].map(async (provider) => ({
         sourceType: ApprovedSourceTypes.Ats,
-        configured: organizationId ? await provider.isConfiguredFor(organizationId) : false,
+        configured: tenantOrganizationId ? await provider.isConfiguredFor(tenantOrganizationId) : false,
         providerKey: provider.providerKey,
         requiresApproval: provider.requiresApproval,
       })),
