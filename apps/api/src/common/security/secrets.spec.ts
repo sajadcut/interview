@@ -6,6 +6,8 @@ import {
   sharedSecretIssue,
 } from "./secrets";
 
+const PRODUCTION_DATABASE_URL = "postgresql://service:strong-password@db.internal:5432/interview";
+
 test("shared-secret policy requires stronger values in production", () => {
   assert.equal(sharedSecretIssue("test-secret", "test"), undefined);
   assert.match(sharedSecretIssue("short", "test") ?? "", /at least 8/);
@@ -20,11 +22,27 @@ test("constant-time comparison uses fixed-size digests for equal and unequal sec
   assert.equal(constantTimeSecretMatch("short", "a-much-longer-secret-value"), false);
 });
 
+test("production bootstrap requires an explicit non-development database credential", () => {
+  assert.throws(
+    () => assertProductionSecretPolicy({ NODE_ENV: "production" }),
+    /DATABASE_URL/,
+  );
+  assert.throws(
+    () =>
+      assertProductionSecretPolicy({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://interview:interview@localhost:5432/interview",
+      }),
+    /development default credential/,
+  );
+});
+
 test("production bootstrap rejects enabled realtime media without a strong worker secret", () => {
   assert.throws(
     () =>
       assertProductionSecretPolicy({
         NODE_ENV: "production",
+        DATABASE_URL: PRODUCTION_DATABASE_URL,
         MEDIA_REALTIME_ENABLED: "true",
       }),
     /MEDIA_WORKER_SHARED_SECRET/,
@@ -33,6 +51,7 @@ test("production bootstrap rejects enabled realtime media without a strong worke
   assert.doesNotThrow(() =>
     assertProductionSecretPolicy({
       NODE_ENV: "production",
+      DATABASE_URL: PRODUCTION_DATABASE_URL,
       MEDIA_REALTIME_ENABLED: "true",
       MEDIA_WORKER_SHARED_SECRET: "m".repeat(32),
     }),
@@ -44,6 +63,7 @@ test("production bootstrap rejects explicit placeholder provider credentials", (
     () =>
       assertProductionSecretPolicy({
         NODE_ENV: "production",
+        DATABASE_URL: PRODUCTION_DATABASE_URL,
         SENDGRID_API_KEY: "changeme",
       }),
     /SENDGRID_API_KEY/,
