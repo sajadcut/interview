@@ -31,10 +31,7 @@ function webSecurityHeaders(): Array<{ key: string; value: string }> {
     `script-src ${scriptSources}`,
     `connect-src ${[...connectSources].join(" ")}`,
     "worker-src 'self' blob:",
-    production ? "upgrade-insecure-requests" : "",
-  ]
-    .filter(Boolean)
-    .join("; ");
+  ].join("; ");
 
   return [
     { key: "Content-Security-Policy", value: csp },
