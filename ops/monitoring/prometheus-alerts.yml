@@ -2,136 +2,469 @@ groups:
   - name: interview-platform
     rules:
       - alert: InterviewMetricsCollectionFailed
-        expr: interview_metrics_collection_success == 0
+        expr: >-
+          interview_metrics_collection_success == 0
         for: 2m
         labels:
           severity: critical
+          component: monitoring
+          alert_family: metrics_collection
         annotations:
-          summary: Interview operational metrics collection is failing
-          description: The API cannot build the PostgreSQL-backed monitoring snapshot.
+          summary: "Interview operational metrics collection is failing"
+          description: "The API cannot build the PostgreSQL-backed monitoring snapshot."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#monitoring-collector"
+
+      - alert: InterviewMetricsSnapshotStale
+        expr: >-
+          interview_metrics_collection_success == 1 and interview_metrics_snapshot_age_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+          alert_family: metrics_snapshot
+        annotations:
+          summary: "Interview operational metrics snapshot is stale"
+          description: "Collection reports success but the last durable operational snapshot is more than 30 seconds old."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#monitoring-collector"
 
       - alert: InterviewDatabaseUnavailable
-        expr: interview_db_up == 0
+        expr: >-
+          interview_db_up == 0
         for: 2m
         labels:
           severity: critical
+          component: database
+          alert_family: db_availability
         annotations:
-          summary: Interview PostgreSQL is unavailable to the API metrics collector
-          description: Database-backed queue, worker, and interview lifecycle metrics are unavailable.
+          summary: "Interview PostgreSQL is unavailable to the metrics collector"
+          description: "Database-backed queue, worker, and interview lifecycle metrics are unavailable."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#database"
+
+      - alert: InterviewDatabaseDeadlocks
+        expr: >-
+          increase(interview_db_deadlocks_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: database
+          alert_family: db_deadlocks
+        annotations:
+          summary: "Interview PostgreSQL reported a deadlock"
+          description: "At least one database deadlock was observed in the last 15 minutes."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#database"
+
+      - alert: InterviewDatabaseIdleInTransaction
+        expr: >-
+          interview_db_connections{state="idle in transaction"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+          alert_family: db_idle_transaction
+        annotations:
+          summary: "Interview PostgreSQL has a sustained idle-in-transaction connection"
+          description: "A connection has remained idle in a transaction long enough to risk locks, bloat, or pool pressure."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#database"
+
+      - alert: InterviewDatabaseCacheHitRatioLow
+        expr: >-
+          (interview_db_cache_hit_ratio < 0.9) and on() (sum(rate(interview_db_transactions_total[10m])) > 0.05)
+        for: 15m
+        labels:
+          severity: warning
+          component: database
+          alert_family: db_cache
+        annotations:
+          summary: "Interview PostgreSQL cache hit ratio is below 90 percent under load"
+          description: "Sustained cache misses under active transaction load can indicate working-set or query pressure."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#database"
 
       - alert: InterviewApiHigh5xxRatio
-        expr: (sum(rate(interview_http_request_errors_total[5m])) / clamp_min(sum(rate(interview_http_requests_total[5m])), 1)) > 0.05
+        expr: >-
+          ((sum(rate(interview_http_request_errors_total[5m])) / clamp_min(sum(rate(interview_http_requests_total[5m])), 0.001)) > 0.05) and (sum(rate(interview_http_requests_total[5m])) > 0.1)
         for: 10m
         labels:
           severity: warning
+          component: api
+          alert_family: api_5xx
         annotations:
-          summary: Interview API 5xx ratio is above 5 percent
-          description: Investigate recent deploys, database saturation, and dependency failures.
+          summary: "Interview API 5xx ratio is above 5 percent"
+          description: "The API is returning an elevated proportion of server errors under meaningful request traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#api-errors"
+
+      - alert: InterviewApiCritical5xxRatio
+        expr: >-
+          ((sum(rate(interview_http_request_errors_total[5m])) / clamp_min(sum(rate(interview_http_requests_total[5m])), 0.001)) > 0.15) and (sum(rate(interview_http_requests_total[5m])) > 0.1)
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          alert_family: api_5xx
+        annotations:
+          summary: "Interview API 5xx ratio is above 15 percent"
+          description: "Server errors are at a critical rate under meaningful request traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#api-errors"
 
       - alert: InterviewApiHighP95Latency
-        expr: histogram_quantile(0.95, sum by (le) (rate(interview_http_request_duration_seconds_bucket[5m]))) > 1
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_http_request_duration_seconds_bucket[5m]))) > 1
         for: 10m
         labels:
           severity: warning
+          component: api
+          alert_family: api_latency
         annotations:
-          summary: Interview API p95 latency is above one second
-          description: Inspect route-level latency, database load, and queue/dependency pressure.
+          summary: "Interview API p95 latency is above one second"
+          description: "Sustained p95 latency is above the warning threshold."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#api-latency"
+
+      - alert: InterviewApiCriticalP95Latency
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_http_request_duration_seconds_bucket[5m]))) > 3
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+          alert_family: api_latency
+        annotations:
+          summary: "Interview API p95 latency is above three seconds"
+          description: "Sustained p95 latency is above the critical threshold."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#api-latency"
 
       - alert: InterviewQueueBacklogOld
-        expr: interview_queue_oldest_ready_age_seconds > 300 and on(queue) interview_queue_ready_jobs > 0
+        expr: >-
+          interview_queue_oldest_ready_age_seconds > 300 and on(queue) interview_queue_ready_jobs > 0
         for: 5m
         labels:
           severity: warning
+          component: queue
+          alert_family: queue_backlog
         annotations:
-          summary: Interview worker queue contains jobs ready for more than five minutes
-          description: Check worker capacity, lease churn, retry causes, and downstream dependencies.
+          summary: "Interview worker queue contains jobs ready for more than five minutes"
+          description: "Ready work is aging beyond the warning threshold."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
+
+      - alert: InterviewQueueBacklogCritical
+        expr: >-
+          interview_queue_oldest_ready_age_seconds > 900 and on(queue) interview_queue_ready_jobs > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: queue
+          alert_family: queue_backlog
+        annotations:
+          summary: "Interview worker queue contains jobs ready for more than 15 minutes"
+          description: "Ready work is aging beyond the critical threshold and candidate-facing processing may be delayed."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
 
       - alert: InterviewQueueExpiredLeases
-        expr: interview_queue_expired_leases > 0
+        expr: >-
+          interview_queue_expired_leases > 0
         for: 5m
         labels:
           severity: warning
+          component: queue
+          alert_family: queue_expired_leases
         annotations:
-          summary: Interview worker queue has expired leases
-          description: A worker may have crashed, stalled, or exceeded its execution lease.
+          summary: "Interview worker queue has expired leases"
+          description: "One or more jobs have an expired worker lease."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
+
+      - alert: InterviewQueueExpiredLeasesCritical
+        expr: >-
+          interview_queue_expired_leases > 3
+        for: 5m
+        labels:
+          severity: critical
+          component: queue
+          alert_family: queue_expired_leases
+        annotations:
+          summary: "Interview worker queue has multiple expired leases"
+          description: "More than three expired leases indicate repeated worker stalls or execution overruns."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
+
+      - alert: InterviewQueueFailureVolumeHigh
+        expr: >-
+          interview_queue_failures_24h > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: queue
+          alert_family: queue_failures
+        annotations:
+          summary: "Interview worker queue failure volume is elevated"
+          description: "More than five failed jobs are present in the queue's rolling 24-hour failure window."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
+
+      - alert: InterviewQueueFailureVolumeCritical
+        expr: >-
+          interview_queue_failures_24h > 25
+        for: 10m
+        labels:
+          severity: critical
+          component: queue
+          alert_family: queue_failures
+        annotations:
+          summary: "Interview worker queue failure volume is critical"
+          description: "More than 25 failed jobs are present in the queue's rolling 24-hour failure window."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#queues"
 
       - alert: InterviewQueueReadyWithoutActiveWorker
-        expr: interview_queue_ready_jobs > 0 and on(queue) interview_worker_active_instances == 0
+        expr: >-
+          interview_queue_ready_jobs > 0 and on(queue) interview_worker_active_instances == 0
         for: 3m
         labels:
           severity: warning
+          component: worker
+          alert_family: worker_availability
         annotations:
-          summary: Ready Interview jobs have no worker currently holding a lease
-          description: Verify the corresponding worker deployment is polling and able to claim jobs.
+          summary: "Ready Interview jobs have no worker currently holding a lease"
+          description: "A queue has ready work but no active lease holder."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#workers"
+
+      - alert: InterviewQueueReadyWithoutWorkerCritical
+        expr: >-
+          interview_queue_ready_jobs > 0 and on(queue) interview_worker_active_instances == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: worker
+          alert_family: worker_availability
+        annotations:
+          summary: "Ready Interview jobs have had no active worker for ten minutes"
+          description: "A queue has sustained ready work without an active lease holder and requires operator action."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#workers"
 
       - alert: InterviewLifecycleStalledSessions
-        expr: interview_lifecycle_stalled_sessions > 0
+        expr: >-
+          interview_lifecycle_stalled_sessions > 0
         for: 10m
         labels:
           severity: warning
+          component: interview
+          alert_family: interview_stalled
         annotations:
-          summary: Interview sessions remain started and incomplete for over two hours
-          description: Review session state transitions, realtime connectivity, and recovery handling.
+          summary: "Interview sessions remain started and incomplete for over two hours"
+          description: "One or more interview sessions have exceeded the stalled-session threshold."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#interview-lifecycle"
 
       - alert: InterviewRealtimeStaleMediaSessions
-        expr: interview_lifecycle_stale_media_sessions > 0
+        expr: >-
+          interview_lifecycle_stale_media_sessions > 0
         for: 3m
         labels:
           severity: critical
+          component: realtime
+          alert_family: realtime_media_heartbeat
         annotations:
-          summary: Connected Interview media sessions have stale heartbeats
-          description: Inspect LiveKit/media-worker health and realtime connectivity before admitting more production interviews.
+          summary: "Connected Interview media sessions have stale heartbeats"
+          description: "Connected or degraded media sessions have not produced a fresh heartbeat."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewRealtimeErrorBurst
-        expr: interview_lifecycle_media_errors_15m >= 5
+        expr: >-
+          interview_lifecycle_media_errors_15m >= 5
         for: 2m
         labels:
           severity: warning
+          component: realtime
+          alert_family: realtime_error_burst
         annotations:
-          summary: Interview realtime media errors are elevated
-          description: Five or more realtime media error events were persisted in the last 15 minutes.
+          summary: "Interview realtime media errors are elevated"
+          description: "Five or more realtime media error events were persisted in the last 15 minutes."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewRealtimeErrorBurstCritical
+        expr: >-
+          interview_lifecycle_media_errors_15m >= 20
+        for: 2m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: realtime_error_burst
+        annotations:
+          summary: "Interview realtime media errors are at a critical level"
+          description: "Twenty or more realtime media error events were persisted in the last 15 minutes."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewRealtimeE2EP95AboveGateF
-        expr: histogram_quantile(0.95, sum by (le) (rate(interview_realtime_turn_duration_seconds_bucket{stage="e2e"}[5m]))) > 1.8
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_turn_duration_seconds_bucket{stage="e2e"}[5m]))) > 1.8
         for: 10m
         labels:
           severity: warning
+          component: realtime
+          alert_family: realtime_e2e_latency
         annotations:
-          summary: Realtime interview E2E p95 is above the current Gate F threshold
-          description: This is an operational signal only; Gate F still requires representative staging benchmark evidence.
+          summary: "Realtime interview E2E p95 is above the current Gate F threshold"
+          description: "Observed E2E turn latency is above 1.8 seconds at p95; this is an operational signal, not benchmark evidence."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewRealtimeE2EP95Critical
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_turn_duration_seconds_bucket{stage="e2e"}[5m]))) > 3
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: realtime_e2e_latency
+        annotations:
+          summary: "Realtime interview E2E p95 is above three seconds"
+          description: "Observed E2E turn latency is critically high at p95."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewWhisperHighErrorRatio
-        expr: (sum(rate(interview_realtime_whisper_requests_total{result=~"error|timeout"}[5m])) / clamp_min(sum(rate(interview_realtime_whisper_requests_total[5m])), 1)) > 0.05
+        expr: >-
+          ((sum(rate(interview_realtime_whisper_requests_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_whisper_requests_total[5m])), 0.001)) > 0.05) and (sum(rate(interview_realtime_whisper_requests_total[5m])) > 0.01)
         for: 10m
         labels:
           severity: warning
+          component: realtime
+          alert_family: whisper_errors
         annotations:
-          summary: whisper.cpp error or timeout ratio is above 5 percent
-          description: Inspect model/runtime capacity, input validity, host saturation, and timeout configuration.
+          summary: "whisper.cpp error or timeout ratio is above 5 percent"
+          description: "Speech finalization failures are elevated under active traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewWhisperCriticalErrorRatio
+        expr: >-
+          ((sum(rate(interview_realtime_whisper_requests_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_whisper_requests_total[5m])), 0.001)) > 0.15) and (sum(rate(interview_realtime_whisper_requests_total[5m])) > 0.01)
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: whisper_errors
+        annotations:
+          summary: "whisper.cpp failure ratio is above 15 percent"
+          description: "Speech finalization failures are at a critical rate under active traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewWhisperRealtimeFactorHigh
-        expr: histogram_quantile(0.95, sum by (le) (rate(interview_realtime_whisper_realtime_factor_bucket[5m]))) > 1
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_whisper_realtime_factor_bucket[5m]))) > 1
         for: 10m
         labels:
           severity: warning
+          component: realtime
+          alert_family: whisper_rtf
         annotations:
-          summary: whisper.cpp p95 realtime factor is above one
-          description: Speech transcription is processing slower than realtime at p95.
+          summary: "whisper.cpp p95 realtime factor is above one"
+          description: "Speech transcription is processing slower than realtime at p95."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewWhisperRealtimeFactorCritical
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_whisper_realtime_factor_bucket[5m]))) > 2
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: whisper_rtf
+        annotations:
+          summary: "whisper.cpp p95 realtime factor is above two"
+          description: "Speech transcription is taking more than twice the input audio duration at p95."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewLiveKitControlPlaneErrors
-        expr: sum(rate(interview_realtime_livekit_operations_total{result=~"error|timeout"}[5m])) > 0
-        for: 5m
+        expr: >-
+          ((sum(rate(interview_realtime_livekit_operations_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_livekit_operations_total[5m])), 0.001)) > 0.05) and (sum(rate(interview_realtime_livekit_operations_total[5m])) > 0.01)
+        for: 10m
         labels:
           severity: warning
+          component: realtime
+          alert_family: livekit_control
         annotations:
-          summary: LiveKit control-plane operations are failing
-          description: This rule becomes active only when the LiveKit adapter emits real contract observations.
+          summary: "LiveKit control-plane failure ratio is above 5 percent"
+          description: "LiveKit control-plane operations are failing under active traffic; this rule is silent until real adapter observations exist."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewLiveKitControlPlaneErrorsCritical
+        expr: >-
+          ((sum(rate(interview_realtime_livekit_operations_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_livekit_operations_total[5m])), 0.001)) > 0.2) and (sum(rate(interview_realtime_livekit_operations_total[5m])) > 0.01)
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: livekit_control
+        annotations:
+          summary: "LiveKit control-plane failure ratio is above 20 percent"
+          description: "LiveKit control-plane operations are failing at a critical rate under active traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewLiveKitPacketLossHigh
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_livekit_packet_loss_ratio_bucket[5m]))) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: realtime
+          alert_family: livekit_packet_loss
+        annotations:
+          summary: "LiveKit WebRTC p95 packet loss is above 5 percent"
+          description: "Observed RTP packet loss is above the warning threshold; the rule is silent until provider telemetry is wired."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewLiveKitPacketLossCritical
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_livekit_packet_loss_ratio_bucket[5m]))) > 0.15
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: livekit_packet_loss
+        annotations:
+          summary: "LiveKit WebRTC p95 packet loss is above 15 percent"
+          description: "Observed RTP packet loss is at a critical level."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewLiveKitRttHigh
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_livekit_rtt_seconds_bucket[5m]))) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          component: realtime
+          alert_family: livekit_rtt
+        annotations:
+          summary: "LiveKit WebRTC p95 round-trip time is above 300 milliseconds"
+          description: "Observed WebRTC RTT is above the warning threshold; the rule is silent until provider telemetry is wired."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewLiveKitRttCritical
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(interview_realtime_livekit_rtt_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: livekit_rtt
+        annotations:
+          summary: "LiveKit WebRTC p95 round-trip time is above one second"
+          description: "Observed WebRTC RTT is at a critical level."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
 
       - alert: InterviewFFmpegJobFailures
-        expr: sum(rate(interview_realtime_ffmpeg_jobs_total{result=~"error|timeout"}[5m])) > 0
-        for: 5m
+        expr: >-
+          ((sum(rate(interview_realtime_ffmpeg_jobs_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_ffmpeg_jobs_total[5m])), 0.001)) > 0.05) and (sum(rate(interview_realtime_ffmpeg_jobs_total[5m])) > 0.01)
+        for: 10m
         labels:
           severity: warning
+          component: realtime
+          alert_family: ffmpeg_failures
         annotations:
-          summary: FFmpeg media jobs are failing
-          description: This rule becomes active only when the FFmpeg runtime emits real contract observations.
+          summary: "FFmpeg media job failure ratio is above 5 percent"
+          description: "FFmpeg media jobs are failing under active traffic; this rule is silent until real runtime observations exist."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
+
+      - alert: InterviewFFmpegJobFailuresCritical
+        expr: >-
+          ((sum(rate(interview_realtime_ffmpeg_jobs_total{result=~"error|timeout|unavailable"}[5m])) / clamp_min(sum(rate(interview_realtime_ffmpeg_jobs_total[5m])), 0.001)) > 0.2) and (sum(rate(interview_realtime_ffmpeg_jobs_total[5m])) > 0.01)
+        for: 5m
+        labels:
+          severity: critical
+          component: realtime
+          alert_family: ffmpeg_failures
+        annotations:
+          summary: "FFmpeg media job failure ratio is above 20 percent"
+          description: "FFmpeg media jobs are failing at a critical rate under active traffic."
+          runbook_url: "https://github.com/sajadcut/interview/blob/main/docs/operations/alerting-runbook.md#realtime"
