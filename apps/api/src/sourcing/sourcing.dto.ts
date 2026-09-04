@@ -3,6 +3,7 @@ import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from "
 import { ApprovedSourceTypes, type ApprovedSourceType } from "./candidate-source.adapter";
 
 const sourceTypes = Object.values(ApprovedSourceTypes);
+const atsProviders = ["greenhouse", "lever"] as const;
 
 export class TalentCandidateDto {
   @ApiProperty() candidateId!: string;
@@ -82,6 +83,14 @@ export class SourcingRunRequestDto {
   @IsOptional()
   @IsIn(sourceTypes)
   sourceType?: ApprovedSourceType;
+
+  @ApiPropertyOptional({
+    enum: atsProviders,
+    description: "Required when sourceType=ats. Selects the configured Greenhouse or Lever adapter.",
+  })
+  @IsOptional()
+  @IsIn(atsProviders)
+  providerKey?: "greenhouse" | "lever";
 
   @ApiPropertyOptional({ minLength: 8, maxLength: 200 })
   @IsOptional()
