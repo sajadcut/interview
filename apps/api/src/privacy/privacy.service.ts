@@ -3,6 +3,7 @@ import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { PrivacyDeletionQueueService } from "./privacy-deletion-queue.service";
+import { isSupportedRetentionEntityType } from "./retention-policy";
 
 const PRIVACY_REQUEST_TYPES = new Set(["access", "deletion", "withdraw_consent"]);
 
@@ -40,6 +41,10 @@ export class PrivacyService {
     if (!body || typeof body !== "object") throw new Error("Retention policy input is required");
     const value = body as Record<string, unknown>;
     if (typeof value.entityType !== "string" || !value.entityType.trim()) throw new Error("entityType is required");
+    const entityType = value.entityType.trim();
+    if (!isSupportedRetentionEntityType(entityType)) {
+      throw new Error(`Unsupported retention entity type ${entityType}`);
+    }
     if (!Number.isInteger(value.retentionDays) || Number(value.retentionDays) <= 0) {
       throw new Error("retentionDays must be a positive integer");
     }
@@ -54,7 +59,7 @@ export class PrivacyService {
         organization_id, entity_type, retention_days, enabled, legal_hold_rules
       ) VALUES (
         ${organizationId}::uuid,
-        ${value.entityType.trim()},
+        ${entityType},
         ${Number(value.retentionDays)},
         ${value.enabled !== false},
         ${this.database.sql.json(legalHoldRules as never)}
