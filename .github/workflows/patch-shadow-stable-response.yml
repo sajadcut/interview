@@ -1,0 +1,58 @@
+name: patch-shadow-stable-response
+
+on:
+  push:
+    branches:
+      - feat/shadow-testing-hardening-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/shadow-testing-hardening-v2
+          fetch-depth: 0
+
+      - name: Patch stable response shape
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/api/src/interviews/evaluator-shadow-testing.service.ts')
+          text = path.read_text()
+          old = '''  return {
+    ...base,
+    visibilityState: "sealed",
+    humanOutcomeRecorded: false,
+    aiResult: null,
+    comparison: null,
+  };'''
+          new = '''  return {
+    ...base,
+    visibilityState: "sealed",
+    humanOutcomeRecorded: false,
+    aiResult: null,
+    execution: null,
+    humanOutcome: null,
+    comparison: null,
+  };'''
+          if old not in text:
+              raise SystemExit('sealed run response anchor not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+          rm -f .github/workflows/patch-shadow-stable-response.yml
+          git diff --check
+
+      - name: Commit patch
+        run: |
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(shadow): stabilize run response contract"
+          git push origin HEAD:feat/shadow-testing-hardening-v2
