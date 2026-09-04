@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
-> **Version:** 0.24.0
+> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid) and real Calendar providers (Google Calendar / Microsoft 365 Calendar) are implemented; external credentialed connectivity remains deployment-specific and is not claimed without deployment secrets. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
+> **Version:** 0.25.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -39,6 +39,11 @@ Evaluator Shadow Testing Framework
   tests incl. PostgreSQL isolation            ✅
   build                                       ✅
   Browser E2E critical flows                  ✅
+
+Email + Calendar providers
+  pull request                                #9
+  providers                                   SMTP / SES / SendGrid / Google / Microsoft
+  external production credential smoke test  deployment-specific / pending credentials
 ```
 
 The quality gate is read-only with respect to source/generated artifacts. It does not delete or regenerate the dependency lockfile as part of installation and does not commit generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
@@ -95,7 +100,7 @@ Consequential hiring decisions remain human-controlled and score/evidence bounda
 
 # 4. Database and migration operations
 
-The current schema contains append-only migrations through `0042_evaluator_shadow_testing_hardening.sql`, including supervised-pilot control-plane persistence and Shadow v2 integrity/telemetry hardening. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
+The current schema contains append-only migrations through `0043_calendar_provider_operations.sql`, including supervised-pilot control-plane persistence, Shadow v2 integrity/telemetry hardening, and calendar-provider operation-attempt persistence. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
 
 ```text
 expand/contract schema changes
@@ -129,7 +134,7 @@ The full Calibration and Shadow Testing Framework APIs are intentionally interna
 ```text
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal source implemented; external providers plug-in
-M3 Outreach/Screening/Scheduling    persisted workflow/policy implemented; real email/calendar providers plug-in
+M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
 M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; realtime runtime and real validation evidence pending
 M5 Assessments                      domain/runner contract implemented; isolated execution worker pending
 M6 Analytics/Enterprise hardening   materially advanced
@@ -137,53 +142,15 @@ M6 Analytics/Enterprise hardening   materially advanced
 
 Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, and VAD/STT/TTS provider boundaries.
 
+The Email integration has real provider adapters for SMTP, Amazon SES v2 and SendGrid v3. Approved outbound messages and recruitment notifications use provider acceptance before being marked sent, delivery attempts/provider references are persisted, configuration fails closed, and protocol tests run against local SMTP/HTTP fakes without committing credentials.
+
+The Calendar integration has real Google Calendar and Microsoft 365 Calendar adapters. Google uses service-account JWT OAuth with deterministic custom event IDs for duplicate prevention; Microsoft uses Entra client-credentials OAuth and Graph event `transactionId`. Scheduling confirmation persists a remote provider reference only after event creation succeeds, cancellation removes an existing remote event before local cancellation, provider mismatch/disabled states fail closed for existing remote events, and reserve/cancel attempts are persisted. No deployment credential is committed or claimed as externally smoke-tested.
+
 The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. It validates rubric criteria and persisted evidence, requires candidate-grounded finalized transcript evidence, computes conservative confidence, refuses unsupported scoring, persists provenance/idempotency state, and delegates deterministic final score computation to the domain score engine. Human review remains mandatory.
 
-The Calibration Framework provides:
+The Calibration Framework provides versioned datasets, qualified-human references, criterion/overall agreement metrics, false-reject/false-promotion analysis, confidence calibration, slices, immutable comparison provenance and dataset-specific gates.
 
-```text
-versioned calibration datasets with explicit thresholds
-draft → locked dataset lifecycle
-multiple qualified-human reviews per case
-one adjudicated immutable human reference per case
-criterion-level Human ↔ AI score comparison
-coverage / MAE / RMSE / max delta / signed bias
-recommendation agreement
-false-reject and false-promotion measurement
-evidence-reference agreement
-low-confidence measurement
-weighted overall Human ↔ AI ranking comparison
-Pearson score correlation
-Spearman ranking correlation
-score-delta percentiles
-confidence-calibration buckets and Expected Calibration Error
-job-family / language / interview-type slices
-idempotent immutable comparison runs with provider/model/prompt provenance
-dataset-specific calibration gate thresholds
-```
-
-The Shadow Testing Framework provides:
-
-```text
-release-unit-scoped Shadow programs with explicit target sample and thresholds
-activation only while the release unit lifecycle is SHADOW
-dedicated Shadow-run persistence separate from consequential scorecards and pipeline state
-AI results sealed until an independent human outcome is recorded
-one immutable sample per interview session, with prospective-only admission after Shadow activation
-idempotent input/output fingerprints plus persisted evaluator-input snapshots and provider/model/prompt provenance
-explicit evaluator execution success/failure, latency and retry telemetry so failed executions remain in the denominator
-immutable blind human outcome snapshot after AI execution with enforced reviewer independence and full-rubric coverage
-criterion-level Human ↔ AI score and evidence comparison
-aggregate evidence-agreement and evidence-reference coverage metrics
-coverage / MAE / RMSE / max delta / signed bias
-recommendation agreement and overall-score delta
-false-reject / false-promotion / low-confidence measurement
-Pearson and Spearman ranking agreement across completed comparisons
-mandatory root-cause queue for meaningful disagreements
-program-level readiness summary with failure-rate/evidence-agreement gates and no release authority
-PostgreSQL isolation tests proving Shadow runs do not create scorecards,
-AI candidate-criterion evaluations, or mutate application status/pipeline stage
-```
+The Shadow Testing Framework provides release-unit-scoped programs, prospective blind evaluation, sealed AI results, independent human outcomes, failure/latency telemetry, disagreement/root-cause queues, aggregate agreement metrics and PostgreSQL isolation proving Shadow does not mutate consequential scorecards or pipeline state.
 
 No real candidate calibration corpus, real shadow corpus, or production acceptance evidence is claimed by these implementations.
 
@@ -191,18 +158,20 @@ No real candidate calibration corpus, real shadow corpus, or production acceptan
 
 # 7. Production-readiness boundary
 
-Core Product Closure, the AI Evaluator implementation, Calibration Framework, and Shadow Testing Framework being green do **not** approve autonomous real-candidate interviewing.
+Core Product Closure, provider integrations, the AI Evaluator implementation, Calibration Framework, and Shadow Testing Framework being green do **not** approve autonomous real-candidate interviewing.
 
 The framework needed to collect and compare qualified-human and AI evaluation evidence is implemented. Gate H remains evidence-pending until representative real calibration data is collected and adjudicated. The SHADOW lifecycle now has a code-complete evidence-capture/comparison framework, but the real Shadow stage is not complete until representative real interviews have produced sealed AI outputs, independent qualified-human outcomes, disagreement/root-cause evidence, and accepted aggregate metrics. Neither a calibration result nor a shadow-program gate has production-release authority by itself.
 
 LiveKit/FFmpeg/whisper.cpp runtime validation, speech/realtime benchmarks, real evaluator calibration evidence, real shadow evidence, supervised pilot evidence, and production approval remain governed by `production-readiness.md`.
 
-External provider implementations (ATS/job board/email/calendar), the isolated assessment execution worker, and realtime media/speech runtime are separate milestones rather than hidden Core Closure debt.
+ATS/job-board/external sourcing providers, the isolated assessment execution worker, and realtime media/speech runtime are separate milestones. Email and calendar provider code is implemented, but actual third-party account connectivity still requires deployment credentials and provider-side permissions/configuration.
 
 ---
 
 # 8. Repository governance
 
-The code-level quality gate is complete and green. The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
+The code-level quality gate is complete and green for previously merged milestones. This provider change is considered complete only after PR #9's latest head passes the same deterministic gate and is merged.
+
+The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
 
 The enforced source-level protections are the deterministic `quality-gate` workflow, committed dependency lockfile, generated-contract drift check, migration/index verification, typed-client usage guard, lint, typecheck, full test suite, production build, deterministic browser fixtures, and critical Browser E2E flows. If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
