@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, and base/advanced operational Monitoring for API, PostgreSQL, durable queues, workers, and Interview lifecycle. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment, real evaluator calibration/shadow/pilot evidence, realtime runtime validation, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.30.0
+> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, and the Realtime Metrics Contract v1 for LiveKit/whisper.cpp/FFmpeg. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.31.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,7 +10,7 @@
 
 # 1. Current validated baseline
 
-The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, production builds, deterministic browser fixtures, and critical Browser E2E flows.
+The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
 
@@ -46,14 +46,33 @@ Base + Advanced Monitoring
   scrape protection                           coalesced cached snapshots + bounded PostgreSQL statement timeout
   cardinality/privacy                         no org/candidate/job/worker/token identifiers exported as metric labels
   alert rules                                 Prometheus baseline alerts under ops/monitoring/prometheus-alerts.yml
-  PostgreSQL migrations (through 0052)        ✅
-  operational DB indexes                     ✅
-  OpenAPI / typed-client drift               ✅ clean
+  result                                      ✅ success
+
+Realtime Metrics Contract v1
+  validated main commit                       b31a82df01ec8ce19342abde28208702df1e5fa4
+  quality-gate                                33907049793 / run #558
+  source of truth                             contracts/realtime-metrics.v1.json
+  namespace                                   interview_realtime_*
+  media-worker endpoint                       GET /metrics; Prometheus text; internal operational surface
+  LiveKit contract                            control-plane latency/results + sessions/participants + RTT/jitter/loss/reconnects
+  whisper.cpp wired telemetry                 requests/results + processing latency + WAV duration + realtime factor + empty transcripts
+  FFmpeg contract                             jobs/latency/input duration/RTF/bytes/frames/exits/active processes
+  cross-pipeline SLI                          vad_to_stt / stt / brain / tts / avatar / e2e
+  Gate F histogram boundary                   explicit 1.8 second E2E bucket
+  cardinality/privacy                         finite label allowlists; ID/PII/unbounded labels forbidden
+  false-green protection                      provider_data_pending families emit no synthetic zero observations
+  recorder boundary                           LiveKit / FFmpeg / turn-stage adapters ready for measured values
+  alerts                                      E2E p95, Whisper errors/RTF, LiveKit control-plane, FFmpeg failures
+  TypeScript contract tests                   ✅
+  dependency-free Python media-worker tests   ✅
+  OpenAPI / typed-client drift                ✅ clean
   lint                                        ✅
   typecheck                                   ✅
-  tests incl. PostgreSQL monitoring           ✅
+  full tests                                  ✅
   build                                       ✅
   Browser E2E critical flows                  ✅
+  real LiveKit RTP / FFmpeg runtime samples   deployment/runtime-specific / pending
+  representative Gate F benchmark             evidence-specific / pending
 ```
 
 The quality gate is read-only with respect to source/generated artifacts. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
@@ -131,6 +150,8 @@ Recent operational migrations include:
 0052_monitoring_indexes.sql             queue/interview/media monitoring read paths
 ```
 
+Realtime provider telemetry is intentionally not persisted as OLTP rows merely to satisfy monitoring. Prometheus is the intended time-series sink; durable interview lifecycle/audit evidence remains in the existing relational/event schema.
+
 The migration runner uses checksum tracking, an advisory lock and transactional application. `docs/database-migration-runbook.md` defines expand/contract changes, pre-deploy backup evidence, compatible application rollback, forward corrective migrations, and verified restore for destructive incidents. Automatic destructive down-migrations are intentionally not the production rollback strategy.
 
 ---
@@ -146,7 +167,9 @@ packages/api-client/src/generated/schema.ts
 
 CI requires zero generated-contract drift. Internal worker lease APIs remain excluded from public OpenAPI and use dedicated shared-secret boundaries. Candidate code never receives an API credential and is never executed by the core API.
 
-`GET /metrics` is also deliberately excluded from public OpenAPI. It exposes aggregate Prometheus text only and must be deployed on an internal/protected operational network path. Runtime HTTP/process counters are in-process; durable DB/queue/worker/interview state is derived from PostgreSQL at scrape time so operational state survives API restarts. Snapshot collection is cached/coalesced and uses a bounded database statement timeout.
+The API `GET /metrics` is deliberately excluded from public OpenAPI. It exposes aggregate Prometheus text only and must be deployed on an internal/protected operational network path. Runtime HTTP/process counters are in-process; durable DB/queue/worker/interview state is derived from PostgreSQL at scrape time so operational state survives API restarts. Snapshot collection is cached/coalesced and uses a bounded database statement timeout.
+
+The media worker now separately exposes `GET /metrics`. Its metric behavior is governed by `contracts/realtime-metrics.v1.json` and `docs/operations/realtime-metrics-contract.md`. The registry rejects unknown metric families, missing/extra labels, and label values outside finite allowlists. Contract-only LiveKit/FFmpeg families remain absent until an actual adapter records measured observations; this prevents synthetic telemetry from being mistaken for runtime evidence.
 
 ---
 
@@ -156,12 +179,12 @@ CI requires zero generated-contract drift. Internal worker lease APIs remain exc
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
-M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; monitoring implemented; realtime runtime/real validation evidence pending
+M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + Realtime Metrics Contract v1 implemented; actual LiveKit/FFmpeg runtime and representative Gate F evidence pending
 M5 Assessments                      isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   privacy deletion + retention + security hardening + operational monitoring materially implemented and CI-validated
 ```
 
-Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, and VAD/STT/TTS provider boundaries.
+Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, VAD/STT/TTS provider boundaries, and now a frozen low-cardinality metrics contract for LiveKit/whisper.cpp/FFmpeg and E2E turn latency.
 
 The Privacy Deletion Worker performs verified object deletion plus derived-data cleanup, blocks on legal holds/shared-object safety conditions, and writes de-identified durable receipts. The Retention Worker delegates candidate erasure through the privacy deletion boundary rather than bypassing verified deletion semantics.
 
@@ -169,7 +192,7 @@ The Coding Assessment Sandbox remains a separate specialized worker. The core AP
 
 The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. Calibration and Shadow frameworks persist the evidence needed for qualified-human comparison while keeping real production release authority outside those framework results.
 
-Operational Monitoring now covers API, PostgreSQL, all four durable worker queues, lease state, and persisted Interview/media lifecycle. `ops/monitoring/prometheus-alerts.yml` includes starting alerts for collector/DB failure, API 5xx and p95 latency, old queue backlog, expired leases, ready work without an active lease holder, stalled interviews, stale media heartbeats, and realtime error bursts. Thresholds are initial operational defaults, not production SLO evidence.
+Operational Monitoring covers API, PostgreSQL, all four durable worker queues, lease state, persisted Interview/media lifecycle, and the media-worker realtime contract surface. `ops/monitoring/prometheus-alerts.yml` includes starting alerts for collector/DB failure, API 5xx/p95 latency, queue/lease failures, stalled interviews/media heartbeats, realtime errors, Gate F E2E p95, Whisper error/RTF pressure, and future LiveKit/FFmpeg runtime failures. Thresholds are initial operational defaults, not production SLO evidence.
 
 ---
 
@@ -180,7 +203,10 @@ A green repository does **not** by itself approve autonomous real-candidate inte
 Still requiring real environment/evidence validation:
 
 ```text
-LiveKit / FFmpeg / whisper.cpp runtime integration and benchmarks
+actual LiveKit transport/control-plane integration and RTP telemetry
+actual FFmpeg media-pipeline execution telemetry
+real whisper.cpp model/host performance and quality evidence
+100+ representative realtime interview benchmark required by Gate F
 speech/realtime quality, reconnect and load evidence
 representative evaluator calibration data + qualified-human adjudication
 representative shadow evidence
@@ -194,12 +220,12 @@ long-term metrics retention, dashboard/SLO tuning, paging policy and capacity ba
 final production approval
 ```
 
-Monitoring code is CI-validated against PostgreSQL and Browser E2E, but that is distinct from proving a production metrics backend, alert receiver, dashboard, retention policy, or on-call response path.
+The Realtime Metrics Contract guarantees that future provider data has a stable, bounded and testable place to land. It does **not** satisfy Gate F by itself. In particular, absence of a provider-data-pending series is not success, component readiness is not an SLA, and the committed `1.8s` histogram bucket is only measurement geometry until representative real interview observations exist.
 
 ---
 
 # 8. Repository governance
 
-The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
+The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime-contract tests, dependency-free Python media-worker metrics tests, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
 If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
