@@ -8,7 +8,7 @@
     "start": "node dist/main.js",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/**/*.spec.ts",
+    "test": "node scripts/run-tests.mjs",
     "openapi:export": "tsc -p tsconfig.build.json && node dist/scripts/export-openapi.js"
   },
   "dependencies": {
