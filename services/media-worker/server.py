@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import hmac
+import io
 import json
 import os
 import shlex
 import shutil
 import subprocess
 import tempfile
+import time
+import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+from realtime_metrics import REGISTRY, record_whisper_request, refresh_component_readiness
 
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
 MAX_TTS_TEXT_CHARS = 4000
@@ -47,6 +52,16 @@ def resolve_command(value: str) -> str | None:
 
 def worker_secret_ready() -> bool:
     return bool(os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip())
+
+
+def livekit_ready() -> bool:
+    if os.getenv("MEDIA_TRANSPORT_PROVIDER", "disabled").strip().lower() != "livekit":
+        return False
+    return all(os.getenv(name, "").strip() for name in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"))
+
+
+def ffmpeg_ready() -> bool:
+    return resolve_command(os.getenv("FFMPEG_CLI", "ffmpeg")) is not None
 
 
 def vad_status() -> dict[str, Any]:
@@ -88,10 +103,29 @@ def tts_status() -> dict[str, Any]:
     return {"ready": True, "provider": "local-command", "command": Path(command).name}
 
 
+def refresh_realtime_readiness() -> None:
+    refresh_component_readiness(
+        livekit_ready=livekit_ready(),
+        whisper_ready=bool(stt_status()["ready"]),
+        ffmpeg_ready=ffmpeg_ready(),
+    )
+
+
 def write_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     handler.send_response(status)
     handler.send_header("content-type", "application/json; charset=utf-8")
+    handler.send_header("content-length", str(len(data)))
+    handler.send_header("cache-control", "no-store")
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
+def write_metrics(handler: BaseHTTPRequestHandler) -> None:
+    refresh_realtime_readiness()
+    data = REGISTRY.render().encode("utf-8")
+    handler.send_response(200)
+    handler.send_header("content-type", "text/plain; version=0.0.4; charset=utf-8")
     handler.send_header("content-length", str(len(data)))
     handler.send_header("cache-control", "no-store")
     handler.end_headers()
@@ -114,6 +148,18 @@ def is_authorized(handler: BaseHTTPRequestHandler) -> bool:
     expected = os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip()
     supplied = handler.headers.get("x-media-worker-secret", "")
     return bool(expected) and hmac.compare_digest(expected, supplied)
+
+
+def wav_duration_seconds(audio_bytes: bytes) -> float | None:
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as audio:
+            frame_rate = audio.getframerate()
+            frame_count = audio.getnframes()
+            if frame_rate <= 0 or frame_count < 0:
+                return None
+            return frame_count / frame_rate
+    except (EOFError, wave.Error):
+        return None
 
 
 def run_vad(audio_bytes: bytes) -> dict[str, Any]:
@@ -140,36 +186,52 @@ def run_whisper(audio_bytes: bytes) -> dict[str, Any]:
     if not command or not model:
         raise RuntimeError("whisper.cpp is not configured")
 
-    with tempfile.TemporaryDirectory(prefix="interview-stt-") as directory:
-        root = Path(directory)
-        audio_path = root / "input.wav"
-        output_prefix = root / "transcript"
-        audio_path.write_bytes(audio_bytes)
-        result = subprocess.run(
-            [
-                command,
-                "-m",
-                model,
-                "-f",
-                str(audio_path),
-                "--output-txt",
-                "--output-file",
-                str(output_prefix),
-                "--no-prints",
-                "--language",
-                language,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
+    started_at = time.perf_counter()
+    audio_duration = wav_duration_seconds(audio_bytes)
+    result_label = "error"
+    transcript_text = ""
+    try:
+        with tempfile.TemporaryDirectory(prefix="interview-stt-") as directory:
+            root = Path(directory)
+            audio_path = root / "input.wav"
+            output_prefix = root / "transcript"
+            audio_path.write_bytes(audio_bytes)
+            result = subprocess.run(
+                [
+                    command,
+                    "-m",
+                    model,
+                    "-f",
+                    str(audio_path),
+                    "--output-txt",
+                    "--output-file",
+                    str(output_prefix),
+                    "--no-prints",
+                    "--language",
+                    language,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+            output_file = output_prefix.with_suffix(".txt")
+            if result.returncode != 0 or not output_file.exists():
+                stderr = (result.stderr or "").strip()[-1000:]
+                raise RuntimeError(f"whisper-cli did not produce transcript output: {stderr or 'no output file'}")
+            transcript_text = output_file.read_text(encoding="utf-8").strip()
+            result_label = "success"
+            return {"text": transcript_text, "isFinal": True, "language": language, "provider": "whisper.cpp"}
+    except subprocess.TimeoutExpired:
+        result_label = "timeout"
+        raise
+    finally:
+        record_whisper_request(
+            result=result_label,
+            processing_duration_seconds=max(0.0, time.perf_counter() - started_at),
+            audio_duration_seconds=audio_duration,
+            empty_transcript=result_label == "success" and not transcript_text,
         )
-        output_file = output_prefix.with_suffix(".txt")
-        if result.returncode != 0 or not output_file.exists():
-            stderr = (result.stderr or "").strip()[-1000:]
-            raise RuntimeError(f"whisper-cli did not produce transcript output: {stderr or 'no output file'}")
-        text = output_file.read_text(encoding="utf-8").strip()
-        return {"text": text, "isFinal": True, "language": language, "provider": "whisper.cpp"}
 
 
 def run_tts(spoken_text: str) -> bytes:
@@ -204,13 +266,16 @@ def run_tts(spoken_text: str) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "interview-media-worker/0.2"
+    server_version = "interview-media-worker/0.3"
 
     def log_message(self, format: str, *args: Any) -> None:
         # Paths/status only; never log request bodies, transcript text, spoken text or credentials.
         super().log_message(format, *args)
 
     def do_GET(self) -> None:
+        if self.path == "/metrics":
+            write_metrics(self)
+            return
         if self.path == "/health":
             components = {"vad": vad_status(), "stt": stt_status(), "tts": tts_status()}
             ready = all(item["ready"] for item in components.values())
@@ -245,6 +310,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/stt/finalize":
                 status = stt_status()
                 if not status["ready"]:
+                    record_whisper_request(result="unavailable", processing_duration_seconds=0, audio_duration_seconds=None)
                     write_json(self, 503, status)
                     return
                 write_json(self, 200, run_whisper(read_body(self, MAX_AUDIO_BYTES)))

@@ -90,3 +90,48 @@ groups:
         annotations:
           summary: Interview realtime media errors are elevated
           description: Five or more realtime media error events were persisted in the last 15 minutes.
+
+      - alert: InterviewRealtimeE2EP95AboveGateF
+        expr: histogram_quantile(0.95, sum by (le) (rate(interview_realtime_turn_duration_seconds_bucket{stage="e2e"}[5m]))) > 1.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Realtime interview E2E p95 is above the current Gate F threshold
+          description: This is an operational signal only; Gate F still requires representative staging benchmark evidence.
+
+      - alert: InterviewWhisperHighErrorRatio
+        expr: (sum(rate(interview_realtime_whisper_requests_total{result=~"error|timeout"}[5m])) / clamp_min(sum(rate(interview_realtime_whisper_requests_total[5m])), 1)) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: whisper.cpp error or timeout ratio is above 5 percent
+          description: Inspect model/runtime capacity, input validity, host saturation, and timeout configuration.
+
+      - alert: InterviewWhisperRealtimeFactorHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(interview_realtime_whisper_realtime_factor_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: whisper.cpp p95 realtime factor is above one
+          description: Speech transcription is processing slower than realtime at p95.
+
+      - alert: InterviewLiveKitControlPlaneErrors
+        expr: sum(rate(interview_realtime_livekit_operations_total{result=~"error|timeout"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: LiveKit control-plane operations are failing
+          description: This rule becomes active only when the LiveKit adapter emits real contract observations.
+
+      - alert: InterviewFFmpegJobFailures
+        expr: sum(rate(interview_realtime_ffmpeg_jobs_total{result=~"error|timeout"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: FFmpeg media jobs are failing
+          description: This rule becomes active only when the FFmpeg runtime emits real contract observations.
