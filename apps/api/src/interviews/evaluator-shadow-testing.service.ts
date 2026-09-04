@@ -760,6 +760,8 @@ async recordFailure(programId: string, body: unknown) {
       visibilityState: "sealed",
       humanOutcomeRecorded: false,
       aiResult: null,
+      execution: null,
+      humanOutcome: null,
       comparison: null,
     };
   }
