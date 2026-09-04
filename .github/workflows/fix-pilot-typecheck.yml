@@ -1,0 +1,48 @@
+name: fix-pilot-typecheck
+
+on:
+  push:
+    branches: [feat/supervised-pilot-controls]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/supervised-pilot-controls
+          fetch-depth: 0
+      - name: Align pilot type contracts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          spec = Path('apps/api/src/interviews/interview-media.providers.spec.ts')
+          text = spec.read_text()
+          old = '    CORS_ORIGIN: "*",\n    DATABASE_URL:'
+          new = '    CORS_ORIGIN: "*",\n    SUPERVISED_PILOT_ENABLED: false,\n    DATABASE_URL:'
+          if old not in text:
+              raise SystemExit('env fixture anchor not found')
+          spec.write_text(text.replace(old, new, 1))
+
+          service = Path('apps/api/src/interviews/supervised-pilot-aware-interviews.service.ts')
+          text = service.read_text()
+          old = '''    if (lifecycleStage !== "SUPERVISED_PILOT" || !realCandidate) {\n      return super.createSession(body);\n    }'''
+          new = '''    if (lifecycleStage !== "SUPERVISED_PILOT" || !realCandidate) {\n      const session = await super.createSession(body);\n      return {\n        ...session,\n        humanReviewRequired: false,\n        aiFinalDecisionProhibited: false,\n      };\n    }'''
+          if old not in text:
+              raise SystemExit('session branch anchor not found')
+          service.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+      - name: Commit patch
+        run: |
+          git add apps/api/src/interviews/interview-media.providers.spec.ts apps/api/src/interviews/supervised-pilot-aware-interviews.service.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(pilot): align session and env type contracts"
+          git push origin HEAD:feat/supervised-pilot-controls
