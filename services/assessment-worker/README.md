@@ -32,13 +32,12 @@ Initial allowlist:
 
 Override images with `ASSESSMENT_NODE_IMAGE` and `ASSESSMENT_PYTHON_IMAGE`. Production images should be pinned by digest and prepared before enabling the worker.
 
-The assessment `runner_policy` supplies hidden deterministic cases:
+The assessment `runner_policy` supplies hidden deterministic cases and per-test sandbox limits:
 
 ```json
 {
   "executionTimeoutMs": 5000,
   "memoryLimitMb": 256,
-  "maxAttempts": 3,
   "cpuLimit": 1,
   "pidsLimit": 64,
   "testCases": [
@@ -46,6 +45,8 @@ The assessment `runner_policy` supplies hidden deterministic cases:
   ]
 }
 ```
+
+Job retry attempts are controlled by the persisted execution-job orchestration, not by `runner_policy`.
 
 Hidden expected outputs are sent only through the internal worker lease endpoint; candidate endpoints do not expose `runner_policy`.
 

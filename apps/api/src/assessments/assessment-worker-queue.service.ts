@@ -360,6 +360,7 @@ export class AssessmentWorkerQueueService {
         RETURNING id::text, state, attempt_count, max_attempts, available_at, completed_at
       `;
       const row = updated[0];
+      if (!row) throw new Error("Assessment job failure update returned no row");
       return {
         jobId: String(row.id),
         state: String(row.state),

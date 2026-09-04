@@ -157,7 +157,12 @@ function runCommand(command, args, { stdin = "", timeoutMs, outputLimitBytes = M
     });
     child.stderr.on("data", (chunk) => {
       stderrBytes += chunk.length;
-      if (stderrBytes <= outputLimitBytes) stderr.push(chunk);
+      if (stderrBytes > outputLimitBytes) {
+        outputExceeded = true;
+        child.kill("SIGKILL");
+        return;
+      }
+      stderr.push(chunk);
     });
     child.once("error", (error) => {
       settled = true;
@@ -252,6 +257,7 @@ export async function executeAssessmentJob(job, options = {}) {
         break;
       }
       if (execution.outputExceeded) {
+        await forceRemoveContainer(runtime, containerName);
         status = "runtime_error";
         details.push({ name: testCase.name, passed: false, status: "output_limit", durationMs });
         break;
