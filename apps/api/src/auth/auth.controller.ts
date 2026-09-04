@@ -46,6 +46,7 @@ function setSessionCookies(response: Response, issued: IssuedSession): void {
     httpOnly: SESSION_POLICY.cookie.httpOnly,
     sameSite: SESSION_POLICY.cookie.sameSite,
     secure: SESSION_POLICY.cookie.secure,
+    priority: SESSION_POLICY.cookie.priority,
     path: "/",
     maxAge: Math.max(0, issued.sessionExpiresAt.getTime() - Date.now()),
   });
@@ -53,6 +54,7 @@ function setSessionCookies(response: Response, issued: IssuedSession): void {
     httpOnly: SESSION_POLICY.cookie.httpOnly,
     sameSite: SESSION_POLICY.cookie.sameSite,
     secure: SESSION_POLICY.cookie.secure,
+    priority: SESSION_POLICY.cookie.priority,
     path: "/auth",
     maxAge: Math.max(0, issued.refreshExpiresAt.getTime() - Date.now()),
   });
