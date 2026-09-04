@@ -16,10 +16,22 @@ from ffmpeg_layer import (  # noqa: E402
     FFmpegJobSpec,
     FFmpegProcessRunner,
     FFmpegWorkspace,
+    ffmpeg_status,
 )
 
 
 class FFmpegLayerTests(unittest.TestCase):
+    def test_readiness_is_fail_closed_when_disabled(self) -> None:
+        status = ffmpeg_status(enabled=False, executable=sys.executable)
+        self.assertFalse(status["ready"])
+        self.assertEqual(status["reason"], "disabled")
+        self.assertEqual(status["contractVersion"], "ffmpeg-integration.v1")
+
+    def test_readiness_accepts_explicit_executable_without_ffmpeg(self) -> None:
+        status = ffmpeg_status(enabled=True, executable=sys.executable)
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["provider"], "ffmpeg")
+
     def test_command_builder_is_shell_free_and_uses_fixed_ingest_profile(self) -> None:
         with FFmpegWorkspace() as workspace:
             source = workspace.write_bytes("input.bin", b"source")
