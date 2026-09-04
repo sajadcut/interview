@@ -1,0 +1,76 @@
+{
+  "version": "whisper-stt.v1",
+  "provider": "whisper.cpp",
+  "basePath": "/stt",
+  "health": {
+    "method": "GET",
+    "path": "/health",
+    "statuses": [200, 503],
+    "requiredFields": [
+      "contractVersion",
+      "provider",
+      "ready",
+      "maxAudioBytes",
+      "supportedContentTypes"
+    ]
+  },
+  "finalize": {
+    "method": "POST",
+    "path": "/finalize",
+    "request": {
+      "contentTypes": ["audio/wav", "audio/x-wav"],
+      "maxBytes": 20971520,
+      "requiredHeaders": [
+        "x-media-worker-secret",
+        "x-stt-contract-version",
+        "x-request-id"
+      ]
+    },
+    "success": {
+      "status": 200,
+      "requiredFields": [
+        "contractVersion",
+        "requestId",
+        "provider",
+        "text",
+        "isFinal",
+        "language"
+      ]
+    }
+  },
+  "errors": [
+    { "code": "invalid_request", "status": 400, "retryable": false },
+    { "code": "unauthorized", "status": 401, "retryable": false },
+    { "code": "forbidden", "status": 403, "retryable": false },
+    { "code": "contract_mismatch", "status": 409, "retryable": false },
+    { "code": "payload_too_large", "status": 413, "retryable": false },
+    { "code": "unsupported_media_type", "status": 415, "retryable": false },
+    { "code": "invalid_audio", "status": 422, "retryable": false },
+    { "code": "rate_limited", "status": 429, "retryable": true },
+    { "code": "worker_error", "status": 500, "retryable": true },
+    { "code": "provider_error", "status": 502, "retryable": true },
+    { "code": "provider_unavailable", "status": 503, "retryable": true },
+    { "code": "provider_timeout", "status": 504, "retryable": true }
+  ],
+  "clientErrors": [
+    { "code": "stt_disabled", "retryable": false },
+    { "code": "not_configured", "retryable": false },
+    { "code": "network_error", "retryable": true },
+    { "code": "client_timeout", "retryable": true },
+    { "code": "invalid_response", "retryable": false },
+    { "code": "unexpected_response", "retryable": false }
+  ],
+  "retry": {
+    "retryableStatuses": [429, 500, 502, 503, 504],
+    "maxAttempts": { "min": 1, "max": 5 },
+    "strategy": "exponential-capped",
+    "retryAfterSupported": true,
+    "maximumDelayMs": 5000
+  },
+  "privacy": {
+    "rawAudioPersistedByApi": false,
+    "rawAudioMustNotBeLogged": true,
+    "transcriptMayContainPersonalData": true,
+    "credentialsMustNotBeReturned": true
+  }
+}

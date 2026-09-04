@@ -16,10 +16,12 @@ import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
 import { LiveKitTransportAdapter } from "./livekit-transport.adapter";
 import { REALTIME_TRANSPORT_ADAPTER } from "./realtime-transport.adapter";
+import { SPEECH_TO_TEXT_ADAPTER } from "./speech-to-text.adapter";
 import { SupervisedPilotAwareInterviewsService } from "./supervised-pilot-aware-interviews.service";
 import { SupervisedPilotController } from "./supervised-pilot.controller";
 import { SupervisedPilotRuntimeGateService } from "./supervised-pilot-runtime-gate.service";
 import { SupervisedPilotService } from "./supervised-pilot.service";
+import { WhisperHttpClient } from "./whisper-http.client";
 
 @Module({
   controllers: [
@@ -42,6 +44,8 @@ import { SupervisedPilotService } from "./supervised-pilot.service";
     EvaluatorShadowTestingService,
     LiveKitTransportAdapter,
     { provide: REALTIME_TRANSPORT_ADAPTER, useExisting: LiveKitTransportAdapter },
+    WhisperHttpClient,
+    { provide: SPEECH_TO_TEXT_ADAPTER, useExisting: WhisperHttpClient },
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -56,6 +60,8 @@ import { SupervisedPilotService } from "./supervised-pilot.service";
     EvaluatorShadowTestingService,
     LiveKitTransportAdapter,
     REALTIME_TRANSPORT_ADAPTER,
+    WhisperHttpClient,
+    SPEECH_TO_TEXT_ADAPTER,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,

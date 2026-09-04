@@ -124,6 +124,9 @@ const envSchema = z
     VAD_BASE_URL: optionalUrl,
     STT_PROVIDER: z.enum(["disabled", "whisper-http"]).default("disabled"),
     STT_BASE_URL: optionalUrl,
+    STT_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(180_000).default(130_000),
+    STT_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+    STT_RETRY_BASE_MS: z.coerce.number().int().min(50).max(5_000).default(250),
     TTS_PROVIDER: z.enum(["disabled", "local-http"]).default("disabled"),
     TTS_BASE_URL: optionalUrl,
     AVATAR_PROVIDER: z.enum(["disabled", "musetalk-http"]).default("disabled"),
@@ -254,45 +257,56 @@ const envSchema = z
 
       const liveKitProtocol = urlProtocol(value.LIVEKIT_URL);
       if (value.LIVEKIT_URL && !["ws:", "wss:"].includes(liveKitProtocol ?? "")) {
-        context.addIssue({
-          code: "custom",
-          path: ["LIVEKIT_URL"],
-          message: "must use ws:// or wss://",
-        });
+        context.addIssue({ code: "custom", path: ["LIVEKIT_URL"], message: "must use ws:// or wss://" });
       }
       const healthProtocol = urlProtocol(value.LIVEKIT_HEALTH_URL);
       if (value.LIVEKIT_HEALTH_URL && !["http:", "https:"].includes(healthProtocol ?? "")) {
-        context.addIssue({
-          code: "custom",
-          path: ["LIVEKIT_HEALTH_URL"],
-          message: "must use http:// or https://",
-        });
+        context.addIssue({ code: "custom", path: ["LIVEKIT_HEALTH_URL"], message: "must use http:// or https://" });
       }
 
       if (value.NODE_ENV === "production") {
         if (liveKitProtocol !== "wss:") {
-          context.addIssue({
-            code: "custom",
-            path: ["LIVEKIT_URL"],
-            message: "production LiveKit transport must use wss://",
-          });
+          context.addIssue({ code: "custom", path: ["LIVEKIT_URL"], message: "production LiveKit transport must use wss://" });
         }
         if (healthProtocol !== "https:") {
-          context.addIssue({
-            code: "custom",
-            path: ["LIVEKIT_HEALTH_URL"],
-            message: "production LiveKit health checks must use https://",
-          });
+          context.addIssue({ code: "custom", path: ["LIVEKIT_HEALTH_URL"], message: "production LiveKit health checks must use https://" });
         }
         const normalizedSecret = value.LIVEKIT_API_SECRET.trim().toLowerCase();
-        if (
-          Buffer.byteLength(value.LIVEKIT_API_SECRET, "utf8") < 32 ||
-          weakDeploymentSecrets.has(normalizedSecret)
-        ) {
+        if (Buffer.byteLength(value.LIVEKIT_API_SECRET, "utf8") < 32 || weakDeploymentSecrets.has(normalizedSecret)) {
           context.addIssue({
             code: "custom",
             path: ["LIVEKIT_API_SECRET"],
             message: "production LiveKit API secret must be at least 32 bytes and not a placeholder",
+          });
+        }
+      }
+    }
+
+    if (value.STT_PROVIDER === "whisper-http") {
+      if (!value.STT_BASE_URL) {
+        context.addIssue({ code: "custom", path: ["STT_BASE_URL"], message: "required when STT_PROVIDER=whisper-http" });
+      }
+      if (!value.MEDIA_WORKER_SHARED_SECRET.trim()) {
+        context.addIssue({
+          code: "custom",
+          path: ["MEDIA_WORKER_SHARED_SECRET"],
+          message: "required when STT_PROVIDER=whisper-http",
+        });
+      }
+      const sttProtocol = urlProtocol(value.STT_BASE_URL);
+      if (value.STT_BASE_URL && !["http:", "https:"].includes(sttProtocol ?? "")) {
+        context.addIssue({ code: "custom", path: ["STT_BASE_URL"], message: "must use http:// or https://" });
+      }
+      if (value.NODE_ENV === "production") {
+        if (sttProtocol !== "https:") {
+          context.addIssue({ code: "custom", path: ["STT_BASE_URL"], message: "production Whisper transport must use https://" });
+        }
+        const mediaSecret = value.MEDIA_WORKER_SHARED_SECRET.trim();
+        if (Buffer.byteLength(mediaSecret, "utf8") < 32 || weakDeploymentSecrets.has(mediaSecret.toLowerCase())) {
+          context.addIssue({
+            code: "custom",
+            path: ["MEDIA_WORKER_SHARED_SECRET"],
+            message: "production media-worker secret must be at least 32 bytes and not a placeholder",
           });
         }
       }

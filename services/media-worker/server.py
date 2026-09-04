@@ -15,8 +15,18 @@ from pathlib import Path
 from typing import Any
 
 from realtime_metrics import REGISTRY, record_whisper_request, refresh_component_readiness
+from whisper_contract import (
+    CONTRACT_VERSION as WHISPER_CONTRACT_VERSION,
+    ERRORS as WHISPER_ERRORS,
+    MAX_AUDIO_BYTES,
+    PROVIDER as WHISPER_PROVIDER,
+    SUPPORTED_AUDIO_CONTENT_TYPES,
+    error_payload as whisper_error_payload,
+    fallback_request_id,
+    normalize_request_id,
+    success_payload as whisper_success_payload,
+)
 
-MAX_AUDIO_BYTES = 20 * 1024 * 1024
 MAX_TTS_TEXT_CHARS = 4000
 
 
@@ -77,15 +87,26 @@ def vad_status() -> dict[str, Any]:
 
 
 def stt_status() -> dict[str, Any]:
+    base = {
+        "contractVersion": WHISPER_CONTRACT_VERSION,
+        "provider": WHISPER_PROVIDER,
+        "maxAudioBytes": MAX_AUDIO_BYTES,
+        "supportedContentTypes": list(SUPPORTED_AUDIO_CONTENT_TYPES),
+    }
     if not worker_secret_ready():
-        return {"ready": False, "provider": "whisper.cpp", "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
+        return {**base, "ready": False, "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
     command = resolve_command(os.getenv("WHISPER_CLI", "whisper-cli"))
     model = os.getenv("WHISPER_MODEL_PATH", "").strip()
     if not command:
-        return {"ready": False, "provider": "whisper.cpp", "reason": "WHISPER_CLI not found"}
+        return {**base, "ready": False, "reason": "WHISPER_CLI not found"}
     if not model or not Path(model).is_file():
-        return {"ready": False, "provider": "whisper.cpp", "reason": "WHISPER_MODEL_PATH is missing or not a file"}
-    return {"ready": True, "provider": "whisper.cpp", "command": Path(command).name, "modelConfigured": True}
+        return {**base, "ready": False, "reason": "WHISPER_MODEL_PATH is missing or not a file"}
+    return {
+        **base,
+        "ready": True,
+        "command": Path(command).name,
+        "modelConfigured": True,
+    }
 
 
 def tts_status() -> dict[str, Any]:
@@ -121,6 +142,22 @@ def write_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> No
     handler.wfile.write(data)
 
 
+def write_stt_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("content-type", "application/json; charset=utf-8")
+    handler.send_header("content-length", str(len(data)))
+    handler.send_header("cache-control", "no-store")
+    handler.send_header("x-stt-contract-version", WHISPER_CONTRACT_VERSION)
+    handler.end_headers()
+    handler.wfile.write(data)
+
+
+def write_stt_error(handler: BaseHTTPRequestHandler, code: str, request_id: str) -> None:
+    status, _retryable, _message = WHISPER_ERRORS[code]
+    write_stt_json(handler, status, whisper_error_payload(code, request_id))
+
+
 def write_metrics(handler: BaseHTTPRequestHandler) -> None:
     refresh_realtime_readiness()
     data = REGISTRY.render().encode("utf-8")
@@ -137,7 +174,7 @@ def read_body(handler: BaseHTTPRequestHandler, maximum: int) -> bytes:
     if length <= 0:
         raise ValueError("request body is required")
     if length > maximum:
-        raise ValueError(f"request body exceeds {maximum} bytes")
+        raise OverflowError("request body exceeds limit")
     body = handler.rfile.read(length)
     if len(body) != length:
         raise ValueError("request body ended before content-length")
@@ -160,6 +197,14 @@ def wav_duration_seconds(audio_bytes: bytes) -> float | None:
             return frame_count / frame_rate
     except (EOFError, wave.Error):
         return None
+
+
+def valid_wav(audio_bytes: bytes) -> bool:
+    try:
+        with wave.open(io.BytesIO(audio_bytes), "rb") as audio:
+            return audio.getnchannels() > 0 and audio.getsampwidth() > 0 and audio.getframerate() > 0
+    except (EOFError, wave.Error):
+        return False
 
 
 def run_vad(audio_bytes: bytes) -> dict[str, Any]:
@@ -217,11 +262,10 @@ def run_whisper(audio_bytes: bytes) -> dict[str, Any]:
             )
             output_file = output_prefix.with_suffix(".txt")
             if result.returncode != 0 or not output_file.exists():
-                stderr = (result.stderr or "").strip()[-1000:]
-                raise RuntimeError(f"whisper-cli did not produce transcript output: {stderr or 'no output file'}")
+                raise RuntimeError("whisper-cli failed to produce transcript output")
             transcript_text = output_file.read_text(encoding="utf-8").strip()
             result_label = "success"
-            return {"text": transcript_text, "isFinal": True, "language": language, "provider": "whisper.cpp"}
+            return {"text": transcript_text, "isFinal": True, "language": language, "provider": WHISPER_PROVIDER}
     except subprocess.TimeoutExpired:
         result_label = "timeout"
         raise
@@ -260,13 +304,12 @@ def run_tts(spoken_text: str) -> bytes:
         ]
         result = subprocess.run(args, capture_output=True, timeout=timeout_seconds, check=False)
         if result.returncode != 0 or not output_wav.is_file() or output_wav.stat().st_size == 0:
-            stderr = (result.stderr or b"").decode("utf-8", errors="replace")[-1000:]
-            raise RuntimeError(f"TTS command did not produce WAV output: {stderr or 'no output file'}")
+            raise RuntimeError("TTS command did not produce WAV output")
         return output_wav.read_bytes()
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "interview-media-worker/0.3"
+    server_version = "interview-media-worker/0.4"
 
     def log_message(self, format: str, *args: Any) -> None:
         # Paths/status only; never log request bodies, transcript text, spoken text or credentials.
@@ -287,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/stt/health":
             status = stt_status()
-            write_json(self, 200 if status["ready"] else 503, status)
+            write_stt_json(self, 200 if status["ready"] else 503, status)
             return
         if self.path == "/tts/health":
             status = tts_status()
@@ -296,6 +339,48 @@ class Handler(BaseHTTPRequestHandler):
         write_json(self, 404, {"error": "Not Found"})
 
     def do_POST(self) -> None:
+        if self.path == "/stt/finalize":
+            request_id = normalize_request_id(self.headers.get("x-request-id")) or fallback_request_id()
+            if not is_authorized(self):
+                write_stt_error(self, "unauthorized", request_id)
+                return
+            if self.headers.get("x-stt-contract-version", "").strip() != WHISPER_CONTRACT_VERSION:
+                write_stt_error(self, "contract_mismatch", request_id)
+                return
+            if normalize_request_id(self.headers.get("x-request-id")) is None:
+                write_stt_error(self, "invalid_request", request_id)
+                return
+            content_type = self.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            if content_type not in SUPPORTED_AUDIO_CONTENT_TYPES:
+                write_stt_error(self, "unsupported_media_type", request_id)
+                return
+            status = stt_status()
+            if not status["ready"]:
+                record_whisper_request(result="unavailable", processing_duration_seconds=0, audio_duration_seconds=None)
+                write_stt_error(self, "provider_unavailable", request_id)
+                return
+            try:
+                audio = read_body(self, MAX_AUDIO_BYTES)
+            except OverflowError:
+                write_stt_error(self, "payload_too_large", request_id)
+                return
+            except ValueError:
+                write_stt_error(self, "invalid_request", request_id)
+                return
+            if not valid_wav(audio):
+                write_stt_error(self, "invalid_audio", request_id)
+                return
+            try:
+                result = run_whisper(audio)
+                write_stt_json(self, 200, whisper_success_payload(request_id, result))
+            except subprocess.TimeoutExpired:
+                write_stt_error(self, "provider_timeout", request_id)
+            except RuntimeError:
+                write_stt_error(self, "provider_error", request_id)
+            except Exception:
+                write_stt_error(self, "worker_error", request_id)
+            return
+
         if not is_authorized(self):
             write_json(self, 401, {"error": "Unauthorized"})
             return
@@ -306,14 +391,6 @@ class Handler(BaseHTTPRequestHandler):
                     write_json(self, 503, status)
                     return
                 write_json(self, 200, run_vad(read_body(self, MAX_AUDIO_BYTES)))
-                return
-            if self.path == "/stt/finalize":
-                status = stt_status()
-                if not status["ready"]:
-                    record_whisper_request(result="unavailable", processing_duration_seconds=0, audio_duration_seconds=None)
-                    write_json(self, 503, status)
-                    return
-                write_json(self, 200, run_whisper(read_body(self, MAX_AUDIO_BYTES)))
                 return
             if self.path == "/tts/synthesize":
                 status = tts_status()
@@ -340,10 +417,12 @@ class Handler(BaseHTTPRequestHandler):
             write_json(self, 400, {"error": "Bad Request", "message": "valid JSON body is required"})
         except ValueError as exc:
             write_json(self, 400, {"error": "Bad Request", "message": str(exc)})
+        except OverflowError:
+            write_json(self, 413, {"error": "Payload Too Large"})
         except subprocess.TimeoutExpired:
             write_json(self, 504, {"error": "Gateway Timeout", "message": "speech provider timed out"})
-        except Exception as exc:
-            write_json(self, 500, {"error": "Worker Error", "message": str(exc)[:1000]})
+        except Exception:
+            write_json(self, 500, {"error": "Worker Error", "message": "media worker request failed"})
 
 
 if __name__ == "__main__":

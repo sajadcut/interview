@@ -7,6 +7,7 @@ import {
 } from "@nestjs/swagger";
 import { DatabaseService } from "../database/database.service";
 import { LiveKitTransportAdapter } from "../interviews/livekit-transport.adapter";
+import { WhisperHttpClient } from "../interviews/whisper-http.client";
 
 @ApiTags("system")
 @Controller("health")
@@ -14,6 +15,7 @@ export class HealthController {
   constructor(
     private readonly database: DatabaseService,
     private readonly liveKitTransport: LiveKitTransportAdapter,
+    private readonly whisper: WhisperHttpClient,
   ) {}
 
   @Get()
@@ -103,6 +105,43 @@ export class HealthController {
       ...deployment,
       reachable: true,
       ready: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  @Get("whisper")
+  @ApiExcludeEndpoint()
+  async whisperReadiness() {
+    const deployment = this.whisper.deploymentStatus();
+    if (!deployment.enabled) {
+      return {
+        status: "disabled" as const,
+        ...deployment,
+        reachable: false,
+        ready: false,
+        reason: "stt_disabled",
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    const readiness = await this.whisper.readiness();
+    if (!readiness.ready) {
+      throw new ServiceUnavailableException({
+        status: "unavailable",
+        ...deployment,
+        reachable: readiness.reachable,
+        ready: false,
+        reason: readiness.reason ?? "unavailable",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return {
+      status: "ready" as const,
+      ...deployment,
+      reachable: true,
+      ready: true,
+      contractVersion: readiness.contractVersion,
       timestamp: new Date().toISOString(),
     };
   }
