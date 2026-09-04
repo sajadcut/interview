@@ -1,20 +1,23 @@
 import { Module } from "@nestjs/common";
+import { CalendarDeliveryService } from "./calendar-delivery.service";
+import { GoogleCalendarProvider, MicrosoftCalendarProvider } from "./calendar.providers";
+import { ConfiguredCalendarProvider } from "./configured-calendar.provider";
 import { ConfiguredEmailProvider } from "./configured-email.provider";
+import { DeliveryAwareEngagementService } from "./delivery-aware-engagement.service";
 import {
   DisabledCalendarProvider,
   DisabledEmailProvider,
 } from "./disabled-engagement.providers";
-import { EmailAwareEngagementService } from "./email-aware-engagement.service";
 import { EmailDeliveryService } from "./email-delivery.service";
-import {
-  CALENDAR_PROVIDER,
-  EMAIL_PROVIDER,
-} from "./engagement-provider.contracts";
 import {
   SendGridEmailProvider,
   SesEmailProvider,
   SmtpEmailProvider,
 } from "./email.providers";
+import {
+  CALENDAR_PROVIDER,
+  EMAIL_PROVIDER,
+} from "./engagement-provider.contracts";
 import { EngagementOperationsController } from "./engagement-operations.controller";
 import { EngagementOperationsService } from "./engagement-operations.service";
 import { EngagementWorkspaceController } from "./engagement-workspace.controller";
@@ -29,25 +32,30 @@ import { EngagementService } from "./engagement.service";
     EngagementWorkspaceController,
   ],
   providers: [
-    EmailAwareEngagementService,
-    { provide: EngagementService, useExisting: EmailAwareEngagementService },
+    DeliveryAwareEngagementService,
+    { provide: EngagementService, useExisting: DeliveryAwareEngagementService },
     EngagementOperationsService,
     EngagementWorkspaceService,
     EmailDeliveryService,
+    CalendarDeliveryService,
     DisabledEmailProvider,
     SmtpEmailProvider,
     SesEmailProvider,
     SendGridEmailProvider,
     ConfiguredEmailProvider,
     DisabledCalendarProvider,
+    GoogleCalendarProvider,
+    MicrosoftCalendarProvider,
+    ConfiguredCalendarProvider,
     { provide: EMAIL_PROVIDER, useExisting: ConfiguredEmailProvider },
-    { provide: CALENDAR_PROVIDER, useExisting: DisabledCalendarProvider },
+    { provide: CALENDAR_PROVIDER, useExisting: ConfiguredCalendarProvider },
   ],
   exports: [
     EngagementService,
     EngagementOperationsService,
     EngagementWorkspaceService,
     EmailDeliveryService,
+    CalendarDeliveryService,
     EMAIL_PROVIDER,
     CALENDAR_PROVIDER,
   ],
