@@ -29,6 +29,7 @@ import {
 import { LoginDto } from "./dto/login.dto";
 import { RequestPasswordResetDto, ResetPasswordDto } from "./dto/password-recovery.dto";
 import { EnterpriseAuthService } from "./enterprise-auth.service";
+import { SensitiveRateLimit } from "./security/sensitive-rate-limit.decorator";
 import { SESSION_POLICY } from "./session-policy";
 import { SessionService, type IssuedSession, type SessionMetadata } from "./session.service";
 
@@ -77,6 +78,7 @@ export class AuthController {
   ) {}
 
   @Post("login")
+  @SensitiveRateLimit("login")
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ description: "Invalid credentials, disabled account, or invalid session state." })
@@ -103,6 +105,7 @@ export class AuthController {
   }
 
   @Post("password-reset/request")
+  @SensitiveRateLimit("passwordResetRequest")
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiAcceptedResponse({ type: PasswordResetRequestResponseDto })
   requestPasswordReset(@Body() payload: RequestPasswordResetDto) {
@@ -110,6 +113,7 @@ export class AuthController {
   }
 
   @Post("password-reset/complete")
+  @SensitiveRateLimit("passwordResetComplete")
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: PasswordResetCompleteResponseDto })
   resetPassword(@Body() payload: ResetPasswordDto) {
@@ -117,6 +121,7 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @SensitiveRateLimit("refresh")
   @HttpCode(HttpStatus.OK)
   @ApiOkResponse({ type: RefreshResponseDto })
   @ApiUnauthorizedResponse({ description: "Refresh token is missing, expired, revoked, or already rotated." })

@@ -27,7 +27,13 @@ async function bootstrap(): Promise<void> {
       "x-user-id",
       "x-request-id",
     ],
-    exposedHeaders: ["x-request-id"],
+    exposedHeaders: [
+      "x-request-id",
+      "retry-after",
+      "x-ratelimit-limit",
+      "x-ratelimit-remaining",
+      "x-ratelimit-reset",
+    ],
     credentials: corsOrigin !== "*",
     maxAge: 600,
   });

@@ -7,6 +7,13 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 
+interface RateLimitResponseShape {
+  retryAfterSeconds?: unknown;
+  limit?: unknown;
+  remaining?: unknown;
+  resetAt?: unknown;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -17,6 +24,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const raw = exception instanceof HttpException ? exception.getResponse() : undefined;
     const message = this.resolveMessage(raw, exception);
+    const rateLimit = status === HttpStatus.TOO_MANY_REQUESTS
+      ? this.resolveRateLimit(raw)
+      : undefined;
+
+    if (rateLimit) {
+      response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+      response.setHeader("X-RateLimit-Limit", String(rateLimit.limit));
+      response.setHeader("X-RateLimit-Remaining", String(rateLimit.remaining));
+      response.setHeader("X-RateLimit-Reset", rateLimit.resetAt);
+    }
 
     // Keep the runtime response aligned with ApiErrorDto/OpenAPI so typed clients can
     // reliably surface actionable backend messages instead of falling back to generic copy.
@@ -25,6 +42,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       statusCode: status,
       error: this.codeFor(status),
+      ...(rateLimit
+        ? {
+            retryAfterSeconds: rateLimit.retryAfterSeconds,
+            limit: rateLimit.limit,
+            remaining: rateLimit.remaining,
+            resetAt: rateLimit.resetAt,
+          }
+        : {}),
     });
   }
 
@@ -41,6 +66,34 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return "An unexpected error occurred";
   }
 
+  private resolveRateLimit(raw: string | object | undefined):
+    | { retryAfterSeconds: number; limit: number; remaining: number; resetAt: string }
+    | undefined {
+    if (!raw || typeof raw !== "object") return undefined;
+    const value = raw as RateLimitResponseShape;
+    const retryAfterSeconds = Number(value.retryAfterSeconds);
+    const limit = Number(value.limit);
+    const remaining = Number(value.remaining);
+    const resetAt = typeof value.resetAt === "string" ? value.resetAt : "";
+    if (
+      !Number.isFinite(retryAfterSeconds) ||
+      retryAfterSeconds < 1 ||
+      !Number.isFinite(limit) ||
+      limit < 1 ||
+      !Number.isFinite(remaining) ||
+      remaining < 0 ||
+      !resetAt
+    ) {
+      return undefined;
+    }
+    return {
+      retryAfterSeconds: Math.ceil(retryAfterSeconds),
+      limit: Math.trunc(limit),
+      remaining: Math.trunc(remaining),
+      resetAt,
+    };
+  }
+
   private codeFor(status: number): string {
     if (status === 400) return "BAD_REQUEST";
     if (status === 401) return "UNAUTHORIZED";
@@ -48,6 +101,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (status === 404) return "NOT_FOUND";
     if (status === 409) return "CONFLICT";
     if (status === 422) return "UNPROCESSABLE_ENTITY";
+    if (status === 429) return "RATE_LIMITED";
     return status >= 500 ? "INTERNAL_ERROR" : `HTTP_${status}`;
   }
 }

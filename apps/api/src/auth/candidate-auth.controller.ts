@@ -35,6 +35,7 @@ import {
 } from "./dto/candidate-auth.dto";
 import { Permissions } from "./permissions";
 import { RequirePermissions } from "./require-permissions.decorator";
+import { SensitiveRateLimit } from "./security/sensitive-rate-limit.decorator";
 import { SESSION_POLICY } from "./session-policy";
 
 function setCandidateCookie(response: Response, issued: IssuedCandidateSession): void {
@@ -64,6 +65,7 @@ export class CandidateAuthController {
   @Post("invitations")
   @RequireTenant()
   @RequirePermissions(Permissions.CandidateContact)
+  @SensitiveRateLimit("candidateInvitation")
   @ApiOkResponse({ type: CandidateInvitationResponseDto })
   @ApiBadRequestResponse({ type: ApiErrorDto })
   createInvitation(@Body() body: CreateCandidateInvitationDto) {
@@ -71,6 +73,7 @@ export class CandidateAuthController {
   }
 
   @Post("magic-link/validate")
+  @SensitiveRateLimit("candidateMagicLink")
   @ApiOkResponse({ type: CandidateMagicLinkValidationDto })
   @ApiUnauthorizedResponse({ type: ApiErrorDto })
   validateMagicLink(@Body() body: ValidateCandidateMagicLinkDto) {
@@ -78,6 +81,7 @@ export class CandidateAuthController {
   }
 
   @Post("otp/verify")
+  @SensitiveRateLimit("candidateOtp")
   @ApiOkResponse({ type: CandidateAuthenticationResponseDto })
   @ApiUnauthorizedResponse({ type: ApiErrorDto })
   async verifyOtp(

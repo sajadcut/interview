@@ -14,6 +14,7 @@ import { EnterpriseAuthService } from "./enterprise-auth.service";
 import { PasswordHasherService } from "./password-hasher.service";
 import { PermissionsGuard } from "./permissions.guard";
 import { AuthRateLimitService } from "./security/auth-rate-limit.service";
+import { SensitiveRateLimitGuard } from "./security/sensitive-rate-limit.guard";
 import { SessionService } from "./session.service";
 import { TenantAccessService } from "./tenant-access.service";
 
@@ -34,6 +35,7 @@ import { TenantAccessService } from "./tenant-access.service";
     TenantAccessService,
     { provide: APP_GUARD, useClass: RequireTenantGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: SensitiveRateLimitGuard },
   ],
   exports: [
     AuthContextService,
