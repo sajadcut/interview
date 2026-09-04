@@ -6,11 +6,13 @@ import { AppModule } from "./app.module";
 import { assertProductionCorsPolicy, buildCorsOrigin } from "./common/http/cors";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
+import { assertProductionSecretPolicy } from "./common/security/secrets";
 import { getEnv } from "./config/env";
 import { buildOpenApiDocument } from "./openapi";
 
 async function bootstrap(): Promise<void> {
   const env = getEnv();
+  assertProductionSecretPolicy(process.env);
   const logger = new JsonLogger();
   const app = await NestFactory.create(AppModule, { logger });
   const corsOrigin = buildCorsOrigin(env.CORS_ORIGIN);
