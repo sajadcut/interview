@@ -22,12 +22,12 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import textwrap
 
           source = Path('.github/workflows/apply-shadow-hardening-v2.yml').read_text().splitlines()
           start = next(i for i, line in enumerate(source) if "python - <<'PY'" in line)
           end = next(i for i in range(start + 1, len(source)) if source[i].strip() == 'PY')
-          code = textwrap.dedent('\n'.join(source[start + 1:end]))
+          lines = source[start + 1:end]
+          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
           exec(compile(code, 'shadow-hardening-v2-embedded.py', 'exec'))
           PY
 
