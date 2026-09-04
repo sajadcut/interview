@@ -78,13 +78,17 @@ jobs:
           for attempt in 1 2 3; do
             audit_log="$(mktemp)"
             set +e
-            npm audit --omit=dev --audit-level=high 2>&1 | tee "$audit_log"
+            timeout --kill-after=5s 45s npm audit --omit=dev --audit-level=high 2>&1 | tee "$audit_log"
             audit_status=${PIPESTATUS[0]}
             set -e
 
             if [ "$audit_status" -eq 0 ]; then
               rm -f "$audit_log"
               exit 0
+            fi
+
+            if [ "$audit_status" -eq 124 ]; then
+              echo "audit network timeout" >> "$audit_log"
             fi
 
             if grep -Eqi 'audit network timeout|audit endpoint returned an error|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND' "$audit_log" && [ "$attempt" -lt 3 ]; then
