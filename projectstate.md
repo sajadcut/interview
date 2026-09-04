@@ -1,6 +1,6 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid), real Calendar providers (Google Calendar / Microsoft 365 Calendar), ATS provider code, external candidate sourcing providers, and the isolated Coding Assessment Sandbox worker are implemented. External credentialed connectivity and real sandbox-host security/runtime validation remain deployment-specific and are not claimed without deployment evidence. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
+> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid), real Calendar providers (Google Calendar / Microsoft 365 Calendar), ATS provider code, external candidate sourcing providers, and the isolated Coding Assessment Sandbox worker are implemented. The Coding Assessment Sandbox code path is CI-validated on Node 25/PostgreSQL including migration, contract drift, lint, typecheck, tests, build and Browser E2E; real hardened sandbox-host security/runtime validation remains deployment-specific and is not claimed without deployment evidence. External credentialed connectivity, real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval remain pending and release-gated by `production-readiness.md`.
 > **Version:** 0.26.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
@@ -46,11 +46,20 @@ Email + Calendar providers
   external production credential smoke test  deployment-specific / pending credentials
 
 Coding Assessment Sandbox worker
+  validated main commit                       b5aafb702e30b34d9ad47380108235ea8f9df8a6
+  quality-gate                                33881153098 / run #509
   boundary                                    independent specialized worker
   execution                                   Docker/Podman container only; no host-process fallback
   initial language allowlist                  JavaScript / Python
-  local dependency-free worker tests          ✅
-  full Node 25 / PostgreSQL / GitHub gate     ASSESSMENT_SANDBOX_VALIDATION_PENDING
+  migration contracts                         ✅
+  PostgreSQL migrations (through 0045)       ✅
+  operational DB indexes                     ✅
+  OpenAPI / typed-client drift               ✅ clean
+  lint                                        ✅
+  typecheck                                   ✅
+  tests incl. assessment-worker tests         ✅
+  build                                       ✅
+  Browser E2E critical flows                  ✅
   real hardened sandbox-host smoke test       deployment-specific / pending
 ```
 
@@ -144,7 +153,7 @@ M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
 M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; realtime runtime and real validation evidence pending
-M5 Assessments                      domain/runner contract + isolated container execution worker implemented; hardened-host smoke/load/security validation pending
+M5 Assessments                      domain/runner contract + isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   materially advanced
 ```
 
@@ -154,7 +163,7 @@ The Email integration has real provider adapters for SMTP, Amazon SES v2 and Sen
 
 The Calendar integration has real Google Calendar and Microsoft 365 Calendar adapters. Google uses service-account JWT OAuth with deterministic custom event IDs for duplicate prevention; Microsoft uses Entra client-credentials OAuth and Graph event `transactionId`. Scheduling confirmation persists a remote provider reference only after event creation succeeds, cancellation removes an existing remote event before local cancellation, provider mismatch/disabled states fail closed for existing remote events, and reserve/cancel attempts are persisted. No deployment credential is committed or claimed as externally smoke-tested.
 
-The Coding Assessment Sandbox is a separate specialized worker under `services/assessment-worker`. The core API persists/leases jobs and results but never executes candidate source code. The worker supports an initial JavaScript/Python allowlist and executes hidden deterministic test cases only inside Docker/Podman containers with network disabled, read-only root/source filesystems, dropped capabilities, `no-new-privileges`, non-root execution, CPU/memory/PID/output/time bounds, pre-pulled images, lease heartbeats, bounded retries and stale-lease rejection. There is deliberately no direct host-process fallback. Production activation still requires a dedicated hardened Linux worker host, rootless runtime where practical, digest-pinned images, and real isolation/smoke/load evidence.
+The Coding Assessment Sandbox is a separate specialized worker under `services/assessment-worker`. The core API persists/leases jobs and results but never executes candidate source code. The worker supports an initial JavaScript/Python allowlist and executes hidden deterministic test cases only inside Docker/Podman containers with network disabled, read-only root/source filesystems, dropped capabilities, `no-new-privileges`, non-root execution, CPU/memory/PID/output/time bounds, pre-pulled images, lease heartbeats, bounded retries and stale-lease rejection. There is deliberately no direct host-process fallback. The code path has passed the repository quality gate; production activation still requires a dedicated hardened Linux worker host, rootless runtime where practical, digest-pinned images, and real isolation/smoke/load evidence.
 
 The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. It validates rubric criteria and persisted evidence, requires candidate-grounded finalized transcript evidence, computes conservative confidence, refuses unsupported scoring, persists provenance/idempotency state, and delegates deterministic final score computation to the domain score engine. Human review remains mandatory.
 
@@ -180,7 +189,7 @@ The isolated assessment execution worker is implemented independently from realt
 
 # 8. Repository governance
 
-The code-level quality gate is complete and green for previously validated milestones. The Coding Assessment Sandbox change remains `ASSESSMENT_SANDBOX_VALIDATION_PENDING` until its `main` commit passes the same deterministic GitHub Actions quality gate and a real hardened sandbox host is separately smoke-tested for deployment readiness.
+The Coding Assessment Sandbox implementation is code-level validated on `main`: quality-gate run #509 passed migration contracts, PostgreSQL migration/application checks, generated OpenAPI/client drift checks, lint, typecheck, tests, build and critical Browser E2E. Deployment readiness for arbitrary candidate code still separately requires real hardened-host isolation, smoke/load/abuse evidence and pinned-image provenance.
 
 The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
 
