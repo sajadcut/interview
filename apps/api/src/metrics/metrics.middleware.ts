@@ -8,15 +8,18 @@ export class MetricsMiddleware implements NestMiddleware {
 
   use(request: Request, response: Response, next: NextFunction): void {
     const startedAt = process.hrtime.bigint();
-    response.once("finish", () => {
+    this.metrics.beginRequest();
+    let completed = false;
+    const finalize = (): void => {
+      if (completed) return;
+      completed = true;
+      this.metrics.endRequest();
       const elapsedNs = process.hrtime.bigint() - startedAt;
-      this.metrics.record(
-        request.method,
-        request.route?.path ? String(request.route.path) : request.path,
-        response.statusCode,
-        Number(elapsedNs) / 1_000_000,
-      );
-    });
+      const route = request.route?.path ? String(request.route.path) : "__unmatched__";
+      this.metrics.record(request.method, route, response.statusCode, Number(elapsedNs) / 1_000_000);
+    };
+    response.once("finish", finalize);
+    response.once("close", finalize);
     next();
   }
 }

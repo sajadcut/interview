@@ -1,16 +1,17 @@
 import { Controller, Get, Header } from "@nestjs/common";
 import { ApiExcludeEndpoint, ApiTags } from "@nestjs/swagger";
-import { MetricsService } from "./metrics.service";
+import { OperationalMetricsService } from "./operational-metrics.service";
 
 @ApiTags("system")
 @Controller()
 export class MetricsController {
-  constructor(private readonly metrics: MetricsService) {}
+  constructor(private readonly metrics: OperationalMetricsService) {}
 
   @Get("metrics")
   @Header("content-type", "text/plain; version=0.0.4; charset=utf-8")
+  @Header("cache-control", "no-store")
   @ApiExcludeEndpoint()
-  metricsText(): string {
+  async metricsText(): Promise<string> {
     return this.metrics.renderPrometheus();
   }
 }

@@ -1,0 +1,92 @@
+groups:
+  - name: interview-platform
+    rules:
+      - alert: InterviewMetricsCollectionFailed
+        expr: interview_metrics_collection_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Interview operational metrics collection is failing
+          description: The API cannot build the PostgreSQL-backed monitoring snapshot.
+
+      - alert: InterviewDatabaseUnavailable
+        expr: interview_db_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Interview PostgreSQL is unavailable to the API metrics collector
+          description: Database-backed queue, worker, and interview lifecycle metrics are unavailable.
+
+      - alert: InterviewApiHigh5xxRatio
+        expr: (sum(rate(interview_http_request_errors_total[5m])) / clamp_min(sum(rate(interview_http_requests_total[5m])), 1)) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview API 5xx ratio is above 5 percent
+          description: Investigate recent deploys, database saturation, and dependency failures.
+
+      - alert: InterviewApiHighP95Latency
+        expr: histogram_quantile(0.95, sum by (le) (rate(interview_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview API p95 latency is above one second
+          description: Inspect route-level latency, database load, and queue/dependency pressure.
+
+      - alert: InterviewQueueBacklogOld
+        expr: interview_queue_oldest_ready_age_seconds > 300 and on(queue) interview_queue_ready_jobs > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview worker queue contains jobs ready for more than five minutes
+          description: Check worker capacity, lease churn, retry causes, and downstream dependencies.
+
+      - alert: InterviewQueueExpiredLeases
+        expr: interview_queue_expired_leases > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview worker queue has expired leases
+          description: A worker may have crashed, stalled, or exceeded its execution lease.
+
+      - alert: InterviewQueueReadyWithoutActiveWorker
+        expr: interview_queue_ready_jobs > 0 and on(queue) interview_worker_active_instances == 0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: Ready Interview jobs have no worker currently holding a lease
+          description: Verify the corresponding worker deployment is polling and able to claim jobs.
+
+      - alert: InterviewLifecycleStalledSessions
+        expr: interview_lifecycle_stalled_sessions > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview sessions remain started and incomplete for over two hours
+          description: Review session state transitions, realtime connectivity, and recovery handling.
+
+      - alert: InterviewRealtimeStaleMediaSessions
+        expr: interview_lifecycle_stale_media_sessions > 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: Connected Interview media sessions have stale heartbeats
+          description: Inspect LiveKit/media-worker health and realtime connectivity before admitting more production interviews.
+
+      - alert: InterviewRealtimeErrorBurst
+        expr: interview_lifecycle_media_errors_15m >= 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Interview realtime media errors are elevated
+          description: Five or more realtime media error events were persisted in the last 15 minutes.

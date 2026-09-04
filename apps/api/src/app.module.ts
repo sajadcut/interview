@@ -17,6 +17,7 @@ import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { MetricsController } from "./metrics/metrics.controller";
 import { MetricsMiddleware } from "./metrics/metrics.middleware";
 import { MetricsService } from "./metrics/metrics.service";
+import { OperationalMetricsService } from "./metrics/operational-metrics.service";
 import { ProductOperationsModule } from "./operations/product-operations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
@@ -48,7 +49,7 @@ import { TenantModule } from "./tenant/tenant.module";
     MaintenanceModule,
   ],
   controllers: [AppController, HealthController, MetricsController],
-  providers: [MetricsService, MetricsMiddleware],
+  providers: [MetricsService, OperationalMetricsService, MetricsMiddleware],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
