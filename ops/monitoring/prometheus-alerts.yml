@@ -55,7 +55,7 @@ groups:
 
       - alert: InterviewDatabaseIdleInTransaction
         expr: >-
-          interview_db_connections{state="idle in transaction"} > 0
+          interview_db_connections{state="idle_in_transaction"} > 0
         for: 10m
         labels:
           severity: warning
