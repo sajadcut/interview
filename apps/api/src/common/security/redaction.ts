@@ -43,7 +43,6 @@ function truncate(value: string): string {
 
 export function redactSensitiveString(input: string): string {
   let value = input;
-  value = value.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{6,}/gi, "$1 [REDACTED]");
   value = value.replace(
     /([?&](?:access_token|refresh_token|token|password|passphrase|secret|api_key|apikey|otp)=)([^&#\s]+)/gi,
     "$1[REDACTED]",
@@ -53,9 +52,14 @@ export function redactSensitiveString(input: string): string {
     "$1=[REDACTED]",
   );
   value = value.replace(
-    /\b(password|passphrase|secret|token|authorization|cookie|credential|api[_-]?key|client[_-]?secret|private[_-]?key|otp)\s*[:=]\s*([^\s,;]+)/gi,
+    /\b(authorization)\s*[:=]\s*((?:Bearer|Basic)\s+)?([^\s,;&]+)/gi,
+    "$1=$2[REDACTED]",
+  );
+  value = value.replace(
+    /\b(password|passphrase|secret|token|cookie|credential|api[_-]?key|client[_-]?secret|private[_-]?key|otp)\s*[:=]\s*([^\s,;&]+)/gi,
     "$1=[REDACTED]",
   );
+  value = value.replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{6,}/gi, "$1 [REDACTED]");
   return truncate(value);
 }
 
