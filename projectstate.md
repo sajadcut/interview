@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid) and real Calendar providers (Google Calendar / Microsoft 365 Calendar) are implemented; external credentialed connectivity remains deployment-specific and is not claimed without deployment secrets. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
-> **Version:** 0.25.0
+> **Status:** Core Product Closure is implementation-complete and validation-complete. The evidence-backed AI Evaluator core, evaluator Calibration Framework, and non-influencing Shadow Testing Framework are code-complete and CI-validated. Real outbound Email providers (SMTP / Amazon SES / SendGrid), real Calendar providers (Google Calendar / Microsoft 365 Calendar), ATS provider code, external candidate sourcing providers, and the isolated Coding Assessment Sandbox worker are implemented. External credentialed connectivity and real sandbox-host security/runtime validation remain deployment-specific and are not claimed without deployment evidence. Real calibration datasets, qualified-human adjudication evidence, real shadow evidence, supervised pilot evidence, and production approval are still pending and remain release-gated by `production-readiness.md`.
+> **Version:** 0.26.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -44,6 +44,14 @@ Email + Calendar providers
   pull request                                #9
   providers                                   SMTP / SES / SendGrid / Google / Microsoft
   external production credential smoke test  deployment-specific / pending credentials
+
+Coding Assessment Sandbox worker
+  boundary                                    independent specialized worker
+  execution                                   Docker/Podman container only; no host-process fallback
+  initial language allowlist                  JavaScript / Python
+  local dependency-free worker tests          ✅
+  full Node 25 / PostgreSQL / GitHub gate     ASSESSMENT_SANDBOX_VALIDATION_PENDING
+  real hardened sandbox-host smoke test       deployment-specific / pending
 ```
 
 The quality gate is read-only with respect to source/generated artifacts. It does not delete or regenerate the dependency lockfile as part of installation and does not commit generated files back to `main`. Generated OpenAPI/client drift fails the gate and must be committed explicitly before a change is considered closure-ready.
@@ -100,7 +108,7 @@ Consequential hiring decisions remain human-controlled and score/evidence bounda
 
 # 4. Database and migration operations
 
-The current schema contains append-only migrations through `0043_calendar_provider_operations.sql`, including supervised-pilot control-plane persistence, Shadow v2 integrity/telemetry hardening, and calendar-provider operation-attempt persistence. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
+The current schema contains append-only migrations through `0045_assessment_worker_runtime.sql`, including supervised-pilot control-plane persistence, Shadow v2 integrity/telemetry hardening, calendar-provider operation-attempt persistence, ATS Greenhouse/Lever persistence, and durable lease/retry state for isolated assessment execution. The migration runner uses checksum tracking, an advisory lock and transactional migration application. `docs/database-migration-runbook.md` defines the rollback strategy:
 
 ```text
 expand/contract schema changes
@@ -125,7 +133,7 @@ packages/api-client/src/generated/schema.ts
 
 CI regenerates both and requires zero diff against committed artifacts. `package-lock.json` is independently canonical and consumed by `npm ci`.
 
-The full Calibration and Shadow Testing Framework APIs are intentionally internal and permission-guarded while evaluation governance and real evidence are being established. Existing public product contracts remain compatible; internal framework routes are excluded from public OpenAPI until those boundaries are intentionally promoted.
+The full Calibration and Shadow Testing Framework APIs are intentionally internal and permission-guarded while evaluation governance and real evidence are being established. The Assessment Sandbox lease API is also internal and excluded from public OpenAPI; it uses a dedicated shared-secret worker boundary and never grants candidate code an API credential. Existing public product contracts remain compatible until internal boundaries are intentionally promoted.
 
 ---
 
@@ -133,10 +141,10 @@ The full Calibration and Shadow Testing Framework APIs are intentionally interna
 
 ```text
 M1 Job → Candidate → Evidence        materially implemented
-M2 Sourcing + Talent                provider-neutral architecture + internal source implemented; external providers plug-in
+M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
 M4 Interview Brain/Evaluator        brain + evidence-backed evaluator + calibration + shadow frameworks implemented; realtime runtime and real validation evidence pending
-M5 Assessments                      domain/runner contract implemented; isolated execution worker pending
+M5 Assessments                      domain/runner contract + isolated container execution worker implemented; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   materially advanced
 ```
 
@@ -146,32 +154,34 @@ The Email integration has real provider adapters for SMTP, Amazon SES v2 and Sen
 
 The Calendar integration has real Google Calendar and Microsoft 365 Calendar adapters. Google uses service-account JWT OAuth with deterministic custom event IDs for duplicate prevention; Microsoft uses Entra client-credentials OAuth and Graph event `transactionId`. Scheduling confirmation persists a remote provider reference only after event creation succeeds, cancellation removes an existing remote event before local cancellation, provider mismatch/disabled states fail closed for existing remote events, and reserve/cancel attempts are persisted. No deployment credential is committed or claimed as externally smoke-tested.
 
+The Coding Assessment Sandbox is a separate specialized worker under `services/assessment-worker`. The core API persists/leases jobs and results but never executes candidate source code. The worker supports an initial JavaScript/Python allowlist and executes hidden deterministic test cases only inside Docker/Podman containers with network disabled, read-only root/source filesystems, dropped capabilities, `no-new-privileges`, non-root execution, CPU/memory/PID/output/time bounds, pre-pulled images, lease heartbeats, bounded retries and stale-lease rejection. There is deliberately no direct host-process fallback. Production activation still requires a dedicated hardened Linux worker host, rootless runtime where practical, digest-pinned images, and real isolation/smoke/load evidence.
+
 The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. It validates rubric criteria and persisted evidence, requires candidate-grounded finalized transcript evidence, computes conservative confidence, refuses unsupported scoring, persists provenance/idempotency state, and delegates deterministic final score computation to the domain score engine. Human review remains mandatory.
 
 The Calibration Framework provides versioned datasets, qualified-human references, criterion/overall agreement metrics, false-reject/false-promotion analysis, confidence calibration, slices, immutable comparison provenance and dataset-specific gates.
 
 The Shadow Testing Framework provides release-unit-scoped programs, prospective blind evaluation, sealed AI results, independent human outcomes, failure/latency telemetry, disagreement/root-cause queues, aggregate agreement metrics and PostgreSQL isolation proving Shadow does not mutate consequential scorecards or pipeline state.
 
-No real candidate calibration corpus, real shadow corpus, or production acceptance evidence is claimed by these implementations.
+No real candidate calibration corpus, real shadow corpus, hardened production assessment sandbox evidence, or production acceptance evidence is claimed by these implementations.
 
 ---
 
 # 7. Production-readiness boundary
 
-Core Product Closure, provider integrations, the AI Evaluator implementation, Calibration Framework, and Shadow Testing Framework being green do **not** approve autonomous real-candidate interviewing.
+Core Product Closure, provider integrations, the AI Evaluator implementation, Calibration Framework, Shadow Testing Framework, and Assessment Sandbox code being green do **not** approve autonomous real-candidate interviewing.
 
 The framework needed to collect and compare qualified-human and AI evaluation evidence is implemented. Gate H remains evidence-pending until representative real calibration data is collected and adjudicated. The SHADOW lifecycle now has a code-complete evidence-capture/comparison framework, but the real Shadow stage is not complete until representative real interviews have produced sealed AI outputs, independent qualified-human outcomes, disagreement/root-cause evidence, and accepted aggregate metrics. Neither a calibration result nor a shadow-program gate has production-release authority by itself.
 
 LiveKit/FFmpeg/whisper.cpp runtime validation, speech/realtime benchmarks, real evaluator calibration evidence, real shadow evidence, supervised pilot evidence, and production approval remain governed by `production-readiness.md`.
 
-ATS/job-board/external sourcing providers, the isolated assessment execution worker, and realtime media/speech runtime are separate milestones. Email and calendar provider code is implemented, but actual third-party account connectivity still requires deployment credentials and provider-side permissions/configuration.
+The isolated assessment execution worker is implemented independently from realtime/media/AI workers, but hardened production-host validation, container isolation evidence, pinned-image provenance and load/abuse testing remain required before treating arbitrary candidate code execution as production-ready. Email/calendar/ATS/sourcing provider code is implemented, but actual third-party account connectivity still requires deployment credentials and provider-side permissions/configuration.
 
 ---
 
 # 8. Repository governance
 
-The code-level quality gate is complete and green for previously merged milestones. This provider change is considered complete only after PR #9's latest head passes the same deterministic gate and is merged.
+The code-level quality gate is complete and green for previously validated milestones. The Coding Assessment Sandbox change remains `ASSESSMENT_SANDBOX_VALIDATION_PENDING` until its `main` commit passes the same deterministic GitHub Actions quality gate and a real hardened sandbox host is separately smoke-tested for deployment readiness.
 
 The current development model permits direct maintenance on `main`, so GitHub branch protection is treated as optional governance hardening rather than a Core Closure requirement.
 
-The enforced source-level protections are the deterministic `quality-gate` workflow, committed dependency lockfile, generated-contract drift check, migration/index verification, typed-client usage guard, lint, typecheck, full test suite, production build, deterministic browser fixtures, and critical Browser E2E flows. If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
+The enforced source-level protections are the deterministic `quality-gate` workflow, committed dependency lockfile, generated-contract drift check, migration/index verification, typed-client usage guard, lint, typecheck, full test suite (including the dependency-free assessment-worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows. If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
