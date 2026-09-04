@@ -4,6 +4,7 @@ import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
+import { CalendarDeliveryService } from "./calendar-delivery.service";
 import { EmailDeliveryService } from "./email-delivery.service";
 import {
   ApproveKnowledgeItemDto,
@@ -25,6 +26,7 @@ export class EngagementOperationsController {
   constructor(
     private readonly operations: EngagementOperationsService,
     private readonly emailDelivery: EmailDeliveryService,
+    private readonly calendarDelivery: CalendarDeliveryService,
   ) {}
 
   @Get("knowledge")
@@ -104,7 +106,7 @@ export class EngagementOperationsController {
   @RequirePermissions(Permissions.SchedulingManage)
   @AuditedAction("scheduling.request.cancel", "scheduling_request")
   cancelScheduling(@Param("requestId") requestId: string, @Body() body: CancelSchedulingDto) {
-    return this.operations.cancelScheduling(requestId, body);
+    return this.calendarDelivery.cancelScheduling(requestId, body.reason);
   }
 
   @Get("notifications")
