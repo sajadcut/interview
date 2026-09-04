@@ -30,14 +30,14 @@ export interface CandidateSourceResult {
   sourceExternalKey?: string;
   candidateId?: string;
   displayName: string;
-  currentRole?: string;
-  currentCompany?: string;
+  currentRole?: string | undefined;
+  currentCompany?: string | undefined;
   skills: string[];
   retrievalScore: number;
   evidenceSummary: string[];
   normalizedIdentity?: {
-    email?: string;
-    phone?: string;
+    email?: string | undefined;
+    phone?: string | undefined;
   };
   provenance: CandidateSourceProvenance;
 }

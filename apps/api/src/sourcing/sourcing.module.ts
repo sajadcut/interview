@@ -1,6 +1,12 @@
 import { Module } from "@nestjs/common";
+import { AtsConnectionService } from "./ats-connection.service";
+import { AtsIntegrationController } from "./ats-integration.controller";
+import { AtsIntegrationService } from "./ats-integration.service";
 import { CandidateSourceRegistry } from "./candidate-source.registry";
+import { ConfiguredAtsSourceAdapter } from "./configured-ats-source.adapter";
+import { GreenhouseAtsProvider } from "./greenhouse-ats.provider";
 import { InternalTalentPoolAdapter } from "./internal-talent-pool.adapter";
+import { LeverAtsProvider } from "./lever-ats.provider";
 import { SourcingController } from "./sourcing.controller";
 import { SourcingImportExportController } from "./sourcing-import-export.controller";
 import { SourcingImportExportService } from "./sourcing-import-export.service";
@@ -9,16 +15,27 @@ import { TalentOperationsController } from "./talent-operations.controller";
 import { TalentOperationsService } from "./talent-operations.service";
 
 @Module({
-  controllers: [SourcingController, SourcingImportExportController, TalentOperationsController],
+  controllers: [
+    SourcingController,
+    AtsIntegrationController,
+    SourcingImportExportController,
+    TalentOperationsController,
+  ],
   providers: [
     InternalTalentPoolAdapter,
+    AtsConnectionService,
+    GreenhouseAtsProvider,
+    LeverAtsProvider,
+    ConfiguredAtsSourceAdapter,
     CandidateSourceRegistry,
+    AtsIntegrationService,
     SourcingService,
     SourcingImportExportService,
     TalentOperationsService,
   ],
   exports: [
     SourcingService,
+    AtsIntegrationService,
     SourcingImportExportService,
     TalentOperationsService,
     CandidateSourceRegistry,

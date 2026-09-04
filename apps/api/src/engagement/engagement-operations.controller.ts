@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiExcludeEndpoint, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
+import { CalendarDeliveryService } from "./calendar-delivery.service";
+import { EmailDeliveryService } from "./email-delivery.service";
 import {
   ApproveKnowledgeItemDto,
   ApproveOutboundMessageDto,
@@ -21,7 +23,11 @@ import { EngagementOperationsService } from "./engagement-operations.service";
 @Controller("v1")
 @RequireTenant()
 export class EngagementOperationsController {
-  constructor(private readonly operations: EngagementOperationsService) {}
+  constructor(
+    private readonly operations: EngagementOperationsService,
+    private readonly emailDelivery: EmailDeliveryService,
+    private readonly calendarDelivery: CalendarDeliveryService,
+  ) {}
 
   @Get("knowledge")
   @RequirePermissions(Permissions.CandidateRead)
@@ -63,11 +69,24 @@ export class EngagementOperationsController {
   @Post("messages/:messageId/approve-send")
   @RequirePermissions(Permissions.CandidateContact)
   @AuditedAction("candidate.message.outbound.approve", "message")
-  approveOutboundMessage(
+  async approveOutboundMessage(
     @Param("messageId") messageId: string,
     @Body() body: ApproveOutboundMessageDto,
   ) {
-    return this.operations.approveOutboundMessage(messageId, body);
+    const approved = await this.operations.approveOutboundMessage(messageId, body);
+    if (body.providerReference || !this.emailDelivery.readiness().configured) return approved;
+    return {
+      ...approved,
+      delivery: await this.emailDelivery.sendApprovedMessage(messageId),
+    };
+  }
+
+  @Post("messages/:messageId/send")
+  @ApiExcludeEndpoint()
+  @RequirePermissions(Permissions.CandidateContact)
+  @AuditedAction("candidate.message.outbound.send", "message")
+  sendApprovedMessage(@Param("messageId") messageId: string) {
+    return this.emailDelivery.sendApprovedMessage(messageId);
   }
 
   @Get("applications/:applicationId/screening/sessions")
@@ -87,7 +106,7 @@ export class EngagementOperationsController {
   @RequirePermissions(Permissions.SchedulingManage)
   @AuditedAction("scheduling.request.cancel", "scheduling_request")
   cancelScheduling(@Param("requestId") requestId: string, @Body() body: CancelSchedulingDto) {
-    return this.operations.cancelScheduling(requestId, body);
+    return this.calendarDelivery.cancelScheduling(requestId, body.reason);
   }
 
   @Get("notifications")
@@ -101,6 +120,14 @@ export class EngagementOperationsController {
   @AuditedAction("notification.create", "notification")
   createNotification(@Body() body: CreateNotificationDto) {
     return this.operations.createNotification(body);
+  }
+
+  @Post("notifications/:notificationId/send")
+  @ApiExcludeEndpoint()
+  @RequirePermissions(Permissions.CandidateContact)
+  @AuditedAction("notification.email.send", "notification")
+  sendNotification(@Param("notificationId") notificationId: string) {
+    return this.emailDelivery.sendNotification(notificationId);
   }
 
   @Post("notifications/:notificationId/delivery")
