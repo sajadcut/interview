@@ -26,6 +26,7 @@ export function buildMediaProviderDescriptors(env: AppEnv): MediaProviderDescrip
   const livekitConfigured =
     env.MEDIA_TRANSPORT_PROVIDER === "livekit" &&
     Boolean(env.LIVEKIT_URL) &&
+    Boolean(env.LIVEKIT_HEALTH_URL) &&
     Boolean(env.LIVEKIT_API_KEY) &&
     Boolean(env.LIVEKIT_API_SECRET);
 
@@ -40,7 +41,7 @@ export function buildMediaProviderDescriptors(env: AppEnv): MediaProviderDescrip
           ? "transport provider is disabled"
           : livekitConfigured
             ? undefined
-            : "LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are required",
+            : "LIVEKIT_URL, LIVEKIT_HEALTH_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are required",
     },
     {
       component: "vad",

@@ -32,6 +32,25 @@ function booleanEnvironmentFlag(defaultValue: "true" | "false") {
 const booleanFlag = booleanEnvironmentFlag("false");
 const trueBooleanFlag = booleanEnvironmentFlag("true");
 const emailAddress = z.string().email();
+const weakDeploymentSecrets = new Set([
+  "changeme",
+  "change_me",
+  "replace_me",
+  "replace-me",
+  "example",
+  "secret",
+  "password",
+  "livekit-secret",
+]);
+
+function urlProtocol(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).protocol;
+  } catch {
+    return null;
+  }
+}
 
 const envSchema = z
   .object({
@@ -215,6 +234,69 @@ const envSchema = z
         });
       }
     }
+
+    if (value.MEDIA_TRANSPORT_PROVIDER === "livekit") {
+      const requiredLiveKitValues: Array<["LIVEKIT_URL" | "LIVEKIT_HEALTH_URL" | "LIVEKIT_API_KEY" | "LIVEKIT_API_SECRET", string | undefined]> = [
+        ["LIVEKIT_URL", value.LIVEKIT_URL],
+        ["LIVEKIT_HEALTH_URL", value.LIVEKIT_HEALTH_URL],
+        ["LIVEKIT_API_KEY", value.LIVEKIT_API_KEY],
+        ["LIVEKIT_API_SECRET", value.LIVEKIT_API_SECRET],
+      ];
+      for (const [field, configuredValue] of requiredLiveKitValues) {
+        if (!configuredValue?.trim()) {
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: `required when MEDIA_TRANSPORT_PROVIDER=livekit`,
+          });
+        }
+      }
+
+      const liveKitProtocol = urlProtocol(value.LIVEKIT_URL);
+      if (value.LIVEKIT_URL && !["ws:", "wss:"].includes(liveKitProtocol ?? "")) {
+        context.addIssue({
+          code: "custom",
+          path: ["LIVEKIT_URL"],
+          message: "must use ws:// or wss://",
+        });
+      }
+      const healthProtocol = urlProtocol(value.LIVEKIT_HEALTH_URL);
+      if (value.LIVEKIT_HEALTH_URL && !["http:", "https:"].includes(healthProtocol ?? "")) {
+        context.addIssue({
+          code: "custom",
+          path: ["LIVEKIT_HEALTH_URL"],
+          message: "must use http:// or https://",
+        });
+      }
+
+      if (value.NODE_ENV === "production") {
+        if (liveKitProtocol !== "wss:") {
+          context.addIssue({
+            code: "custom",
+            path: ["LIVEKIT_URL"],
+            message: "production LiveKit transport must use wss://",
+          });
+        }
+        if (healthProtocol !== "https:") {
+          context.addIssue({
+            code: "custom",
+            path: ["LIVEKIT_HEALTH_URL"],
+            message: "production LiveKit health checks must use https://",
+          });
+        }
+        const normalizedSecret = value.LIVEKIT_API_SECRET.trim().toLowerCase();
+        if (
+          Buffer.byteLength(value.LIVEKIT_API_SECRET, "utf8") < 32 ||
+          weakDeploymentSecrets.has(normalizedSecret)
+        ) {
+          context.addIssue({
+            code: "custom",
+            path: ["LIVEKIT_API_SECRET"],
+            message: "production LiveKit API secret must be at least 32 bytes and not a placeholder",
+          });
+        }
+      }
+    }
   });
 
 export type AppEnv = z.infer<typeof envSchema>;
@@ -233,4 +315,8 @@ export function getEnv(): AppEnv {
     cached = parsed.data;
   }
   return cached;
+}
+
+export function resetEnvCacheForTests(): void {
+  cached = undefined;
 }

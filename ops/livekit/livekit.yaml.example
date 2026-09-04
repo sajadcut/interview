@@ -1,0 +1,31 @@
+# TEMPLATE ONLY. Render secrets at deployment time; never commit a populated copy.
+# Reference: https://docs.livekit.io/transport/self-hosting/deployment/
+
+port: 7880
+log_level: info
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+
+# Redis is recommended for production and required for distributed multi-node deployments.
+# Keep credentials outside this repository and render this block from the deployment secret store.
+# redis:
+#   address: redis.internal:6379
+#   username: livekit
+#   password: REPLACE_AT_DEPLOYMENT
+
+# Replace both values from the same secret source used for LIVEKIT_API_KEY/LIVEKIT_API_SECRET.
+keys:
+  REPLACE_WITH_LIVEKIT_API_KEY: REPLACE_WITH_LIVEKIT_API_SECRET
+
+# LiveKit can expose native Prometheus metrics separately from the Interview API/media-worker metrics.
+prometheus_port: 6789
+
+turn:
+  enabled: true
+  domain: turn.example.com
+  tls_port: 5349
+  udp_port: 3478

@@ -17,6 +17,13 @@ export interface RealtimeTransportCredential {
   participantKey: string;
   accessToken: string;
   expiresAt: string;
+  permissions: {
+    roomJoin: true;
+    canPublish: true;
+    canSubscribe: true;
+    canPublishData: false;
+    canPublishSources: ["camera", "microphone"];
+  };
 }
 
 export interface RealtimeTransportAdapter {

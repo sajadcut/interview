@@ -1,11 +1,20 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
-import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from "@nestjs/swagger";
+import {
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+} from "@nestjs/swagger";
 import { DatabaseService } from "../database/database.service";
+import { LiveKitTransportAdapter } from "../interviews/livekit-transport.adapter";
 
 @ApiTags("system")
 @Controller("health")
 export class HealthController {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly liveKitTransport: LiveKitTransportAdapter,
+  ) {}
 
   @Get()
   @ApiOkResponse({
@@ -60,5 +69,41 @@ export class HealthController {
     } catch {
       throw new ServiceUnavailableException("Database readiness check failed");
     }
+  }
+
+  @Get("livekit")
+  @ApiExcludeEndpoint()
+  async liveKitReadiness() {
+    const deployment = this.liveKitTransport.deploymentStatus();
+    if (!deployment.enabled) {
+      return {
+        status: "disabled" as const,
+        ...deployment,
+        reachable: false,
+        ready: false,
+        reason: "transport_disabled",
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    const readiness = await this.liveKitTransport.readiness();
+    if (!readiness.ready) {
+      throw new ServiceUnavailableException({
+        status: "unavailable",
+        ...deployment,
+        reachable: readiness.reachable,
+        ready: false,
+        reason: readiness.reason ?? "unavailable",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return {
+      status: "ready" as const,
+      ...deployment,
+      reachable: true,
+      ready: true,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

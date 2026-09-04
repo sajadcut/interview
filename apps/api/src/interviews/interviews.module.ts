@@ -14,6 +14,8 @@ import { InterviewOrchestrationService } from "./interview-orchestration.service
 import { InterviewSpeechService } from "./interview-speech.service";
 import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
+import { LiveKitTransportAdapter } from "./livekit-transport.adapter";
+import { REALTIME_TRANSPORT_ADAPTER } from "./realtime-transport.adapter";
 import { SupervisedPilotAwareInterviewsService } from "./supervised-pilot-aware-interviews.service";
 import { SupervisedPilotController } from "./supervised-pilot.controller";
 import { SupervisedPilotRuntimeGateService } from "./supervised-pilot-runtime-gate.service";
@@ -38,6 +40,8 @@ import { SupervisedPilotService } from "./supervised-pilot.service";
     EvaluatorCalibrationService,
     EvaluatorCalibrationAnalyticsService,
     EvaluatorShadowTestingService,
+    LiveKitTransportAdapter,
+    { provide: REALTIME_TRANSPORT_ADAPTER, useExisting: LiveKitTransportAdapter },
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -50,6 +54,8 @@ import { SupervisedPilotService } from "./supervised-pilot.service";
     EvaluatorCalibrationService,
     EvaluatorCalibrationAnalyticsService,
     EvaluatorShadowTestingService,
+    LiveKitTransportAdapter,
+    REALTIME_TRANSPORT_ADAPTER,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
