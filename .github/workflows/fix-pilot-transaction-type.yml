@@ -1,0 +1,40 @@
+name: fix-pilot-transaction-type
+
+on:
+  push:
+    branches: [feat/supervised-pilot-controls]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/supervised-pilot-controls
+          fetch-depth: 0
+
+      - name: Fix postgres transaction type
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('apps/api/src/interviews/supervised-pilot.service.ts')
+          text = path.read_text()
+          text = text.replace('import type { Sql } from "postgres";', 'import type { TransactionSql } from "postgres";')
+          text = text.replace('tx: Sql', 'tx: TransactionSql')
+          path.write_text(text)
+          PY
+          git diff --check
+
+      - name: Commit patch
+        run: |
+          git add apps/api/src/interviews/supervised-pilot.service.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(pilot): use postgres transaction sql type"
+          git push origin HEAD:feat/supervised-pilot-controls
