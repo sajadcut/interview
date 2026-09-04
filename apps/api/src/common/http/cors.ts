@@ -20,11 +20,11 @@ export function buildCorsOrigin(configuredOrigins: string): CorsOriginConfig {
     } catch {
       throw new Error(`Invalid CORS origin: ${origin}`);
     }
-    if (!parsed.origin || parsed.origin === "null" || parsed.href !== `${parsed.origin}/`) {
-      throw new Error(`CORS origin must be an origin only (scheme + host + optional port): ${origin}`);
-    }
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       throw new Error(`CORS origin must use http:// or https://: ${origin}`);
+    }
+    if (!parsed.origin || parsed.origin === "null" || parsed.href !== `${parsed.origin}/`) {
+      throw new Error(`CORS origin must be an origin only (scheme + host + optional port): ${origin}`);
     }
   }
 
