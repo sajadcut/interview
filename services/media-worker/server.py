@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from ffmpeg_layer import ffmpeg_status
 from realtime_metrics import REGISTRY, record_whisper_request, refresh_component_readiness
 from whisper_contract import (
     CONTRACT_VERSION as WHISPER_CONTRACT_VERSION,
@@ -71,7 +72,7 @@ def livekit_ready() -> bool:
 
 
 def ffmpeg_ready() -> bool:
-    return resolve_command(os.getenv("FFMPEG_CLI", "ffmpeg")) is not None
+    return bool(ffmpeg_status()["ready"])
 
 
 def vad_status() -> dict[str, Any]:
@@ -334,6 +335,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/tts/health":
             status = tts_status()
+            write_json(self, 200 if status["ready"] else 503, status)
+            return
+        if self.path == "/ffmpeg/health":
+            status = ffmpeg_status()
             write_json(self, 200 if status["ready"] else 503, status)
             return
         write_json(self, 404, {"error": "Not Found"})
