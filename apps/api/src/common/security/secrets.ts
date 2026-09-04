@@ -25,7 +25,14 @@ const PRODUCTION_SECRET_NAMES = [
 ] as const;
 
 const PLACEHOLDER_SECRET = /^(?:change-?me|changeme|replace-?me|password|secret|example|sample|dummy|development|local|test)$/i;
-const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
+
+function containsControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint !== undefined && (codePoint <= 31 || codePoint === 127)) return true;
+  }
+  return false;
+}
 
 export function sharedSecretIssue(
   rawValue: string | undefined,
@@ -33,7 +40,7 @@ export function sharedSecretIssue(
 ): string | undefined {
   const value = rawValue?.trim() ?? "";
   if (!value) return "is not configured";
-  if (CONTROL_CHARACTERS.test(value)) return "contains control characters";
+  if (containsControlCharacter(value)) return "contains control characters";
   const minimumBytes = nodeEnv === "production" ? 32 : 8;
   if (Buffer.byteLength(value, "utf8") < minimumBytes) {
     return `must be at least ${minimumBytes} UTF-8 bytes`;
