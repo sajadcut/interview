@@ -5,6 +5,7 @@ import {
   type CandidateSourceAdapter,
 } from "./candidate-source.adapter";
 import type { AtsProvider, AtsProviderKey } from "./ats-provider.contracts";
+import { ConfiguredAtsSourceAdapter } from "./configured-ats-source.adapter";
 import { GreenhouseAtsProvider } from "./greenhouse-ats.provider";
 import { InternalTalentPoolAdapter } from "./internal-talent-pool.adapter";
 import { LeverAtsProvider } from "./lever-ats.provider";
@@ -15,6 +16,7 @@ export class CandidateSourceRegistry {
 
   constructor(
     private readonly internalTalentPool: InternalTalentPoolAdapter,
+    private readonly configuredAts: ConfiguredAtsSourceAdapter,
     greenhouse: GreenhouseAtsProvider,
     lever: LeverAtsProvider,
   ) {
@@ -27,11 +29,10 @@ export class CandidateSourceRegistry {
   get(sourceType: ApprovedSourceType, providerKey?: string): CandidateSourceAdapter {
     if (sourceType === ApprovedSourceTypes.InternalTalentPool) return this.internalTalentPool;
     if (sourceType === ApprovedSourceTypes.Ats) {
-      const normalized = providerKey?.trim().toLowerCase();
+      if (!providerKey) return this.configuredAts;
+      const normalized = providerKey.trim().toLowerCase();
       if (normalized !== "greenhouse" && normalized !== "lever") {
-        throw new BadRequestException(
-          "providerKey must be greenhouse or lever when sourceType=ats",
-        );
+        throw new BadRequestException("providerKey must be greenhouse or lever when sourceType=ats");
       }
       const provider = this.atsProviders.get(normalized);
       if (provider) return provider;
@@ -41,11 +42,11 @@ export class CandidateSourceRegistry {
     );
   }
 
-  async capabilities(organizationId: string) {
+  async capabilities(organizationId?: string) {
     const ats = await Promise.all(
       [...this.atsProviders.values()].map(async (provider) => ({
         sourceType: ApprovedSourceTypes.Ats,
-        configured: await provider.isConfiguredFor(organizationId),
+        configured: organizationId ? await provider.isConfiguredFor(organizationId) : false,
         providerKey: provider.providerKey,
         requiresApproval: provider.requiresApproval,
       })),
