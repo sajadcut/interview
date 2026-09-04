@@ -22,10 +22,16 @@ const optionalUrl = z.preprocess(
   z.string().url().optional(),
 );
 
-const booleanFlag = z
-  .enum(["true", "false"])
-  .default("false")
-  .transform((value) => value === "true");
+function booleanEnvironmentFlag(defaultValue: "true" | "false") {
+  return z
+    .enum(["true", "false"])
+    .default(defaultValue)
+    .transform((value) => value === "true");
+}
+
+const booleanFlag = booleanEnvironmentFlag("false");
+const trueBooleanFlag = booleanEnvironmentFlag("true");
+const emailAddress = z.string().email();
 
 const envSchema = z
   .object({
@@ -48,6 +54,31 @@ const envSchema = z
     S3_SECRET_ACCESS_KEY: z.string().default(""),
     S3_FORCE_PATH_STYLE: booleanFlag,
     S3_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
+
+    EMAIL_PROVIDER: z.enum(["disabled", "smtp", "ses", "sendgrid"]).default("disabled"),
+    EMAIL_FROM_ADDRESS: z.string().trim().default(""),
+    EMAIL_FROM_NAME: z.string().trim().min(1).default("Interview Platform"),
+    EMAIL_REPLY_TO: z.string().trim().default(""),
+    EMAIL_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(60_000).default(10_000),
+    EMAIL_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(5).default(3),
+    EMAIL_RETRY_BASE_MS: z.coerce.number().int().min(50).max(5_000).default(250),
+
+    SMTP_HOST: z.string().trim().default(""),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
+    SMTP_SECURE: booleanFlag,
+    SMTP_REQUIRE_TLS: trueBooleanFlag,
+    SMTP_USERNAME: z.string().default(""),
+    SMTP_PASSWORD: z.string().default(""),
+    SMTP_TLS_SERVERNAME: z.string().trim().default(""),
+
+    SES_REGION: z.string().trim().min(1).default("us-east-1"),
+    SES_ACCESS_KEY_ID: z.string().default(""),
+    SES_SECRET_ACCESS_KEY: z.string().default(""),
+    SES_SESSION_TOKEN: z.string().default(""),
+    SES_ENDPOINT: optionalUrl,
+
+    SENDGRID_API_KEY: z.string().default(""),
+    SENDGRID_BASE_URL: optionalUrl,
 
     LLM_PROVIDER: z.enum(["disabled", "openai-compatible"]).default("disabled"),
     LLM_MODEL: z.string().default(""),
@@ -80,6 +111,58 @@ const envSchema = z
     AVATAR_BASE_URL: optionalUrl,
   })
   .superRefine((value, context) => {
+    if (value.EMAIL_PROVIDER !== "disabled") {
+      if (!value.EMAIL_FROM_ADDRESS || !emailAddress.safeParse(value.EMAIL_FROM_ADDRESS).success) {
+        context.addIssue({
+          code: "custom",
+          path: ["EMAIL_FROM_ADDRESS"],
+          message: "a valid sender address is required when email delivery is enabled",
+        });
+      }
+      if (value.EMAIL_REPLY_TO && !emailAddress.safeParse(value.EMAIL_REPLY_TO).success) {
+        context.addIssue({
+          code: "custom",
+          path: ["EMAIL_REPLY_TO"],
+          message: "must be a valid email address when provided",
+        });
+      }
+    }
+
+    if (value.EMAIL_PROVIDER === "smtp") {
+      if (!value.SMTP_HOST) {
+        context.addIssue({ code: "custom", path: ["SMTP_HOST"], message: "required when EMAIL_PROVIDER=smtp" });
+      }
+      const hasUsername = Boolean(value.SMTP_USERNAME);
+      const hasPassword = Boolean(value.SMTP_PASSWORD);
+      if (hasUsername !== hasPassword) {
+        context.addIssue({
+          code: "custom",
+          path: ["SMTP_USERNAME"],
+          message: "SMTP_USERNAME and SMTP_PASSWORD must be supplied together",
+        });
+      }
+      if (value.NODE_ENV === "production" && !value.SMTP_SECURE && !value.SMTP_REQUIRE_TLS) {
+        context.addIssue({
+          code: "custom",
+          path: ["SMTP_REQUIRE_TLS"],
+          message: "production SMTP must use implicit TLS or require STARTTLS",
+        });
+      }
+    }
+
+    if (value.EMAIL_PROVIDER === "ses") {
+      if (!value.SES_ACCESS_KEY_ID) {
+        context.addIssue({ code: "custom", path: ["SES_ACCESS_KEY_ID"], message: "required when EMAIL_PROVIDER=ses" });
+      }
+      if (!value.SES_SECRET_ACCESS_KEY) {
+        context.addIssue({ code: "custom", path: ["SES_SECRET_ACCESS_KEY"], message: "required when EMAIL_PROVIDER=ses" });
+      }
+    }
+
+    if (value.EMAIL_PROVIDER === "sendgrid" && !value.SENDGRID_API_KEY) {
+      context.addIssue({ code: "custom", path: ["SENDGRID_API_KEY"], message: "required when EMAIL_PROVIDER=sendgrid" });
+    }
+
     if (value.LLM_PROVIDER === "openai-compatible") {
       if (!value.LLM_API_KEY) {
         context.addIssue({
