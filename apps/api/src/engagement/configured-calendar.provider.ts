@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { getEnv } from "../config/env";
-import { CalendarProviderError } from "./calendar.providers";
-import { GoogleCalendarProvider, MicrosoftCalendarProvider } from "./calendar.providers";
+import { getCalendarEnv } from "./calendar.config";
+import {
+  CalendarProviderError,
+  GoogleCalendarProvider,
+  MicrosoftCalendarProvider,
+} from "./calendar.providers";
 import { DisabledCalendarProvider } from "./disabled-engagement.providers";
 import type {
   CalendarProvider,
@@ -18,10 +21,14 @@ export class ConfiguredCalendarProvider implements CalendarProvider {
     google: GoogleCalendarProvider,
     microsoft: MicrosoftCalendarProvider,
   ) {
-    const provider = getEnv().CALENDAR_PROVIDER;
+    const provider = getCalendarEnv().CALENDAR_PROVIDER;
     this.selected = provider === "google" ? google : provider === "microsoft" ? microsoft : disabled;
     if (provider !== "disabled" && !this.selected.configured) {
-      throw new CalendarProviderError(`Calendar provider ${provider} is not fully configured`, "CALENDAR_NOT_CONFIGURED", false);
+      throw new CalendarProviderError(
+        `Calendar provider ${provider} is not fully configured`,
+        "CALENDAR_NOT_CONFIGURED",
+        false,
+      );
     }
   }
 
