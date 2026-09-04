@@ -1,5 +1,5 @@
-import { AuditWorkspace } from "../../../../components/system/product-operations-workspaces";
+import { AuditExportWorkspace } from "../../../../components/system/audit-export-workspace";
 
 export default function AuditPage() {
-  return <AuditWorkspace />;
+  return <AuditExportWorkspace />;
 }
