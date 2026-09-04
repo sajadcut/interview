@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, and Alerting Contract v1 with warning/critical escalation and operational runbooks. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.32.0
+> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, and the LiveKit Deployment Contract with fail-closed env validation, internal health probing and a provider-neutral transport adapter. Real third-party credentials, an actual LiveKit/TURN deployment and RTP telemetry, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.33.0
 > **Date:** 2026-09-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,7 +10,7 @@
 
 # 1. Current validated baseline
 
-The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
+The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, LiveKit deployment-contract validation, alerting-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
 
@@ -71,6 +71,27 @@ Realtime Metrics Contract v1
   Browser E2E critical flows                  ✅
   real LiveKit RTP / FFmpeg runtime samples   deployment/runtime-specific / pending
   representative Gate F benchmark             evidence-specific / pending
+
+LiveKit Deployment Contract
+  validated main commit                       bf3f48f1056511918bae39d3c1fae4a44b2b9a62
+  quality-gate                                33914568659 / run #571
+  server template                             ops/livekit/livekit.yaml.example
+  application runbook                         docs/operations/livekit-deployment.md
+  startup validation                          complete LiveKit config required when transport=livekit
+  production transport policy                 wss:// signal + https:// health + strong non-placeholder API secret
+  optional local boundary                     transport disabled by default; no LiveKit install required for local API/test
+  internal health                             GET /health/livekit; disabled/ready/503 bounded states; public OpenAPI excluded
+  software adapter                            LiveKitTransportAdapter + REALTIME_TRANSPORT_ADAPTER DI token
+  credential issuance                         existing dependency-free short-lived HS256 join tokens; no token persistence
+  health/privacy                              no API key/secret/token/upstream response body in health payloads
+  CI config contract                          ✅ npm run livekit:config:check in root test/check suites
+  OpenAPI / typed-client drift                ✅ clean
+  lint                                        ✅
+  typecheck                                   ✅
+  full tests                                  ✅
+  build                                       ✅
+  Browser E2E critical flows                  ✅
+  actual LiveKit/TURN/RTP deployment          deployment/runtime-specific / pending
 
 Alerting Contract v1
   validated main commit                       4ce0141353bf6c4f850527c7a84bf3fcfbcb8973
@@ -189,6 +210,8 @@ CI requires zero generated-contract drift. Internal worker lease APIs remain exc
 
 The API `GET /metrics` is deliberately excluded from public OpenAPI. It exposes aggregate Prometheus text only and must be deployed on an internal/protected operational network path. Runtime HTTP/process counters are in-process; durable DB/queue/worker/interview state is derived from PostgreSQL at scrape time so operational state survives API restarts. Snapshot collection is cached/coalesced and uses a bounded database statement timeout.
 
+`GET /health/livekit` is also excluded from public OpenAPI. It reports only bounded deployment/readiness metadata and never returns the LiveKit API key, API secret, join token or upstream health response body. A disabled transport is an informational healthy API state; selecting `MEDIA_TRANSPORT_PROVIDER=livekit` switches startup validation and the LiveKit-specific health probe to fail-closed behavior without making LiveKit Server a general local-development dependency.
+
 The media worker separately exposes `GET /metrics`. Its metric behavior is governed by `contracts/realtime-metrics.v1.json` and `docs/operations/realtime-metrics-contract.md`. The registry rejects unknown metric families, missing/extra labels, and label values outside finite allowlists. Contract-only LiveKit/FFmpeg families remain absent until an actual adapter records measured observations; this prevents synthetic telemetry from being mistaken for runtime evidence.
 
 Alert behavior is separately governed by `ops/monitoring/alerting-contract.v1.json`. Prometheus rules must pass `npm run alerting:check`, which validates required categories, contracted rule names, warning/critical family semantics, bounded static labels, positive `for` durations, runbook anchors, balanced expressions, and realtime metric references against the Realtime Metrics Contract. The contract deliberately describes routing intent without embedding Alertmanager receiver credentials or deployment secrets.
@@ -201,12 +224,14 @@ Alert behavior is separately governed by `ops/monitoring/alerting-contract.v1.js
 M1 Job → Candidate → Evidence        materially implemented
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
-M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + realtime metrics/alerting contracts implemented; actual LiveKit/FFmpeg runtime and representative Gate F evidence pending
+M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + monitoring + realtime metrics/alerting + LiveKit deployment contracts implemented; actual LiveKit/FFmpeg runtime and representative Gate F evidence pending
 M5 Assessments                      isolated container execution worker implemented and CI-validated; hardened-host smoke/load/security validation pending
 M6 Analytics/Enterprise hardening   privacy deletion + retention + security hardening + operational monitoring + alerting contract materially implemented and CI-validated
 ```
 
-Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, VAD/STT/TTS provider boundaries, a frozen low-cardinality metrics contract for LiveKit/whisper.cpp/FFmpeg and E2E turn latency, and alert rules designed to consume those measured series without synthetic provider data.
+Candidate-facing consent, privacy/recording disclosure, device checks, Persian/English directionality, reconnect states and completion surfaces exist. Realtime contracts include media lifecycle, idempotent media journal, participant/TURN state, short-lived credentials, VAD/STT/TTS provider boundaries, a frozen low-cardinality metrics contract for LiveKit/whisper.cpp/FFmpeg and E2E turn latency, alert rules designed to consume those measured series without synthetic provider data, and now a LiveKit deployment boundary with fail-closed production env validation and an internal health surface.
+
+The LiveKit server is not installed by repository CI and is not required for normal local API development. `ops/livekit/livekit.yaml.example` documents a non-secret self-hosting starting point, while `LiveKitTransportAdapter` gives orchestration a provider-neutral credential/readiness boundary. `MEDIA_REALTIME_ENABLED` remains a separate product execution gate so transport infrastructure can be deployed and validated before candidate realtime execution is enabled.
 
 The Privacy Deletion Worker performs verified object deletion plus derived-data cleanup, blocks on legal holds/shared-object safety conditions, and writes de-identified durable receipts. The Retention Worker delegates candidate erasure through the privacy deletion boundary rather than bypassing verified deletion semantics.
 
@@ -214,7 +239,7 @@ The Coding Assessment Sandbox remains a separate specialized worker. The core AP
 
 The AI Evaluator is provider-neutral and LLM-independent at the validation/scoring boundary. Calibration and Shadow frameworks persist the evidence needed for qualified-human comparison while keeping real production release authority outside those framework results.
 
-Operational Monitoring covers API, PostgreSQL, all four durable worker queues, lease state, persisted Interview/media lifecycle, and the media-worker realtime contract surface. Alerting Contract v1 now adds 36 CI-validated Prometheus rules across collector health, API errors/latency, PostgreSQL, queue backlog/leases/failures, worker availability, stalled interviews, media heartbeat/error health, Gate F E2E latency, Whisper, LiveKit, and FFmpeg. Warning/critical pairs share bounded `alert_family` semantics so deployed Alertmanager inhibition can suppress duplicate warning notifications when a critical condition is active. `docs/operations/alerting-runbook.md` defines safe triage and recovery without destructive job/session mutation. Thresholds remain initial operational defaults, not production SLO evidence.
+Operational Monitoring covers API, PostgreSQL, all four durable worker queues, lease state, persisted Interview/media lifecycle, and the media-worker realtime contract surface. Alerting Contract v1 adds 36 CI-validated Prometheus rules across collector health, API errors/latency, PostgreSQL, queue backlog/leases/failures, worker availability, stalled interviews, media heartbeat/error health, Gate F E2E latency, Whisper, LiveKit, and FFmpeg. Warning/critical pairs share bounded `alert_family` semantics so deployed Alertmanager inhibition can suppress duplicate warning notifications when a critical condition is active. `docs/operations/alerting-runbook.md` defines safe triage and recovery without destructive job/session mutation. Thresholds remain initial operational defaults, not production SLO evidence.
 
 ---
 
@@ -225,7 +250,9 @@ A green repository does **not** by itself approve autonomous real-candidate inte
 Still requiring real environment/evidence validation:
 
 ```text
-actual LiveKit transport/control-plane integration and RTP telemetry
+actual LiveKit server installation/deployment, DNS and trusted TLS termination
+actual TURN deployment/firewall reachability and restricted-network validation
+actual LiveKit room/control-plane integration and RTP telemetry
 actual FFmpeg media-pipeline execution telemetry
 real whisper.cpp model/host performance and quality evidence
 100+ representative realtime interview benchmark required by Gate F
@@ -243,6 +270,8 @@ long-term metrics retention, dashboard/SLO tuning, paging policy and capacity ba
 final production approval
 ```
 
+The LiveKit Deployment Contract proves repository-side environment validation, template completeness, bounded health behavior, provider-neutral adapter wiring and short-lived credential issuance without needing a LiveKit server in CI. It does **not** prove DNS/TLS correctness, TURN reachability, room signaling, RTP packet loss/jitter/RTT, reconnect behavior, LiveKit capacity, or production provider credentials. Those require a real deployed LiveKit environment.
+
 The Realtime Metrics Contract guarantees that future provider data has a stable, bounded and testable place to land. It does **not** satisfy Gate F by itself. In particular, absence of a provider-data-pending series is not success, component readiness is not an SLA, and the committed `1.8s` histogram bucket is only measurement geometry until representative real interview observations exist.
 
 Alerting Contract v1 likewise proves rule structure, coverage, bounded labels, escalation semantics, and runbook linkage in repository CI. It does **not** prove that a production Prometheus instance has loaded the rules, that Alertmanager can reach a receiver, that a pager/escalation policy fires, or that thresholds are tuned for production traffic. Those require environment-specific operational evidence.
@@ -251,6 +280,6 @@ Alerting Contract v1 likewise proves rule structure, coverage, bounded labels, e
 
 # 8. Repository governance
 
-The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime-contract tests, dependency-free Python media-worker metrics tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
+The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime-contract tests, dependency-free Python media-worker metrics tests, LiveKit deployment adapter/config tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
 If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
