@@ -1,13 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { getEnv } from "../config/env";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewMediaService } from "./interview-media.service";
+import {
+  TEXT_TO_SPEECH_ADAPTER,
+  type TextToSpeechAdapter,
+} from "./text-to-speech.adapter";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function ttsFailureMetadata(cause: unknown): { code: string; retryable: boolean } {
+  if (!cause || typeof cause !== "object") return { code: "provider_error", retryable: false };
+  const record = cause as Record<string, unknown>;
+  return {
+    code: typeof record.code === "string" ? record.code : "provider_error",
+    retryable: record.retryable === true,
+  };
 }
 
 @Injectable()
@@ -16,6 +28,7 @@ export class InterviewSpeechService {
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly media: InterviewMediaService,
+    @Inject(TEXT_TO_SPEECH_ADAPTER) private readonly tts: TextToSpeechAdapter,
   ) {}
 
   async synthesizePersistedTurn(sessionId: string, mediaSessionId: string, turnId: string) {
@@ -60,15 +73,14 @@ export class InterviewSpeechService {
 
     const mode = String(row?.mode);
     if (mode !== "audio" && mode !== "avatar") throw new BadRequestException("Unsupported media mode");
-    const readiness = await this.media.getReadiness(mode);
-    const tts = readiness.providers.find((provider) => provider.component === "tts");
-    if (!tts?.ready) {
-      throw new BadRequestException(`TTS provider is not ready${tts?.reason ? `: ${tts.reason}` : ""}`);
-    }
 
-    const env = getEnv();
-    if (!env.TTS_BASE_URL || !env.MEDIA_WORKER_SHARED_SECRET) {
-      throw new BadRequestException("TTS_BASE_URL and MEDIA_WORKER_SHARED_SECRET are required");
+    // TTS readiness is deliberately component-local. Do not call media.getReadiness() here:
+    // LiveKit, VAD, Whisper/STT, FFmpeg and avatar readiness must not delay or block standalone synthesis.
+    const readiness = await this.tts.readiness();
+    if (!readiness.ready) {
+      throw new BadRequestException(
+        `TTS provider is not ready${readiness.reason ? `: ${readiness.reason}` : ""}`,
+      );
     }
 
     await this.media.appendEvent(sessionId, mediaSessionId, {
@@ -78,56 +90,43 @@ export class InterviewSpeechService {
       payload: { turnId, action: String(row?.action ?? "unknown") },
     });
 
-    const target = `${env.TTS_BASE_URL.replace(/\/$/, "")}/synthesize`;
-    let response: Awaited<ReturnType<typeof fetch>>;
+    let synthesis: Awaited<ReturnType<TextToSpeechAdapter["synthesize"]>>;
     try {
-      response = await fetch(target, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-media-worker-secret": env.MEDIA_WORKER_SHARED_SECRET,
-        },
-        body: JSON.stringify({ spokenText }),
-        signal: AbortSignal.timeout(Math.max(env.MEDIA_PROVIDER_TIMEOUT_MS, 30_000)),
-        cache: "no-store",
+      synthesis = await this.tts.synthesize({
+        spokenText,
+        requestId: `tts:${turnId}`,
       });
     } catch (cause) {
+      const failure = ttsFailureMetadata(cause);
       await this.media.appendEvent(sessionId, mediaSessionId, {
-        idempotencyKey: `tts:${turnId}:provider-connect-error`,
+        idempotencyKey: `tts:${turnId}:provider-error`,
         eventType: "error",
         sourceComponent: "tts",
-        payload: { message: "TTS provider connection failed", fatal: false, turnId },
+        payload: {
+          message: "TTS provider request failed",
+          fatal: false,
+          turnId,
+          code: failure.code,
+          retryable: failure.retryable,
+        },
       });
-      throw new BadRequestException(
-        cause instanceof Error ? `TTS provider connection failed: ${cause.message}` : "TTS provider connection failed",
-      );
+      throw new BadRequestException("TTS provider request failed");
     }
 
-    if (!response.ok) {
-      await this.media.appendEvent(sessionId, mediaSessionId, {
-        idempotencyKey: `tts:${turnId}:provider-http-${response.status}`,
-        eventType: "error",
-        sourceComponent: "tts",
-        payload: { message: `TTS provider returned HTTP ${response.status}`, fatal: false, turnId },
-      });
-      throw new BadRequestException(`TTS provider returned HTTP ${response.status}`);
-    }
-    const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
-    if (contentType !== "audio/wav" && contentType !== "audio/x-wav") {
-      throw new BadRequestException(`TTS provider returned unsupported content type: ${contentType ?? "missing"}`);
-    }
-    const audio = Buffer.from(await response.arrayBuffer());
-    if (audio.length === 0 || audio.length > 20 * 1024 * 1024) {
-      throw new BadRequestException("TTS provider returned an empty or oversized WAV response");
-    }
-
+    const audio = Buffer.from(synthesis.audio);
     await this.media.appendEvent(sessionId, mediaSessionId, {
       idempotencyKey: `tts:${turnId}:ended`,
       eventType: "tts_ended",
       sourceComponent: "tts",
-      payload: { turnId, size: audio.length },
+      payload: {
+        turnId,
+        size: audio.length,
+        provider: synthesis.provider,
+        attempts: synthesis.attempts,
+        contractVersion: synthesis.contractVersion,
+      },
     });
 
-    return { audio, contentType: "audio/wav" as const };
+    return { audio, contentType: synthesis.contentType };
   }
 }

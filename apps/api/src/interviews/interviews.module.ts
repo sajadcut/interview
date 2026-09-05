@@ -21,6 +21,8 @@ import { SupervisedPilotAwareInterviewsService } from "./supervised-pilot-aware-
 import { SupervisedPilotController } from "./supervised-pilot.controller";
 import { SupervisedPilotRuntimeGateService } from "./supervised-pilot-runtime-gate.service";
 import { SupervisedPilotService } from "./supervised-pilot.service";
+import { TEXT_TO_SPEECH_ADAPTER } from "./text-to-speech.adapter";
+import { TtsHttpClient } from "./tts-http.client";
 import { WhisperHttpClient } from "./whisper-http.client";
 
 @Module({
@@ -46,6 +48,8 @@ import { WhisperHttpClient } from "./whisper-http.client";
     { provide: REALTIME_TRANSPORT_ADAPTER, useExisting: LiveKitTransportAdapter },
     WhisperHttpClient,
     { provide: SPEECH_TO_TEXT_ADAPTER, useExisting: WhisperHttpClient },
+    TtsHttpClient,
+    { provide: TEXT_TO_SPEECH_ADAPTER, useExisting: TtsHttpClient },
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,
@@ -62,6 +66,8 @@ import { WhisperHttpClient } from "./whisper-http.client";
     REALTIME_TRANSPORT_ADAPTER,
     WhisperHttpClient,
     SPEECH_TO_TEXT_ADAPTER,
+    TtsHttpClient,
+    TEXT_TO_SPEECH_ADAPTER,
     InterviewMediaService,
     InterviewMediaEventService,
     InterviewSpeechService,

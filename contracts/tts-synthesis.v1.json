@@ -1,0 +1,81 @@
+{
+  "version": "tts-synthesis.v1",
+  "provider": "local-command",
+  "apiProviderKey": "local-http",
+  "independentOf": ["llm", "whisper", "livekit", "ffmpeg"],
+  "request": {
+    "method": "POST",
+    "path": "/synthesize",
+    "contentType": "application/json",
+    "requiredHeaders": ["x-tts-contract-version", "x-request-id", "x-tts-secret"],
+    "body": { "required": ["spokenText"], "additionalProperties": false, "maxTextChars": 4000 }
+  },
+  "response": {
+    "contentType": "audio/wav",
+    "maxAudioBytes": 20971520,
+    "requiredHeaders": ["x-tts-contract-version", "x-request-id", "x-tts-provider"],
+    "validateWav": true
+  },
+  "health": {
+    "method": "GET",
+    "path": "/health",
+    "versioned": true,
+    "doesNotProbeOtherComponents": true
+  },
+  "commandAdapter": {
+    "shell": false,
+    "stdin": "disabled",
+    "textTransport": "utf8-temporary-file",
+    "requiredPlaceholders": ["{text_file}", "{output_wav}"],
+    "workspaceOnlyPaths": true
+  },
+  "process": {
+    "timeoutSeconds": { "default": 60, "min": 0.05, "max": 300 },
+    "terminationGraceSeconds": { "default": 2, "min": 0.05, "max": 10 },
+    "processGroupIsolation": true,
+    "terminateThenKill": true,
+    "diagnosticMaxBytes": 8192
+  },
+  "cleanup": {
+    "temporaryWorkspace": true,
+    "removeOnSuccess": true,
+    "removeOnFailure": true,
+    "spokenTextPersistedByWorker": false,
+    "audioPersistedByWorker": false
+  },
+  "client": {
+    "requestTimeoutMs": 65000,
+    "maxAttempts": 2,
+    "retryBaseMs": 200,
+    "retryableHttpStatuses": [429, 500, 502, 503, 504],
+    "redirects": "manual",
+    "productionHttpsRequired": true
+  },
+  "coreSafety": {
+    "clientSuppliedTextAccepted": false,
+    "source": "persisted finalized interview_turns.spoken_text",
+    "realCustomerCandidateDevelopmentBridgeBlocked": true,
+    "globalRealtimeReadinessRequiredForSynthesis": false
+  },
+  "errors": [
+    { "code": "invalid_request", "retryable": false },
+    { "code": "unauthorized", "retryable": false },
+    { "code": "contract_mismatch", "retryable": false },
+    { "code": "payload_too_large", "retryable": false },
+    { "code": "provider_unavailable", "retryable": true },
+    { "code": "provider_timeout", "retryable": true },
+    { "code": "provider_error", "retryable": true },
+    { "code": "invalid_audio_output", "retryable": true },
+    { "code": "worker_error", "retryable": true }
+  ],
+  "testEvidence": {
+    "realTtsEngineRequired": false,
+    "networkRequired": false,
+    "coversCommandSafety": true,
+    "coversTimeoutKill": true,
+    "coversCleanup": true,
+    "coversWavValidation": true,
+    "coversHttpContract": true,
+    "coversStandaloneApiPath": true
+  }
+}
