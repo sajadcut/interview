@@ -27,6 +27,7 @@ export interface CandidateInterviewExperienceProps {
 }
 
 type MediaRequestMode = "full" | "audio-only";
+type MediaFailureCode = "permission_denied" | "device_unavailable";
 const secondaryButton = "min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
 
 function permissionFromBrowser(value: PermissionState): CandidateMediaPermissionState {
@@ -42,7 +43,7 @@ async function readPermission(name: "microphone" | "camera"): Promise<CandidateM
   }
 }
 
-function mediaFailureCode(cause: unknown): "permission_denied" | "device_unavailable" {
+function mediaFailureCode(cause: unknown): MediaFailureCode {
   return cause instanceof DOMException && ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
     ? "permission_denied"
     : "device_unavailable";
@@ -99,9 +100,19 @@ export function CandidateInterviewExperience({ candidateName, jobTitle, sessionE
     setMicrophoneEnabled(true);
     setCameraEnabled(stream.getVideoTracks().some((track) => track.readyState === "live"));
   };
-  const inspectPermissions = async () => {
+  const inspectPermissions = async (failureCode?: MediaFailureCode) => {
     const [microphone, camera] = await Promise.all([readPermission("microphone"), readPermission("camera")]);
-    reduce({ type: "PERMISSIONS_RESOLVED", microphone, camera });
+    setState((current) => {
+      let next = candidateInterviewReducer(current, {
+        type: "PERMISSIONS_RESOLVED",
+        microphone,
+        camera,
+      });
+      if (failureCode) {
+        next = candidateInterviewReducer(next, { type: "PERMISSION_FAILED", code: failureCode });
+      }
+      return next;
+    });
   };
 
   const requestMedia = async (mode: MediaRequestMode) => {
@@ -127,10 +138,7 @@ export function CandidateInterviewExperience({ candidateName, jobTitle, sessionE
       });
     } catch (cause) {
       releaseStream();
-      const code = mediaFailureCode(cause);
-      reduce({ type: "PERMISSION_FAILED", code });
-      await inspectPermissions();
-      reduce({ type: "PERMISSION_FAILED", code });
+      await inspectPermissions(mediaFailureCode(cause));
     } finally {
       setPermissionBusy(false);
     }
@@ -237,7 +245,7 @@ export function CandidateInterviewExperience({ candidateName, jobTitle, sessionE
                 <button type="button" onClick={toggleCamera} disabled={!hasLocalMedia || state.audioOnly || !streamRef.current?.getVideoTracks().length} className={secondaryButton}>{cameraEnabled ? copy.controls.cameraOn : copy.controls.cameraOff}</button>
               </div>
 
-              {state.error ? <div role="alert" className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${state.error.severity === "fatal" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><div className="font-semibold">{errorMessages[state.error.code]}</div>{state.error.code === "permission_denied" ? <p className="mt-1 text-xs leading-5">{copy.permissions.deniedHelp}</p> : null}{state.error.code === "device_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.permissions.unavailableHelp}</p> : null}{state.error.code === "runtime_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.connection.runtimePreserved}</p> : null}{state.error.code === "reconnect_exhausted" ? <p className="mt-1 text-xs leading-5">{copy.connection.reconnectExhausted}</p> : null}</div> : null}
+              {state.error && state.error.code !== "network_offline" ? <div role="alert" className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${state.error.severity === "fatal" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><div className="font-semibold">{errorMessages[state.error.code]}</div>{state.error.code === "permission_denied" ? <p className="mt-1 text-xs leading-5">{copy.permissions.deniedHelp}</p> : null}{state.error.code === "device_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.permissions.unavailableHelp}</p> : null}{state.error.code === "runtime_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.connection.runtimePreserved}</p> : null}{state.error.code === "reconnect_exhausted" ? <p className="mt-1 text-xs leading-5">{copy.connection.reconnectExhausted}</p> : null}</div> : null}
 
               <div className="mt-5 flex flex-wrap gap-2">
                 <button type="button" disabled={permissionBusy || state.phase === "fatal" || state.phase === "completed"} onClick={() => void requestMedia("full")} className={secondaryButton}>{permissionBusy ? copy.permissions.checking : hasLocalMedia ? copy.permissions.retryBoth : copy.permissions.enableBoth}</button>

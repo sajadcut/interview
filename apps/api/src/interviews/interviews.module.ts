@@ -11,6 +11,8 @@ import { InterviewMediaEventService } from "./interview-media-event.service";
 import { InterviewMediaService } from "./interview-media.service";
 import { InterviewOrchestrationController } from "./interview-orchestration.controller";
 import { InterviewOrchestrationService } from "./interview-orchestration.service";
+import { InterviewSessionStateController } from "./interview-session-state.controller";
+import { InterviewSessionStateService } from "./interview-session-state.service";
 import { InterviewSpeechService } from "./interview-speech.service";
 import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
@@ -30,6 +32,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
 @Module({
   controllers: [
     InterviewsController,
+    InterviewSessionStateController,
     InterviewMediaController,
     InterviewOrchestrationController,
     EvaluatorCalibrationController,
@@ -41,6 +44,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     SupervisedPilotService,
     SupervisedPilotAwareInterviewsService,
     { provide: InterviewsService, useExisting: SupervisedPilotAwareInterviewsService },
+    InterviewSessionStateService,
     InterviewBrainService,
     InterviewEvaluatorService,
     EvaluatorCalibrationService,
@@ -61,6 +65,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
   ],
   exports: [
     InterviewsService,
+    InterviewSessionStateService,
     InterviewBrainService,
     InterviewEvaluatorService,
     EvaluatorCalibrationService,

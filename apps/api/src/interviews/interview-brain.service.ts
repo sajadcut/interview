@@ -110,8 +110,10 @@ export class InterviewBrainService {
       });
       if (!release.allowed) throw new Error(`Interview release blocked: ${release.reasons.join("; ")}`);
 
-      if (["completed", "cancelled", "failed"].includes(String(session?.status))) {
-        throw new Error(`Interview session is already ${String(session?.status)}`);
+      if (String(session?.status) !== "in_progress") {
+        throw new Error(
+          `Interview brain requires an in_progress session; current status is ${String(session?.status)}`,
+        );
       }
 
       const criterionRows = await transaction`
@@ -232,17 +234,12 @@ export class InterviewBrainService {
           evidenceCoverage: decision.nextState.evidenceCoverage,
         },
       };
-      const closesSession = decision.turn.action === "close";
       await transaction`
         UPDATE interview_sessions
         SET
-          status = ${closesSession ? "completed" : "in_progress"},
           current_criterion_key = ${decision.nextState.currentCriterion},
           remaining_seconds = ${decision.nextState.remainingSeconds},
-          reconnect_count = ${decision.nextState.reconnectCount},
           checkpoint = ${this.database.sql.json(nextCheckpoint as never)},
-          started_at = COALESCE(started_at, now()),
-          completed_at = ${closesSession ? new Date() : null},
           updated_at = now()
         WHERE organization_id = ${organizationId}::uuid
           AND id = ${sessionId}::uuid
