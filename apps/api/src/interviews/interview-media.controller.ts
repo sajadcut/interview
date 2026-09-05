@@ -1,5 +1,18 @@
-import { Body, Controller, Get, Param, Post, Query, StreamableFile } from "@nestjs/common";
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import type { IncomingMessage } from "node:http";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  PayloadTooLargeException,
+  Post,
+  Query,
+  Req,
+  StreamableFile,
+  UnsupportedMediaTypeException,
+} from "@nestjs/common";
+import { ApiConsumes, ApiExcludeEndpoint, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -14,6 +27,40 @@ import {
 import { InterviewMediaEventService } from "./interview-media-event.service";
 import { InterviewMediaService } from "./interview-media.service";
 import { InterviewSpeechService } from "./interview-speech.service";
+import type { SpeechToTextContentType } from "./speech-to-text.adapter";
+
+const MAX_CANDIDATE_AUDIO_BYTES = 20 * 1024 * 1024;
+
+async function readRawAudio(request: IncomingMessage): Promise<Buffer> {
+  const declaredLength = Number(request.headers["content-length"] ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_CANDIDATE_AUDIO_BYTES) {
+    throw new PayloadTooLargeException("Candidate audio exceeds the 20 MB development bridge limit");
+  }
+
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const value of request) {
+    const chunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
+    total += chunk.length;
+    if (total > MAX_CANDIDATE_AUDIO_BYTES) {
+      throw new PayloadTooLargeException("Candidate audio exceeds the 20 MB development bridge limit");
+    }
+    chunks.push(chunk);
+  }
+  if (total === 0) throw new BadRequestException("Candidate audio body is required");
+  return Buffer.concat(chunks, total);
+}
+
+function candidateAudioContentType(request: IncomingMessage): SpeechToTextContentType {
+  const value = String(request.headers["content-type"] ?? "")
+    .split(";", 1)[0]
+    ?.trim()
+    .toLowerCase();
+  if (value !== "audio/wav" && value !== "audio/x-wav") {
+    throw new UnsupportedMediaTypeException("Candidate audio must be PCM WAV");
+  }
+  return value;
+}
 
 @ApiTags("interview-media")
 @Controller("v1/interviews")
@@ -58,6 +105,21 @@ export class InterviewMediaController {
     @Param("mediaSessionId") mediaSessionId: string,
   ) {
     return this.media.issueConnection(sessionId, mediaSessionId);
+  }
+
+  @Post(":sessionId/media/sessions/:mediaSessionId/candidate-audio")
+  @ApiExcludeEndpoint()
+  @ApiConsumes("audio/wav", "audio/x-wav")
+  @RequirePermissions(Permissions.InterviewManage)
+  @AuditedAction("interview.media.candidate_audio.transcribe", "interview_media_session")
+  async transcribeCandidateAudio(
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+    @Req() request: IncomingMessage,
+  ) {
+    const contentType = candidateAudioContentType(request);
+    const audio = await readRawAudio(request);
+    return this.speech.transcribeCandidateAudio(sessionId, mediaSessionId, audio, contentType);
   }
 
   @Post(":sessionId/media/sessions/:mediaSessionId/turns/:turnId/audio")
