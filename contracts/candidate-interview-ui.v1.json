@@ -7,7 +7,9 @@
     "persistedConsentRequired": true,
     "internalTenantHeadersAllowed": false,
     "internalRecruiterMediaEndpointsAllowed": false,
-    "fakeLiveStateAllowed": false
+    "fakeLiveStateAllowed": false,
+    "candidateScopedApiPrefix": "/v1/candidate-interview",
+    "sameOriginBrowserProxy": "/api/candidate-interview"
   },
   "states": [
     "permissions",
@@ -38,6 +40,16 @@
   },
   "runtime": {
     "adapterInjected": true,
+    "pageCreatesCandidateRuntime": true,
+    "liveKitClientOwnedByRuntime": true,
+    "candidatePublishesMicrophone": true,
+    "candidatePublishesCameraWhenEnabled": true,
+    "remoteInterviewerVideoSurface": true,
+    "remoteInterviewerAudioSurface": true,
+    "typedAnswersSupported": true,
+    "voiceAnswersSupported": true,
+    "voiceAnswerAutoSubmitsAfterSilence": true,
+    "turnAudioUsesPersistedFinalizedTurn": true,
     "missingRuntimeState": "degraded",
     "missingRuntimeFallback": "resume_later",
     "onlyRuntimeConnectedEventMayEnterLive": true,
@@ -74,7 +86,9 @@
     "pureStateReducerRequired": true,
     "browserPermissionFallbackRequired": true,
     "offlineOnlineRecoveryRequired": true,
-    "missingRuntimeMustNotAppearLive": true,
+    "candidateRuntimeWiringRequired": true,
+    "typedAnswerSurfaceRequired": true,
+    "voiceAnswerSurfaceRequired": true,
     "realLiveKitRequired": false,
     "realWhisperRequired": false,
     "realSileroRequired": false,
