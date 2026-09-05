@@ -63,7 +63,8 @@ export class AiGatewayService {
     });
   }
 
-  async executeStructured<T>(_request: unknown): Promise<{ executionId: string; output: T }> {
+  async executeStructured<T>(request: unknown): Promise<{ executionId: string; output: T }> {
+    void request;
     throw new ConflictException(
       "Synchronous LLM execution is disabled. AI capabilities must execute through the durable AI worker queue.",
     );
