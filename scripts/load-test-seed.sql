@@ -5,10 +5,10 @@ BEGIN;
 CREATE TEMP TABLE _load_test_context ON COMMIT DROP AS
 SELECT o.id AS organization_id, u.id AS user_id
 FROM organizations o
-JOIN organization_memberships om
-  ON om.organization_id = o.id AND om.status = 'active'
+JOIN memberships m
+  ON m.organization_id = o.id AND m.status = 'active'
 JOIN users u
-  ON u.id = om.user_id AND u.email = :'user_email'
+  ON u.id = m.user_id AND u.email = :'user_email'
 WHERE o.slug = :'org_slug'
 LIMIT 1;
 
@@ -104,7 +104,7 @@ SELECT
     WHEN 2 THEN 'review'
     ELSE 'sourced'
   END,
-  'load_test',
+  'internal_talent_pool',
   (60 + (series.value % 41))::numeric
 FROM _load_test_context context
 CROSS JOIN generate_series(1, :candidate_count::int) AS series(value)
