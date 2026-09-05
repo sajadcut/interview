@@ -207,6 +207,12 @@ export class InterviewSessionStateService {
         };
         return {
           ...this.presentMachineState(sessionId, replayState, Number(replay.state_version)),
+          startedAt: this.isoOrNull(row.started_at),
+          completedAt: this.isoOrNull(row.completed_at),
+          pausedAt: this.isoOrNull(row.paused_at),
+          disconnectedAt: this.isoOrNull(row.disconnected_at),
+          lastFailureAt: this.isoOrNull(row.last_failure_at),
+          lastTransitionAt: this.isoOrNull(row.last_transition_at),
           transitionedAt: new Date(String(replay.occurred_at)).toISOString(),
           transition: {
             id: String(replay.id),
