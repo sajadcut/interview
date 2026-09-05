@@ -78,6 +78,17 @@ export function InternalSpeechLoopHarness() {
         }),
       );
 
+      await readJson(
+        await fetch(`${apiUrl}/v1/interviews/${session.id}/state/transitions`, {
+          method: "POST",
+          headers: authHeaders(context),
+          body: JSON.stringify({
+            idempotencyKey: `speech-loop-start-${session.id}`,
+            action: "start",
+          }),
+        }),
+      );
+
       const turn = await readJson<{ id: string; spokenText: string }>(
         await fetch(`${apiUrl}/v1/interviews/${session.id}/brain/next-turn`, {
           method: "POST",
