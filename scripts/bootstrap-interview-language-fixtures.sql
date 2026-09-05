@@ -13,8 +13,19 @@ SET language = 'fa',
     question_strategy = jsonb_set(
       COALESCE(p.question_strategy, '{}'::jsonb),
       '{criteria}',
-      COALESCE(p.question_strategy->'criteria', '{}'::jsonb) ||
-        '{"backend_depth":{"spokenLabel":"مهندسی بک‌اند"},"system_design":{"spokenLabel":"طراحی سیستم"}}'::jsonb,
+      jsonb_set(
+        jsonb_set(
+          COALESCE(p.question_strategy->'criteria', '{}'::jsonb),
+          '{backend_depth}',
+          COALESCE(p.question_strategy->'criteria'->'backend_depth', '{}'::jsonb) ||
+            '{"spokenLabel":"مهندسی بک‌اند"}'::jsonb,
+          true
+        ),
+        '{system_design}',
+        COALESCE(p.question_strategy->'criteria'->'system_design', '{}'::jsonb) ||
+          '{"spokenLabel":"طراحی سیستم"}'::jsonb,
+        true
+      ),
       true
     ),
     updated_at = now()
