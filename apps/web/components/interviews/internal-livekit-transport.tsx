@@ -35,6 +35,10 @@ function headers(organizationId: string, userId: string): HeadersInit {
   };
 }
 
+function mediaEventIdempotencyKey(activeMediaSessionId: string, eventType: string): string {
+  return `transport:${activeMediaSessionId}:${eventType}:${crypto.randomUUID()}`;
+}
+
 async function json<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
@@ -67,7 +71,12 @@ export function InternalLiveKitTransport({ sessionId, organizationId, userId }: 
       {
         method: "POST",
         headers: headers(organizationId, userId),
-        body: JSON.stringify({ eventType, sourceComponent: "transport", payload }),
+        body: JSON.stringify({
+          idempotencyKey: mediaEventIdempotencyKey(activeMediaSessionId, eventType),
+          eventType,
+          sourceComponent: "transport",
+          payload,
+        }),
       },
     );
     await json(response);
