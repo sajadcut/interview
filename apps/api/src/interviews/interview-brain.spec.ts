@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { decideInterviewTurn, type InterviewBrainInput } from "./interview-brain";
+import { containsPersianScript } from "./interview-language";
 
 function baseInput(): InterviewBrainInput {
   return {
@@ -8,6 +9,7 @@ function baseInput(): InterviewBrainInput {
       {
         key: "backend_depth",
         label: "Backend engineering",
+        spokenLabel: "مهندسی بک‌اند",
         objective: "validate production backend depth",
         expectedEvidence: ["production incident", "technical decision", "measurable outcome"],
         minimumEvidence: 1,
@@ -15,6 +17,7 @@ function baseInput(): InterviewBrainInput {
       {
         key: "system_design",
         label: "System design",
+        spokenLabel: "طراحی سیستم",
         objective: "validate scalable system-design reasoning",
         expectedEvidence: ["requirements", "trade-offs", "failure modes"],
         minimumEvidence: 1,
@@ -33,12 +36,24 @@ function baseInput(): InterviewBrainInput {
   };
 }
 
+function persianInput(): InterviewBrainInput {
+  return { ...baseInput(), language: "fa" };
+}
+
+function assertPersianSpeech(input: InterviewBrainInput) {
+  const decision = decideInterviewTurn(input);
+  assert.equal(containsPersianScript(decision.turn.spokenText), true);
+  assert.doesNotMatch(decision.turn.spokenText, /Backend engineering|System design|production incident/i);
+  return decision;
+}
+
 test("brain starts with the first uncovered criterion and evidence-seeking turn", () => {
   const decision = decideInterviewTurn(baseInput());
   assert.equal(decision.turn.action, "ask");
   assert.equal(decision.turn.criterion, "backend_depth");
   assert.ok(decision.turn.expectedEvidence.length > 0);
   assert.equal(decision.nextState.currentCriterion, "backend_depth");
+  assert.match(decision.turn.spokenText, /Backend engineering/);
 });
 
 test("brain moves to the next criterion once evidence minimum is covered", () => {
@@ -105,4 +120,64 @@ test("brain closes when the time budget has reached the final minute", () => {
   assert.equal(decision.turn.action, "close");
   assert.equal(decision.nextState.remainingSeconds, 55);
   assert.match(decision.reason, /time budget/i);
+});
+
+test("Persian brain uses Persian spoken labels and never speaks English rubric labels", () => {
+  const decision = assertPersianSpeech(persianInput());
+  assert.equal(decision.turn.action, "ask");
+  assert.match(decision.turn.spokenText, /مهندسی بک‌اند/);
+});
+
+test("Persian brain falls back to a Persian ordinal when a rubric label has no Persian spoken label", () => {
+  const input = persianInput();
+  delete input.criteria[0]?.spokenLabel;
+  const decision = assertPersianSpeech(input);
+  assert.match(decision.turn.spokenText, /موضوع شماره 1/);
+});
+
+test("Persian operational intents always produce Persian speech", () => {
+  const intents = [
+    "RECONNECT",
+    "CLARIFICATION_REQUEST",
+    "INTERRUPTION",
+    "SILENCE_TIMEOUT",
+    "CANDIDATE_QUESTION",
+    "SKIP_REQUEST",
+    "POLICY_REFUSAL",
+    "END_INTERVIEW_REQUEST",
+    "ABUSIVE_INPUT",
+  ] as const;
+
+  for (const candidateIntent of intents) {
+    const input = persianInput();
+    input.state.currentCriterion = "backend_depth";
+    input.candidateIntent = candidateIntent;
+    assertPersianSpeech(input);
+  }
+});
+
+test("Persian probe does not speak internal English expected-evidence text", () => {
+  const input = persianInput();
+  input.state.currentCriterion = "backend_depth";
+  input.state.askedQuestionIds = ["backend_depth:ask:1"];
+  input.latestCandidateText = "یک پاسخ اولیه";
+  input.candidateIntent = "ANSWER";
+
+  const decision = assertPersianSpeech(input);
+  assert.equal(decision.turn.action, "probe");
+  assert.doesNotMatch(decision.turn.spokenText, /technical decision|measurable outcome/i);
+});
+
+test("Persian close paths remain Persian", () => {
+  const noCriteria = persianInput();
+  noCriteria.criteria = [];
+  assertPersianSpeech(noCriteria);
+
+  const complete = persianInput();
+  complete.state.evidenceCoverage = { backend_depth: 1, system_design: 1 };
+  assertPersianSpeech(complete);
+
+  const timedOut = persianInput();
+  timedOut.state.remainingSeconds = 60;
+  assertPersianSpeech(timedOut);
 });
