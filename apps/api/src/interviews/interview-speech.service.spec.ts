@@ -11,7 +11,7 @@ const row = {
   finalized: true,
 };
 
-function serviceWith(options: { ttsReady?: boolean } = {}) {
+function serviceWith(options: { ttsReady?: boolean; speechDetected?: boolean } = {}) {
   const sql = async () => [row];
   const database = { sql };
   const tenant = { require: () => ({ organizationId: "11111111-1111-4111-8111-111111111111" }) };
@@ -48,10 +48,65 @@ function serviceWith(options: { ttsReady?: boolean } = {}) {
       };
     },
   };
+  const vadCalls: string[] = [];
+  const vad = {
+    providerKey: "silero-http",
+    enabled: true,
+    configured: true,
+    async readiness() {
+      vadCalls.push("readiness");
+      return { reachable: true, ready: true, contractVersion: "silero-vad.v1" };
+    },
+    async analyze(input: { requestId?: string }) {
+      vadCalls.push("analyze");
+      const speechDetected = options.speechDetected !== false;
+      return {
+        contractVersion: "silero-vad.v1",
+        provider: "silero-vad",
+        requestId: input.requestId ?? "",
+        speechDetected,
+        segments: speechDetected ? [{ startSeconds: 0.1, endSeconds: 1.1 }] : [],
+        sampleRate: 16000 as const,
+        durationSeconds: 1.25,
+        attempts: 1,
+      };
+    },
+  };
+  const sttCalls: string[] = [];
+  const stt = {
+    providerKey: "whisper-http",
+    enabled: true,
+    configured: true,
+    async readiness() {
+      sttCalls.push("readiness");
+      return { reachable: true, ready: true, contractVersion: "whisper-stt.v1" };
+    },
+    async transcribe(input: { requestId?: string }) {
+      sttCalls.push("transcribe");
+      return {
+        contractVersion: "whisper-stt.v1",
+        provider: "whisper.cpp",
+        requestId: input.requestId ?? "",
+        text: "پاسخ آزمایشی کاندید",
+        isFinal: true as const,
+        language: "fa",
+        attempts: 1,
+      };
+    },
+  };
   return {
-    service: new InterviewSpeechService(database as never, tenant as never, media as never, tts),
+    service: new InterviewSpeechService(
+      database as never,
+      tenant as never,
+      media as never,
+      tts,
+      vad,
+      stt,
+    ),
     mediaCalls,
     ttsCalls,
+    vadCalls,
+    sttCalls,
   };
 }
 
@@ -77,4 +132,34 @@ test("TTS-local readiness failure blocks synthesis without consulting other medi
     ),
   );
   assert.deepEqual(ttsCalls, ["readiness"]);
+});
+
+test("candidate audio runs VAD before Whisper and returns no transcript for silence", async () => {
+  const { service, vadCalls, sttCalls, mediaCalls } = serviceWith({ speechDetected: false });
+  const result = await service.transcribeCandidateAudio(
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    Uint8Array.from([82, 73, 70, 70]),
+    "audio/wav",
+  );
+  assert.equal(result.speechDetected, false);
+  assert.equal(result.transcript, null);
+  assert.deepEqual(vadCalls, ["readiness", "analyze"]);
+  assert.deepEqual(sttCalls, ["readiness"]);
+  assert.equal(mediaCalls.length, 1);
+});
+
+test("candidate speech is transcribed only after positive VAD", async () => {
+  const { service, vadCalls, sttCalls, mediaCalls } = serviceWith();
+  const result = await service.transcribeCandidateAudio(
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    Uint8Array.from([82, 73, 70, 70]),
+    "audio/wav",
+  );
+  assert.equal(result.speechDetected, true);
+  assert.equal(result.transcript?.text, "پاسخ آزمایشی کاندید");
+  assert.deepEqual(vadCalls, ["readiness", "analyze"]);
+  assert.deepEqual(sttCalls, ["readiness", "transcribe"]);
+  assert.equal(mediaCalls.length, 3);
 });
