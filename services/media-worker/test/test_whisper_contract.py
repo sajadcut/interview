@@ -45,6 +45,59 @@ class WhisperContractUnitTests(unittest.TestCase):
         self.assertNotIn("traceback", serialized)
         self.assertEqual(payload["error"]["retryable"], True)
 
+    def test_whisper_decode_defaults_are_accuracy_oriented(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "WHISPER_BEAM_SIZE": "",
+                "WHISPER_BEST_OF": "",
+                "WHISPER_INITIAL_PROMPT": "",
+            },
+            clear=False,
+        ):
+            settings = server.whisper_decode_settings()
+        self.assertEqual(settings["beamSize"], 5)
+        self.assertEqual(settings["bestOf"], 5)
+        self.assertEqual(settings["initialPrompt"], "")
+
+    def test_whisper_decode_settings_are_bounded_and_prompt_is_capped(self) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "WHISPER_BEAM_SIZE": "0",
+                "WHISPER_BEST_OF": "999",
+                "WHISPER_INITIAL_PROMPT": "x" * (server.MAX_WHISPER_PROMPT_CHARS + 50),
+            },
+            clear=False,
+        ):
+            settings = server.whisper_decode_settings()
+        self.assertEqual(settings["beamSize"], 1)
+        self.assertEqual(settings["bestOf"], 32)
+        self.assertEqual(len(settings["initialPrompt"]), server.MAX_WHISPER_PROMPT_CHARS)
+
+    def test_whisper_cli_args_include_accuracy_settings_and_optional_prompt(self) -> None:
+        prompt = "مصاحبه، هوشمند، منابع انسانی، رزومه، مهارت"
+        with patch.dict(
+            os.environ,
+            {
+                "WHISPER_BEAM_SIZE": "7",
+                "WHISPER_BEST_OF": "6",
+                "WHISPER_INITIAL_PROMPT": prompt,
+            },
+            clear=False,
+        ):
+            args = server.build_whisper_args(
+                "whisper-cli",
+                "model.bin",
+                Path("input.wav"),
+                Path("transcript"),
+                "fa",
+            )
+        self.assertEqual(args[args.index("--beam-size") + 1], "7")
+        self.assertEqual(args[args.index("--best-of") + 1], "6")
+        self.assertEqual(args[args.index("--prompt") + 1], prompt)
+        self.assertEqual(args[args.index("--language") + 1], "fa")
+
 
 class WhisperHttpContractTests(unittest.TestCase):
     def setUp(self) -> None:
