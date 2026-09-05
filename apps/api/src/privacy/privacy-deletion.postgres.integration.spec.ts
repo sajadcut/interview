@@ -180,16 +180,22 @@ test(
         INSERT INTO interview_sessions (id, organization_id, application_id, interview_plan_id, status)
         VALUES (${interviewSessionId}::uuid, ${organizationId}::uuid, ${applicationId}::uuid, ${planId}::uuid, 'completed')
       `;
-      await database.sql`
+      const transcriptRows = await database.sql`
         INSERT INTO interview_transcript_segments (
           organization_id, interview_session_id, speaker, start_ms, end_ms, text, is_final
         ) VALUES (
           ${organizationId}::uuid, ${interviewSessionId}::uuid, 'candidate', 0, 1000, 'private transcript', true
         )
+        RETURNING id
       `;
+      const transcriptSegmentId = String(transcriptRows[0]?.id);
       await database.sql`
-        INSERT INTO interview_evidence (organization_id, interview_session_id, summary)
-        VALUES (${organizationId}::uuid, ${interviewSessionId}::uuid, 'derived interview evidence')
+        INSERT INTO interview_evidence (
+          organization_id, interview_session_id, transcript_segment_ids, summary
+        ) VALUES (
+          ${organizationId}::uuid, ${interviewSessionId}::uuid,
+          ${[transcriptSegmentId]}::uuid[], 'derived interview evidence'
+        )
       `;
       await database.sql`
         INSERT INTO interview_recordings (
