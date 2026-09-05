@@ -1,9 +1,10 @@
 "use client";
 
 import type { components } from "@interview/api-client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CandidateInterviewExperience } from "../../../components/candidate/candidate-interview-experience";
 import { api } from "../../../lib/api";
+import { createCandidateRealtimeRuntime } from "../../../lib/candidate-realtime-runtime";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
 type CandidateSession = components["schemas"]["CandidateSessionDto"];
@@ -14,6 +15,13 @@ export default function CandidateInterviewPage() {
   const [session, setSession] = useState<CandidateSession | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const runtime = useMemo(
+    () =>
+      createCandidateRealtimeRuntime({
+        developmentPreview: process.env.NODE_ENV === "development",
+      }),
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -90,7 +98,7 @@ export default function CandidateInterviewPage() {
       candidateName={session.candidateDisplayName}
       jobTitle={session.jobTitle}
       sessionExpiresAt={session.expiresAt}
-      developmentPreview={process.env.NODE_ENV === "development"}
+      runtime={runtime}
     />
   );
 }
