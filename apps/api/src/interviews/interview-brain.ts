@@ -42,6 +42,11 @@ export interface InterviewBrainDecision {
   reason: string;
 }
 
+const PERSIAN_CRITERION_LABELS: Readonly<Record<string, string>> = {
+  backend_depth: "مهندسی بک‌اند",
+  system_design: "طراحی سیستم",
+};
+
 function localized(language: InterviewSpokenLanguage, english: string, persian: string): string {
   return language === "fa" ? persian : english;
 }
@@ -63,12 +68,11 @@ function normalizeCriterion(criterion: InterviewBrainCriterion): InterviewBrainC
 function criterionSpokenLabel(
   language: InterviewSpokenLanguage,
   criterion: InterviewBrainCriterion,
-  index: number,
 ): string {
   if (language === "en") return criterion.label.trim();
   const preferred = criterion.spokenLabel?.trim() || criterion.label.trim();
   if (containsPersianScript(preferred)) return preferred;
-  return `موضوع شماره ${Math.max(1, index + 1)}`;
+  return PERSIAN_CRITERION_LABELS[criterion.key.trim().toLowerCase()] ?? "این بخش تخصصی";
 }
 
 function evidenceCount(state: InterviewBrainState, criterion: InterviewBrainCriterion): number {
@@ -190,8 +194,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
     );
   }
 
-  const currentIndex = criteria.findIndex((criterion) => criterion.key === current.key);
-  const currentLabel = criterionSpokenLabel(language, current, currentIndex);
+  const currentLabel = criterionSpokenLabel(language, current);
 
   switch (input.candidateIntent) {
     case "END_INTERVIEW_REQUEST":
@@ -256,7 +259,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           spokenText: localized(
             language,
             `Sure. For ${currentLabel}, I am looking for a concrete job-relevant example, what you personally did, the trade-offs you considered, and the outcome.`,
-            `حتماً. درباره ${currentLabel} یک مثال واقعی و مرتبط با کار می‌خواهم. توضیح دهید خودتان چه کاری انجام دادید، چه ملاحظاتی داشتید و نتیجه چه شد.`,
+            `حتماً. درباره ${currentLabel} یک نمونه واقعی و مرتبط با کار می‌خواهم. بگویید خودتان چه کاری انجام دادید، چه گزینه‌هایی داشتید و نتیجه چه شد.`,
           ),
           expectedEvidence: [],
         },
@@ -318,8 +321,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           current.key,
         );
       }
-      const nextIndex = criteria.findIndex((criterion) => criterion.key === next.key);
-      const nextLabel = criterionSpokenLabel(language, next, nextIndex);
+      const nextLabel = criterionSpokenLabel(language, next);
       return finalize(
         input,
         {
@@ -355,7 +357,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         spokenText: localized(
           language,
           `Tell me about a concrete example that demonstrates ${currentLabel}. Focus on your own decisions, the technical context, trade-offs, and outcome.`,
-          `لطفاً یک مثال واقعی و مشخص درباره ${currentLabel} از تجربه کاری خودتان توضیح دهید. روی تصمیم‌هایی که خودتان گرفتید، زمینه فنی، ملاحظات و نتیجه تمرکز کنید.`,
+          `لطفاً یک نمونه واقعی و مشخص از تجربه کاری خود درباره ${currentLabel} تعریف کنید. بگویید خودتان چه تصمیمی گرفتید، شرایط فنی چه بود، چه گزینه‌هایی را بررسی کردید و نتیجه چه شد.`,
         ),
         expectedEvidence,
       },
@@ -373,7 +375,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       spokenText: localized(
         language,
         `Thanks. I still need stronger evidence for ${currentLabel}. Please go deeper on ${expectedEvidence.join(", ")}.`,
-        `ممنون. برای ارزیابی دقیق‌تر ${currentLabel} هنوز به جزئیات بیشتری نیاز دارم. لطفاً درباره نقش خودتان، تصمیم‌ها، ملاحظات فنی و نتیجه مشخص‌تر توضیح دهید.`,
+        `ممنون. برای ارزیابی دقیق‌تر ${currentLabel} به جزئیات بیشتری نیاز دارم. لطفاً نقش خودتان، تصمیم فنی، گزینه‌های بررسی‌شده و نتیجه را روشن‌تر توضیح دهید.`,
       ),
       expectedEvidence,
     },
