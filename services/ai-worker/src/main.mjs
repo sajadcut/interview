@@ -1,55 +1,61 @@
-import { hostname } from "node:os";
-import { randomUUID } from "node:crypto";
+#!/usr/bin/env node
+import process from "node:process";
 import { AiWorkerApiClient } from "./api-client.mjs";
+import { capabilityPromptDefinitions, createCapabilityProcessors } from "./capabilities.mjs";
+import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
+import { createOpenAiCompatibleProvider, createUnavailableProvider } from "./openai-compatible-provider.mjs";
 import { AiWorkerRuntime } from "./runtime.mjs";
 
-function integerEnv(name, fallback, min, max) {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const value = Number(raw);
-  if (!Number.isFinite(value)) throw new Error(`${name} must be a number`);
-  return Math.max(min, Math.min(max, Math.trunc(value)));
+function integerEnv(name, fallback) {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isFinite(value) ? Math.trunc(value) : fallback;
+}
+
+function providerFromEnvironment() {
+  const selected = (process.env.LLM_PROVIDER ?? "disabled").trim().toLowerCase();
+  if (selected === "openai-compatible") return createOpenAiCompatibleProvider(process.env);
+  if (selected === "disabled") return createUnavailableProvider();
+  throw new Error(`Unsupported LLM_PROVIDER ${selected}`);
 }
 
 const sharedSecret = process.env.AI_WORKER_SHARED_SECRET?.trim();
-if (!sharedSecret) {
-  throw new Error("AI_WORKER_SHARED_SECRET is required to start services/ai-worker");
-}
+if (!sharedSecret) throw new Error("AI_WORKER_SHARED_SECRET is required");
 
-const workerId =
-  process.env.AI_WORKER_ID?.trim() || `${hostname()}-${process.pid}-${randomUUID().slice(0, 8)}`;
-const client = new AiWorkerApiClient({
-  baseUrl: process.env.AI_WORKER_API_URL?.trim() || "http://127.0.0.1:4000",
-  sharedSecret,
-  requestTimeoutMs: integerEnv("AI_WORKER_REQUEST_TIMEOUT_MS", 10000, 1000, 60000),
+const promptRegistry = new PromptRegistry(
+  capabilityPromptDefinitions().map(({ capability: _capability, ...definition }) => definition),
+);
+const llm = new LLMProviderLayer({
+  providers: [providerFromEnvironment()],
+  promptRegistry,
+  timeoutMs: integerEnv("LLM_TIMEOUT_MS", 30_000),
+  maxAttemptsPerProvider: integerEnv("LLM_MAX_ATTEMPTS_PER_PROVIDER", 2),
 });
+const processors = createCapabilityProcessors({ llm });
+processors.set("system.healthcheck", async ({ job }) => ({
+  schemaVersion: "system-healthcheck.v1",
+  ok: true,
+  jobId: job.id,
+  processedAt: new Date().toISOString(),
+}));
 
-const processors = new Map([
-  [
-    "system.healthcheck",
-    async ({ workerId: activeWorkerId }) => ({
-      ok: true,
-      workerId: activeWorkerId,
-      processedAt: new Date().toISOString(),
-    }),
-  ],
-]);
-
+const client = new AiWorkerApiClient({
+  baseUrl: process.env.AI_WORKER_API_BASE_URL ?? "http://127.0.0.1:4000",
+  sharedSecret,
+  requestTimeoutMs: integerEnv("AI_WORKER_REQUEST_TIMEOUT_MS", 10_000),
+});
 const runtime = new AiWorkerRuntime({
   client,
   processors,
-  workerId,
-  concurrency: integerEnv("AI_WORKER_CONCURRENCY", 2, 1, 32),
-  pollIntervalMs: integerEnv("AI_WORKER_POLL_INTERVAL_MS", 1000, 100, 60000),
-  leaseDurationMs: integerEnv("AI_WORKER_LEASE_MS", 120000, 5000, 300000),
-  heartbeatIntervalMs: integerEnv("AI_WORKER_HEARTBEAT_MS", 15000, 1000, 120000),
+  workerId: process.env.AI_WORKER_ID ?? `ai-worker-${process.pid}`,
+  concurrency: integerEnv("AI_WORKER_CONCURRENCY", 1),
+  pollIntervalMs: integerEnv("AI_WORKER_POLL_INTERVAL_MS", 1_000),
+  leaseDurationMs: integerEnv("AI_WORKER_LEASE_DURATION_MS", 120_000),
+  heartbeatIntervalMs: integerEnv("AI_WORKER_HEARTBEAT_INTERVAL_MS", 15_000),
 });
 
-const shutdown = new AbortController();
+const controller = new AbortController();
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => shutdown.abort(new Error(`${signal} received`)));
+  process.on(signal, () => controller.abort(new Error(signal)));
 }
 
-console.log(`AI worker ${workerId} started with ${runtime.concurrency} processing lane(s)`);
-await runtime.runForever(shutdown.signal);
-console.log(`AI worker ${workerId} stopped`);
+await runtime.runForever(controller.signal);

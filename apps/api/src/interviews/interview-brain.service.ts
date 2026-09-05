@@ -7,6 +7,10 @@ import {
   type InterviewBrainCriterion,
   type InterviewBrainState,
 } from "./interview-brain";
+import {
+  enforceInterviewTurnPolicy,
+  type InterviewPolicyPriorTurn,
+} from "./interview-policy-firewall";
 import { evaluateInterviewRelease, parseInterviewLifecycleStage } from "./interview-release.policy";
 
 const BRAIN_VERSION = "deterministic-state-machine-v1";
@@ -74,6 +78,7 @@ export class InterviewBrainService {
           s.checkpoint,
           p.rubric_version_id,
           p.question_strategy,
+          p.forbidden_topics,
           r.lifecycle_stage,
           r.production_approved_at,
           r.production_approved_by_user_id
@@ -160,12 +165,10 @@ export class InterviewBrainService {
         GROUP BY rc.criterion_key
       `;
       const evidenceCoverage: Record<string, number> = {};
-      for (const row of evidenceRows) {
-        evidenceCoverage[String(row.criterion_key)] = Number(row.evidence_count ?? 0);
-      }
+      for (const row of evidenceRows) evidenceCoverage[String(row.criterion_key)] = Number(row.evidence_count ?? 0);
 
       const priorTurnRows = await transaction`
-        SELECT sequence, criterion_key, action
+        SELECT sequence, criterion_key, action, objective, spoken_text
         FROM interview_turns
         WHERE organization_id = ${organizationId}::uuid
           AND interview_session_id = ${sessionId}::uuid
@@ -175,21 +178,26 @@ export class InterviewBrainService {
         `${row.criterion_key ? String(row.criterion_key) : "session"}:${String(row.action)}:${Number(row.sequence) + 1}`,
       );
       const state: InterviewBrainState = {
-        currentCriterion: session?.current_criterion_key
-          ? String(session.current_criterion_key)
-          : null,
+        currentCriterion: session?.current_criterion_key ? String(session.current_criterion_key) : null,
         askedQuestionIds,
         evidenceCoverage,
         remainingSeconds: Math.max(0, Number(session?.remaining_seconds ?? 0)),
         reconnectCount: Math.max(0, Number(session?.reconnect_count ?? 0)),
       };
 
-      const decision = decideInterviewTurn({
-        criteria,
-        state,
-        latestCandidateText,
+      const decision = decideInterviewTurn({ criteria, state, latestCandidateText, candidateIntent, elapsedSeconds });
+      const policy = enforceInterviewTurnPolicy(decision.turn, {
+        criteria: criteria.map((item) => ({ key: item.key, objective: item.objective })),
+        forbiddenTopics: session?.forbidden_topics,
+        priorTurns: priorTurnRows.map((row): InterviewPolicyPriorTurn => ({
+          action: String(row.action),
+          criterion: row.criterion_key ? String(row.criterion_key) : null,
+          objective: row.objective ? String(row.objective) : null,
+          spokenText: String(row.spoken_text ?? ""),
+        })),
+        remainingSeconds: decision.nextState.remainingSeconds,
         candidateIntent,
-        elapsedSeconds,
+        latestCandidateText,
       });
       const sequence = priorTurnRows.length
         ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
@@ -197,29 +205,15 @@ export class InterviewBrainService {
 
       const inserted = await transaction`
         INSERT INTO interview_turns (
-          organization_id,
-          interview_session_id,
-          sequence,
-          candidate_intent,
-          action,
-          criterion_key,
-          objective,
-          spoken_text,
-          expected_evidence,
-          interviewer_trace_reference,
-          finalized
+          organization_id, interview_session_id, sequence, candidate_intent, action,
+          criterion_key, objective, spoken_text, expected_evidence,
+          interviewer_trace_reference, finalized
         ) VALUES (
-          ${organizationId}::uuid,
-          ${sessionId}::uuid,
-          ${sequence},
-          ${candidateIntent},
-          ${decision.turn.action},
-          ${decision.turn.criterion},
-          ${decision.turn.objective},
-          ${decision.turn.spokenText},
-          ${this.database.sql.json(decision.turn.expectedEvidence as never)},
-          ${BRAIN_VERSION},
-          true
+          ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
+          ${policy.turn.action}, ${policy.turn.criterion}, ${policy.turn.objective},
+          ${policy.turn.spokenText},
+          ${this.database.sql.json(policy.turn.expectedEvidence as never)},
+          ${`${BRAIN_VERSION}:${policy.policyVersion}`}, true
         )
         RETURNING id, created_at
       `;
@@ -233,27 +227,30 @@ export class InterviewBrainService {
           askedQuestionIds: decision.nextState.askedQuestionIds,
           evidenceCoverage: decision.nextState.evidenceCoverage,
         },
+        policy: {
+          version: policy.policyVersion,
+          decision: policy.decision,
+          violations: policy.violations,
+        },
       };
       await transaction`
         UPDATE interview_sessions
-        SET
-          current_criterion_key = ${decision.nextState.currentCriterion},
-          remaining_seconds = ${decision.nextState.remainingSeconds},
-          checkpoint = ${this.database.sql.json(nextCheckpoint as never)},
-          updated_at = now()
-        WHERE organization_id = ${organizationId}::uuid
-          AND id = ${sessionId}::uuid
+        SET current_criterion_key = ${policy.turn.criterion},
+            remaining_seconds = ${decision.nextState.remainingSeconds},
+            checkpoint = ${this.database.sql.json(nextCheckpoint as never)},
+            updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid AND id = ${sessionId}::uuid
       `;
 
       return {
         id: String(inserted[0]?.id),
         sequence,
         questionId: decision.questionId,
-        action: decision.turn.action,
-        criterion: decision.turn.criterion,
-        objective: decision.turn.objective,
-        spokenText: decision.turn.spokenText,
-        expectedEvidence: decision.turn.expectedEvidence,
+        action: policy.turn.action,
+        criterion: policy.turn.criterion,
+        objective: policy.turn.objective,
+        spokenText: policy.turn.spokenText,
+        expectedEvidence: policy.turn.expectedEvidence,
         ...(candidateIntent ? { candidateIntent } : {}),
         finalized: true,
         brainVersion: BRAIN_VERSION,
@@ -261,6 +258,9 @@ export class InterviewBrainService {
         remainingSeconds: decision.nextState.remainingSeconds,
         evidenceCoverage: decision.nextState.evidenceCoverage,
         releaseMode: release.mode,
+        policyVersion: policy.policyVersion,
+        policyDecision: policy.decision,
+        policyViolations: policy.violations,
         createdAt: new Date(String(inserted[0]?.created_at)).toISOString(),
       };
     });

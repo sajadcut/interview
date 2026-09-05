@@ -1,132 +1,71 @@
-import { randomUUID } from "node:crypto";
-import { Inject, Injectable } from "@nestjs/common";
-import type { z } from "zod";
-import { DatabaseService } from "../database/database.service";
-import { getEnv } from "../config/env";
+import { ConflictException, Injectable } from "@nestjs/common";
 import { TenantContextService } from "../tenant/tenant-context.service";
-import { LLM_PROVIDER, type LlmMessage, type LlmProvider } from "./llm-provider";
+import { AiJobQueueService, type AiJob } from "./ai-job-queue.service";
 
-const DEFAULT_LLM_TIMEOUT_MS = 20_000;
-const MIN_LLM_TIMEOUT_MS = 250;
-const MAX_LLM_TIMEOUT_MS = 120_000;
+export const AI_WORKER_CAPABILITIES = [
+  "interview.next_turn",
+  "interview.evidence_extract",
+  "interview.contradiction_detect",
+  "interview.evaluate",
+  "candidate.resume_enrich",
+  "candidate.summary",
+  "interview.recommendation_summary",
+] as const;
 
-export interface AiExecutionRequest<T> {
-  capability: string;
+export type AiWorkerCapability = (typeof AI_WORKER_CAPABILITIES)[number];
+
+export interface AiExecutionRequest {
+  capability: AiWorkerCapability;
+  capabilityVersion: string;
+  promptId: string;
   promptVersion: string;
-  model?: string;
-  messages: LlmMessage[];
-  schema: z.ZodType<T>;
-  inputReferences?: Record<string, unknown>;
-  temperature?: number;
+  structuredOutputSchemaVersion: string;
+  input: Record<string, unknown>;
+  inputReferences: Record<string, unknown>;
+  idempotencyKey: string;
+  priority?: number;
+  maxAttempts?: number;
   timeoutMs?: number;
-}
-
-export class AiStructuredOutputError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AiStructuredOutputError";
-  }
-}
-
-export class AiProviderTimeoutError extends Error {
-  constructor(timeoutMs: number) {
-    super(`LLM provider timed out after ${timeoutMs}ms`);
-    this.name = "AiProviderTimeoutError";
-  }
-}
-
-function boundedTimeout(value: number | undefined): number {
-  if (value === undefined || !Number.isFinite(value)) return DEFAULT_LLM_TIMEOUT_MS;
-  return Math.max(MIN_LLM_TIMEOUT_MS, Math.min(MAX_LLM_TIMEOUT_MS, Math.trunc(value)));
-}
-
-async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeout: NodeJS.Timeout | undefined;
-  try {
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new AiProviderTimeoutError(timeoutMs)), timeoutMs);
-        timeout.unref?.();
-      }),
-    ]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
 }
 
 @Injectable()
 export class AiGatewayService {
   constructor(
-    @Inject(LLM_PROVIDER) private readonly provider: LlmProvider,
-    private readonly database: DatabaseService,
+    private readonly queue: AiJobQueueService,
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  async executeStructured<T>(request: AiExecutionRequest<T>): Promise<{ executionId: string; output: T }> {
-    const organizationId = this.tenantContext.require().organizationId;
-    const executionId = randomUUID();
-    const started = Date.now();
-    const model = request.model?.trim() || getEnv().LLM_MODEL.trim();
-    const timeoutMs = boundedTimeout(request.timeoutMs);
-    if (!model) throw new Error("An LLM model must be supplied by the request or LLM_MODEL");
-
-    await this.database.sql`
-      INSERT INTO ai_executions (
-        id, organization_id, capability, provider, model, prompt_version, status, input_references
-      ) VALUES (
-        ${executionId}::uuid,
-        ${organizationId}::uuid,
-        ${request.capability},
-        ${this.provider.name},
-        ${model},
-        ${request.promptVersion},
-        'running',
-        ${request.inputReferences ? this.database.sql.json(request.inputReferences as never) : null}
-      )
-    `;
-
-    try {
-      const result = await withTimeout(
-        this.provider.generateStructured({
-          model,
-          messages: request.messages,
-          ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
-        }),
-        timeoutMs,
-      );
-      const parsed = request.schema.safeParse(result.output);
-      if (!parsed.success) {
-        const details = parsed.error.issues
-          .map((issue) => `${issue.path.join(".") || "output"}: ${issue.message}`)
-          .join("; ");
-        throw new AiStructuredOutputError(`LLM structured output validation failed: ${details}`);
-      }
-
-      const latencyMs = Date.now() - started;
-      await this.database.sql`
-        UPDATE ai_executions SET
-          status = 'succeeded',
-          structured_output = ${this.database.sql.json(parsed.data as never)},
-          prompt_tokens = ${result.promptTokens ?? null},
-          completion_tokens = ${result.completionTokens ?? null},
-          latency_ms = ${latencyMs},
-          completed_at = now()
-        WHERE id = ${executionId}::uuid AND organization_id = ${organizationId}::uuid
-      `;
-
-      return { executionId, output: parsed.data };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown LLM error";
-      await this.database.sql`
-        UPDATE ai_executions SET
-          status = 'failed',
-          error_message = ${message.slice(0, 4000)},
-          latency_ms = ${Date.now() - started},
-          completed_at = now()
-        WHERE id = ${executionId}::uuid AND organization_id = ${organizationId}::uuid
-      `;
-      throw error;
+  async enqueueStructured(request: AiExecutionRequest): Promise<AiJob> {
+    if (!AI_WORKER_CAPABILITIES.includes(request.capability)) {
+      throw new Error("Unsupported AI worker capability");
     }
+    if (!request.capabilityVersion.trim()) throw new Error("AI capability version is required");
+    if (!request.promptId.trim() || !request.promptVersion.trim()) throw new Error("AI prompt reference is required");
+    if (!request.structuredOutputSchemaVersion.trim()) throw new Error("AI structured-output schema version is required");
+    if (!request.idempotencyKey.trim()) throw new Error("AI idempotency key is required");
+
+    const organizationId = this.tenantContext.require().organizationId;
+    return this.queue.enqueue({
+      organizationId,
+      capability: request.capability,
+      payload: {
+        capabilityVersion: request.capabilityVersion,
+        promptId: request.promptId,
+        promptVersion: request.promptVersion,
+        structuredOutputSchemaVersion: request.structuredOutputSchemaVersion,
+        inputReferences: request.inputReferences,
+        input: request.input,
+      },
+      idempotencyKey: request.idempotencyKey,
+      priority: request.priority,
+      maxAttempts: request.maxAttempts,
+      timeoutMs: request.timeoutMs,
+    });
+  }
+
+  async executeStructured<T>(_request: unknown): Promise<{ executionId: string; output: T }> {
+    throw new ConflictException(
+      "Synchronous LLM execution is disabled. AI capabilities must execute through the durable AI worker queue.",
+    );
   }
 }

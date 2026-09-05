@@ -2,11 +2,13 @@ export const CandidateIntents = [
   "ANSWER",
   "CLARIFICATION_REQUEST",
   "SKIP_REQUEST",
+  "END_INTERVIEW_REQUEST",
   "INTERRUPTION",
   "SILENCE_TIMEOUT",
   "RECONNECT",
   "CANDIDATE_QUESTION",
   "POLICY_REFUSAL",
+  "ABUSIVE_INPUT",
 ] as const;
 
 export type CandidateIntent = (typeof CandidateIntents)[number];

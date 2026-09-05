@@ -7,7 +7,6 @@ export const InterviewLifecycleStages = [
   "SCALED_PRODUCTION",
   "SUSPENDED",
 ] as const;
-
 export type InterviewLifecycleStage = (typeof InterviewLifecycleStages)[number];
 
 export function parseInterviewLifecycleStage(value: unknown): InterviewLifecycleStage {
@@ -19,10 +18,18 @@ export function parseInterviewLifecycleStage(value: unknown): InterviewLifecycle
 
 export interface InterviewReleaseDecisionInput {
   lifecycleStage: InterviewLifecycleStage;
-  productionApprovedAt: string | null;
-  productionApprovedByUserId: string | null;
+  productionApprovedAt?: string | null;
+  productionApprovedByUserId?: string | null;
   candidateIsRealCustomerCandidate: boolean;
   synchronousHumanSupervisorPresent: boolean;
+  approvalStatus?: string | null;
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  approvalExpiresAt?: string | null;
+  materialFingerprint?: string | null;
+  approvedMaterialFingerprint?: string | null;
+  approvalArtifactComplete?: boolean;
+  now?: Date;
 }
 
 export interface InterviewReleaseDecision {
@@ -31,8 +38,28 @@ export interface InterviewReleaseDecision {
   reasons: string[];
 }
 
+function productionApprovalReasons(input: InterviewReleaseDecisionInput): string[] {
+  const reasons: string[] = [];
+  if (input.approvalStatus !== "approved") reasons.push("Release approval artifact status is not approved");
+  if (!input.approvedAt || !input.approvedByUserId) reasons.push("Release approval artifact lacks approver provenance");
+  if (!input.approvalExpiresAt) {
+    reasons.push("Release approval artifact lacks a review/expiry date");
+  } else {
+    const expiresAt = Date.parse(input.approvalExpiresAt);
+    const now = (input.now ?? new Date()).getTime();
+    if (!Number.isFinite(expiresAt) || expiresAt <= now) reasons.push("Release approval artifact is expired");
+  }
+  if (!input.approvalArtifactComplete) reasons.push("Release approval artifact is incomplete");
+  if (!input.materialFingerprint || !input.approvedMaterialFingerprint) {
+    reasons.push("Release material fingerprint is missing");
+  } else if (input.materialFingerprint !== input.approvedMaterialFingerprint) {
+    reasons.push("Release material changed after approval and requires revalidation");
+  }
+  return reasons;
+}
+
 export function evaluateInterviewRelease(input: InterviewReleaseDecisionInput): InterviewReleaseDecision {
-  if (input.lifecycleStage === "SUSPENDED") {
+  if (input.lifecycleStage === "SUSPENDED" || input.approvalStatus === "suspended") {
     return { allowed: false, mode: "blocked", reasons: ["Release unit is suspended"] };
   }
 
@@ -44,7 +71,7 @@ export function evaluateInterviewRelease(input: InterviewReleaseDecisionInput): 
     };
   }
 
-  if (input.lifecycleStage === "DEV_ONLY" || input.lifecycleStage === "INTERNAL_TEST" || input.lifecycleStage === "SHADOW") {
+  if (["DEV_ONLY", "INTERNAL_TEST", "SHADOW"].includes(input.lifecycleStage)) {
     return {
       allowed: false,
       mode: "blocked",
@@ -54,30 +81,15 @@ export function evaluateInterviewRelease(input: InterviewReleaseDecisionInput): 
 
   if (input.lifecycleStage === "SUPERVISED_PILOT") {
     return input.synchronousHumanSupervisorPresent
-      ? {
-          allowed: true,
-          mode: "supervised",
-          reasons: ["Supervised pilot requires active trained human review ownership"],
-        }
-      : {
-          allowed: false,
-          mode: "blocked",
-          reasons: ["Supervised pilot cannot run without the required human supervisor"],
-        };
+      ? { allowed: true, mode: "supervised", reasons: ["Supervised pilot requires active trained human review ownership and pilot approval controls"] }
+      : { allowed: false, mode: "blocked", reasons: ["Supervised pilot cannot run without the required human supervisor"] };
   }
 
-  const hasProductionApproval = Boolean(input.productionApprovedAt && input.productionApprovedByUserId);
-  if (!hasProductionApproval) {
-    return {
-      allowed: false,
-      mode: "blocked",
-      reasons: ["Controlled/scaled production requires an explicit production approval record"],
-    };
-  }
-
+  const reasons = productionApprovalReasons(input);
+  if (reasons.length) return { allowed: false, mode: "blocked", reasons };
   return {
     allowed: true,
     mode: "autonomous",
-    reasons: ["Release unit is production-approved; final employment decisions remain human-controlled"],
+    reasons: ["Release artifact is valid and unexpired; AI output remains decision support and final employment decisions stay human-controlled"],
   };
 }

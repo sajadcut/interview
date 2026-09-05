@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -16,11 +17,13 @@ const candidateIntentValues = [
   "ANSWER",
   "CLARIFICATION_REQUEST",
   "SKIP_REQUEST",
+  "END_INTERVIEW_REQUEST",
   "INTERRUPTION",
   "SILENCE_TIMEOUT",
   "RECONNECT",
   "CANDIDATE_QUESTION",
   "POLICY_REFUSAL",
+  "ABUSIVE_INPUT",
 ] as const;
 
 const interviewActionValues = ["ask", "probe", "clarify", "transition", "close", "escalate"] as const;
@@ -120,6 +123,9 @@ export class InterviewBrainTurnDto extends InterviewTurnDto {
   @ApiProperty({ type: Object })
   evidenceCoverage!: Record<string, number>;
   @ApiProperty() releaseMode!: string;
+  @ApiProperty() policyVersion!: string;
+  @ApiProperty({ enum: ["accepted", "fallback"] }) policyDecision!: string;
+  @ApiProperty({ type: [String] }) policyViolations!: string[];
 }
 
 export class TranscriptSegmentInputDto {
@@ -169,8 +175,9 @@ export class InterviewEvidenceInputDto {
   @IsUUID()
   turnId?: string;
 
-  @ApiProperty({ type: [String] })
+  @ApiProperty({ type: [String], minItems: 1 })
   @IsArray()
+  @ArrayMinSize(1)
   @IsUUID(undefined, { each: true })
   transcriptSegmentIds!: string[];
 
@@ -188,5 +195,6 @@ export class InterviewEvidenceInputDto {
 
 export class InterviewEvidenceDto extends InterviewEvidenceInputDto {
   @ApiProperty() id!: string;
+  @ApiProperty({ enum: ["candidate", "interviewer", "system", "mixed"] }) sourceKind!: string;
   @ApiProperty() createdAt!: string;
 }
