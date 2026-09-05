@@ -3,6 +3,8 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Venv = Join-Path $RepoRoot ".venv-ava-tts"
 $WheelUrl = "https://huggingface.co/xmanii/Ava-82M/resolve/main/ava_tts-0.2.0-py3-none-any.whl"
+$PyPiIndex = "https://pypi.org/simple"
+$TorchCpuIndex = "https://download.pytorch.org/whl/cpu"
 
 Write-Host "== Ava-82M Persian CPU TTS setup =="
 
@@ -78,13 +80,28 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 
 $Python = Join-Path $Venv "Scripts\python.exe"
 Write-Host "Installing CPU-only PyTorch..."
-& $Python -m pip install --upgrade pip
+& $Python -m pip install --index-url $PyPiIndex --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
-& $Python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.6.0"
+
+# The PyTorch CPU index intentionally does not mirror normal PyPI packages.
+# Install torch's generic Python dependencies from PyPI first, then install only
+# the CPU wheel itself from the PyTorch index. This prevents 403 errors for
+# packages such as setuptools on download.pytorch.org.
+& $Python -m pip install --index-url $PyPiIndex `
+    "filelock" `
+    "typing-extensions>=4.10.0" `
+    "networkx" `
+    "jinja2" `
+    "fsspec" `
+    "setuptools" `
+    "sympy==1.13.1"
+if ($LASTEXITCODE -ne 0) { throw "PyTorch dependency installation failed." }
+
+& $Python -m pip install --no-deps --index-url $TorchCpuIndex "torch==2.6.0+cpu"
 if ($LASTEXITCODE -ne 0) { throw "CPU PyTorch installation failed." }
 
 Write-Host "Installing Ava-82M and pinned Persian frontend dependencies..."
-& $Python -m pip install $WheelUrl
+& $Python -m pip install --index-url $PyPiIndex $WheelUrl
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
