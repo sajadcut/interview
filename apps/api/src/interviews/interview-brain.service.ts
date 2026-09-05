@@ -7,6 +7,7 @@ import {
   type InterviewBrainCriterion,
   type InterviewBrainState,
 } from "./interview-brain";
+import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
   enforceInterviewTurnPolicy,
   type InterviewPolicyPriorTurn,
@@ -77,6 +78,7 @@ export class InterviewBrainService {
           s.reconnect_count,
           s.checkpoint,
           p.rubric_version_id,
+          p.language,
           p.question_strategy,
           p.forbidden_topics,
           r.lifecycle_stage,
@@ -94,6 +96,7 @@ export class InterviewBrainService {
       if (!sessionRows.length) throw new Error("Interview session not found");
 
       const session = sessionRows[0];
+      const language = normalizeInterviewSpokenLanguage(session?.language);
       const checkpoint = asRecord(session?.checkpoint);
       if (checkpoint.candidateIsRealCustomerCandidate === true) {
         throw new Error(
@@ -140,9 +143,14 @@ export class InterviewBrainService {
           const label = String(row.label);
           const description = String(row.description ?? "").trim();
           const expectedEvidence = asStringArray(strategy.expectedEvidence);
+          const spokenLabel =
+            typeof strategy.spokenLabel === "string" && strategy.spokenLabel.trim()
+              ? strategy.spokenLabel.trim()
+              : undefined;
           return {
             key,
             label,
+            ...(spokenLabel ? { spokenLabel } : {}),
             objective:
               typeof strategy.objective === "string" && strategy.objective.trim()
                 ? strategy.objective.trim()
@@ -185,7 +193,14 @@ export class InterviewBrainService {
         reconnectCount: Math.max(0, Number(session?.reconnect_count ?? 0)),
       };
 
-      const decision = decideInterviewTurn({ criteria, state, latestCandidateText, candidateIntent, elapsedSeconds });
+      const decision = decideInterviewTurn({
+        criteria,
+        state,
+        latestCandidateText,
+        candidateIntent,
+        elapsedSeconds,
+        language,
+      });
       const policy = enforceInterviewTurnPolicy(decision.turn, {
         criteria: criteria.map((item) => ({ key: item.key, objective: item.objective })),
         forbiddenTopics: session?.forbidden_topics,
@@ -198,6 +213,7 @@ export class InterviewBrainService {
         remainingSeconds: decision.nextState.remainingSeconds,
         candidateIntent,
         latestCandidateText,
+        language,
       });
       const sequence = priorTurnRows.length
         ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
@@ -222,6 +238,7 @@ export class InterviewBrainService {
         ...checkpoint,
         brain: {
           version: BRAIN_VERSION,
+          language,
           lastQuestionId: decision.questionId,
           lastReason: decision.reason,
           askedQuestionIds: decision.nextState.askedQuestionIds,
@@ -255,6 +272,7 @@ export class InterviewBrainService {
         finalized: true,
         brainVersion: BRAIN_VERSION,
         brainReason: decision.reason,
+        language,
         remainingSeconds: decision.nextState.remainingSeconds,
         evidenceCoverage: decision.nextState.evidenceCoverage,
         releaseMode: release.mode,
