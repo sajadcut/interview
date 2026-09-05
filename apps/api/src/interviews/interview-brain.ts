@@ -65,8 +65,8 @@ function criterionSpokenLabel(
   criterion: InterviewBrainCriterion,
   index: number,
 ): string {
+  if (language === "en") return criterion.label.trim();
   const preferred = criterion.spokenLabel?.trim() || criterion.label.trim();
-  if (language === "en") return preferred;
   if (containsPersianScript(preferred)) return preferred;
   return `موضوع شماره ${Math.max(1, index + 1)}`;
 }
