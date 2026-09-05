@@ -1,0 +1,186 @@
+name: api-db-load-test
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Load-test profile
+        required: true
+        default: ci
+        type: choice
+        options:
+          - smoke
+          - ci
+          - capacity
+      enable_writes:
+        description: Include audited write scenario
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/api-load-test.yml"
+      - "contracts/api-load-test.v1.json"
+      - "docs/operations/api-load-testing.md"
+      - "scripts/load-test.mjs"
+      - "scripts/load-test-lib.mjs"
+      - "scripts/load-test-lib.test.mjs"
+      - "scripts/load-test-seed.mjs"
+      - "scripts/load-test-seed.sql"
+      - "scripts/check-api-load-test-contract.mjs"
+      - "package.json"
+
+concurrency:
+  group: api-load-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: development
+  API_HOST: 127.0.0.1
+  API_PORT: 4000
+  DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
+  CORS_ORIGIN: http://127.0.0.1:3000
+  DEV_ORGANIZATION_NAME: API Load Test Organization
+  DEV_ORGANIZATION_SLUG: api-load-test
+  DEV_USER_EMAIL: api.load@local.interview
+  DEV_USER_DISPLAY_NAME: API Load Test Admin
+  DEV_USER_PASSWORD: ApiLoadTest!2026#Secure
+  LOAD_TEST_CANDIDATES: 1200
+  LOAD_TEST_JOBS: 24
+  LOAD_TEST_URL: http://127.0.0.1:4000
+  LOAD_TEST_ORIGIN: http://127.0.0.1:3000
+  LOAD_TEST_USER_EMAIL: api.load@local.interview
+  LOAD_TEST_USER_PASSWORD: ApiLoadTest!2026#Secure
+  LOAD_TEST_REPORT: load-test-report.json
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: interview
+          POSTGRES_PASSWORD: interview
+          POSTGRES_DB: interview
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U interview -d interview"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Pin npm
+        run: |
+          npm install --global npm@11.6.2 --ignore-scripts
+          test "$(npm --version)" = "11.6.2"
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Validate load-test contract
+        run: npm run api-load-test:contract:check
+
+      - name: Unit test load-test runner
+        run: npm run load:test:unit
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Seed authenticated domain fixtures
+        run: npm run dev:bootstrap
+
+      - name: Seed scalable load fixtures
+        run: npm run load:test:seed
+
+      - name: Build API
+        run: npm run build --workspace=@interview/api
+
+      - name: Start API
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run start --workspace=@interview/api > api-load-test.log 2>&1 &
+          echo $! > api-load-test.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4000/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat api-load-test.log
+          exit 1
+
+      - name: Capture PostgreSQL baseline
+        shell: bash
+        run: |
+          psql "$DATABASE_URL" -X -P pager=off -c "
+            SELECT numbackends, xact_commit, xact_rollback, blks_read, blks_hit,
+                   temp_files, temp_bytes, deadlocks, tup_returned, tup_fetched,
+                   tup_inserted, tup_updated, tup_deleted
+            FROM pg_stat_database
+            WHERE datname = current_database();
+          " > pg_stat_database_before.txt
+
+      - name: Run API and DB load profile
+        env:
+          LOAD_TEST_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'ci' }}
+          LOAD_TEST_ENABLE_WRITES: ${{ github.event_name != 'workflow_dispatch' || inputs.enable_writes }}
+        run: npm run load:test
+
+      - name: Capture PostgreSQL post-run evidence
+        if: always()
+        shell: bash
+        run: |
+          psql "$DATABASE_URL" -X -P pager=off -c "
+            SELECT numbackends, xact_commit, xact_rollback, blks_read, blks_hit,
+                   temp_files, temp_bytes, deadlocks, tup_returned, tup_fetched,
+                   tup_inserted, tup_updated, tup_deleted
+            FROM pg_stat_database
+            WHERE datname = current_database();
+          " > pg_stat_database_after.txt
+          psql "$DATABASE_URL" -X -P pager=off -c "
+            SELECT relname, seq_scan, idx_scan, n_tup_ins, n_tup_upd, n_tup_del
+            FROM pg_stat_user_tables
+            ORDER BY (seq_scan + idx_scan) DESC NULLS LAST
+            LIMIT 20;
+          " > pg_stat_user_tables.txt
+
+      - name: Stop API
+        if: always()
+        shell: bash
+        run: |
+          if [ -f api-load-test.pid ]; then
+            kill "$(cat api-load-test.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload load-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-db-load-test-evidence
+          path: |
+            load-test-report.json
+            pg_stat_database_before.txt
+            pg_stat_database_after.txt
+            pg_stat_user_tables.txt
+            api-load-test.log
+          if-no-files-found: warn
+          retention-days: 30

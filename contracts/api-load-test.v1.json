@@ -1,0 +1,34 @@
+{
+  "version": "api-load-test.v1",
+  "scope": ["api", "postgres"],
+  "independentOf": ["livekit", "whisper", "ffmpeg", "tts", "llm"],
+  "deferred": ["realtime_audio_load", "livekit_transport_load", "end_to_end_voice_latency"],
+  "profiles": ["public", "smoke", "ci", "capacity"],
+  "authenticatedScenarios": [
+    "auth-session",
+    "jobs-aggregate",
+    "job-workspace",
+    "candidate-workspace",
+    "candidate-list-heavy",
+    "audited-write"
+  ],
+  "publicScenarios": ["api-health", "db-readiness"],
+  "writeSafety": {
+    "defaultFixturePrefix": "Load Test Write Job ",
+    "requiresExplicitFixtures": true,
+    "requiresAuthenticatedTenant": true,
+    "usesExistingProductionRoutes": true,
+    "dedicatedProductionBackdoor": false
+  },
+  "thresholds": {
+    "metrics": ["p95_latency_ms", "error_rate"],
+    "reportAlsoIncludes": ["requests_per_second", "response_mib", "status_counts"],
+    "scenarioSpecific": true
+  },
+  "evidence": {
+    "jsonReport": "load-test-report.json",
+    "databaseStats": ["pg_stat_database_before.txt", "pg_stat_database_after.txt"],
+    "apiLog": "api-load-test.log"
+  },
+  "interpretationBoundary": "Results measure the tested API/PostgreSQL topology only and are not a production capacity claim. Realtime audio/media capacity remains deferred until LiveKit is available."
+}

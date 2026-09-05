@@ -34,7 +34,7 @@ async function prepareCandidateInterview(page: Parameters<typeof signInRecruiter
   const continueButton = page.getByRole("button", { name: "Continue to interview" });
   await expect(continueButton).toBeEnabled();
 
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     const mediaDevices = navigator.mediaDevices;
     const originalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
     const originalPermissionQuery = navigator.permissions.query.bind(navigator.permissions);
