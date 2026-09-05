@@ -138,11 +138,12 @@ test("Persian brain derives a localized label from a known criterion key when sp
 
 test("Persian brain uses a natural generic fallback for an unknown English-only criterion", () => {
   const input = persianInput();
+  const criterion = { ...input.criteria[0]! };
+  delete criterion.spokenLabel;
   input.criteria[0] = {
-    ...input.criteria[0]!,
+    ...criterion,
     key: "novel_criterion",
     label: "Novel criterion",
-    spokenLabel: undefined,
   };
   const decision = assertPersianSpeech(input);
   assert.match(decision.turn.spokenText, /این بخش تخصصی/);
