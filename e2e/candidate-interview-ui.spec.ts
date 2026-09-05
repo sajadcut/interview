@@ -65,7 +65,7 @@ async function prepareCandidateInterview(page: Parameters<typeof signInRecruiter
   ]);
 }
 
-test("candidate interview UI handles permissions, fallback, runtime degradation and reconnect-safe network state", async ({
+test("candidate interview UI reaches candidate-scoped realtime readiness without engineering answer controls", async ({
   page,
   context,
   candidateIdentity,
@@ -79,28 +79,38 @@ test("candidate interview UI handles permissions, fallback, runtime degradation 
   await expect(page.getByRole("status").filter({ hasText: "Network is ready." })).toBeVisible();
 
   await page.getByRole("button", { name: "Enable camera and microphone" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Camera or microphone permission is blocked." })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Camera or microphone permission is blocked." }),
+  ).toBeVisible();
   await expect(page.getByLabel("Microphone: Ready")).toBeVisible();
   await expect(page.getByLabel("Camera: Blocked")).toBeVisible();
 
   await page.getByRole("button", { name: "Try audio-only" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Audio-only fallback is active. Camera remains off." })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Audio-only fallback is active. Camera remains off." }),
+  ).toBeVisible();
   await expect(page.getByLabel("Microphone: Ready")).toBeVisible();
   await expect(page.getByLabel("Camera: Unavailable")).toBeVisible();
 
-  await page.getByRole("button", { name: "Check realtime availability" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Realtime interview service is not available yet." })).toBeVisible();
-  await expect(page.getByText("Resume later with this secure session", { exact: true })).toBeVisible();
-  await expect(page.getByText("Interview live", { exact: true })).toHaveCount(0);
+  const startButton = page.getByRole("button", { name: "Start interview" });
+  await expect(startButton).toBeVisible();
+  await expect(startButton).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Start answer" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Stop answer" })).toHaveCount(0);
+
   await page.screenshot({
-    path: testInfo.outputPath("candidate-interview-fallback.png"),
+    path: testInfo.outputPath("candidate-interview-ready.png"),
     fullPage: true,
   });
 
   await context.setOffline(true);
-  await expect(page.getByRole("alert").filter({ hasText: "Network connection is offline" })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Network connection is offline" }),
+  ).toBeVisible();
   await context.setOffline(false);
-  await expect(page.getByRole("status").filter({ hasText: "Network connection restored" })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Network connection restored" }),
+  ).toBeVisible();
 
   await setCandidateConsents(page, false);
 });
