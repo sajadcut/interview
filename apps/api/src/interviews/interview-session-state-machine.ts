@@ -39,7 +39,7 @@ export interface InterviewSessionMachineState {
 export interface InterviewSessionTransitionCommand {
   action: InterviewSessionTransitionAction;
   failureCode?: string | null;
-  recoverable?: boolean;
+  recoverable?: boolean | undefined;
 }
 
 export class InterviewSessionTransitionError extends Error {
@@ -171,7 +171,7 @@ export function transitionInterviewSession(
         ...state,
         status: "disconnected",
         recoveryAttemptCount: 0,
-        resumeStatus: state.status,
+        resumeStatus: state.status as InterviewSessionResumeStatus,
         failureCode: null,
         failureRecoverable: null,
       };
@@ -236,7 +236,7 @@ export function transitionInterviewSession(
         resumeStatus:
           state.status === "disconnected"
             ? state.resumeStatus ?? "in_progress"
-            : state.status,
+            : state.status as InterviewSessionResumeStatus,
         failureCode,
         failureRecoverable: true,
       };
