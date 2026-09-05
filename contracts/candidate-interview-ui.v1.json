@@ -1,0 +1,84 @@
+{
+  "version": "candidate-interview-ui.v1",
+  "surface": "/candidate/interview",
+  "audience": "candidate",
+  "securityBoundary": {
+    "candidateSessionCookieRequired": true,
+    "persistedConsentRequired": true,
+    "internalTenantHeadersAllowed": false,
+    "internalRecruiterMediaEndpointsAllowed": false,
+    "fakeLiveStateAllowed": false
+  },
+  "states": [
+    "permissions",
+    "ready",
+    "connecting",
+    "live",
+    "reconnecting",
+    "offline",
+    "degraded",
+    "fatal",
+    "completed"
+  ],
+  "permissions": {
+    "microphoneRequired": true,
+    "cameraRequiredForFullMode": true,
+    "audioOnlyFallbackAllowed": true,
+    "audioOnlyRequiresMicrophone": true,
+    "getUserMediaRequiresUserAction": true,
+    "localPreviewOnly": true,
+    "permissionDenialIsRecoverable": true
+  },
+  "network": {
+    "offlinePreservesSecureSession": true,
+    "connectedOfflineRecoveryUsesReconnectState": true,
+    "preConnectionOfflineRecoveryResumesSafePriorState": true,
+    "maxReconnectAttempts": 3,
+    "reconnectExhaustionFallback": "resume_later"
+  },
+  "runtime": {
+    "adapterInjected": true,
+    "missingRuntimeState": "degraded",
+    "missingRuntimeFallback": "resume_later",
+    "onlyRuntimeConnectedEventMayEnterLive": true,
+    "realRealtimeRuntimeRequiredForUiTests": false
+  },
+  "fallbacks": [
+    "review_permissions",
+    "audio_only",
+    "retry_connection",
+    "resume_later"
+  ],
+  "errors": {
+    "recoverable": [
+      "permission_denied",
+      "device_unavailable",
+      "network_offline",
+      "runtime_unavailable",
+      "transport_timeout",
+      "transport_unavailable",
+      "reconnect_exhausted",
+      "unexpected"
+    ],
+    "fatal": ["session_expired", "consent_required"]
+  },
+  "privacy": {
+    "rawMediaPersistedByUi": false,
+    "biometricInferenceAllowed": false,
+    "emotionInferenceAllowed": false,
+    "truthfulnessInferenceAllowed": false,
+    "candidateCanMuteMicrophoneLocally": true,
+    "candidateCanDisableCameraLocally": true
+  },
+  "testEvidence": {
+    "pureStateReducerRequired": true,
+    "browserPermissionFallbackRequired": true,
+    "offlineOnlineRecoveryRequired": true,
+    "missingRuntimeMustNotAppearLive": true,
+    "realLiveKitRequired": false,
+    "realWhisperRequired": false,
+    "realSileroRequired": false,
+    "realTtsRequired": false,
+    "realLlmRequired": false
+  }
+}
