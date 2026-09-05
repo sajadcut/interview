@@ -43,7 +43,11 @@ export class InterviewSpeechService {
     @Inject(SPEECH_TO_TEXT_ADAPTER) private readonly stt: SpeechToTextAdapter,
   ) {}
 
-  private async requireSyntheticMediaSession(sessionId: string, mediaSessionId: string) {
+  private async requireMediaSession(
+    sessionId: string,
+    mediaSessionId: string,
+    expectedRealCandidate: boolean,
+  ) {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
       SELECT m.mode, m.status AS media_status, s.checkpoint
@@ -59,9 +63,12 @@ export class InterviewSpeechService {
 
     const row = rows[0];
     const checkpoint = asRecord(row?.checkpoint);
-    if (checkpoint.candidateIsRealCustomerCandidate === true) {
+    const isRealCandidate = checkpoint.candidateIsRealCustomerCandidate === true;
+    if (isRealCandidate !== expectedRealCandidate) {
       throw new BadRequestException(
-        "Development speech bridge does not process real-customer candidate sessions",
+        expectedRealCandidate
+          ? "Candidate speech endpoint requires a real-candidate interview session"
+          : "Internal development speech endpoint does not process real-customer candidate sessions",
       );
     }
     const mediaStatus = String(row?.media_status ?? "unknown");
@@ -75,13 +82,14 @@ export class InterviewSpeechService {
     return { mode, mediaStatus };
   }
 
-  async transcribeCandidateAudio(
+  private async transcribeAudio(
     sessionId: string,
     mediaSessionId: string,
     audio: Uint8Array,
     contentType: SpeechToTextContentType,
+    expectedRealCandidate: boolean,
   ) {
-    await this.requireSyntheticMediaSession(sessionId, mediaSessionId);
+    await this.requireMediaSession(sessionId, mediaSessionId, expectedRealCandidate);
     if (audio.byteLength === 0) throw new BadRequestException("Candidate audio is required");
 
     const vadReadiness = await this.vad.readiness();
@@ -198,51 +206,50 @@ export class InterviewSpeechService {
     };
   }
 
-  async synthesizePersistedTurn(sessionId: string, mediaSessionId: string, turnId: string) {
+  async transcribeCandidateAudio(
+    sessionId: string,
+    mediaSessionId: string,
+    audio: Uint8Array,
+    contentType: SpeechToTextContentType,
+  ) {
+    return this.transcribeAudio(sessionId, mediaSessionId, audio, contentType, false);
+  }
+
+  async transcribeAuthenticatedCandidateAudio(
+    sessionId: string,
+    mediaSessionId: string,
+    audio: Uint8Array,
+    contentType: SpeechToTextContentType,
+  ) {
+    return this.transcribeAudio(sessionId, mediaSessionId, audio, contentType, true);
+  }
+
+  private async synthesizeTurn(
+    sessionId: string,
+    mediaSessionId: string,
+    turnId: string,
+    expectedRealCandidate: boolean,
+  ) {
+    await this.requireMediaSession(sessionId, mediaSessionId, expectedRealCandidate);
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
-      SELECT
-        m.mode,
-        m.status AS media_status,
-        s.checkpoint,
-        t.action,
-        t.spoken_text,
-        t.finalized
-      FROM interview_media_sessions m
-      JOIN interview_sessions s
-        ON s.organization_id = m.organization_id AND s.id = m.interview_session_id
-      JOIN interview_turns t
-        ON t.organization_id = s.organization_id AND t.interview_session_id = s.id
-      WHERE m.organization_id = ${organizationId}::uuid
-        AND m.id = ${mediaSessionId}::uuid
-        AND m.interview_session_id = ${sessionId}::uuid
+      SELECT t.action, t.spoken_text, t.finalized
+      FROM interview_turns t
+      WHERE t.organization_id = ${organizationId}::uuid
+        AND t.interview_session_id = ${sessionId}::uuid
         AND t.id = ${turnId}::uuid
       LIMIT 1
     `;
-    if (!rows.length) throw new NotFoundException("Persisted interview turn/media session pair not found");
+    if (!rows.length) throw new NotFoundException("Persisted interview turn not found");
 
     const row = rows[0];
-    const checkpoint = asRecord(row?.checkpoint);
-    if (checkpoint.candidateIsRealCustomerCandidate === true) {
-      throw new BadRequestException(
-        "Development TTS bridge does not synthesize real-customer candidate sessions",
-      );
-    }
-    const mediaStatus = String(row?.media_status ?? "unknown");
-    if (["ended", "failed"].includes(mediaStatus)) {
-      throw new BadRequestException(`Interview media session is ${mediaStatus}`);
-    }
     if (row?.finalized !== true) {
       throw new BadRequestException("Only finalized persisted Interview Brain turns may reach TTS");
     }
     const spokenText = String(row?.spoken_text ?? "").trim();
     if (!spokenText) throw new BadRequestException("Persisted Interview Brain turn has no spoken text");
 
-    const mode = String(row?.mode);
-    if (mode !== "audio" && mode !== "avatar") throw new BadRequestException("Unsupported media mode");
-
-    // TTS readiness is deliberately component-local. Do not call media.getReadiness() here:
-    // LiveKit, VAD, Whisper/STT, FFmpeg and avatar readiness must not delay or block standalone synthesis.
+    // TTS readiness is deliberately component-local. The browser never supplies spoken text.
     const readiness = await this.tts.readiness();
     if (!readiness.ready) {
       throw new BadRequestException(
@@ -295,5 +302,17 @@ export class InterviewSpeechService {
     });
 
     return { audio: audioBuffer, contentType: synthesis.contentType };
+  }
+
+  async synthesizePersistedTurn(sessionId: string, mediaSessionId: string, turnId: string) {
+    return this.synthesizeTurn(sessionId, mediaSessionId, turnId, false);
+  }
+
+  async synthesizeAuthenticatedCandidateTurn(
+    sessionId: string,
+    mediaSessionId: string,
+    turnId: string,
+  ) {
+    return this.synthesizeTurn(sessionId, mediaSessionId, turnId, true);
   }
 }
