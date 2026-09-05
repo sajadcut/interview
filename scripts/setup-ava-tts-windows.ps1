@@ -6,14 +6,62 @@ $WheelUrl = "https://huggingface.co/xmanii/Ava-82M/resolve/main/ava_tts-0.2.0-py
 
 Write-Host "== Ava-82M Persian CPU TTS setup =="
 
-if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
-    throw "Windows Python launcher 'py' was not found. Install Python 3.12 x64 first."
+function Test-AvaPythonRuntime {
+    param(
+        [Parameter(Mandatory = $true)][string]$Command,
+        [string[]]$PrefixArgs = @()
+    )
+
+    try {
+        $result = & $Command @PrefixArgs -c "import struct,sys; ok=(sys.version_info[:2] >= (3,11) and sys.version_info[:2] < (3,14) and struct.calcsize('P')*8 == 64); print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}|{struct.calcsize(\"P\")*8}'); raise SystemExit(0 if ok else 2)" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $result) {
+            return [PSCustomObject]@{
+                Command = $Command
+                PrefixArgs = $PrefixArgs
+                Description = $result.Trim()
+            }
+        }
+    } catch {
+        return $null
+    }
+    return $null
 }
 
-& py -3.12 --version
-if ($LASTEXITCODE -ne 0) {
-    throw "Python 3.12 x64 is required for the isolated Ava environment."
+$PythonRuntime = $null
+
+if (Get-Command py -ErrorAction SilentlyContinue) {
+    foreach ($version in @("3.13", "3.12", "3.11")) {
+        $candidate = Test-AvaPythonRuntime -Command "py" -PrefixArgs @("-$version")
+        if ($candidate) {
+            $PythonRuntime = $candidate
+            break
+        }
+    }
 }
+
+if (-not $PythonRuntime -and (Get-Command python -ErrorAction SilentlyContinue)) {
+    $PythonRuntime = Test-AvaPythonRuntime -Command "python"
+}
+
+if (-not $PythonRuntime -and (Get-Command python3 -ErrorAction SilentlyContinue)) {
+    $PythonRuntime = Test-AvaPythonRuntime -Command "python3"
+}
+
+if (-not $PythonRuntime) {
+    Write-Host ""
+    Write-Host "Ava requires a 64-bit Python version from 3.11 through 3.13."
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        Write-Host "Detected Python Launcher environments:"
+        & py -0p
+    }
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        Write-Host "python on PATH:"
+        & python --version
+    }
+    throw "No compatible 64-bit Python 3.11-3.13 runtime was found."
+}
+
+Write-Host "Using Python $($PythonRuntime.Description) via: $($PythonRuntime.Command) $($PythonRuntime.PrefixArgs -join ' ')"
 
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "git was not found. Ava's pinned Kokoro dependency is installed from GitHub."
@@ -21,7 +69,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 
 if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
     Write-Host "Creating isolated Python environment..."
-    & py -3.12 -m venv $Venv
+    & $PythonRuntime.Command @($PythonRuntime.PrefixArgs) -m venv $Venv
     if ($LASTEXITCODE -ne 0) { throw "Failed to create Ava virtual environment." }
 }
 
