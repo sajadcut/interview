@@ -2,6 +2,10 @@ import { Controller, Get, NotFoundException } from "@nestjs/common";
 import { getEnv } from "./config/env";
 import { DatabaseService } from "./database/database.service";
 
+const DEVELOPMENT_FIXTURE_APPLICATION_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const DEVELOPMENT_FIXTURE_INTERVIEW_PLAN_ID = "70707070-7070-4070-8070-707070707070";
+const DEVELOPMENT_FIXTURE_CONSENT_RECORD_ID = "50505050-5050-4050-8050-505050505050";
+
 @Controller()
 export class AppController {
   constructor(private readonly database: DatabaseService) {}
@@ -27,30 +31,34 @@ export class AppController {
         a.id AS application_id,
         p.id AS interview_plan_id,
         p.rubric_version_id,
+        p.language AS interview_plan_language,
         c.id AS consent_record_id
       FROM organizations o
       JOIN users u ON u.email = ${userEmail}
       JOIN memberships m
         ON m.organization_id = o.id AND m.user_id = u.id AND m.status = 'active'
-      JOIN applications a ON a.organization_id = o.id
+      JOIN applications a
+        ON a.organization_id = o.id
+       AND a.id = ${DEVELOPMENT_FIXTURE_APPLICATION_ID}::uuid
       JOIN interview_plans p
         ON p.organization_id = a.organization_id
        AND p.job_id = a.job_id
+       AND p.id = ${DEVELOPMENT_FIXTURE_INTERVIEW_PLAN_ID}::uuid
        AND p.status = 'published'
       JOIN consent_records c
         ON c.organization_id = a.organization_id
        AND c.application_id = a.id
+       AND c.id = ${DEVELOPMENT_FIXTURE_CONSENT_RECORD_ID}::uuid
        AND c.purpose = 'ai_interview'
        AND c.withdrawn_at IS NULL
       WHERE o.slug = ${organizationSlug}
-      ORDER BY a.updated_at DESC, p.version DESC, c.granted_at DESC
       LIMIT 1
     `;
     const row = rows[0];
     if (!row) {
       return {
         ready: false,
-        reason: "Development domain seed data is not available. Run dev:bootstrap after migrations.",
+        reason: "Deterministic development interview fixtures are not available. Run dev:bootstrap after migrations.",
       };
     }
 
@@ -70,6 +78,7 @@ export class AppController {
       fixtures: {
         applicationId: String(row.application_id),
         interviewPlanId: String(row.interview_plan_id),
+        interviewPlanLanguage: String(row.interview_plan_language),
         consentRecordId: String(row.consent_record_id),
         criteria: criterionRows.map((criterion) => ({
           id: String(criterion.id),
