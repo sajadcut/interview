@@ -43,15 +43,25 @@ test("controlled production requires an explicit production approval record", ()
 });
 
 test("production approval permits interview autonomy but not final hiring authority", () => {
+  const approverId = "11111111-1111-4111-8111-111111111111";
+  const materialFingerprint = "release-material-v2-fixture";
   const decision = evaluateInterviewRelease({
     lifecycleStage: "CONTROLLED_PRODUCTION",
     productionApprovedAt: "2026-08-31T00:00:00Z",
-    productionApprovedByUserId: "11111111-1111-4111-8111-111111111111",
+    productionApprovedByUserId: approverId,
     candidateIsRealCustomerCandidate: true,
     synchronousHumanSupervisorPresent: false,
+    approvalStatus: "approved",
+    approvedAt: "2026-08-31T00:00:00Z",
+    approvedByUserId: approverId,
+    approvalExpiresAt: "2026-12-31T00:00:00Z",
+    materialFingerprint,
+    approvedMaterialFingerprint: materialFingerprint,
+    approvalArtifactComplete: true,
+    now: new Date("2026-09-05T00:00:00Z"),
   });
 
   assert.equal(decision.allowed, true);
   assert.equal(decision.mode, "autonomous");
-  assert.match(decision.reasons[0] ?? "", /final employment decisions remain human-controlled/);
+  assert.match(decision.reasons[0] ?? "", /final employment decisions stay human-controlled/);
 });
