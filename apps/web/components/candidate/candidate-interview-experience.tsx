@@ -1,295 +1,704 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  candidateInterviewFallbacks,
-  candidateInterviewReducer,
-  createCandidateInterviewState,
-  mediaPermissionReady,
-  type CandidateInterviewErrorCode,
-  type CandidateInterviewPhase,
-  type CandidateMediaPermissionState,
-} from "../../lib/candidate-interview-state";
-import { candidateInterviewUiCopy } from "../../lib/candidate-interview-copy";
+import { Room, RoomEvent, Track } from "livekit-client";
 import { getDefaultLocale } from "../../lib/i18n";
 
-export interface CandidateInterviewRuntime {
-  connect(input: { stream: MediaStream; audioOnly: boolean }): Promise<void>;
-  reconnect?(input: { stream: MediaStream; audioOnly: boolean }): Promise<void>;
-  disconnect?(): Promise<void>;
-}
+const apiUrl = "/api/backend/v1/candidate-interview";
+const TARGET_SAMPLE_RATE = 16_000;
+const SILENCE_TO_SUBMIT_MS = 1_400;
+const MAX_VOICE_ANSWER_MS = 90_000;
+
+type InterviewMessage = {
+  id: string;
+  speaker: "interviewer" | "candidate";
+  text: string;
+};
+
+type InterviewTurn = {
+  id: string;
+  action: string;
+  criterion: string | null;
+  spokenText: string;
+};
+
+type StartResponse = {
+  status: "active" | "completed";
+  sessionId: string;
+  mediaSessionId: string;
+  remainingSeconds: number;
+  developmentPreview: boolean;
+  releaseMode: string;
+  interviewer: {
+    name: string;
+    subtitle: string;
+    avatarVideoAvailable: boolean;
+  };
+  turn: InterviewTurn;
+  transcript: Array<{ speaker: "candidate" | "interviewer"; text: string }>;
+  connection: {
+    transport: "livekit";
+    serverUrl: string;
+    roomReference: string;
+    accessToken: string;
+    expiresAt: string;
+  };
+  privacy: {
+    rawMediaPersisted: false;
+    candidateVideoAnalysis: "none";
+    biometricInferenceAllowed: false;
+  };
+};
+
+type AnswerResponse = {
+  candidateText: string;
+  remainingSeconds: number;
+  completed: boolean;
+  turn: InterviewTurn;
+};
+
+type AudioAnswerResponse = Partial<AnswerResponse> & {
+  speechDetected: boolean;
+  durationSeconds: number;
+  transcript: null | { text: string; language: string; provider: string };
+};
 
 export interface CandidateInterviewExperienceProps {
   candidateName: string;
   jobTitle: string;
   sessionExpiresAt: string;
-  runtime?: CandidateInterviewRuntime;
+  developmentPreview?: boolean;
 }
 
-type MediaRequestMode = "full" | "audio-only";
-type MediaFailureCode = "permission_denied" | "device_unavailable";
-const secondaryButton = "min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
-
-function permissionFromBrowser(value: PermissionState): CandidateMediaPermissionState {
-  return value === "granted" || value === "denied" || value === "prompt" ? value : "unknown";
+function ui(locale: string) {
+  const fa = locale.toLowerCase().startsWith("fa");
+  return fa
+    ? {
+        title: "اتاق مصاحبه",
+        secure: "جلسه امن کاندیدا",
+        hello: "سلام",
+        role: "موقعیت",
+        prejoin: "قبل از شروع، تصویر و صدای خود را بررسی کنید.",
+        enableDevices: "فعال‌سازی دوربین و میکروفون",
+        start: "شروع مصاحبه",
+        starting: "در حال ورود به مصاحبه…",
+        interviewer: "مصاحبه‌گر هوشمند",
+        waitingVideo: "ویدیوی مصاحبه‌گر هنوز فعال نیست",
+        audioOnlyInterviewer: "در حال حاضر مصاحبه‌گر با صدا فعال است. اگر آواتار ویدیویی به LiveKit متصل شود، تصویر اینجا نمایش داده می‌شود.",
+        you: "شما",
+        micOn: "میکروفون روشن",
+        micOff: "میکروفون خاموش",
+        cameraOn: "دوربین روشن",
+        cameraOff: "دوربین خاموش",
+        speakerOn: "صدا روشن",
+        speakerOff: "صدا خاموش",
+        voice: "پاسخ صوتی",
+        listening: "در حال شنیدن…",
+        listeningHelp: "طبیعی صحبت کنید؛ پس از مکث کوتاه پاسخ خودکار ارسال می‌شود.",
+        processing: "در حال پردازش پاسخ…",
+        typePlaceholder: "اگر ترجیح می‌دهید، پاسخ خود را اینجا تایپ کنید…",
+        send: "ارسال پاسخ متنی",
+        sending: "در حال ارسال…",
+        yourTurn: "نوبت شماست؛ می‌توانید صحبت کنید یا پاسخ را تایپ کنید.",
+        interviewerSpeaking: "مصاحبه‌گر در حال صحبت است…",
+        connected: "متصل",
+        ready: "آماده شروع",
+        completed: "مصاحبه تکمیل شد",
+        privacy: "صوت و ویدیوی خام در دیتابیس API ذخیره نمی‌شود. فقط متن نهایی لازم برای مصاحبه و ارزیابی نگهداری می‌شود.",
+        preview: "پیش‌نمایش توسعه",
+        expires: "اعتبار نشست",
+        transcript: "گفت‌وگو",
+        permissionError: "برای مصاحبه دسترسی میکروفون و دوربین لازم است.",
+        genericError: "اجرای مصاحبه با خطا روبه‌رو شد.",
+        noSpeech: "صدایی تشخیص داده نشد. دوباره پاسخ صوتی را بزنید و صحبت کنید.",
+        emptySpeech: "گفتار تشخیص داده شد اما متن قابل استفاده‌ای تولید نشد. دوباره تلاش کنید.",
+      }
+    : {
+        title: "Interview room",
+        secure: "Secure candidate session",
+        hello: "Hello",
+        role: "Role",
+        prejoin: "Check your camera and microphone before starting.",
+        enableDevices: "Enable camera & microphone",
+        start: "Start interview",
+        starting: "Joining interview…",
+        interviewer: "AI Interviewer",
+        waitingVideo: "Interviewer video is not active yet",
+        audioOnlyInterviewer: "The interviewer is currently audio-first. If a video avatar joins LiveKit, it will appear here.",
+        you: "You",
+        micOn: "Microphone on",
+        micOff: "Microphone off",
+        cameraOn: "Camera on",
+        cameraOff: "Camera off",
+        speakerOn: "Speaker on",
+        speakerOff: "Speaker off",
+        voice: "Answer by voice",
+        listening: "Listening…",
+        listeningHelp: "Speak naturally; your answer submits automatically after a short pause.",
+        processing: "Processing answer…",
+        typePlaceholder: "Or type your answer here…",
+        send: "Send typed answer",
+        sending: "Sending…",
+        yourTurn: "Your turn. Speak or type your answer.",
+        interviewerSpeaking: "Interviewer is speaking…",
+        connected: "Connected",
+        ready: "Ready to start",
+        completed: "Interview completed",
+        privacy: "Raw audio/video is not persisted in the API database. Only finalized text required for the interview and evaluation is retained.",
+        preview: "Development preview",
+        expires: "Session valid until",
+        transcript: "Conversation",
+        permissionError: "Camera and microphone access are required for the interview.",
+        genericError: "The interview runtime encountered an error.",
+        noSpeech: "No speech was detected. Try the voice answer again and speak naturally.",
+        emptySpeech: "Speech was detected but no usable transcript was produced. Please try again.",
+      };
 }
 
-async function readPermission(name: "microphone" | "camera"): Promise<CandidateMediaPermissionState> {
-  if (!navigator.permissions?.query) return "unknown";
+async function readJson<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    const raw = data.message;
+    const message = Array.isArray(raw)
+      ? raw.map(String).join("; ")
+      : typeof raw === "string"
+        ? raw
+        : typeof data.error === "string"
+          ? data.error
+          : `${response.status} ${response.statusText}`;
+    throw new Error(message);
+  }
+  return data as T;
+}
+
+function mergeFloat32(chunks: Float32Array[], totalLength: number): Float32Array {
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return merged;
+}
+
+function downsampleMono(input: Float32Array, sourceRate: number, targetRate: number): Float32Array {
+  if (sourceRate === targetRate) return input;
+  if (sourceRate < targetRate) throw new Error(`Microphone sample rate ${sourceRate} Hz is below ${targetRate} Hz`);
+  const ratio = sourceRate / targetRate;
+  const outputLength = Math.max(1, Math.round(input.length / ratio));
+  const output = new Float32Array(outputLength);
+  for (let index = 0; index < outputLength; index += 1) {
+    const start = Math.floor(index * ratio);
+    const end = Math.min(input.length, Math.max(start + 1, Math.floor((index + 1) * ratio)));
+    let sum = 0;
+    for (let sourceIndex = start; sourceIndex < end; sourceIndex += 1) sum += input[sourceIndex] ?? 0;
+    output[index] = sum / Math.max(1, end - start);
+  }
+  return output;
+}
+
+function writeAscii(view: DataView, offset: number, value: string): void {
+  for (let index = 0; index < value.length; index += 1) view.setUint8(offset + index, value.charCodeAt(index));
+}
+
+function encodePcm16Wav(samples: Float32Array, sampleRate: number): Blob {
+  const bytesPerSample = 2;
+  const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+  const view = new DataView(buffer);
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, samples.length * bytesPerSample, true);
+  let offset = 44;
+  for (const sample of samples) {
+    const clipped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(offset, clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+function formatExpiry(value: string, locale: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
   try {
-    return permissionFromBrowser((await navigator.permissions.query({ name: name as PermissionName })).state);
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
   } catch {
-    return "unknown";
+    return date.toISOString();
   }
 }
 
-function mediaFailureCode(cause: unknown): MediaFailureCode {
-  return cause instanceof DOMException && ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
-    ? "permission_denied"
-    : "device_unavailable";
-}
-
-function connectionFailureCode(cause: unknown): "transport_timeout" | "transport_unavailable" | "unexpected" {
-  if ((cause instanceof DOMException && ["TimeoutError", "AbortError"].includes(cause.name)) || (cause instanceof Error && /timeout/i.test(cause.name))) return "transport_timeout";
-  return cause instanceof Error || cause instanceof DOMException ? "transport_unavailable" : "unexpected";
-}
-
-function phaseTone(phase: CandidateInterviewPhase): string {
-  if (phase === "live") return "bg-emerald-50 text-emerald-700 ring-emerald-200";
-  if (phase === "connecting" || phase === "reconnecting") return "bg-sky-50 text-sky-700 ring-sky-200";
-  if (phase === "offline" || phase === "degraded") return "bg-amber-50 text-amber-800 ring-amber-200";
-  if (phase === "fatal") return "bg-rose-50 text-rose-700 ring-rose-200";
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
-
-function permissionTone(permission: CandidateMediaPermissionState): string {
-  if (permission === "granted") return "bg-emerald-50 text-emerald-700";
-  if (permission === "denied" || permission === "unavailable") return "bg-rose-50 text-rose-700";
-  if (permission === "prompt") return "bg-amber-50 text-amber-800";
-  return "bg-slate-100 text-slate-600";
-}
-
-export function CandidateInterviewExperience({ candidateName, jobTitle, sessionExpiresAt, runtime }: CandidateInterviewExperienceProps) {
+export function CandidateInterviewExperience({
+  candidateName,
+  jobTitle,
+  sessionExpiresAt,
+  developmentPreview = false,
+}: CandidateInterviewExperienceProps) {
   const locale = getDefaultLocale();
-  const copy = candidateInterviewUiCopy[locale];
-  const [state, setState] = useState(() => createCandidateInterviewState({
-    runtimeAvailable: Boolean(runtime),
-    online: typeof navigator === "undefined" ? true : navigator.onLine,
-  }));
-  const [permissionBusy, setPermissionBusy] = useState(false);
-  const [connectionBusy, setConnectionBusy] = useState(false);
-  const [hasLocalMedia, setHasLocalMedia] = useState(false);
-  const [networkRestored, setNetworkRestored] = useState(false);
+  const copy = ui(locale);
+  const rtl = locale.toLowerCase().startsWith("fa");
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [runtime, setRuntime] = useState<StartResponse | null>(null);
+  const [messages, setMessages] = useState<InterviewMessage[]>([]);
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [deviceBusy, setDeviceBusy] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [completed, setCompleted] = useState(false);
   const [microphoneEnabled, setMicrophoneEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
-  const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [remoteVideoActive, setRemoteVideoActive] = useState(false);
+  const [status, setStatus] = useState(copy.prejoin);
+  const [error, setError] = useState<string | null>(null);
 
-  const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) => setState((current) => candidateInterviewReducer(current, event));
-  const releaseStream = (updateUi = true) => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    if (updateUi) setHasLocalMedia(false);
-  };
-  const installStream = (stream: MediaStream) => {
-    releaseStream(false);
-    streamRef.current = stream;
-    if (videoRef.current) videoRef.current.srcObject = stream;
-    setHasLocalMedia(true);
-    setMicrophoneEnabled(true);
-    setCameraEnabled(stream.getVideoTracks().some((track) => track.readyState === "live"));
-  };
-  const inspectPermissions = async (failureCode?: MediaFailureCode) => {
-    const [microphone, camera] = await Promise.all([readPermission("microphone"), readPermission("camera")]);
-    setState((current) => {
-      let next = candidateInterviewReducer(current, {
-        type: "PERMISSIONS_RESOLVED",
-        microphone,
-        camera,
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const roomRef = useRef<Room | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsUrlRef = useRef<string | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const chunksRef = useRef<Float32Array[]>([]);
+  const sampleCountRef = useRef(0);
+  const listeningRef = useRef(false);
+  const voiceStartRef = useRef(0);
+  const speechSeenRef = useRef(false);
+  const lastSpeechRef = useRef(0);
+  const maxVoiceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current) remoteAudioRef.current.muted = !speakerEnabled;
+    if (remoteVideoRef.current) remoteVideoRef.current.muted = !speakerEnabled;
+    if (ttsAudioRef.current) ttsAudioRef.current.muted = !speakerEnabled;
+  }, [speakerEnabled]);
+
+  async function enableDevices() {
+    setDeviceBusy(true);
+    setError(null);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error(copy.permissionError);
+      localStream?.getTracks().forEach((track) => track.stop());
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
       });
-      if (failureCode) {
-        next = candidateInterviewReducer(next, { type: "PERMISSION_FAILED", code: failureCode });
+      if (!stream.getAudioTracks().length || !stream.getVideoTracks().length) throw new Error(copy.permissionError);
+      setLocalStream(stream);
+      setMicrophoneEnabled(true);
+      setCameraEnabled(true);
+      setStatus(copy.ready);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : copy.permissionError);
+    } finally {
+      setDeviceBusy(false);
+    }
+  }
+
+  function attachRemoteTracks(room: Room) {
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === Track.Kind.Video && remoteVideoRef.current) {
+        track.attach(remoteVideoRef.current);
+        setRemoteVideoActive(true);
       }
-      return next;
+      if (track.kind === Track.Kind.Audio && remoteAudioRef.current) {
+        track.attach(remoteAudioRef.current);
+        remoteAudioRef.current.muted = !speakerEnabled;
+        void remoteAudioRef.current.play().catch(() => undefined);
+      }
     });
-  };
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach();
+      if (track.kind === Track.Kind.Video) setRemoteVideoActive(false);
+    });
+    room.on(RoomEvent.Disconnected, () => {
+      if (!completed) setStatus(rtl ? "اتصال مصاحبه قطع شد. صفحه را باز نگه دارید تا دوباره متصل شوید." : "Interview connection was lost. Keep this page open while reconnecting.");
+    });
+  }
 
-  const requestMedia = async (mode: MediaRequestMode) => {
-    setPermissionBusy(true);
-    setNetworkRestored(false);
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: mode === "full" });
-      if (!stream.getAudioTracks().some((track) => track.readyState === "live")) {
-        stream.getTracks().forEach((track) => track.stop());
-        reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
-        return;
-      }
-      installStream(stream);
-      reduce({
-        type: "PERMISSIONS_RESOLVED",
-        microphone: "granted",
-        camera: mode === "audio-only" ? "unavailable" : stream.getVideoTracks().some((track) => track.readyState === "live") ? "granted" : "unavailable",
-        audioOnly: mode === "audio-only",
+  async function connectLiveKit(started: StartResponse, stream: MediaStream) {
+    const room = new Room({ adaptiveStream: true, dynacast: true });
+    attachRemoteTracks(room);
+    await room.connect(started.connection.serverUrl, started.connection.accessToken);
+    roomRef.current = room;
+    for (const track of stream.getAudioTracks()) {
+      await room.localParticipant.publishTrack(track, {
+        source: Track.Source.Microphone,
+        name: "candidate-microphone",
       });
-    } catch (cause) {
-      releaseStream();
-      await inspectPermissions(mediaFailureCode(cause));
-    } finally {
-      setPermissionBusy(false);
     }
-  };
+    for (const track of stream.getVideoTracks()) {
+      await room.localParticipant.publishTrack(track, {
+        source: Track.Source.Camera,
+        name: "candidate-camera",
+      });
+    }
+  }
 
-  const attemptConnection = async (reconnect = false) => {
-    if (!hasLocalMedia || !streamRef.current) return reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
-    if (state.network === "offline") return reduce({ type: "NETWORK_OFFLINE" });
-    setConnectionBusy(true);
-    reduce({ type: "CONNECT_REQUESTED" });
+  async function playTurn(turn: InterviewTurn, activeRuntime = runtime) {
+    if (!activeRuntime) return;
+    setStatus(copy.interviewerSpeaking);
+    const response = await fetch(
+      `${apiUrl}/sessions/${activeRuntime.sessionId}/media/${activeRuntime.mediaSessionId}/turns/${turn.id}/audio`,
+      { method: "POST", credentials: "same-origin" },
+    );
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`TTS ${response.status}: ${detail.slice(0, 240)}`);
+    }
+    const blob = await response.blob();
+    if (ttsUrlRef.current) URL.revokeObjectURL(ttsUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    ttsUrlRef.current = url;
+    const audio = new Audio(url);
+    audio.muted = !speakerEnabled;
+    ttsAudioRef.current = audio;
     try {
-      if (!runtime) return;
-      if (reconnect && runtime.reconnect) {
-        await runtime.reconnect({ stream: streamRef.current, audioOnly: state.audioOnly });
-        reduce({ type: "TRANSPORT_RECONNECTED" });
-      } else {
-        await runtime.connect({ stream: streamRef.current, audioOnly: state.audioOnly });
-        reduce({ type: "CONNECTED" });
-      }
-    } catch (cause) {
-      reduce({ type: "CONNECTION_FAILED", code: connectionFailureCode(cause) });
-    } finally {
-      setConnectionBusy(false);
+      await audio.play();
+      await new Promise<void>((resolve) => {
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+      });
+    } catch {
+      // Browser autoplay policy can block playback. The candidate can enable speaker and retry via the next interaction.
     }
-  };
+    if (turn.action === "close") {
+      setCompleted(true);
+      setStatus(copy.completed);
+    } else {
+      setStatus(copy.yourTurn);
+    }
+  }
 
-  useEffect(() => {
-    reduce({ type: "BOOTSTRAP", online: navigator.onLine, runtimeAvailable: Boolean(runtime) });
-    void inspectPermissions();
-    const onOffline = () => { setNetworkRestored(false); reduce({ type: "NETWORK_OFFLINE" }); };
-    const onOnline = () => { setNetworkRestored(true); reduce({ type: "NETWORK_ONLINE" }); };
-    window.addEventListener("offline", onOffline);
-    window.addEventListener("online", onOnline);
-    return () => {
-      window.removeEventListener("offline", onOffline);
-      window.removeEventListener("online", onOnline);
-      releaseStream(false);
-      void runtime?.disconnect?.().catch(() => undefined);
+  async function startInterview() {
+    if (!localStream) return;
+    setStarting(true);
+    setError(null);
+    setStatus(copy.starting);
+    try {
+      const started = await readJson<StartResponse>(
+        await fetch(`${apiUrl}/start`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ developmentPreview }),
+        }),
+      );
+      await connectLiveKit(started, localStream);
+      setRuntime(started);
+      setCompleted(started.status === "completed");
+      setMessages(
+        started.transcript.map((item, index) => ({
+          id: `history-${index}`,
+          speaker: item.speaker,
+          text: item.text,
+        })),
+      );
+      await playTurn(started.turn, started);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : copy.genericError);
+      setStatus(copy.prejoin);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  function stopCaptureNodes() {
+    if (maxVoiceTimerRef.current !== null) window.clearTimeout(maxVoiceTimerRef.current);
+    maxVoiceTimerRef.current = null;
+    processorRef.current?.disconnect();
+    sourceRef.current?.disconnect();
+    gainRef.current?.disconnect();
+    processorRef.current = null;
+    sourceRef.current = null;
+    gainRef.current = null;
+  }
+
+  async function finishVoiceAnswer() {
+    if (!listeningRef.current) return;
+    listeningRef.current = false;
+    setListening(false);
+    stopCaptureNodes();
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+    if (!context) return;
+    const sourceRate = context.sampleRate;
+    await context.close().catch(() => undefined);
+
+    if (!speechSeenRef.current || sampleCountRef.current < sourceRate / 4) {
+      chunksRef.current = [];
+      sampleCountRef.current = 0;
+      setStatus(copy.noSpeech);
+      return;
+    }
+
+    setProcessing(true);
+    setStatus(copy.processing);
+    try {
+      if (!runtime) throw new Error(copy.genericError);
+      const merged = mergeFloat32(chunksRef.current, sampleCountRef.current);
+      const normalized = downsampleMono(merged, sourceRate, TARGET_SAMPLE_RATE);
+      const wav = encodePcm16Wav(normalized, TARGET_SAMPLE_RATE);
+      const result = await readJson<AudioAnswerResponse>(
+        await fetch(
+          `${apiUrl}/answers/audio?sessionId=${encodeURIComponent(runtime.sessionId)}&mediaSessionId=${encodeURIComponent(runtime.mediaSessionId)}`,
+          {
+            method: "POST",
+            headers: { "content-type": "audio/wav" },
+            credentials: "same-origin",
+            body: wav,
+          },
+        ),
+      );
+      if (!result.speechDetected) {
+        setStatus(copy.noSpeech);
+        return;
+      }
+      if (!result.transcript?.text || !result.turn) {
+        setStatus(copy.emptySpeech);
+        return;
+      }
+      setMessages((current) => [
+        ...current,
+        { id: `candidate-${crypto.randomUUID()}`, speaker: "candidate", text: result.transcript!.text },
+        { id: result.turn!.id, speaker: "interviewer", text: result.turn!.spokenText },
+      ]);
+      setRuntime((current) => current ? { ...current, remainingSeconds: result.remainingSeconds ?? current.remainingSeconds, turn: result.turn! } : current);
+      await playTurn(result.turn);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : copy.genericError);
+      setStatus(copy.yourTurn);
+    } finally {
+      chunksRef.current = [];
+      sampleCountRef.current = 0;
+      setProcessing(false);
+    }
+  }
+
+  async function startVoiceAnswer() {
+    if (!runtime || !localStream || processing || completed || listening || !microphoneEnabled) return;
+    const micTrack = localStream.getAudioTracks().find((track) => track.readyState === "live");
+    if (!micTrack) {
+      setError(copy.permissionError);
+      return;
+    }
+    setError(null);
+    chunksRef.current = [];
+    sampleCountRef.current = 0;
+    speechSeenRef.current = false;
+    voiceStartRef.current = performance.now();
+    lastSpeechRef.current = voiceStartRef.current;
+    const context = new AudioContext();
+    await context.resume();
+    const source = context.createMediaStreamSource(new MediaStream([micTrack]));
+    const processor = context.createScriptProcessor(4096, 1, 1);
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      event.outputBuffer.getChannelData(0).fill(0);
+      if (!listeningRef.current) return;
+      const input = event.inputBuffer.getChannelData(0);
+      const copySamples = new Float32Array(input.length);
+      copySamples.set(input);
+      chunksRef.current.push(copySamples);
+      sampleCountRef.current += copySamples.length;
+      let energy = 0;
+      for (const sample of input) energy += sample * sample;
+      const rms = Math.sqrt(energy / Math.max(1, input.length));
+      const now = performance.now();
+      if (rms >= 0.018) {
+        speechSeenRef.current = true;
+        lastSpeechRef.current = now;
+      }
+      if (speechSeenRef.current && now - lastSpeechRef.current >= SILENCE_TO_SUBMIT_MS && now - voiceStartRef.current >= 1_000) {
+        listeningRef.current = false;
+        queueMicrotask(() => {
+          listeningRef.current = true;
+          void finishVoiceAnswer();
+        });
+      }
     };
-  }, [runtime]);
+    source.connect(processor);
+    processor.connect(gain);
+    gain.connect(context.destination);
+    audioContextRef.current = context;
+    sourceRef.current = source;
+    processorRef.current = processor;
+    gainRef.current = gain;
+    listeningRef.current = true;
+    setListening(true);
+    setStatus(copy.listeningHelp);
+    maxVoiceTimerRef.current = window.setTimeout(() => void finishVoiceAnswer(), MAX_VOICE_ANSWER_MS);
+  }
+
+  async function sendTypedAnswer() {
+    const text = typedAnswer.trim();
+    if (!runtime || !text || processing || completed) return;
+    setProcessing(true);
+    setError(null);
+    setStatus(copy.processing);
+    try {
+      const result = await readJson<AnswerResponse>(
+        await fetch(`${apiUrl}/answers/text`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            sessionId: runtime.sessionId,
+            mediaSessionId: runtime.mediaSessionId,
+            text,
+          }),
+        }),
+      );
+      setTypedAnswer("");
+      setMessages((current) => [
+        ...current,
+        { id: `candidate-${crypto.randomUUID()}`, speaker: "candidate", text },
+        { id: result.turn.id, speaker: "interviewer", text: result.turn.spokenText },
+      ]);
+      setRuntime((current) => current ? { ...current, remainingSeconds: result.remainingSeconds, turn: result.turn } : current);
+      await playTurn(result.turn);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : copy.genericError);
+      setStatus(copy.yourTurn);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function toggleMicrophone() {
+    const next = !microphoneEnabled;
+    localStream?.getAudioTracks().forEach((track) => { track.enabled = next; });
+    setMicrophoneEnabled(next);
+  }
+
+  function toggleCamera() {
+    const next = !cameraEnabled;
+    localStream?.getVideoTracks().forEach((track) => { track.enabled = next; });
+    setCameraEnabled(next);
+  }
 
   useEffect(() => {
-    const expiresAt = new Date(sessionExpiresAt).getTime();
-    const verify = () => { if (Number.isFinite(expiresAt) && Date.now() >= expiresAt) reduce({ type: "SESSION_EXPIRED" }); };
-    verify();
-    const timer = window.setInterval(verify, 30_000);
-    return () => window.clearInterval(timer);
-  }, [sessionExpiresAt]);
+    return () => {
+      listeningRef.current = false;
+      stopCaptureNodes();
+      void audioContextRef.current?.close();
+      localStream?.getTracks().forEach((track) => track.stop());
+      void roomRef.current?.disconnect();
+      if (ttsUrlRef.current) URL.revokeObjectURL(ttsUrlRef.current);
+    };
+  }, [localStream]);
 
-  const permissionLabels: Record<CandidateMediaPermissionState, string> = {
-    unknown: copy.permissions.unknown,
-    prompt: copy.permissions.prompt,
-    granted: copy.permissions.granted,
-    denied: copy.permissions.denied,
-    unavailable: copy.permissions.unavailable,
-  };
-  const errorMessages: Record<CandidateInterviewErrorCode, string> = copy.error;
-  const fallbacks = candidateInterviewFallbacks(state);
-  const permissionReady = mediaPermissionReady(state);
-  const showAudioOnly = state.microphone === "granted" && !state.audioOnly && ["denied", "unavailable"].includes(state.camera);
-  const canConnect = permissionReady && hasLocalMedia && state.network === "online" && !connectionBusy && !["fatal", "completed"].includes(state.phase);
-  const toggleMicrophone = () => {
-    const next = !microphoneEnabled;
-    streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = next; });
-    setMicrophoneEnabled(next);
-  };
-  const toggleCamera = () => {
-    const next = !cameraEnabled;
-    streamRef.current?.getVideoTracks().forEach((track) => { track.enabled = next; });
-    setCameraEnabled(next);
-  };
+  const active = Boolean(runtime) && !completed;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-3xl">
-              <div className="text-[11px] font-semibold uppercase tracking-[.14em] text-indigo-600">{copy.eyebrow}</div>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{copy.title}</h1>
-              <p className="mt-3 text-sm text-slate-600">{copy.hello} {candidateName} · {copy.role}: {jobTitle}</p>
-              <p className="mt-3 max-w-2xl text-xs leading-5 text-slate-500">{copy.privacyLine}</p>
-            </div>
-            <div aria-live="polite" className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${phaseTone(state.phase)}`}>{copy.stage[state.phase]}</div>
+    <main dir={rtl ? "rtl" : "ltr"} className="min-h-screen bg-slate-950 p-3 text-slate-100 sm:p-5">
+      <div className="mx-auto max-w-7xl space-y-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 shadow-xl">
+          <div>
+            <div className="text-sm font-semibold">{copy.title}</div>
+            <div className="mt-1 text-[11px] text-slate-400">{copy.hello} {candidateName} · {copy.role}: {jobTitle}</div>
           </div>
-          <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
-            <strong className="font-semibold text-slate-800">{copy.secureSession}</strong>
-            <span>{copy.sessionValidUntil}: {formatSessionExpiry(sessionExpiresAt, locale)}</span>
+          <div className="flex flex-wrap items-center gap-2 text-[10px]">
+            {developmentPreview ? <span className="rounded-full bg-amber-400/10 px-3 py-1.5 font-semibold text-amber-300">{copy.preview}</span> : null}
+            <span className={`rounded-full px-3 py-1.5 font-semibold ${runtime ? "bg-emerald-400/10 text-emerald-300" : "bg-slate-800 text-slate-300"}`}>{runtime ? copy.connected : copy.ready}</span>
+            <span className="rounded-full bg-slate-800 px-3 py-1.5 text-slate-400">{copy.expires}: {formatExpiry(sessionExpiresAt, locale)}</span>
           </div>
         </header>
 
-        {state.network === "offline" ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{copy.network.offline}</div> : networkRestored ? <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{copy.network.restored}</div> : <div role="status" className="sr-only">{copy.network.online}</div>}
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+            <div className="relative aspect-video min-h-[360px]">
+              <video ref={remoteVideoRef} autoPlay playsInline className={`h-full w-full object-cover ${remoteVideoActive ? "" : "hidden"}`} />
+              <audio ref={remoteAudioRef} autoPlay />
+              {!remoteVideoActive ? (
+                <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 p-8 text-center">
+                  <div className="max-w-md">
+                    <div className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-white/10 bg-white/5 text-4xl">✦</div>
+                    <h2 className="mt-5 text-xl font-semibold">{runtime?.interviewer.name ?? copy.interviewer}</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{runtime ? copy.audioOnlyInterviewer : copy.waitingVideo}</p>
+                  </div>
+                </div>
+              ) : null}
 
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
-            <div className="p-4 sm:p-6">
-              <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-950">
-                <video ref={videoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled ? "" : "hidden"}`} />
-                {!hasLocalMedia || !cameraEnabled ? <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-center text-white"><div><div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white/10 text-xl">◉</div><div className="mt-4 text-sm font-semibold">{state.audioOnly ? copy.stage.audioOnly : copy.stage.localPreview}</div><p className="mt-2 max-w-md text-xs leading-5 text-slate-300">{state.audioOnly ? copy.stage.cameraOff : copy.stage.previewPrivate}</p></div></div> : null}
+              <div className="absolute start-4 top-4 rounded-full bg-black/50 px-3 py-1.5 text-[11px] font-semibold backdrop-blur">{runtime?.interviewer.name ?? copy.interviewer}</div>
+              <div className="absolute bottom-4 end-4 h-36 w-48 overflow-hidden rounded-xl border border-white/20 bg-slate-900 shadow-2xl sm:h-40 sm:w-56">
+                <video ref={localVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled && localStream ? "" : "hidden"}`} />
+                {!cameraEnabled || !localStream ? <div className="grid h-full place-items-center text-xs text-slate-400">{copy.cameraOff}</div> : null}
+                <div className="absolute bottom-2 start-2 rounded bg-black/50 px-2 py-1 text-[10px]">{copy.you}</div>
               </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={toggleMicrophone} disabled={!hasLocalMedia} className={secondaryButton}>{microphoneEnabled ? copy.controls.microphoneOn : copy.controls.microphoneOff}</button>
-                <button type="button" onClick={toggleCamera} disabled={!hasLocalMedia || state.audioOnly || !streamRef.current?.getVideoTracks().length} className={secondaryButton}>{cameraEnabled ? copy.controls.cameraOn : copy.controls.cameraOff}</button>
-              </div>
-
-              {state.error && state.error.code !== "network_offline" ? <div role="alert" className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${state.error.severity === "fatal" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><div className="font-semibold">{errorMessages[state.error.code]}</div>{state.error.code === "permission_denied" ? <p className="mt-1 text-xs leading-5">{copy.permissions.deniedHelp}</p> : null}{state.error.code === "device_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.permissions.unavailableHelp}</p> : null}{state.error.code === "runtime_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.connection.runtimePreserved}</p> : null}{state.error.code === "reconnect_exhausted" ? <p className="mt-1 text-xs leading-5">{copy.connection.reconnectExhausted}</p> : null}</div> : null}
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button type="button" disabled={permissionBusy || state.phase === "fatal" || state.phase === "completed"} onClick={() => void requestMedia("full")} className={secondaryButton}>{permissionBusy ? copy.permissions.checking : hasLocalMedia ? copy.permissions.retryBoth : copy.permissions.enableBoth}</button>
-                {showAudioOnly ? <button type="button" disabled={permissionBusy} onClick={() => void requestMedia("audio-only")} className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{copy.permissions.tryAudioOnly}</button> : null}
-                <button type="button" disabled={!canConnect} onClick={() => void attemptConnection(state.phase === "reconnecting")} className="min-h-11 rounded-xl bg-slate-950 px-5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">{connectionBusy ? copy.stage.connecting : runtime ? copy.controls.start : copy.controls.checkRuntime}</button>
-              </div>
-              {state.audioOnly ? <div role="status" className="mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-xs font-medium text-indigo-800">{copy.permissions.audioOnlyActive}</div> : null}
-              {state.phase === "reconnecting" ? <div role="status" className="mt-4 rounded-xl bg-sky-50 px-4 py-3 text-xs text-sky-800">{copy.connection.reconnecting}</div> : null}
             </div>
 
-            <aside className="space-y-5 bg-slate-50/70 p-5 sm:p-7">
-              <section>
-                <h2 className="text-sm font-semibold text-slate-900">{copy.permissions.title}</h2>
-                <p className="mt-1 text-xs leading-5 text-slate-500">{copy.permissions.description}</p>
-                <div className="mt-3 space-y-2">{([[copy.permissions.microphone, state.microphone], [copy.permissions.camera, state.camera]] as const).map(([label, permission]) => <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3"><span className="text-xs font-medium text-slate-700">{label}</span><span aria-label={`${label}: ${permissionLabels[permission]}`} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${permissionTone(permission)}`}>{permissionLabels[permission]}</span></div>)}</div>
-                {state.microphone !== "granted" && ["denied", "unavailable"].includes(state.microphone) ? <p className="mt-3 text-[11px] leading-5 text-rose-700">{copy.permissions.microphoneRequired}</p> : null}
-              </section>
+            <div className="border-t border-white/10 bg-slate-900/90 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div aria-live="polite" className="text-sm font-medium text-slate-100">{completed ? copy.completed : processing ? copy.processing : listening ? copy.listening : status}</div>
+                  {listening ? <div className="mt-1 text-[11px] text-emerald-300">{copy.listeningHelp}</div> : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={toggleMicrophone} disabled={!localStream} className={`rounded-xl px-3 py-2 text-xs font-semibold ${microphoneEnabled ? "bg-slate-800 text-white" : "bg-rose-500/20 text-rose-200"}`}>{microphoneEnabled ? copy.micOn : copy.micOff}</button>
+                  <button type="button" onClick={toggleCamera} disabled={!localStream} className={`rounded-xl px-3 py-2 text-xs font-semibold ${cameraEnabled ? "bg-slate-800 text-white" : "bg-rose-500/20 text-rose-200"}`}>{cameraEnabled ? copy.cameraOn : copy.cameraOff}</button>
+                  <button type="button" onClick={() => setSpeakerEnabled((value) => !value)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${speakerEnabled ? "bg-slate-800 text-white" : "bg-rose-500/20 text-rose-200"}`}>{speakerEnabled ? copy.speakerOn : copy.speakerOff}</button>
+                </div>
+              </div>
 
-              <section className="border-t border-slate-200 pt-5">
-                <h2 className="text-sm font-semibold text-slate-900">{copy.connection.title}</h2>
-                <dl className="mt-3 space-y-2 text-xs"><StatusRow label={copy.connection.browser} value={state.network === "online" ? copy.connection.connected : copy.connection.notConnected} /><StatusRow label={copy.connection.devices} value={permissionReady && hasLocalMedia ? copy.permissions.granted : copy.permissions.unknown} /><StatusRow label={copy.connection.realtime} value={runtime ? copy.connection.available : copy.connection.pending} />{state.reconnectAttempts > 0 ? <StatusRow label={copy.connection.attempt} value={`${state.reconnectAttempts}/${state.maxReconnectAttempts}`} /> : null}</dl>
-                {!runtime ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">{copy.connection.runtimePending}</div> : null}
-              </section>
+              {!runtime ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => void enableDevices()} disabled={deviceBusy || starting} className="rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-semibold hover:bg-white/10 disabled:opacity-40">{deviceBusy ? "…" : copy.enableDevices}</button>
+                  <button type="button" onClick={() => void startInterview()} disabled={!localStream || starting || deviceBusy} className="rounded-xl bg-indigo-500 px-5 py-2.5 text-xs font-semibold text-white hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-400">{starting ? copy.starting : copy.start}</button>
+                </div>
+              ) : null}
 
-              {showAudioOnly || fallbacks.includes("resume_later") ? <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.fallback.title}</h2>{showAudioOnly ? <FallbackCard title={copy.fallback.audioOnlyTitle} body={copy.fallback.audioOnlyDescription} /> : null}{fallbacks.includes("resume_later") ? <FallbackCard title={copy.fallback.resumeTitle} body={copy.fallback.resumeDescription} linkLabel={copy.controls.backToSetup} /> : null}</section> : null}
-              <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.instructionsTitle}</h2><ul className="mt-3 space-y-2 text-[11px] leading-5 text-slate-500">{copy.instructions.map((item) => <li key={item} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />{item}</li>)}</ul></section>
-            </aside>
-          </div>
-        </section>
+              {active ? (
+                <div className="mt-4 grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-end">
+                  <button type="button" onClick={() => void startVoiceAnswer()} disabled={processing || listening || !microphoneEnabled} className="min-h-12 rounded-xl bg-emerald-500 px-5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-400">{listening ? copy.listening : copy.voice}</button>
+                  <label className="block">
+                    <span className="sr-only">{copy.typePlaceholder}</span>
+                    <textarea value={typedAnswer} onChange={(event) => setTypedAnswer(event.target.value)} disabled={processing || listening} rows={2} placeholder={copy.typePlaceholder} className="min-h-12 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-400 disabled:opacity-50" />
+                  </label>
+                  <button type="button" onClick={() => void sendTypedAnswer()} disabled={!typedAnswer.trim() || processing || listening} className="min-h-12 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-400">{processing ? copy.sending : copy.send}</button>
+                </div>
+              ) : null}
+
+              {error ? <div role="alert" className="mt-4 rounded-xl border border-rose-400/20 bg-rose-400/10 px-3 py-2 text-xs leading-5 text-rose-200">{error}</div> : null}
+            </div>
+          </section>
+
+          <aside className="flex max-h-[calc(100vh-120px)] min-h-[520px] flex-col rounded-2xl border border-white/10 bg-slate-900 shadow-xl">
+            <div className="border-b border-white/10 px-4 py-3">
+              <div className="text-sm font-semibold">{copy.transcript}</div>
+              <div className="mt-1 text-[10px] text-slate-500">{copy.secure}</div>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {messages.length === 0 ? <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs leading-5 text-slate-500">{copy.prejoin}</div> : null}
+              {messages.map((message) => (
+                <div key={message.id} className={`rounded-xl px-3 py-2.5 text-xs leading-5 ${message.speaker === "candidate" ? "ms-5 bg-indigo-500/15 text-indigo-100" : "me-5 bg-white/5 text-slate-200"}`}>
+                  <div className="mb-1 text-[9px] font-semibold uppercase tracking-[.12em] text-slate-500">{message.speaker === "candidate" ? copy.you : copy.interviewer}</div>
+                  {message.text}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-white/10 p-4 text-[10px] leading-5 text-slate-500">{copy.privacy}</div>
+          </aside>
+        </div>
       </div>
     </main>
   );
-}
-
-function StatusRow({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-3"><dt className="text-slate-500">{label}</dt><dd className="text-end font-semibold text-slate-700">{value}</dd></div>;
-}
-
-function FallbackCard({ title, body, linkLabel }: { title: string; body: string; linkLabel?: string }) {
-  return <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-900">{title}</div><p className="mt-1 text-[11px] leading-5 text-slate-500">{body}</p>{linkLabel ? <a href="/candidate/setup" className="mt-3 inline-flex text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">{linkLabel}</a> : null}</div>;
-}
-
-function formatSessionExpiry(value: string, locale: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  try { return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date); } catch { return date.toISOString(); }
 }
