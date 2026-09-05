@@ -21,6 +21,12 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/api-load-test.yml"
+      - "apps/api/src/auth/**"
+      - "apps/api/src/database/**"
+      - "apps/api/src/health/**"
+      - "apps/api/src/recruiting/**"
+      - "packages/db/migrations/**"
+      - "packages/db/src/**"
       - "contracts/api-load-test.v1.json"
       - "docs/operations/api-load-testing.md"
       - "scripts/load-test.mjs"
