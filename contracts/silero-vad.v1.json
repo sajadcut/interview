@@ -1,0 +1,62 @@
+{
+  "version": "silero-vad.v1",
+  "provider": "silero-vad",
+  "transport": "http",
+  "independentOf": [
+    "llm",
+    "whisper",
+    "livekit",
+    "ffmpeg",
+    "tts"
+  ],
+  "request": {
+    "method": "POST",
+    "path": "/analyze",
+    "contentTypes": [
+      "audio/wav",
+      "audio/x-wav"
+    ],
+    "maxAudioBytes": 20971520,
+    "maxAudioSeconds": 300,
+    "requestIdPattern": "^[A-Za-z0-9._:-]{8,128}$"
+  },
+  "response": {
+    "contentType": "application/json",
+    "targetSampleRate": 16000,
+    "maxSegments": 1000,
+    "segmentsSorted": true,
+    "segmentsNonOverlapping": true,
+    "speechDetectedMatchesSegmentPresence": true
+  },
+  "health": {
+    "method": "GET",
+    "path": "/health",
+    "doesNotProbeOtherComponents": true,
+    "loadsSileroModel": true
+  },
+  "engine": {
+    "runtime": "silero-vad-python",
+    "lazyModelLoad": true,
+    "serializedInference": true,
+    "audioReadSampleRate": 16000
+  },
+  "privacy": {
+    "rawAudioPersistedByWorker": false,
+    "derivedSegmentsPersistedByWorker": false,
+    "requestBodyLogged": false
+  },
+  "client": {
+    "requestTimeoutMs": 15000,
+    "maxAttempts": 2,
+    "retryBaseMs": 100,
+    "redirects": "manual",
+    "productionHttpsRequired": true,
+    "strongSharedSecretRequired": true
+  },
+  "testEvidence": {
+    "realSileroRequired": false,
+    "realMediaFlowRequired": false,
+    "syntheticWavAndFakeEngine": true,
+    "representativeAudioQualityPending": true
+  }
+}

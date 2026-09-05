@@ -16,6 +16,7 @@ import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
 import { LiveKitTransportAdapter } from "./livekit-transport.adapter";
 import { REALTIME_TRANSPORT_ADAPTER } from "./realtime-transport.adapter";
+import { SileroVadHttpClient } from "./silero-vad-http.client";
 import { SPEECH_TO_TEXT_ADAPTER } from "./speech-to-text.adapter";
 import { SupervisedPilotAwareInterviewsService } from "./supervised-pilot-aware-interviews.service";
 import { SupervisedPilotController } from "./supervised-pilot.controller";
@@ -23,6 +24,7 @@ import { SupervisedPilotRuntimeGateService } from "./supervised-pilot-runtime-ga
 import { SupervisedPilotService } from "./supervised-pilot.service";
 import { TEXT_TO_SPEECH_ADAPTER } from "./text-to-speech.adapter";
 import { TtsHttpClient } from "./tts-http.client";
+import { VOICE_ACTIVITY_DETECTION_ADAPTER } from "./voice-activity-detection.adapter";
 import { WhisperHttpClient } from "./whisper-http.client";
 
 @Module({
@@ -45,6 +47,8 @@ import { WhisperHttpClient } from "./whisper-http.client";
     EvaluatorCalibrationAnalyticsService,
     EvaluatorShadowTestingService,
     LiveKitTransportAdapter,
+    SileroVadHttpClient,
+    { provide: VOICE_ACTIVITY_DETECTION_ADAPTER, useExisting: SileroVadHttpClient },
     { provide: REALTIME_TRANSPORT_ADAPTER, useExisting: LiveKitTransportAdapter },
     WhisperHttpClient,
     { provide: SPEECH_TO_TEXT_ADAPTER, useExisting: WhisperHttpClient },
@@ -64,6 +68,8 @@ import { WhisperHttpClient } from "./whisper-http.client";
     EvaluatorShadowTestingService,
     LiveKitTransportAdapter,
     REALTIME_TRANSPORT_ADAPTER,
+    SileroVadHttpClient,
+    VOICE_ACTIVITY_DETECTION_ADAPTER,
     WhisperHttpClient,
     SPEECH_TO_TEXT_ADAPTER,
     TtsHttpClient,

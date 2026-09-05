@@ -96,20 +96,44 @@ test("disabled providers are reported as not configured without probing", async 
 
 test("successful health probe marks a configured provider ready", async () => {
   const descriptors = buildMediaProviderDescriptors(
-    env({ VAD_PROVIDER: "silero-http", VAD_BASE_URL: "http://127.0.0.1:9010" }),
+    env({
+      VAD_PROVIDER: "silero-http",
+      VAD_BASE_URL: "http://127.0.0.1:9030",
+      MEDIA_WORKER_SHARED_SECRET: "test-vad-secret",
+    }),
   ).filter((descriptor) => descriptor.component === "vad");
   const statuses = await probeMediaProviders(descriptors, 100, async (url) => {
-    assert.equal(url, "http://127.0.0.1:9010/health");
-    return new Response(null, { status: 200, headers: { "x-provider-version": "silero-v1" } });
+    assert.equal(url, "http://127.0.0.1:9030/health");
+    return new Response(null, {
+      status: 200,
+      headers: { "x-provider-version": "silero-vad.v1" },
+    });
   });
   assert.equal(statuses[0]?.reachable, true);
   assert.equal(statuses[0]?.ready, true);
-  assert.equal(statuses[0]?.version, "silero-v1");
+  assert.equal(statuses[0]?.version, "silero-vad.v1");
+});
+
+test("production VAD descriptor fails closed on insecure transport or weak secret", () => {
+  const descriptor = buildMediaProviderDescriptors(
+    env({
+      NODE_ENV: "production",
+      VAD_PROVIDER: "silero-http",
+      VAD_BASE_URL: "http://vad.internal.test",
+      MEDIA_WORKER_SHARED_SECRET: "weak",
+    }),
+  ).find((item) => item.component === "vad");
+  assert.equal(descriptor?.configured, false);
+  assert.match(descriptor?.configurationReason ?? "", /HTTPS/);
 });
 
 test("non-2xx health response is reachable but not ready", async () => {
   const descriptors = buildMediaProviderDescriptors(
-    env({ STT_PROVIDER: "whisper-http", STT_BASE_URL: "http://127.0.0.1:9020", MEDIA_WORKER_SHARED_SECRET: "test-secret" }),
+    env({
+      STT_PROVIDER: "whisper-http",
+      STT_BASE_URL: "http://127.0.0.1:9020",
+      MEDIA_WORKER_SHARED_SECRET: "test-secret",
+    }),
   ).filter((descriptor) => descriptor.component === "stt");
   const statuses = await probeMediaProviders(descriptors, 100, async () =>
     new Response(null, { status: 503 }),

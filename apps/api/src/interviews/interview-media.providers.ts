@@ -22,6 +22,33 @@ function httpHealthUrl(baseUrl: string | undefined): string | null {
   return base ? `${base}/health` : null;
 }
 
+function productionHttpProviderSafe(
+  baseUrl: string | undefined,
+  sharedSecret: string,
+  nodeEnv: AppEnv["NODE_ENV"],
+): boolean {
+  if (nodeEnv !== "production") return true;
+  if (!baseUrl) return false;
+  try {
+    if (new URL(baseUrl).protocol !== "https:") return false;
+  } catch {
+    return false;
+  }
+  const weak = new Set([
+    "changeme",
+    "change_me",
+    "replace_me",
+    "replace-me",
+    "example",
+    "secret",
+    "password",
+  ]);
+  return (
+    Buffer.byteLength(sharedSecret, "utf8") >= 32 &&
+    !weak.has(sharedSecret.trim().toLowerCase())
+  );
+}
+
 export function buildMediaProviderDescriptors(env: AppEnv): MediaProviderDescriptor[] {
   const livekitConfigured =
     env.MEDIA_TRANSPORT_PROVIDER === "livekit" &&
@@ -29,6 +56,15 @@ export function buildMediaProviderDescriptors(env: AppEnv): MediaProviderDescrip
     Boolean(env.LIVEKIT_HEALTH_URL) &&
     Boolean(env.LIVEKIT_API_KEY) &&
     Boolean(env.LIVEKIT_API_SECRET);
+  const vadConfigured =
+    env.VAD_PROVIDER === "silero-http" &&
+    Boolean(env.VAD_BASE_URL) &&
+    Boolean(env.MEDIA_WORKER_SHARED_SECRET) &&
+    productionHttpProviderSafe(
+      env.VAD_BASE_URL,
+      env.MEDIA_WORKER_SHARED_SECRET,
+      env.NODE_ENV,
+    );
 
   return [
     {
@@ -46,14 +82,15 @@ export function buildMediaProviderDescriptors(env: AppEnv): MediaProviderDescrip
     {
       component: "vad",
       provider: env.VAD_PROVIDER,
-      configured: env.VAD_PROVIDER !== "disabled" && Boolean(env.VAD_BASE_URL),
+      version: "silero-vad.v1",
+      configured: vadConfigured,
       healthUrl: httpHealthUrl(env.VAD_BASE_URL),
       configurationReason:
         env.VAD_PROVIDER === "disabled"
           ? "VAD provider is disabled"
-          : env.VAD_BASE_URL
+          : vadConfigured
             ? undefined
-            : "VAD_BASE_URL is required",
+            : "VAD_BASE_URL and MEDIA_WORKER_SHARED_SECRET are required; production requires HTTPS and a strong secret",
     },
     {
       component: "stt",
