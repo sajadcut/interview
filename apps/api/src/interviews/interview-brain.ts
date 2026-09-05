@@ -3,10 +3,16 @@ import {
   type CandidateIntent,
   type StructuredInterviewTurn,
 } from "./interview-contracts";
+import {
+  containsPersianScript,
+  normalizeInterviewSpokenLanguage,
+  type InterviewSpokenLanguage,
+} from "./interview-language";
 
 export interface InterviewBrainCriterion {
   key: string;
   label: string;
+  spokenLabel?: string;
   objective: string;
   expectedEvidence: string[];
   minimumEvidence: number;
@@ -26,6 +32,7 @@ export interface InterviewBrainInput {
   latestCandidateText: string;
   candidateIntent: CandidateIntent | null;
   elapsedSeconds: number;
+  language?: InterviewSpokenLanguage;
 }
 
 export interface InterviewBrainDecision {
@@ -35,16 +42,33 @@ export interface InterviewBrainDecision {
   reason: string;
 }
 
+function localized(language: InterviewSpokenLanguage, english: string, persian: string): string {
+  return language === "fa" ? persian : english;
+}
+
 function normalizeCriterion(criterion: InterviewBrainCriterion): InterviewBrainCriterion {
   const expectedEvidence = criterion.expectedEvidence.map((item) => item.trim()).filter(Boolean);
+  const spokenLabel = criterion.spokenLabel?.trim();
   return {
     ...criterion,
     key: criterion.key.trim(),
     label: criterion.label.trim(),
+    ...(spokenLabel ? { spokenLabel } : {}),
     objective: criterion.objective.trim(),
     expectedEvidence: expectedEvidence.length > 0 ? expectedEvidence : [`Evidence for ${criterion.label.trim()}`],
     minimumEvidence: Math.max(1, Math.trunc(criterion.minimumEvidence || 1)),
   };
+}
+
+function criterionSpokenLabel(
+  language: InterviewSpokenLanguage,
+  criterion: InterviewBrainCriterion,
+  index: number,
+): string {
+  const preferred = criterion.spokenLabel?.trim() || criterion.label.trim();
+  if (language === "en") return preferred;
+  if (containsPersianScript(preferred)) return preferred;
+  return `موضوع شماره ${Math.max(1, index + 1)}`;
 }
 
 function evidenceCount(state: InterviewBrainState, criterion: InterviewBrainCriterion): number {
@@ -95,9 +119,11 @@ function finalize(
 }
 
 export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBrainDecision {
+  const language = normalizeInterviewSpokenLanguage(rawInput.language);
   const criteria = rawInput.criteria.map(normalizeCriterion).filter((criterion) => criterion.key && criterion.label);
   const input: InterviewBrainInput = {
     ...rawInput,
+    language,
     criteria,
     latestCandidateText: rawInput.latestCandidateText.trim(),
     elapsedSeconds: Math.max(0, Math.trunc(rawInput.elapsedSeconds)),
@@ -110,7 +136,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         action: "close",
         criterion: null,
         objective: "end_session_without_configured_criteria",
-        spokenText: "The configured interview plan has no assessable criteria, so this session must stop for review.",
+        spokenText: localized(
+          language,
+          "The configured interview plan has no assessable criteria, so this session must stop for review.",
+          "برای این مصاحبه معیار قابل ارزیابی تنظیم نشده است؛ بنابراین جلسه را متوقف می‌کنم تا تنظیمات بررسی شود.",
+        ),
         expectedEvidence: [],
       },
       "No configured criteria are available.",
@@ -125,7 +155,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         action: "close",
         criterion: input.state.currentCriterion,
         objective: "respect_time_budget",
-        spokenText: "We are at the end of the interview time. I will stop here and preserve the evidence collected so far for review.",
+        spokenText: localized(
+          language,
+          "We are at the end of the interview time. I will stop here and preserve the evidence collected so far for review.",
+          "زمان مصاحبه به پایان رسیده است. جلسه را همین‌جا متوقف می‌کنم و شواهد ثبت‌شده برای بررسی حفظ می‌شوند.",
+        ),
         expectedEvidence: [],
       },
       "The interview time budget is exhausted.",
@@ -144,7 +178,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         action: "close",
         criterion: null,
         objective: "complete_evidence_coverage",
-        spokenText: "We have covered the required interview criteria. I will end the interview and preserve the evidence for independent evaluation.",
+        spokenText: localized(
+          language,
+          "We have covered the required interview criteria. I will end the interview and preserve the evidence for independent evaluation.",
+          "همه معیارهای لازم را پوشش دادیم. مصاحبه را به پایان می‌رسانم و شواهد ثبت‌شده برای ارزیابی مستقل حفظ می‌شوند.",
+        ),
         expectedEvidence: [],
       },
       "All configured criteria reached minimum evidence coverage.",
@@ -152,7 +190,44 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
     );
   }
 
+  const currentIndex = criteria.findIndex((criterion) => criterion.key === current.key);
+  const currentLabel = criterionSpokenLabel(language, current, currentIndex);
+
   switch (input.candidateIntent) {
+    case "END_INTERVIEW_REQUEST":
+      return finalize(
+        input,
+        {
+          action: "close",
+          criterion: current.key,
+          objective: "respect_candidate_end_request",
+          spokenText: localized(
+            language,
+            "Understood. I will end the interview now and preserve the evidence collected so far for review.",
+            "متوجه شدم. مصاحبه را همین حالا به پایان می‌رسانم و شواهد ثبت‌شده تا اینجا برای بررسی حفظ می‌شوند.",
+          ),
+          expectedEvidence: [],
+        },
+        "Candidate requested to end the interview.",
+        current.key,
+      );
+    case "ABUSIVE_INPUT":
+      return finalize(
+        input,
+        {
+          action: "clarify",
+          criterion: current.key,
+          objective: "enforce_abuse_boundary",
+          spokenText: localized(
+            language,
+            "We can continue if we keep the conversation respectful and focused on the job. You may answer, ask for clarification, or end the interview.",
+            "اگر گفتگو محترمانه و مرتبط با شغل باقی بماند می‌توانیم ادامه دهیم. می‌توانید پاسخ بدهید، توضیح بیشتری بخواهید یا مصاحبه را پایان دهید.",
+          ),
+          expectedEvidence: [],
+        },
+        "Abusive input receives a deterministic job-focused boundary without becoming evidence.",
+        current.key,
+      );
     case "RECONNECT":
       return finalize(
         input,
@@ -160,7 +235,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           action: "clarify",
           criterion: current.key,
           objective: "recover_after_reconnect",
-          spokenText: `Welcome back. We were discussing ${current.label}. We can continue from that point, or you can ask me to repeat the question.`,
+          spokenText: localized(
+            language,
+            `Welcome back. We were discussing ${currentLabel}. We can continue from that point, or you can ask me to repeat the question.`,
+            `خوش برگشتید. در حال صحبت درباره ${currentLabel} بودیم. می‌توانیم از همان‌جا ادامه دهیم یا اگر خواستید سؤال را دوباره مطرح کنم.`,
+          ),
           expectedEvidence: [],
         },
         "Reconnect recovery keeps the same criterion and does not invent new evidence.",
@@ -174,7 +253,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           action: "clarify",
           criterion: current.key,
           objective: current.objective,
-          spokenText: `Sure. For ${current.label}, I am looking for a concrete job-relevant example, what you personally did, the trade-offs you considered, and the outcome.`,
+          spokenText: localized(
+            language,
+            `Sure. For ${currentLabel}, I am looking for a concrete job-relevant example, what you personally did, the trade-offs you considered, and the outcome.`,
+            `حتماً. درباره ${currentLabel} یک مثال واقعی و مرتبط با کار می‌خواهم. توضیح دهید خودتان چه کاری انجام دادید، چه ملاحظاتی داشتید و نتیجه چه شد.`,
+          ),
           expectedEvidence: [],
         },
         "Candidate requested clarification or interrupted the previous turn.",
@@ -187,7 +270,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           action: "clarify",
           criterion: current.key,
           objective: "recover_from_silence",
-          spokenText: "I did not receive an answer. Take your time; you can answer, ask for clarification, or ask to skip this topic.",
+          spokenText: localized(
+            language,
+            "I did not receive an answer. Take your time; you can answer, ask for clarification, or ask to skip this topic.",
+            "پاسخی دریافت نکردم. با خیال راحت ادامه دهید؛ می‌توانید پاسخ بدهید، توضیح بیشتری بخواهید یا درخواست کنید از این موضوع عبور کنیم.",
+          ),
           expectedEvidence: [],
         },
         "Silence timeout uses a recoverable prompt instead of treating silence as evidence.",
@@ -200,7 +287,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           action: "escalate",
           criterion: current.key,
           objective: "route_candidate_factual_question",
-          spokenText: "I can pause the interview. Job or company facts should be answered from approved recruiting knowledge, so I will route that question through the supported candidate-information flow.",
+          spokenText: localized(
+            language,
+            "I can pause the interview. Job or company facts should be answered from approved recruiting knowledge, so I will route that question through the supported candidate-information flow.",
+            "می‌توانم مصاحبه را موقتاً متوقف کنم. اطلاعات مربوط به شغل یا شرکت باید از منابع تأییدشده پاسخ داده شود؛ سؤال شما را از مسیر اطلاعات کاندیدا پیگیری می‌کنم.",
+          ),
           expectedEvidence: [],
         },
         "Candidate factual questions must use approved knowledge rather than interview-model improvisation.",
@@ -216,20 +307,30 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
             action: "close",
             criterion: current.key,
             objective: "respect_candidate_skip_or_refusal",
-            spokenText: "Understood. I will not pressure you to answer that topic. We have no additional required topic to continue with, so I will end the interview for review.",
+            spokenText: localized(
+              language,
+              "Understood. I will not pressure you to answer that topic. We have no additional required topic to continue with, so I will end the interview for review.",
+              "متوجه شدم. برای پاسخ به این موضوع به شما فشار نمی‌آورم. موضوع الزامی دیگری باقی نمانده است، بنابراین مصاحبه را برای بررسی به پایان می‌رسانم.",
+            ),
             expectedEvidence: [],
           },
           "Candidate skip/refusal is respected and the unavailable evidence remains visible to reviewers.",
           current.key,
         );
       }
+      const nextIndex = criteria.findIndex((criterion) => criterion.key === next.key);
+      const nextLabel = criterionSpokenLabel(language, next, nextIndex);
       return finalize(
         input,
         {
           action: "transition",
           criterion: next.key,
           objective: next.objective,
-          spokenText: `Understood. We will leave that evidence gap visible and move to ${next.label}.`,
+          spokenText: localized(
+            language,
+            `Understood. We will leave that evidence gap visible and move to ${nextLabel}.`,
+            `متوجه شدم. این بخش بدون شواهد باقی می‌ماند و به ${nextLabel} می‌رویم.`,
+          ),
           expectedEvidence: [],
         },
         "Candidate requested to skip/refuse the current topic; the brain transitions without fabricating coverage.",
@@ -251,7 +352,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         action: "ask",
         criterion: current.key,
         objective: current.objective,
-        spokenText: `Tell me about a concrete example that demonstrates ${current.label}. Focus on your own decisions, the technical context, trade-offs, and outcome.`,
+        spokenText: localized(
+          language,
+          `Tell me about a concrete example that demonstrates ${currentLabel}. Focus on your own decisions, the technical context, trade-offs, and outcome.`,
+          `لطفاً یک مثال واقعی و مشخص درباره ${currentLabel} از تجربه کاری خودتان توضیح دهید. روی تصمیم‌هایی که خودتان گرفتید، زمینه فنی، ملاحظات و نتیجه تمرکز کنید.`,
+        ),
         expectedEvidence,
       },
       "The current criterion has insufficient evidence and has not yet received a primary question.",
@@ -265,7 +370,11 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       action: "probe",
       criterion: current.key,
       objective: current.objective,
-      spokenText: `Thanks. I still need stronger evidence for ${current.label}. Please go deeper on ${expectedEvidence.join(", ")}.`,
+      spokenText: localized(
+        language,
+        `Thanks. I still need stronger evidence for ${currentLabel}. Please go deeper on ${expectedEvidence.join(", ")}.`,
+        `ممنون. برای ارزیابی دقیق‌تر ${currentLabel} هنوز به جزئیات بیشتری نیاز دارم. لطفاً درباره نقش خودتان، تصمیم‌ها، ملاحظات فنی و نتیجه مشخص‌تر توضیح دهید.`,
+      ),
       expectedEvidence,
     },
     input.latestCandidateText
