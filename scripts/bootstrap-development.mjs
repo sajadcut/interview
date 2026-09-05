@@ -101,7 +101,13 @@ const domainReady = runPsql(
 if (domainReady === "true") {
   const seedOutput = runPsql(["-f", resolve(root, "scripts/bootstrap-domain-fixtures.sql")], "Development domain seed");
   if (seedOutput) console.log(seedOutput);
+  const languageSeedOutput = runPsql(
+    ["-f", resolve(root, "scripts/bootstrap-interview-language-fixtures.sql")],
+    "Development interview language seed",
+  );
+  if (languageSeedOutput) console.log(languageSeedOutput);
   console.log("✓ M1-M5 deterministic development data seeded");
+  console.log("✓ Persian interview language and spoken labels seeded");
 } else {
   console.log("ℹ Domain tables are not migrated yet; M1-M5 development data seed skipped");
 }
