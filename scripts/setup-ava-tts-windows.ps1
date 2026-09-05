@@ -12,13 +12,16 @@ function Test-AvaPythonRuntime {
         [string[]]$PrefixArgs = @()
     )
 
+    $probe = "import struct,sys; bits=struct.calcsize('P')*8; ok=((3,11) <= sys.version_info[:2] < (3,14) and bits == 64); print(str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'.'+str(sys.version_info.micro)+'|'+str(bits)); raise SystemExit(0 if ok else 2)"
+
     try {
-        $result = & $Command @PrefixArgs -c "import struct,sys; ok=(sys.version_info[:2] >= (3,11) and sys.version_info[:2] < (3,14) and struct.calcsize('P')*8 == 64); print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}|{struct.calcsize(\"P\")*8}'); raise SystemExit(0 if ok else 2)" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $result) {
+        $result = & $Command @PrefixArgs -c $probe 2>$null
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0 -and $result) {
             return [PSCustomObject]@{
                 Command = $Command
                 PrefixArgs = $PrefixArgs
-                Description = $result.Trim()
+                Description = ([string]$result).Trim()
             }
         }
     } catch {
