@@ -58,7 +58,7 @@ export class HealthController {
       const ping = await this.database.sql`SELECT 1 AS ok`;
       if (Number(ping[0]?.ok ?? 0) !== 1) throw new Error("database ping failed");
       const migrations = await this.database.sql`
-        SELECT count(*)::int AS count, max(filename) AS latest
+        SELECT count(*)::int AS count, max(name) AS latest
         FROM _interview_schema_migrations
       `;
       return {
