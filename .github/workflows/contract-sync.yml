@@ -1,0 +1,40 @@
+name: contract-sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: contains(github.event.head_commit.message, '[sync-contracts]')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+      - name: Pin npm
+        run: npm install --global npm@11.6.2 --ignore-scripts
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Regenerate API contracts
+        run: npm run api:sync
+      - name: Commit generated contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/api/openapi/openapi.json packages/api-client/src/generated/schema.ts; then
+            echo "Generated contracts already match."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/openapi/openapi.json packages/api-client/src/generated/schema.ts
+          git commit -m "chore(api): sync generated contracts"
+          git push origin HEAD:main
