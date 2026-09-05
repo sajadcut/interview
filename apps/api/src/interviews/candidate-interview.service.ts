@@ -86,7 +86,7 @@ export class CandidateInterviewService {
       .join("|");
     const policyVersion = `candidate-${createHash("sha256").update(receiptFingerprint).digest("hex").slice(0, 16)}`;
     const recordingAllowed = consentStatus.latest.some(
-      (item) => item.consentType === "interview-recording" && item.granted,
+      (item) => item.consentType === "recording" && item.granted,
     );
     const inserted = await this.database.sql`
       INSERT INTO consent_records (
@@ -348,19 +348,20 @@ export class CandidateInterviewService {
         });
       }
 
-      let mediaSession = await this.media.getLatestMediaSession(sessionId);
-      if (!mediaSession || ["ended", "failed"].includes(mediaSession.status)) {
-        mediaSession = await this.media.createMediaSession(sessionId, "audio");
-      }
-      const connection = await this.issueCandidateConnection(scope, sessionId, mediaSession.id);
+      const latestMediaSession = await this.media.getLatestMediaSession(sessionId);
+      const activeMediaSessionId =
+        latestMediaSession && !["ended", "failed"].includes(latestMediaSession.status)
+          ? latestMediaSession.id
+          : (await this.media.createMediaSession(sessionId, "audio")).id;
+      const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
       const turn = await this.currentOrFirstTurn(sessionId);
-      const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSession.id);
+      const runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
       const messages = await this.transcript(sessionId);
 
       return {
         status: turn.action === "close" ? "completed" : "active",
         sessionId,
-        mediaSessionId: mediaSession.id,
+        mediaSessionId: activeMediaSessionId,
         remainingSeconds: runtime.remainingSeconds,
         developmentPreview,
         releaseMode: runtime.releaseMode,
