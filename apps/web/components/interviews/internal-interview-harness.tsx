@@ -157,6 +157,18 @@ export function InternalInterviewHarness() {
         }),
       });
       const session = await readJson<{ id: string; lifecycleStage: string; releaseMode: string }>(sessionResponse);
+
+      await readJson(
+        await fetch(`${apiUrl}/v1/interviews/${session.id}/state/transitions`, {
+          method: "POST",
+          headers: authHeaders(loadedContext),
+          body: JSON.stringify({
+            idempotencyKey: `internal-harness-start-${session.id}`,
+            action: "start",
+          }),
+        }),
+      );
+
       setSessionId(session.id);
       setElapsedMs(0);
       setMessages([
