@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { containsPersianScript } from "./interview-language";
 import {
   assertInterviewTurnPolicy,
   enforceInterviewTurnPolicy,
@@ -99,6 +100,26 @@ test("invalid model JSON gets a safe fallback", () => {
   assert.equal(result.decision, "fallback");
   assert.equal(result.turn.action, "close");
   assert.ok(result.violations.includes("invalid_model_output"));
+});
+
+test("Persian interviews reject English-only spoken text and fall back to Persian speech", () => {
+  const context: InterviewPolicyContext = { ...base, language: "fa" };
+  const mismatch = interviewTurnPolicyViolations(ask, context);
+  assert.ok(mismatch.includes("spoken_language_mismatch"));
+
+  const result = enforceInterviewTurnPolicy(ask, context);
+  assert.equal(result.decision, "fallback");
+  assert.equal(result.turn.action, "close");
+  assert.equal(containsPersianScript(result.turn.spokenText), true);
+  assert.ok(result.violations.includes("spoken_language_mismatch"));
+});
+
+test("Persian interview accepts Persian spoken text", () => {
+  const persianAsk = {
+    ...ask,
+    spokenText: "لطفاً درباره یک سیستم واقعی که طراحی کرده‌اید و ملاحظات آن توضیح دهید.",
+  };
+  assert.deepEqual(violations(persianAsk, { language: "fa" }), []);
 });
 
 test("missing criterion is rejected", () => {
