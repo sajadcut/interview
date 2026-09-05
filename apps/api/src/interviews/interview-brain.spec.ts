@@ -128,11 +128,25 @@ test("Persian brain uses Persian spoken labels and never speaks English rubric l
   assert.match(decision.turn.spokenText, /مهندسی بک‌اند/);
 });
 
-test("Persian brain falls back to a Persian ordinal when a rubric label has no Persian spoken label", () => {
+test("Persian brain derives a localized label from a known criterion key when spokenLabel is missing", () => {
   const input = persianInput();
   delete input.criteria[0]?.spokenLabel;
   const decision = assertPersianSpeech(input);
-  assert.match(decision.turn.spokenText, /موضوع شماره 1/);
+  assert.match(decision.turn.spokenText, /مهندسی بک‌اند/);
+  assert.doesNotMatch(decision.turn.spokenText, /موضوع شماره/);
+});
+
+test("Persian brain uses a natural generic fallback for an unknown English-only criterion", () => {
+  const input = persianInput();
+  input.criteria[0] = {
+    ...input.criteria[0]!,
+    key: "novel_criterion",
+    label: "Novel criterion",
+    spokenLabel: undefined,
+  };
+  const decision = assertPersianSpeech(input);
+  assert.match(decision.turn.spokenText, /این بخش تخصصی/);
+  assert.doesNotMatch(decision.turn.spokenText, /موضوع شماره/);
 });
 
 test("Persian operational intents always produce Persian speech", () => {
