@@ -90,6 +90,7 @@ export default function CandidateInterviewPage() {
       candidateName={session.candidateDisplayName}
       jobTitle={session.jobTitle}
       sessionExpiresAt={session.expiresAt}
+      developmentPreview={process.env.NODE_ENV === "development"}
     />
   );
 }
