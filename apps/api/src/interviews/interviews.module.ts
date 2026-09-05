@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { CandidateInterviewController } from "./candidate-interview.controller";
+import { CandidateInterviewService } from "./candidate-interview.service";
 import { EvaluatorCalibrationAnalyticsService } from "./evaluator-calibration-analytics.service";
 import { EvaluatorCalibrationController } from "./evaluator-calibration.controller";
 import { EvaluatorCalibrationService } from "./evaluator-calibration.service";
@@ -38,6 +40,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     InterviewsController, InterviewReviewController, InterviewReleaseGovernanceController,
     InterviewSessionStateController, InterviewMediaController, InterviewOrchestrationController,
     EvaluatorCalibrationController, EvaluatorShadowTestingController, SupervisedPilotController,
+    CandidateInterviewController,
   ],
   providers: [
     SupervisedPilotRuntimeGateService, SupervisedPilotService, SupervisedPilotAwareInterviewsService,
@@ -51,6 +54,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     WhisperHttpClient, { provide: SPEECH_TO_TEXT_ADAPTER, useExisting: WhisperHttpClient },
     TtsHttpClient, { provide: TEXT_TO_SPEECH_ADAPTER, useExisting: TtsHttpClient },
     InterviewMediaService, InterviewMediaEventService, InterviewSpeechService, InterviewOrchestrationService,
+    CandidateInterviewService,
   ],
   exports: [
     InterviewsService, InterviewSessionStateService, InterviewBrainService, InterviewEvaluatorService,
@@ -59,7 +63,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     LiveKitTransportAdapter, REALTIME_TRANSPORT_ADAPTER, SileroVadHttpClient, VOICE_ACTIVITY_DETECTION_ADAPTER,
     WhisperHttpClient, SPEECH_TO_TEXT_ADAPTER, TtsHttpClient, TEXT_TO_SPEECH_ADAPTER,
     InterviewMediaService, InterviewMediaEventService, InterviewSpeechService, InterviewOrchestrationService,
-    SupervisedPilotRuntimeGateService, SupervisedPilotService,
+    CandidateInterviewService, SupervisedPilotRuntimeGateService, SupervisedPilotService,
   ],
 })
 export class InterviewsModule {}
