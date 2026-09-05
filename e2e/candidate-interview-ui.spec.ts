@@ -36,13 +36,26 @@ async function prepareCandidateInterview(page: Parameters<typeof signInRecruiter
 
   await page.addInitScript(() => {
     const mediaDevices = navigator.mediaDevices;
-    const original = mediaDevices.getUserMedia.bind(mediaDevices);
+    const originalGetUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+    const originalPermissionQuery = navigator.permissions.query.bind(navigator.permissions);
+
+    Object.defineProperty(navigator.permissions, "query", {
+      configurable: true,
+      value: async (descriptor: PermissionDescriptor) => {
+        if (window.location.pathname === "/candidate/interview") {
+          if (descriptor.name === "microphone") return { state: "granted" } as PermissionStatus;
+          if (descriptor.name === "camera") return { state: "denied" } as PermissionStatus;
+        }
+        return originalPermissionQuery(descriptor);
+      },
+    });
+
     mediaDevices.getUserMedia = async (constraints: MediaStreamConstraints) => {
       const asksForVideo = constraints?.video !== false && constraints?.video !== undefined;
       if (window.location.pathname === "/candidate/interview" && asksForVideo) {
         throw new DOMException("candidate-ui-e2e-camera-denied", "NotAllowedError");
       }
-      return original(constraints);
+      return originalGetUserMedia(constraints);
     };
   });
 
@@ -67,6 +80,8 @@ test("candidate interview UI handles permissions, fallback, runtime degradation 
 
   await page.getByRole("button", { name: "Enable camera and microphone" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Camera or microphone permission is blocked." })).toBeVisible();
+  await expect(page.getByLabel("Microphone: Ready")).toBeVisible();
+  await expect(page.getByLabel("Camera: Blocked")).toBeVisible();
 
   await page.getByRole("button", { name: "Try audio-only" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Audio-only fallback is active. Camera remains off." })).toBeVisible();
