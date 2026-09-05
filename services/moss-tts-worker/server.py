@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,6 +19,7 @@ PROVIDER = "moss-realtime-persian"
 MAX_TEXT_CHARS = 4000
 MAX_REQUEST_BYTES = 32 * 1024
 SAMPLE_RATE = 24000
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
 
 _ENGINE: "MossPersianEngine | None" = None
 _ENGINE_LOCK = threading.Lock()
@@ -47,6 +49,11 @@ def shared_secret() -> str:
     return os.getenv("TTS_SHARED_SECRET", "").strip() or os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip()
 
 
+def normalize_request_id(value: str | None) -> str | None:
+    candidate = (value or "").strip()
+    return candidate if REQUEST_ID_PATTERN.fullmatch(candidate) else None
+
+
 def _load_function(path: str, module_name: str, function_name: str) -> Callable[[str], Any]:
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
@@ -61,9 +68,10 @@ def _load_function(path: str, module_name: str, function_name: str) -> Callable[
 
 class MossPersianEngine:
     def __init__(self) -> None:
-        repo_dir = Path(os.getenv("MOSS_TTS_REPO_DIR", "").strip())
-        if not str(repo_dir):
+        configured_repo = os.getenv("MOSS_TTS_REPO_DIR", "").strip()
+        if not configured_repo:
             raise RuntimeError("MOSS_TTS_REPO_DIR is required")
+        repo_dir = Path(configured_repo)
         realtime_dir = repo_dir / "moss_tts_realtime"
         if not realtime_dir.is_dir():
             raise RuntimeError("MOSS_TTS_REPO_DIR does not contain moss_tts_realtime")
@@ -132,10 +140,7 @@ class MossPersianEngine:
 
         # The upstream Persian demo applies this guard because a cold generation can
         # swallow the first word without a leading pause/punctuation token.
-        guarded = [
-            piece if piece[0] in "،.؛!؟…," else f"، {piece}"
-            for piece in pieces
-        ]
+        guarded = [piece if piece[0] in "،.؛!؟…," else f"، {piece}" for piece in pieces]
         torch = self.torch
         parts = []
         gap = torch.zeros(int(0.3 * SAMPLE_RATE))
@@ -179,7 +184,10 @@ def write_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> No
 
 
 def read_body(handler: BaseHTTPRequestHandler) -> bytes:
-    length = int(handler.headers.get("content-length", "0") or "0")
+    try:
+        length = int(handler.headers.get("content-length", "0") or "0")
+    except ValueError as exc:
+        raise ValueError("invalid content-length") from exc
     if length <= 0 or length > MAX_REQUEST_BYTES:
         raise ValueError("invalid request size")
     body = handler.rfile.read(length)
@@ -216,11 +224,15 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/synthesize":
             write_json(self, 404, {"error": "Not Found"})
             return
+        request_id = normalize_request_id(self.headers.get("x-request-id"))
         if not is_authorized(self):
             write_json(self, 401, {"error": {"code": "unauthorized", "message": "TTS request is unauthorized"}})
             return
         if self.headers.get("x-tts-contract-version", "").strip() != CONTRACT_VERSION:
             write_json(self, 409, {"error": {"code": "contract_mismatch", "message": "TTS contract version does not match"}})
+            return
+        if request_id is None:
+            write_json(self, 400, {"error": {"code": "invalid_request", "message": "TTS request is invalid"}})
             return
         if self.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
             write_json(self, 415, {"error": {"code": "unsupported_media_type", "message": "TTS request content type is unsupported"}})
@@ -253,6 +265,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("cache-control", "no-store")
         self.send_header("x-tts-contract-version", CONTRACT_VERSION)
         self.send_header("x-tts-provider", PROVIDER)
+        self.send_header("x-request-id", request_id)
         self.end_headers()
         self.wfile.write(audio)
 
