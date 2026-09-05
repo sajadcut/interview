@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsArray, IsDateString, IsOptional, IsString, MaxLength } from "class-validator";
+import { IsArray, IsDateString, IsString, MaxLength } from "class-validator";
 
 export class ApproveInterviewReleaseDto {
   @ApiProperty() @IsString() @MaxLength(120) rubricVersion!: string;
