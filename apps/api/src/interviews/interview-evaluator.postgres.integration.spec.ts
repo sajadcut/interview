@@ -217,8 +217,17 @@ test(
         WHERE organization_id = ${seeded.organizationId}::uuid
       `;
       assert.equal(Number(scorecardRows[0]?.count), 1);
+
+      const reviewTaskRows = await database.sql`
+        SELECT count(*)::int AS count
+        FROM interview_review_tasks
+        WHERE organization_id = ${seeded.organizationId}::uuid
+          AND interview_session_id = ${seeded.sessionId}::uuid
+      `;
+      assert.equal(Number(reviewTaskRows[0]?.count), 1);
     } finally {
-      await database.sql`DELETE FROM organizations WHERE id = ${seeded.organizationId}::uuid`;
+      // Migration 0057 intentionally makes review audit events immutable. This integration test
+      // uses a unique tenant and the CI database is ephemeral, so cleanup must not bypass that invariant.
       await database.onModuleDestroy();
     }
   },
