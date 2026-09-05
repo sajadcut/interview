@@ -27,41 +27,29 @@ export interface CandidateInterviewExperienceProps {
 }
 
 type MediaRequestMode = "full" | "audio-only";
+const secondaryButton = "min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40";
 
 function permissionFromBrowser(value: PermissionState): CandidateMediaPermissionState {
-  if (value === "granted" || value === "denied" || value === "prompt") return value;
-  return "unknown";
+  return value === "granted" || value === "denied" || value === "prompt" ? value : "unknown";
 }
 
 async function readPermission(name: "microphone" | "camera"): Promise<CandidateMediaPermissionState> {
   if (!navigator.permissions?.query) return "unknown";
   try {
-    const result = await navigator.permissions.query({ name: name as PermissionName });
-    return permissionFromBrowser(result.state);
+    return permissionFromBrowser((await navigator.permissions.query({ name: name as PermissionName })).state);
   } catch {
     return "unknown";
   }
 }
 
 function mediaFailureCode(cause: unknown): "permission_denied" | "device_unavailable" {
-  if (
-    cause instanceof DOMException &&
-    ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
-  ) {
-    return "permission_denied";
-  }
-  return "device_unavailable";
+  return cause instanceof DOMException && ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
+    ? "permission_denied"
+    : "device_unavailable";
 }
 
-function connectionFailureCode(
-  cause: unknown,
-): "transport_timeout" | "transport_unavailable" | "unexpected" {
-  if (
-    (cause instanceof DOMException && ["TimeoutError", "AbortError"].includes(cause.name)) ||
-    (cause instanceof Error && /timeout/i.test(cause.name))
-  ) {
-    return "transport_timeout";
-  }
+function connectionFailureCode(cause: unknown): "transport_timeout" | "transport_unavailable" | "unexpected" {
+  if ((cause instanceof DOMException && ["TimeoutError", "AbortError"].includes(cause.name)) || (cause instanceof Error && /timeout/i.test(cause.name))) return "transport_timeout";
   return cause instanceof Error || cause instanceof DOMException ? "transport_unavailable" : "unexpected";
 }
 
@@ -80,17 +68,13 @@ function permissionTone(permission: CandidateMediaPermissionState): string {
   return "bg-slate-100 text-slate-600";
 }
 
-export function CandidateInterviewExperience({
-  candidateName,
-  jobTitle,
-  sessionExpiresAt,
-  runtime,
-}: CandidateInterviewExperienceProps) {
+export function CandidateInterviewExperience({ candidateName, jobTitle, sessionExpiresAt, runtime }: CandidateInterviewExperienceProps) {
   const locale = getDefaultLocale();
   const copy = candidateInterviewUiCopy[locale];
-  const [state, setState] = useState(() =>
-    createCandidateInterviewState({ runtimeAvailable: Boolean(runtime), online: navigator.onLine }),
-  );
+  const [state, setState] = useState(() => createCandidateInterviewState({
+    runtimeAvailable: Boolean(runtime),
+    online: typeof navigator === "undefined" ? true : navigator.onLine,
+  }));
   const [permissionBusy, setPermissionBusy] = useState(false);
   const [connectionBusy, setConnectionBusy] = useState(false);
   const [hasLocalMedia, setHasLocalMedia] = useState(false);
@@ -100,31 +84,23 @@ export function CandidateInterviewExperience({
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) => {
-    setState((current) => candidateInterviewReducer(current, event));
-  };
-
-  const stopLocalMedia = () => {
+  const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) => setState((current) => candidateInterviewReducer(current, event));
+  const releaseStream = (updateUi = true) => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    setHasLocalMedia(false);
+    if (updateUi) setHasLocalMedia(false);
   };
-
-  const installLocalMedia = (stream: MediaStream) => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+  const installStream = (stream: MediaStream) => {
+    releaseStream(false);
     streamRef.current = stream;
     if (videoRef.current) videoRef.current.srcObject = stream;
     setHasLocalMedia(true);
     setMicrophoneEnabled(true);
     setCameraEnabled(stream.getVideoTracks().some((track) => track.readyState === "live"));
   };
-
   const inspectPermissions = async () => {
-    const [microphone, camera] = await Promise.all([
-      readPermission("microphone"),
-      readPermission("camera"),
-    ]);
+    const [microphone, camera] = await Promise.all([readPermission("microphone"), readPermission("camera")]);
     reduce({ type: "PERMISSIONS_RESOLVED", microphone, camera });
   };
 
@@ -137,43 +113,32 @@ export function CandidateInterviewExperience({
         return;
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: mode === "full" });
-      const microphoneReady = stream.getAudioTracks().some((track) => track.readyState === "live");
-      if (!microphoneReady) {
+      if (!stream.getAudioTracks().some((track) => track.readyState === "live")) {
         stream.getTracks().forEach((track) => track.stop());
         reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
         return;
       }
-      installLocalMedia(stream);
+      installStream(stream);
       reduce({
         type: "PERMISSIONS_RESOLVED",
         microphone: "granted",
-        camera:
-          mode === "audio-only"
-            ? "unavailable"
-            : stream.getVideoTracks().some((track) => track.readyState === "live")
-              ? "granted"
-              : "unavailable",
+        camera: mode === "audio-only" ? "unavailable" : stream.getVideoTracks().some((track) => track.readyState === "live") ? "granted" : "unavailable",
         audioOnly: mode === "audio-only",
       });
     } catch (cause) {
-      stopLocalMedia();
-      reduce({ type: "PERMISSION_FAILED", code: mediaFailureCode(cause) });
+      releaseStream();
+      const code = mediaFailureCode(cause);
+      reduce({ type: "PERMISSION_FAILED", code });
       await inspectPermissions();
-      reduce({ type: "PERMISSION_FAILED", code: mediaFailureCode(cause) });
+      reduce({ type: "PERMISSION_FAILED", code });
     } finally {
       setPermissionBusy(false);
     }
   };
 
   const attemptConnection = async (reconnect = false) => {
-    if (!hasLocalMedia || !streamRef.current) {
-      reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
-      return;
-    }
-    if (state.network === "offline") {
-      reduce({ type: "NETWORK_OFFLINE" });
-      return;
-    }
+    if (!hasLocalMedia || !streamRef.current) return reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
+    if (state.network === "offline") return reduce({ type: "NETWORK_OFFLINE" });
     setConnectionBusy(true);
     reduce({ type: "CONNECT_REQUESTED" });
     try {
@@ -195,41 +160,25 @@ export function CandidateInterviewExperience({
   useEffect(() => {
     reduce({ type: "BOOTSTRAP", online: navigator.onLine, runtimeAvailable: Boolean(runtime) });
     void inspectPermissions();
-
-    const onOffline = () => {
-      setNetworkRestored(false);
-      reduce({ type: "NETWORK_OFFLINE" });
-    };
-    const onOnline = () => {
-      setNetworkRestored(true);
-      reduce({ type: "NETWORK_ONLINE" });
-    };
+    const onOffline = () => { setNetworkRestored(false); reduce({ type: "NETWORK_OFFLINE" }); };
+    const onOnline = () => { setNetworkRestored(true); reduce({ type: "NETWORK_ONLINE" }); };
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
     return () => {
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("online", onOnline);
-      stopLocalMedia();
+      releaseStream(false);
       void runtime?.disconnect?.().catch(() => undefined);
     };
-    // runtime identity is the connection boundary; page does not mutate it during a session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime]);
 
   useEffect(() => {
     const expiresAt = new Date(sessionExpiresAt).getTime();
-    const verify = () => {
-      if (Number.isFinite(expiresAt) && Date.now() >= expiresAt) reduce({ type: "SESSION_EXPIRED" });
-    };
+    const verify = () => { if (Number.isFinite(expiresAt) && Date.now() >= expiresAt) reduce({ type: "SESSION_EXPIRED" }); };
     verify();
     const timer = window.setInterval(verify, 30_000);
     return () => window.clearInterval(timer);
   }, [sessionExpiresAt]);
-
-  useEffect(() => {
-    if (state.phase === "live" || state.phase === "reconnecting") return;
-    if (state.phase === "fatal" || state.phase === "completed") stopLocalMedia();
-  }, [state.phase]);
 
   const permissionLabels: Record<CandidateMediaPermissionState, string> = {
     unknown: copy.permissions.unknown,
@@ -241,29 +190,22 @@ export function CandidateInterviewExperience({
   const errorMessages: Record<CandidateInterviewErrorCode, string> = copy.error;
   const fallbacks = candidateInterviewFallbacks(state);
   const permissionReady = mediaPermissionReady(state);
-  const canCheckRuntime = permissionReady && hasLocalMedia && state.network === "online" && !connectionBusy;
-  const showAudioOnly =
-    state.microphone === "granted" && !state.audioOnly && ["denied", "unavailable"].includes(state.camera);
-  const phaseLabel = copy.stage[state.phase];
-
+  const showAudioOnly = state.microphone === "granted" && !state.audioOnly && ["denied", "unavailable"].includes(state.camera);
+  const canConnect = permissionReady && hasLocalMedia && state.network === "online" && !connectionBusy && !["fatal", "completed"].includes(state.phase);
   const toggleMicrophone = () => {
     const next = !microphoneEnabled;
-    streamRef.current?.getAudioTracks().forEach((track) => {
-      track.enabled = next;
-    });
+    streamRef.current?.getAudioTracks().forEach((track) => { track.enabled = next; });
     setMicrophoneEnabled(next);
   };
   const toggleCamera = () => {
     const next = !cameraEnabled;
-    streamRef.current?.getVideoTracks().forEach((track) => {
-      track.enabled = next;
-    });
+    streamRef.current?.getVideoTracks().forEach((track) => { track.enabled = next; });
     setCameraEnabled(next);
   };
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-6xl space-y-4">
         <header className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
@@ -272,119 +214,56 @@ export function CandidateInterviewExperience({
               <p className="mt-3 text-sm text-slate-600">{copy.hello} {candidateName} · {copy.role}: {jobTitle}</p>
               <p className="mt-3 max-w-2xl text-xs leading-5 text-slate-500">{copy.privacyLine}</p>
             </div>
-            <div className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${phaseTone(state.phase)}`} role="status" aria-live="polite">
-              {phaseLabel}
-            </div>
+            <div role="status" aria-live="polite" className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${phaseTone(state.phase)}`}>{copy.stage[state.phase]}</div>
           </div>
-          <div className="mt-5 grid gap-3 border-t border-slate-100 pt-4 text-xs text-slate-600 sm:grid-cols-2">
-            <div><span className="font-semibold text-slate-800">{copy.secureSession}.</span></div>
-            <div className="sm:text-end"><span className="text-slate-400">{copy.sessionValidUntil}: </span>{formatSessionExpiry(sessionExpiresAt, locale)}</div>
+          <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+            <strong className="font-semibold text-slate-800">{copy.secureSession}</strong>
+            <span>{copy.sessionValidUntil}: {formatSessionExpiry(sessionExpiresAt, locale)}</span>
           </div>
         </header>
 
-        {state.network === "offline" ? (
-          <div role="alert" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm">
-            {copy.network.offline}
-          </div>
-        ) : networkRestored ? (
-          <div role="status" aria-live="polite" className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {copy.network.restored}
-          </div>
-        ) : (
-          <div role="status" className="sr-only">{copy.network.online}</div>
-        )}
+        {state.network === "offline" ? <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{copy.network.offline}</div> : networkRestored ? <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{copy.network.restored}</div> : <div role="status" className="sr-only">{copy.network.online}</div>}
 
-        <section className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(290px,.75fr)]">
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
             <div className="p-4 sm:p-6">
               <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-950">
                 <video ref={videoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled ? "" : "hidden"}`} />
-                {!hasLocalMedia || !cameraEnabled ? (
-                  <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-center text-white">
-                    <div>
-                      <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white/10 text-xl" aria-hidden="true">◉</div>
-                      <div className="mt-4 text-sm font-semibold">{state.audioOnly ? copy.stage.audioOnly : copy.stage.localPreview}</div>
-                      <p className="mt-2 max-w-md text-xs leading-5 text-slate-300">{state.audioOnly ? copy.stage.cameraOff : copy.stage.previewPrivate}</p>
-                    </div>
-                  </div>
-                ) : null}
+                {!hasLocalMedia || !cameraEnabled ? <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-center text-white"><div><div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white/10 text-xl">◉</div><div className="mt-4 text-sm font-semibold">{state.audioOnly ? copy.stage.audioOnly : copy.stage.localPreview}</div><p className="mt-2 max-w-md text-xs leading-5 text-slate-300">{state.audioOnly ? copy.stage.cameraOff : copy.stage.previewPrivate}</p></div></div> : null}
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={toggleMicrophone} disabled={!hasLocalMedia} className="min-h-11 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 disabled:opacity-40">
-                  {microphoneEnabled ? copy.controls.microphoneOn : copy.controls.microphoneOff}
-                </button>
-                <button type="button" onClick={toggleCamera} disabled={!hasLocalMedia || state.audioOnly || streamRef.current?.getVideoTracks().length === 0} className="min-h-11 rounded-xl border border-slate-200 px-4 text-xs font-semibold text-slate-700 disabled:opacity-40">
-                  {cameraEnabled ? copy.controls.cameraOn : copy.controls.cameraOff}
-                </button>
+                <button type="button" onClick={toggleMicrophone} disabled={!hasLocalMedia} className={secondaryButton}>{microphoneEnabled ? copy.controls.microphoneOn : copy.controls.microphoneOff}</button>
+                <button type="button" onClick={toggleCamera} disabled={!hasLocalMedia || state.audioOnly || !streamRef.current?.getVideoTracks().length} className={secondaryButton}>{cameraEnabled ? copy.controls.cameraOn : copy.controls.cameraOff}</button>
               </div>
 
-              {state.error ? (
-                <div role="alert" className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${state.error.severity === "fatal" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
-                  <div className="font-semibold">{errorMessages[state.error.code]}</div>
-                  {state.error.code === "permission_denied" ? <p className="mt-1 text-xs leading-5">{copy.permissions.deniedHelp}</p> : null}
-                  {state.error.code === "device_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.permissions.unavailableHelp}</p> : null}
-                  {state.error.code === "runtime_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.connection.runtimePreserved}</p> : null}
-                  {state.error.code === "reconnect_exhausted" ? <p className="mt-1 text-xs leading-5">{copy.connection.reconnectExhausted}</p> : null}
-                </div>
-              ) : null}
+              {state.error ? <div role="alert" className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${state.error.severity === "fatal" ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><div className="font-semibold">{errorMessages[state.error.code]}</div>{state.error.code === "permission_denied" ? <p className="mt-1 text-xs leading-5">{copy.permissions.deniedHelp}</p> : null}{state.error.code === "device_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.permissions.unavailableHelp}</p> : null}{state.error.code === "runtime_unavailable" ? <p className="mt-1 text-xs leading-5">{copy.connection.runtimePreserved}</p> : null}{state.error.code === "reconnect_exhausted" ? <p className="mt-1 text-xs leading-5">{copy.connection.reconnectExhausted}</p> : null}</div> : null}
 
               <div className="mt-5 flex flex-wrap gap-2">
-                <button type="button" disabled={permissionBusy || state.phase === "fatal" || state.phase === "completed"} onClick={() => void requestMedia("full")} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-40">
-                  {permissionBusy ? copy.permissions.checking : hasLocalMedia ? copy.permissions.retryBoth : copy.permissions.enableBoth}
-                </button>
-                {showAudioOnly ? (
-                  <button type="button" disabled={permissionBusy} onClick={() => void requestMedia("audio-only")} className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">
-                    {copy.permissions.tryAudioOnly}
-                  </button>
-                ) : null}
-                <button type="button" disabled={!canCheckRuntime} onClick={() => void attemptConnection(state.phase === "reconnecting")} className="min-h-11 rounded-xl bg-slate-950 px-5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-                  {connectionBusy ? copy.stage.connecting : runtime ? copy.controls.start : copy.controls.checkRuntime}
-                </button>
+                <button type="button" disabled={permissionBusy || state.phase === "fatal" || state.phase === "completed"} onClick={() => void requestMedia("full")} className={secondaryButton}>{permissionBusy ? copy.permissions.checking : hasLocalMedia ? copy.permissions.retryBoth : copy.permissions.enableBoth}</button>
+                {showAudioOnly ? <button type="button" disabled={permissionBusy} onClick={() => void requestMedia("audio-only")} className="min-h-11 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-xs font-semibold text-indigo-800 hover:bg-indigo-100">{copy.permissions.tryAudioOnly}</button> : null}
+                <button type="button" disabled={!canConnect} onClick={() => void attemptConnection(state.phase === "reconnecting")} className="min-h-11 rounded-xl bg-slate-950 px-5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">{connectionBusy ? copy.stage.connecting : runtime ? copy.controls.start : copy.controls.checkRuntime}</button>
               </div>
-
               {state.audioOnly ? <div role="status" className="mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-xs font-medium text-indigo-800">{copy.permissions.audioOnlyActive}</div> : null}
               {state.phase === "reconnecting" ? <div role="status" className="mt-4 rounded-xl bg-sky-50 px-4 py-3 text-xs text-sky-800">{copy.connection.reconnecting}</div> : null}
             </div>
 
             <aside className="space-y-5 bg-slate-50/70 p-5 sm:p-7">
-              <section aria-labelledby="candidate-device-title">
-                <h2 id="candidate-device-title" className="text-sm font-semibold text-slate-900">{copy.permissions.title}</h2>
+              <section>
+                <h2 className="text-sm font-semibold text-slate-900">{copy.permissions.title}</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">{copy.permissions.description}</p>
-                <div className="mt-3 space-y-2">
-                  {([[copy.permissions.microphone, state.microphone], [copy.permissions.camera, state.camera]] as const).map(([label, permission]) => (
-                    <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3">
-                      <span className="text-xs font-medium text-slate-700">{label}</span>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${permissionTone(permission)}`} aria-label={`${label}: ${permissionLabels[permission]}`}>{permissionLabels[permission]}</span>
-                    </div>
-                  ))}
-                </div>
+                <div className="mt-3 space-y-2">{([[copy.permissions.microphone, state.microphone], [copy.permissions.camera, state.camera]] as const).map(([label, permission]) => <div key={label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3"><span className="text-xs font-medium text-slate-700">{label}</span><span aria-label={`${label}: ${permissionLabels[permission]}`} className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${permissionTone(permission)}`}>{permissionLabels[permission]}</span></div>)}</div>
                 {state.microphone !== "granted" && ["denied", "unavailable"].includes(state.microphone) ? <p className="mt-3 text-[11px] leading-5 text-rose-700">{copy.permissions.microphoneRequired}</p> : null}
               </section>
 
-              <section className="border-t border-slate-200 pt-5" aria-labelledby="candidate-connection-title">
-                <h2 id="candidate-connection-title" className="text-sm font-semibold text-slate-900">{copy.connection.title}</h2>
-                <dl className="mt-3 space-y-2 text-xs">
-                  <div className="flex justify-between gap-3"><dt className="text-slate-500">{copy.connection.browser}</dt><dd className="font-semibold text-slate-700">{state.network === "online" ? copy.connection.connected : copy.connection.notConnected}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-slate-500">{copy.connection.devices}</dt><dd className="font-semibold text-slate-700">{permissionReady && hasLocalMedia ? copy.permissions.granted : copy.permissions.unknown}</dd></div>
-                  <div className="flex justify-between gap-3"><dt className="text-slate-500">{copy.connection.realtime}</dt><dd className="font-semibold text-slate-700">{runtime ? copy.connection.available : copy.connection.pending}</dd></div>
-                  {state.reconnectAttempts > 0 ? <div className="flex justify-between gap-3"><dt className="text-slate-500">{copy.connection.attempt}</dt><dd className="font-semibold text-slate-700">{state.reconnectAttempts}/{state.maxReconnectAttempts}</dd></div> : null}
-                </dl>
+              <section className="border-t border-slate-200 pt-5">
+                <h2 className="text-sm font-semibold text-slate-900">{copy.connection.title}</h2>
+                <dl className="mt-3 space-y-2 text-xs"><StatusRow label={copy.connection.browser} value={state.network === "online" ? copy.connection.connected : copy.connection.notConnected} /><StatusRow label={copy.connection.devices} value={permissionReady && hasLocalMedia ? copy.permissions.granted : copy.permissions.unknown} /><StatusRow label={copy.connection.realtime} value={runtime ? copy.connection.available : copy.connection.pending} />{state.reconnectAttempts > 0 ? <StatusRow label={copy.connection.attempt} value={`${state.reconnectAttempts}/${state.maxReconnectAttempts}`} /> : null}</dl>
                 {!runtime ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">{copy.connection.runtimePending}</div> : null}
               </section>
 
-              {showAudioOnly || fallbacks.includes("resume_later") ? (
-                <section className="border-t border-slate-200 pt-5" aria-labelledby="candidate-fallback-title">
-                  <h2 id="candidate-fallback-title" className="text-sm font-semibold text-slate-900">{copy.fallback.title}</h2>
-                  {showAudioOnly ? <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3"><div className="text-xs font-semibold text-indigo-900">{copy.fallback.audioOnlyTitle}</div><p className="mt-1 text-[11px] leading-5 text-slate-500">{copy.fallback.audioOnlyDescription}</p></div> : null}
-                  {fallbacks.includes("resume_later") ? <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-900">{copy.fallback.resumeTitle}</div><p className="mt-1 text-[11px] leading-5 text-slate-500">{copy.fallback.resumeDescription}</p><a href="/candidate/setup" className="mt-3 inline-flex text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">{copy.controls.backToSetup}</a></div> : null}
-                </section>
-              ) : null}
-
-              <section className="border-t border-slate-200 pt-5" aria-labelledby="candidate-instructions-title">
-                <h2 id="candidate-instructions-title" className="text-sm font-semibold text-slate-900">{copy.instructionsTitle}</h2>
-                <ul className="mt-3 space-y-2 text-[11px] leading-5 text-slate-500">{copy.instructions.map((item) => <li key={item} className="flex gap-2"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />{item}</li>)}</ul>
-              </section>
+              {showAudioOnly || fallbacks.includes("resume_later") ? <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.fallback.title}</h2>{showAudioOnly ? <FallbackCard title={copy.fallback.audioOnlyTitle} body={copy.fallback.audioOnlyDescription} /> : null}{fallbacks.includes("resume_later") ? <FallbackCard title={copy.fallback.resumeTitle} body={copy.fallback.resumeDescription} linkLabel={copy.controls.backToSetup} /> : null}</section> : null}
+              <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.instructionsTitle}</h2><ul className="mt-3 space-y-2 text-[11px] leading-5 text-slate-500">{copy.instructions.map((item) => <li key={item} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />{item}</li>)}</ul></section>
             </aside>
           </div>
         </section>
@@ -393,12 +272,16 @@ export function CandidateInterviewExperience({
   );
 }
 
+function StatusRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex justify-between gap-3"><dt className="text-slate-500">{label}</dt><dd className="text-end font-semibold text-slate-700">{value}</dd></div>;
+}
+
+function FallbackCard({ title, body, linkLabel }: { title: string; body: string; linkLabel?: string }) {
+  return <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs font-semibold text-slate-900">{title}</div><p className="mt-1 text-[11px] leading-5 text-slate-500">{body}</p>{linkLabel ? <a href="/candidate/setup" className="mt-3 inline-flex text-[11px] font-semibold text-indigo-700 hover:text-indigo-900">{linkLabel}</a> : null}</div>;
+}
+
 function formatSessionExpiry(value: string, locale: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  try {
-    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
-  } catch {
-    return date.toISOString();
-  }
+  try { return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date); } catch { return date.toISOString(); }
 }
