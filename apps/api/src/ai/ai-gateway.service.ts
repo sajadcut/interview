@@ -57,9 +57,9 @@ export class AiGatewayService {
         input: request.input,
       },
       idempotencyKey: request.idempotencyKey,
-      priority: request.priority,
-      maxAttempts: request.maxAttempts,
-      timeoutMs: request.timeoutMs,
+      ...(request.priority !== undefined ? { priority: request.priority } : {}),
+      ...(request.maxAttempts !== undefined ? { maxAttempts: request.maxAttempts } : {}),
+      ...(request.timeoutMs !== undefined ? { timeoutMs: request.timeoutMs } : {}),
     });
   }
 

@@ -136,6 +136,7 @@ export class InterviewsService {
     if (!body || typeof body !== "object") throw new Error("Interview evidence is required");
     const value=body as Record<string, unknown>;
     if (typeof value.summary !== "string" || !value.summary.trim()) throw new Error("summary is required");
+    const summary = value.summary.trim();
     if (!Array.isArray(value.transcriptSegmentIds) || value.transcriptSegmentIds.length===0 || !value.transcriptSegmentIds.every((item)=>typeof item === "string")) throw new Error("transcriptSegmentIds must be a non-empty string array");
     const segmentIds=[...new Set(value.transcriptSegmentIds.map(String))];
     if (segmentIds.length!==value.transcriptSegmentIds.length) throw new Error("transcriptSegmentIds must be unique");
@@ -160,7 +161,7 @@ export class InterviewsService {
       }
       const rows=await tx`
         INSERT INTO interview_evidence(organization_id,interview_session_id,criterion_id,turn_id,transcript_segment_ids,summary,confidence)
-        VALUES(${organizationId}::uuid,${sessionId}::uuid,${typeof value.criterionId === "string" ? value.criterionId : null}::uuid,${typeof value.turnId === "string" ? value.turnId : null}::uuid,${segmentIds}::uuid[],${value.summary.trim()},${typeof value.confidence === "number" ? value.confidence : null})
+        VALUES(${organizationId}::uuid,${sessionId}::uuid,${typeof value.criterionId === "string" ? value.criterionId : null}::uuid,${typeof value.turnId === "string" ? value.turnId : null}::uuid,${segmentIds}::uuid[],${summary},${typeof value.confidence === "number" ? value.confidence : null})
         RETURNING id,criterion_id,turn_id,transcript_segment_ids,summary,confidence,source_kind,created_at`;
       const row=rows[0]; return { id:String(row?.id),...(row?.criterion_id?{criterionId:String(row.criterion_id)}:{}),...(row?.turn_id?{turnId:String(row.turn_id)}:{}),transcriptSegmentIds:Array.isArray(row?.transcript_segment_ids)?row.transcript_segment_ids.map(String):[],summary:String(row?.summary),...(row?.confidence!==null?{confidence:Number(row?.confidence)}:{}),sourceKind:String(row?.source_kind),createdAt:new Date(String(row?.created_at)).toISOString() };
     });
