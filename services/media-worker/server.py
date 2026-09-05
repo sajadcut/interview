@@ -29,6 +29,7 @@ from whisper_contract import (
 )
 
 MAX_TTS_TEXT_CHARS = 4000
+MAX_WHISPER_PROMPT_CHARS = 2000
 
 
 def load_root_env() -> None:
@@ -61,6 +62,59 @@ def resolve_command(value: str) -> str | None:
     return shutil.which(candidate)
 
 
+def bounded_int_env(name: str, default: int, *, minimum: int = 1, maximum: int = 32) -> int:
+    raw_value = os.getenv(name, "").strip()
+    if not raw_value:
+        return default
+    try:
+        parsed = int(raw_value)
+    except ValueError:
+        return default
+    return max(minimum, min(maximum, parsed))
+
+
+def whisper_decode_settings() -> dict[str, Any]:
+    prompt = os.getenv("WHISPER_INITIAL_PROMPT", "").strip()
+    if len(prompt) > MAX_WHISPER_PROMPT_CHARS:
+        prompt = prompt[:MAX_WHISPER_PROMPT_CHARS]
+    return {
+        "beamSize": bounded_int_env("WHISPER_BEAM_SIZE", 5),
+        "bestOf": bounded_int_env("WHISPER_BEST_OF", 5),
+        "initialPrompt": prompt,
+    }
+
+
+def build_whisper_args(
+    command: str,
+    model: str,
+    audio_path: Path,
+    output_prefix: Path,
+    language: str,
+) -> list[str]:
+    settings = whisper_decode_settings()
+    args = [
+        command,
+        "-m",
+        model,
+        "-f",
+        str(audio_path),
+        "--output-txt",
+        "--output-file",
+        str(output_prefix),
+        "--no-prints",
+        "--language",
+        language,
+        "--beam-size",
+        str(settings["beamSize"]),
+        "--best-of",
+        str(settings["bestOf"]),
+    ]
+    prompt = settings["initialPrompt"]
+    if prompt:
+        args.extend(["--prompt", prompt])
+    return args
+
+
 def worker_secret_ready() -> bool:
     return bool(os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip())
 
@@ -88,11 +142,15 @@ def vad_status() -> dict[str, Any]:
 
 
 def stt_status() -> dict[str, Any]:
+    settings = whisper_decode_settings()
     base = {
         "contractVersion": WHISPER_CONTRACT_VERSION,
         "provider": WHISPER_PROVIDER,
         "maxAudioBytes": MAX_AUDIO_BYTES,
         "supportedContentTypes": list(SUPPORTED_AUDIO_CONTENT_TYPES),
+        "beamSize": settings["beamSize"],
+        "bestOf": settings["bestOf"],
+        "initialPromptConfigured": bool(settings["initialPrompt"]),
     }
     if not worker_secret_ready():
         return {**base, "ready": False, "reason": "MEDIA_WORKER_SHARED_SECRET is not configured"}
@@ -243,19 +301,7 @@ def run_whisper(audio_bytes: bytes) -> dict[str, Any]:
             output_prefix = root / "transcript"
             audio_path.write_bytes(audio_bytes)
             result = subprocess.run(
-                [
-                    command,
-                    "-m",
-                    model,
-                    "-f",
-                    str(audio_path),
-                    "--output-txt",
-                    "--output-file",
-                    str(output_prefix),
-                    "--no-prints",
-                    "--language",
-                    language,
-                ],
+                build_whisper_args(command, model, audio_path, output_prefix, language),
                 capture_output=True,
                 text=True,
                 timeout=timeout_seconds,
