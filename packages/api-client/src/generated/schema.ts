@@ -772,6 +772,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interview-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewReviewController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-reviews/{reviewId}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewReviewController_claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-reviews/{reviewId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewReviewController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-reviews/{reviewId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewReviewController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-reviews/sessions/{sessionId}/candidate-complaint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewReviewController_complaint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-release-units/{releaseUnitId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewReleaseGovernanceController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-release-units/{releaseUnitId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewReleaseGovernanceController_suspend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-release-units/{releaseUnitId}/approval-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewReleaseGovernanceController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviews/media/readiness": {
         parameters: {
             query?: never;
@@ -2559,7 +2687,7 @@ export interface components {
             /** @description Latest finalized candidate transcript text for state/context only. */
             latestCandidateText?: string;
             /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "END_INTERVIEW_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL" | "ABUSIVE_INPUT";
             /** @default 0 */
             elapsedSeconds: number;
         };
@@ -2571,7 +2699,7 @@ export interface components {
             spokenText: string;
             expectedEvidence: string[];
             /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "END_INTERVIEW_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL" | "ABUSIVE_INPUT";
             id: string;
             sequence: number;
             finalized: boolean;
@@ -2582,6 +2710,10 @@ export interface components {
             remainingSeconds: number;
             evidenceCoverage: Record<string, never>;
             releaseMode: string;
+            policyVersion: string;
+            /** @enum {string} */
+            policyDecision: "accepted" | "fallback";
+            policyViolations: string[];
         };
         AppendInterviewTurnDto: {
             /** @enum {string} */
@@ -2591,7 +2723,7 @@ export interface components {
             spokenText: string;
             expectedEvidence: string[];
             /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "END_INTERVIEW_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL" | "ABUSIVE_INPUT";
         };
         InterviewTurnDto: {
             /** @enum {string} */
@@ -2601,7 +2733,7 @@ export interface components {
             spokenText: string;
             expectedEvidence: string[];
             /** @enum {string} */
-            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL";
+            candidateIntent?: "ANSWER" | "CLARIFICATION_REQUEST" | "SKIP_REQUEST" | "END_INTERVIEW_REQUEST" | "INTERRUPTION" | "SILENCE_TIMEOUT" | "RECONNECT" | "CANDIDATE_QUESTION" | "POLICY_REFUSAL" | "ABUSIVE_INPUT";
             id: string;
             sequence: number;
             finalized: boolean;
@@ -2643,6 +2775,54 @@ export interface components {
             summary: string;
             confidence?: number;
             id: string;
+            /** @enum {string} */
+            sourceKind: "candidate" | "interviewer" | "system" | "mixed";
+            createdAt: string;
+        };
+        InterviewReviewTaskDto: {
+            id: string;
+            interviewSessionId: string;
+            evaluationId?: string;
+            reasonCodes: string[];
+            priority: number;
+            status: string;
+            evidenceReferences: string[];
+            criterionComparison: Record<string, never>[];
+            overrideRationale?: string;
+            createdAt: string;
+        };
+        CompleteInterviewReviewDto: {
+            humanOverride: Record<string, never>;
+            overrideRationale: string;
+            evidenceReferences: string[];
+            criterionComparison: Record<string, never>[];
+        };
+        CandidateComplaintReviewDto: {
+            complaintReference: string;
+            /** @default 25 */
+            priority: number;
+        };
+        ApproveInterviewReleaseDto: {
+            rubricVersion: string;
+            promptVersionFamily: string;
+            validationDatasetVersion: string;
+            calibrationReportReference: string;
+            securityReviewReference: string;
+            privacyComplianceReviewReference: string;
+            knownLimitations: string[];
+            rollbackConditions: string[];
+            suspensionConditions: string[];
+            approvalExpiresAt: string;
+        };
+        SuspendInterviewReleaseDto: {
+            reason: string;
+        };
+        InterviewReleaseApprovalEventDto: {
+            id: string;
+            eventType: string;
+            actorUserId?: string;
+            reason?: string;
+            artifactSnapshot: Record<string, never>;
             createdAt: string;
         };
         MediaProviderStatusDto: {
@@ -5631,6 +5811,179 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    InterviewReviewController_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                status?: "pending" | "in_review" | "completed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewReviewTaskDto"][];
+                };
+            };
+        };
+    };
+    InterviewReviewController_claim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReviewController_complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompleteInterviewReviewDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReviewController_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reviewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReviewController_complaint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateComplaintReviewDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReleaseGovernanceController_approve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveInterviewReleaseDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReleaseGovernanceController_suspend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuspendInterviewReleaseDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewReleaseGovernanceController_history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewReleaseApprovalEventDto"][];
+                };
             };
         };
     };

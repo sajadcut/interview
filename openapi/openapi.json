@@ -2611,6 +2611,265 @@
         ]
       }
     },
+    "/v1/interview-reviews": {
+      "get": {
+        "operationId": "InterviewReviewController_list",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_review",
+                "completed"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewReviewTaskDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interview-reviews"
+        ]
+      }
+    },
+    "/v1/interview-reviews/{reviewId}/claim": {
+      "post": {
+        "operationId": "InterviewReviewController_claim",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-reviews"
+        ]
+      }
+    },
+    "/v1/interview-reviews/{reviewId}/complete": {
+      "post": {
+        "operationId": "InterviewReviewController_complete",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteInterviewReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-reviews"
+        ]
+      }
+    },
+    "/v1/interview-reviews/{reviewId}/history": {
+      "get": {
+        "operationId": "InterviewReviewController_history",
+        "parameters": [
+          {
+            "name": "reviewId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-reviews"
+        ]
+      }
+    },
+    "/v1/interview-reviews/sessions/{sessionId}/candidate-complaint": {
+      "post": {
+        "operationId": "InterviewReviewController_complaint",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateComplaintReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-reviews"
+        ]
+      }
+    },
+    "/v1/interview-release-units/{releaseUnitId}/approve": {
+      "post": {
+        "operationId": "InterviewReleaseGovernanceController_approve",
+        "parameters": [
+          {
+            "name": "releaseUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveInterviewReleaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-release-governance"
+        ]
+      }
+    },
+    "/v1/interview-release-units/{releaseUnitId}/suspend": {
+      "post": {
+        "operationId": "InterviewReleaseGovernanceController_suspend",
+        "parameters": [
+          {
+            "name": "releaseUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuspendInterviewReleaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interview-release-governance"
+        ]
+      }
+    },
+    "/v1/interview-release-units/{releaseUnitId}/approval-history": {
+      "get": {
+        "operationId": "InterviewReleaseGovernanceController_history",
+        "parameters": [
+          {
+            "name": "releaseUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InterviewReleaseApprovalEventDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interview-release-governance"
+        ]
+      }
+    },
     "/v1/interviews/media/readiness": {
       "get": {
         "operationId": "InterviewMediaController_getReadiness",
@@ -8292,11 +8551,13 @@
               "ANSWER",
               "CLARIFICATION_REQUEST",
               "SKIP_REQUEST",
+              "END_INTERVIEW_REQUEST",
               "INTERRUPTION",
               "SILENCE_TIMEOUT",
               "RECONNECT",
               "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
+              "POLICY_REFUSAL",
+              "ABUSIVE_INPUT"
             ]
           },
           "elapsedSeconds": {
@@ -8342,11 +8603,13 @@
               "ANSWER",
               "CLARIFICATION_REQUEST",
               "SKIP_REQUEST",
+              "END_INTERVIEW_REQUEST",
               "INTERRUPTION",
               "SILENCE_TIMEOUT",
               "RECONNECT",
               "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
+              "POLICY_REFUSAL",
+              "ABUSIVE_INPUT"
             ]
           },
           "id": {
@@ -8378,6 +8641,22 @@
           },
           "releaseMode": {
             "type": "string"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "policyDecision": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "fallback"
+            ]
+          },
+          "policyViolations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -8394,7 +8673,10 @@
           "brainReason",
           "remainingSeconds",
           "evidenceCoverage",
-          "releaseMode"
+          "releaseMode",
+          "policyVersion",
+          "policyDecision",
+          "policyViolations"
         ]
       },
       "AppendInterviewTurnDto": {
@@ -8432,11 +8714,13 @@
               "ANSWER",
               "CLARIFICATION_REQUEST",
               "SKIP_REQUEST",
+              "END_INTERVIEW_REQUEST",
               "INTERRUPTION",
               "SILENCE_TIMEOUT",
               "RECONNECT",
               "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
+              "POLICY_REFUSAL",
+              "ABUSIVE_INPUT"
             ]
           }
         },
@@ -8482,11 +8766,13 @@
               "ANSWER",
               "CLARIFICATION_REQUEST",
               "SKIP_REQUEST",
+              "END_INTERVIEW_REQUEST",
               "INTERRUPTION",
               "SILENCE_TIMEOUT",
               "RECONNECT",
               "CANDIDATE_QUESTION",
-              "POLICY_REFUSAL"
+              "POLICY_REFUSAL",
+              "ABUSIVE_INPUT"
             ]
           },
           "id": {
@@ -8611,6 +8897,7 @@
             "type": "string"
           },
           "transcriptSegmentIds": {
+            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string"
@@ -8640,6 +8927,7 @@
             "type": "string"
           },
           "transcriptSegmentIds": {
+            "minItems": 1,
             "type": "array",
             "items": {
               "type": "string"
@@ -8656,6 +8944,15 @@
           "id": {
             "type": "string"
           },
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "interviewer",
+              "system",
+              "mixed"
+            ]
+          },
           "createdAt": {
             "type": "string"
           }
@@ -8664,6 +8961,201 @@
           "transcriptSegmentIds",
           "summary",
           "id",
+          "sourceKind",
+          "createdAt"
+        ]
+      },
+      "InterviewReviewTaskDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "interviewSessionId": {
+            "type": "string"
+          },
+          "evaluationId": {
+            "type": "string"
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "criterionComparison": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "overrideRationale": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "interviewSessionId",
+          "reasonCodes",
+          "priority",
+          "status",
+          "evidenceReferences",
+          "criterionComparison",
+          "createdAt"
+        ]
+      },
+      "CompleteInterviewReviewDto": {
+        "type": "object",
+        "properties": {
+          "humanOverride": {
+            "type": "object"
+          },
+          "overrideRationale": {
+            "type": "string"
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "criterionComparison": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "humanOverride",
+          "overrideRationale",
+          "evidenceReferences",
+          "criterionComparison"
+        ]
+      },
+      "CandidateComplaintReviewDto": {
+        "type": "object",
+        "properties": {
+          "complaintReference": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "number",
+            "default": 25
+          }
+        },
+        "required": [
+          "complaintReference"
+        ]
+      },
+      "ApproveInterviewReleaseDto": {
+        "type": "object",
+        "properties": {
+          "rubricVersion": {
+            "type": "string"
+          },
+          "promptVersionFamily": {
+            "type": "string"
+          },
+          "validationDatasetVersion": {
+            "type": "string"
+          },
+          "calibrationReportReference": {
+            "type": "string"
+          },
+          "securityReviewReference": {
+            "type": "string"
+          },
+          "privacyComplianceReviewReference": {
+            "type": "string"
+          },
+          "knownLimitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rollbackConditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "suspensionConditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "approvalExpiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "rubricVersion",
+          "promptVersionFamily",
+          "validationDatasetVersion",
+          "calibrationReportReference",
+          "securityReviewReference",
+          "privacyComplianceReviewReference",
+          "knownLimitations",
+          "rollbackConditions",
+          "suspensionConditions",
+          "approvalExpiresAt"
+        ]
+      },
+      "SuspendInterviewReleaseDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "InterviewReleaseApprovalEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "artifactSnapshot": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "eventType",
+          "artifactSnapshot",
           "createdAt"
         ]
       },
