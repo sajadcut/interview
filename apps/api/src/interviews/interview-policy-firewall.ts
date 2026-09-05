@@ -5,6 +5,11 @@ import {
   type CandidateIntent,
   type StructuredInterviewTurn,
 } from "./interview-contracts";
+import {
+  containsPersianScript,
+  normalizeInterviewSpokenLanguage,
+  type InterviewSpokenLanguage,
+} from "./interview-language";
 
 export const INTERVIEW_POLICY_FIREWALL_VERSION = "interview-policy-firewall-v1";
 
@@ -27,6 +32,7 @@ export interface InterviewPolicyContext {
   remainingSeconds: number;
   candidateIntent: CandidateIntent | null;
   latestCandidateText?: string;
+  language?: InterviewSpokenLanguage;
 }
 
 export interface InterviewPolicyResult {
@@ -171,6 +177,11 @@ export function interviewTurnPolicyViolations(
     violations.push("invalid_structured_turn");
   }
 
+  const language = normalizeInterviewSpokenLanguage(context.language);
+  if (language === "fa" && !containsPersianScript(turn.spokenText)) {
+    violations.push("spoken_language_mismatch");
+  }
+
   const criteria = new Map(context.criteria.map((criterion) => [criterion.key, criterion]));
   const criterion = turn.criterion ? criteria.get(turn.criterion) : undefined;
   const evidenceSeeking = turn.action === "ask" || turn.action === "probe";
@@ -243,12 +254,15 @@ export function assertInterviewTurnPolicy(
 
 function safeFallback(context: InterviewPolicyContext): StructuredInterviewTurn {
   const criterion = context.criteria[0]?.key ?? null;
+  const language = normalizeInterviewSpokenLanguage(context.language);
   return {
     action: "close",
     criterion,
     objective: "policy_violation_human_review",
     spokenText:
-      "I need to stop this interview turn and preserve the evidence collected so far for human review.",
+      language === "fa"
+        ? "لازم است این بخش از مصاحبه را متوقف کنم و شواهد ثبت‌شده تا اینجا برای بررسی انسانی حفظ شوند."
+        : "I need to stop this interview turn and preserve the evidence collected so far for human review.",
     expectedEvidence: [],
   };
 }
