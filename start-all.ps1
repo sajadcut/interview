@@ -70,7 +70,7 @@ foreach ($service in $services) {
 
     $process = Start-Process `
         -FilePath $shellPath `
-        -ArgumentList @("-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) `
+        -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $command) `
         -WorkingDirectory $repoRoot `
         -PassThru
 
