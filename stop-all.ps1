@@ -35,7 +35,8 @@ function Test-ProcessIsRunning {
 
 $failed = @()
 
-foreach ($entry in $tracked) {
+# Stop in reverse startup order so the Web/API process goes down before its realtime dependencies.
+foreach ($entry in @($tracked)[($tracked.Count - 1)..0]) {
     if (-not $entry.ProcessId) {
         continue
     }
@@ -70,8 +71,7 @@ foreach ($entry in $tracked) {
 if ($failed.Count -eq 0) {
     Remove-Item -LiteralPath $stateFile -Force -ErrorAction SilentlyContinue
     Write-Host ""
-    Write-Host "Interview development stack stopped."
-    Write-Host "Note: LiveKit is external and was not stopped by this script."
+    Write-Host "Interview development stack stopped, including tracked LiveKit."
     exit 0
 }
 
