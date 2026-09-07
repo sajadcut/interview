@@ -13,6 +13,22 @@
     "authHeader": "x-ai-worker-secret",
     "maxRequestBytes": 98304
   },
+  "health": {
+    "path": "/health",
+    "requiredFields": [
+      "enabled",
+      "configured",
+      "reachable",
+      "ready",
+      "provider",
+      "promptId",
+      "promptVersion",
+      "fallbackAvailable"
+    ],
+    "providerReachabilityProbeRequired": true,
+    "providerProbeMustNotRunInference": true,
+    "providerProbeCacheSeconds": 30
+  },
   "output": {
     "required": [
       "action",
