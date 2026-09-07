@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import io
 import unittest
 import wave
@@ -12,6 +13,7 @@ sys.path.insert(0, str(ROOT))
 from vad_layer import (  # noqa: E402
     CONTRACT_VERSION,
     MAX_AUDIO_SECONDS,
+    SileroVadEngine,
     VADError,
     VADAnalyzer,
     vad_status,
@@ -56,6 +58,12 @@ class VADLayerTests(unittest.TestCase):
             status["independentOf"],
             ["llm", "whisper", "livekit", "ffmpeg", "tts"],
         )
+
+    def test_engine_does_not_use_torchaudio_audio_io(self) -> None:
+        source = inspect.getsource(SileroVadEngine)
+        self.assertNotIn("read_audio", source)
+        self.assertIn("soundfile", source)
+        self.assertIn("torch.from_numpy", source)
 
     def test_analyzer_normalizes_fake_engine_segments(self) -> None:
         result = VADAnalyzer(engine=FakeEngine()).analyze(wav_bytes())
