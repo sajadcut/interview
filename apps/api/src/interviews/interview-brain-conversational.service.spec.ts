@@ -131,7 +131,7 @@ function harness(options: {
     provider: "openai-compatible",
     model: "test-model",
     promptId: "interview.conversational_next_turn",
-    promptVersion: "v1",
+    promptVersion: "v2",
     reason: String((options.llmTurn ?? defaultTurn).reason ?? "grounded follow-up"),
     executionId: "execution-1",
   };
@@ -157,7 +157,7 @@ function harness(options: {
       ready: true,
       provider: "openai-compatible",
       promptId: "interview.conversational_next_turn",
-      promptVersion: "v1",
+      promptVersion: "v2",
       fallbackAvailable: true,
     }),
   };
@@ -180,7 +180,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.equal(result.brainMode, "llm");
   assert.equal(result.brainProvider, "openai-compatible");
   assert.equal(result.brainPromptId, "interview.conversational_next_turn");
-  assert.equal(result.brainPromptVersion, "v1");
+  assert.equal(result.brainPromptVersion, "v2");
   assert.equal(result.finalized, true);
   assert.match(result.spokenText, /نتیجه‌ای نگرفتید|اثر نکرد/);
   assert.doesNotMatch(result.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
@@ -191,7 +191,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.match(inserted.query, /interviewer_trace_reference, finalized/);
   assert.match(inserted.query, /true/);
   const traceReference = inserted.values.find(
-    (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v1:"),
+    (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v2:"),
   );
   assert.ok(traceReference);
   assert.match(traceReference, /\|promptId=interview\.conversational_next_turn\|reason=/);
