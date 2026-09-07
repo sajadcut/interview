@@ -150,6 +150,9 @@ function validateAgainstContext(turn: StructuredInterviewTurn, context: Conversa
   if (["ask", "probe", "transition"].includes(turn.action) && !criterion) {
     throw new LlmInterviewerFailure("criterion_required");
   }
+  if (turn.action === "close" && turn.criterion !== null) {
+    throw new LlmInterviewerFailure("close_criterion_must_be_null");
+  }
   if (criterion && ["ask", "probe", "clarify", "transition"].includes(turn.action) && turn.objective !== criterion.objective) {
     throw new LlmInterviewerFailure("objective_outside_plan");
   }
