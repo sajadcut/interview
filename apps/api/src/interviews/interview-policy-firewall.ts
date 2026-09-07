@@ -94,17 +94,25 @@ function normalizedText(value: string): string {
   return value.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function isUsableForbiddenTopicLabel(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (trimmed.length >= 3) return true;
+  // Important Persian safety labels such as "سن" are only two code points. Do not
+  // silently drop them while retaining the minimum length guard for short Latin noise.
+  return trimmed.length >= 2 && containsPersianScript(trimmed);
+}
+
 function forbiddenTopicLabels(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   const labels: string[] = [];
   for (const item of value) {
-    if (typeof item === "string" && item.trim().length >= 3) labels.push(item.trim());
+    if (isUsableForbiddenTopicLabel(item)) labels.push(item.trim());
     if (item && typeof item === "object" && !Array.isArray(item)) {
       const record = item as Record<string, unknown>;
       for (const key of ["topic", "label", "key", "name"]) {
-        if (typeof record[key] === "string" && String(record[key]).trim().length >= 3) {
-          labels.push(String(record[key]).trim());
-        }
+        const candidate = record[key];
+        if (isUsableForbiddenTopicLabel(candidate)) labels.push(candidate.trim());
       }
     }
   }
