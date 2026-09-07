@@ -18,6 +18,7 @@ import { CANDIDATE_SESSION_COOKIE } from "../auth/candidate-session.service";
 import { readCookie } from "../auth/cookie";
 import { CandidateInterviewStartDto, CandidateInterviewTextAnswerDto } from "./candidate-interview.dto";
 import { CandidateInterviewService } from "./candidate-interview.service";
+import { InterviewBrainService } from "./interview-brain.service";
 import type { SpeechToTextContentType } from "./speech-to-text.adapter";
 
 const MAX_CANDIDATE_AUDIO_BYTES = 20 * 1024 * 1024;
@@ -59,7 +60,10 @@ function audioContentType(request: IncomingMessage): SpeechToTextContentType {
 @ApiExcludeController()
 @Controller("v1/candidate-interview")
 export class CandidateInterviewController {
-  constructor(private readonly candidateInterview: CandidateInterviewService) {}
+  constructor(
+    private readonly candidateInterview: CandidateInterviewService,
+    private readonly brain: InterviewBrainService,
+  ) {}
 
   @Post("start")
   start(@Req() request: Request, @Body() body: CandidateInterviewStartDto) {
@@ -112,7 +116,13 @@ export class CandidateInterviewController {
   }
 
   @Get("health")
-  health() {
-    return { service: "candidate-interview", ready: true };
+  async health() {
+    const interviewer = await this.brain.readiness();
+    return {
+      service: "candidate-interview",
+      ready: true,
+      interviewer,
+      activeMode: interviewer.ready ? "llm" : "deterministic_fallback",
+    };
   }
 }
