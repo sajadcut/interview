@@ -83,6 +83,11 @@ export class LlmInterviewerFailure extends Error {
   }
 }
 
+function boundedTimeoutMs(): number {
+  const parsed = Number(process.env.AI_INTERVIEWER_REQUEST_TIMEOUT_MS ?? 12_000);
+  return Number.isFinite(parsed) ? Math.max(500, Math.min(30_000, Math.trunc(parsed))) : 12_000;
+}
+
 function normalizedText(value: string): string {
   return value
     .toLocaleLowerCase()
@@ -148,6 +153,30 @@ function validateAgainstContext(turn: StructuredInterviewTurn, context: Conversa
   if (criterion && ["ask", "probe", "clarify", "transition"].includes(turn.action) && turn.objective !== criterion.objective) {
     throw new LlmInterviewerFailure("objective_outside_plan");
   }
+
+  const recommended = context.deterministicRecommendation;
+  const current = context.currentCriterion
+    ? context.criteria.find((item) => item.key === context.currentCriterion)
+    : undefined;
+  const currentCovered = Boolean(current && current.evidenceCount >= current.minimumEvidence);
+  if (recommended.action === "probe") {
+    if (!["probe", "clarify"].includes(turn.action) || turn.criterion !== recommended.criterion) {
+      throw new LlmInterviewerFailure("progression_outside_evidence_state");
+    }
+  } else if (recommended.action === "ask") {
+    const movingToNextCriterion = Boolean(
+      context.currentCriterion && recommended.criterion !== context.currentCriterion,
+    );
+    const allowed = movingToNextCriterion && currentCovered ? ["ask", "transition"] : ["ask", "clarify"];
+    if (!allowed.includes(turn.action) || turn.criterion !== recommended.criterion) {
+      throw new LlmInterviewerFailure("progression_outside_evidence_state");
+    }
+  } else if (recommended.action === "close") {
+    if (turn.action !== "close") throw new LlmInterviewerFailure("close_required");
+  } else if (turn.action !== recommended.action || turn.criterion !== recommended.criterion) {
+    throw new LlmInterviewerFailure("progression_outside_evidence_state");
+  }
+
   if (turn.action === "close" && !context.closeObjectives.includes(turn.objective)) {
     throw new LlmInterviewerFailure("close_not_authorized");
   }
@@ -200,7 +229,7 @@ export class LlmInterviewerService {
           currentCriterion: context.currentCriterion,
         },
         idempotencyKey: `realtime-interviewer:${context.sessionId}:${context.sequence}`,
-        timeoutMs: Math.max(500, Math.min(30_000, Number(process.env.AI_INTERVIEWER_REQUEST_TIMEOUT_MS ?? 12_000))),
+        timeoutMs: boundedTimeoutMs(),
       });
       const parsed = parseOutput(result.output);
       validateAgainstContext(parsed.turn, context);
