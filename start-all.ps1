@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $stateDirectory = Join-Path $repoRoot ".local-data"
 $stateFile = Join-Path $stateDirectory "dev-stack-processes.json"
+$envFile = Join-Path $repoRoot ".env"
 $shellPath = (Get-Process -Id $PID).Path
 
 if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
@@ -32,14 +33,52 @@ if (-not $liveKitExecutable) {
     throw "LiveKit server executable '$LiveKitCommand' was not found. Install livekit-server or pass -LiveKitCommand with the full executable path."
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $repoRoot ".env"))) {
-    Write-Warning "Root .env was not found. The services may fail until local environment variables are configured."
+function Import-RootEnvironment {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        Write-Warning "Root .env was not found. The services may fail until local environment variables are configured."
+        return
+    }
+
+    # start-all.ps1 is the local development entrypoint, so the repository .env is the
+    # source of truth for every child process. Overwrite stale machine/user variables here
+    # before starting workers and Turbo; otherwise a directly spawned Python worker can
+    # inherit a different shared secret/provider URL than the API process.
+    foreach ($rawLine in Get-Content -LiteralPath $Path) {
+        $line = $rawLine.Trim()
+        if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
+            continue
+        }
+
+        $parts = $line.Split("=", 2)
+        $name = $parts[0].Trim()
+        if ($name -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+            continue
+        }
+
+        $value = $parts[1].Trim()
+        if ($value.Length -ge 2) {
+            $doubleQuoted = $value.StartsWith('"') -and $value.EndsWith('"')
+            $singleQuoted = $value.StartsWith("'") -and $value.EndsWith("'")
+            if ($doubleQuoted -or $singleQuoted) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+        }
+
+        [Environment]::SetEnvironmentVariable(
+            $name,
+            $value,
+            [System.EnvironmentVariableTarget]::Process
+        )
+    }
 }
 
+Import-RootEnvironment -Path $envFile
+
 # livekit-server --dev binds locally and uses the documented development credentials.
-# Explicitly set the child-process environment so stale machine/user environment variables
-# cannot make the API hand the browser an old LAN LiveKit URL while this script starts a
-# localhost LiveKit instance. Custom/non-dev deployments keep their existing environment.
+# Override only the LiveKit development values after importing .env so the server, API and
+# browser token response all point at the same local instance.
 $liveKitDevMode = @($LiveKitArgs) -contains "--dev"
 if ($liveKitDevMode) {
     $env:MEDIA_REALTIME_ENABLED = "true"
