@@ -11,7 +11,7 @@ import {
   type InterviewSpokenLanguage,
 } from "./interview-language";
 
-export const INTERVIEW_POLICY_FIREWALL_VERSION = "interview-policy-firewall-v1";
+export const INTERVIEW_POLICY_FIREWALL_VERSION = "interview-policy-firewall-v2";
 
 export interface InterviewPolicyCriterion {
   key: string;
@@ -94,12 +94,28 @@ function normalizedText(value: string): string {
   return value.toLocaleLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function comparableQuestionText(value: string): string {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{S}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSimilarity(left: string, right: string): number {
+  const leftTokens = new Set(comparableQuestionText(left).split(" ").filter(Boolean));
+  const rightTokens = new Set(comparableQuestionText(right).split(" ").filter(Boolean));
+  if (leftTokens.size === 0 || rightTokens.size === 0) return 0;
+  let intersection = 0;
+  for (const token of leftTokens) if (rightTokens.has(token)) intersection += 1;
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+  return union ? intersection / union : 0;
+}
+
 function isUsableForbiddenTopicLabel(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
   if (trimmed.length >= 3) return true;
-  // Important Persian safety labels such as "سن" are only two code points. Do not
-  // silently drop them while retaining the minimum length guard for short Latin noise.
   return trimmed.length >= 2 && containsPersianScript(trimmed);
 }
 
@@ -215,7 +231,11 @@ export function interviewTurnPolicyViolations(
   }
 
   const spoken = normalizedText(turn.spokenText);
-  if (context.priorTurns.some((prior) => normalizedText(prior.spokenText) === spoken)) {
+  if (
+    context.priorTurns.some((prior) =>
+      normalizedText(prior.spokenText) === spoken || tokenSimilarity(prior.spokenText, turn.spokenText) >= 0.88,
+    )
+  ) {
     violations.push("duplicate_question");
   }
   if (
@@ -261,11 +281,10 @@ export function assertInterviewTurnPolicy(
 }
 
 function safeFallback(context: InterviewPolicyContext): StructuredInterviewTurn {
-  const criterion = context.criteria[0]?.key ?? null;
   const language = normalizeInterviewSpokenLanguage(context.language);
   return {
     action: "close",
-    criterion,
+    criterion: null,
     objective: "policy_violation_human_review",
     spokenText:
       language === "fa"

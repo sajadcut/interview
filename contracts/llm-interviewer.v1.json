@@ -6,7 +6,7 @@
   },
   "prompt": {
     "id": "interview.conversational_next_turn",
-    "version": "v1"
+    "version": "v2"
   },
   "transport": {
     "path": "/v1/interview/next-turn",
@@ -48,6 +48,7 @@
     "historyTurnsMaximum": 16,
     "includes": [
       "latestCandidateText",
+      "previousInterviewerQuestion",
       "currentCriterion",
       "criteria",
       "evidenceGaps",
@@ -63,9 +64,11 @@
   "safety": {
     "policyFirewallRequiredAfterLlm": true,
     "evidenceCoverageReadOnly": true,
+    "expectedEvidenceMustComeFromCriterion": true,
     "scoringSeparated": true,
     "rawPromptLoggingForbidden": true,
-    "duplicateQuestionGuardRequired": true
+    "duplicateQuestionGuardRequired": true,
+    "nearDuplicateQuestionGuardRequired": true
   },
   "fallback": {
     "mode": "deterministic_fallback",

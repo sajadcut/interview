@@ -13,7 +13,7 @@ import {
 export const LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1";
 export const LLM_INTERVIEWER_CAPABILITY_VERSION = "v2";
 export const LLM_INTERVIEWER_PROMPT_ID = "interview.conversational_next_turn";
-export const LLM_INTERVIEWER_PROMPT_VERSION = "v1";
+export const LLM_INTERVIEWER_PROMPT_VERSION = "v2";
 export const LLM_INTERVIEWER_SCHEMA_VERSION = "llm-interviewer.v1";
 
 export interface ConversationalCriterionContext {
@@ -63,6 +63,11 @@ export interface ConversationalInterviewerContext {
   closeObjectives: string[];
 }
 
+interface ConversationalInterviewerModelContext extends ConversationalInterviewerContext {
+  previousInterviewerQuestion: string | null;
+  evidenceCoverage: Record<string, number>;
+}
+
 export interface ConversationalInterviewerTrace {
   mode: "llm";
   provider: string;
@@ -104,6 +109,20 @@ function tokenSimilarity(left: string, right: string): number {
   for (const token of leftTokens) if (rightTokens.has(token)) intersection += 1;
   const union = new Set([...leftTokens, ...rightTokens]).size;
   return union ? intersection / union : 0;
+}
+
+function buildModelContext(context: ConversationalInterviewerContext): ConversationalInterviewerModelContext {
+  const previousInterviewerQuestion = [...context.recentTranscript]
+    .reverse()
+    .find((item) => item.speaker === "interviewer")?.text.trim() || null;
+  const evidenceCoverage = Object.fromEntries(
+    context.criteria.map((criterion) => [criterion.key, Math.max(0, criterion.evidenceCount)]),
+  );
+  return {
+    ...context,
+    previousInterviewerQuestion,
+    evidenceCoverage,
+  };
 }
 
 function parseOutput(value: unknown): { turn: StructuredInterviewTurn; reason: string } {
@@ -155,6 +174,12 @@ function validateAgainstContext(turn: StructuredInterviewTurn, context: Conversa
   }
   if (criterion && ["ask", "probe", "clarify", "transition"].includes(turn.action) && turn.objective !== criterion.objective) {
     throw new LlmInterviewerFailure("objective_outside_plan");
+  }
+  if (criterion && ["ask", "probe"].includes(turn.action)) {
+    const allowedEvidence = new Set(criterion.expectedEvidence.map(normalizedText));
+    if (turn.expectedEvidence.some((item) => !allowedEvidence.has(normalizedText(item)))) {
+      throw new LlmInterviewerFailure("expected_evidence_outside_criterion");
+    }
   }
 
   const recommended = context.deterministicRecommendation;
@@ -219,13 +244,14 @@ export class LlmInterviewerService {
     trace: ConversationalInterviewerTrace;
   }> {
     try {
+      const modelContext = buildModelContext(context);
       const result = await this.ai.executeStructured<Record<string, unknown>>({
         capability: "interview.next_turn",
         capabilityVersion: LLM_INTERVIEWER_CAPABILITY_VERSION,
         promptId: LLM_INTERVIEWER_PROMPT_ID,
         promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
         structuredOutputSchemaVersion: LLM_INTERVIEWER_SCHEMA_VERSION,
-        input: context as unknown as Record<string, unknown>,
+        input: modelContext as unknown as Record<string, unknown>,
         inputReferences: {
           sessionId: context.sessionId,
           sequence: context.sequence,

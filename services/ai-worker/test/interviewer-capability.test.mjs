@@ -32,6 +32,8 @@ function context(latestCandidateText = "نتیجه هیچی نشد") {
       },
     ],
     evidenceGaps: ["backend_depth"],
+    evidenceCoverage: { backend_depth: 0 },
+    previousInterviewerQuestion: "درباره تجربه backend توضیح بده",
     recentTranscript: [
       { speaker: "interviewer", text: "درباره تجربه backend توضیح بده" },
       { speaker: "candidate", text: latestCandidateText },
@@ -89,7 +91,7 @@ test("regression: درباره تجربه backend توضیح بده -> نتیج�
   assert.notEqual(result.output.spokenText, "درباره تجربه backend توضیح بده");
   assert.equal(result.provenance.provider, "scripted-openai-compatible");
   assert.equal(result.provenance.promptId, "interview.conversational_next_turn");
-  assert.equal(result.provenance.promptVersion, "v1");
+  assert.equal(result.provenance.promptVersion, "v2");
 });
 
 test("technical follow-up can stay anchored on a concrete Redis choice", async () => {

@@ -95,10 +95,11 @@ test("silence never becomes evidence", () => {
   assert.deepEqual(violations(turn, { candidateIntent: "SILENCE_TIMEOUT" }), []);
 });
 
-test("invalid model JSON gets a safe fallback", () => {
+test("invalid model JSON gets a safe fallback with a contract-native null close criterion", () => {
   const result = enforceInterviewTurnPolicy("{not-json", base);
   assert.equal(result.decision, "fallback");
   assert.equal(result.turn.action, "close");
+  assert.equal(result.turn.criterion, null);
   assert.ok(result.violations.includes("invalid_model_output"));
 });
 
@@ -110,6 +111,7 @@ test("Persian interviews reject English-only spoken text and fall back to Persia
   const result = enforceInterviewTurnPolicy(ask, context);
   assert.equal(result.decision, "fallback");
   assert.equal(result.turn.action, "close");
+  assert.equal(result.turn.criterion, null);
   assert.equal(containsPersianScript(result.turn.spokenText), true);
   assert.ok(result.violations.includes("spoken_language_mismatch"));
 });
@@ -140,6 +142,19 @@ test("short Persian forbidden topic labels are enforced instead of silently drop
 
 test("duplicate questions are rejected", () => {
   assert.ok(violations(ask, { priorTurns: [{ action: "ask", criterion: "systems", spokenText: ask.spokenText }] }).includes("duplicate_question"));
+});
+
+test("near-duplicate questions are rejected by the policy firewall, not only the LLM adapter", () => {
+  const priorTurns = [{
+    action: "ask",
+    criterion: "systems",
+    spokenText: "Tell me about a production system you designed and the trade offs you made",
+  }];
+  const repeated = {
+    ...ask,
+    spokenText: "Tell me about the production system you designed and the trade-offs you made.",
+  };
+  assert.ok(violations(repeated, { priorTurns }).includes("duplicate_question"));
 });
 
 test("fabricated evidence instructions are rejected", () => {

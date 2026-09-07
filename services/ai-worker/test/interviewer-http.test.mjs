@@ -12,7 +12,7 @@ function validEnvelope() {
     capability: "interview.next_turn",
     capabilityVersion: "v2",
     promptId: "interview.conversational_next_turn",
-    promptVersion: "v1",
+    promptVersion: "v2",
     structuredOutputSchemaVersion: "llm-interviewer.v1",
     input: { latestCandidateText: "نتیجه هیچی نشد" },
     inputReferences: { sessionId: "session-1" },
@@ -57,7 +57,7 @@ function successfulLlm() {
         },
         provider: "fake",
         model: "fake-1",
-        prompt: { id: "interview.conversational_next_turn", version: "v1" },
+        prompt: { id: "interview.conversational_next_turn", version: "v2" },
         attempts: [],
         usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20, costMicros: 0 },
       };
@@ -73,7 +73,7 @@ test("realtime interviewer health exposes provider reachability without credenti
     assert.equal(body.reachable, true);
     assert.equal(body.ready, true);
     assert.equal(body.provider, "fake");
-    assert.equal(body.promptVersion, "v1");
+    assert.equal(body.promptVersion, "v2");
     assert.equal(body.fallbackAvailable, true);
     assert.equal(JSON.stringify(body).includes(secret), false);
   });
@@ -132,6 +132,7 @@ test("realtime interviewer returns structured output and provenance", async () =
     const body = await response.json();
     assert.equal(body.output.action, "probe");
     assert.equal(body.provenance.provider, "fake");
+    assert.equal(body.provenance.promptVersion, "v2");
     assert.ok(body.executionId);
   });
 });

@@ -54,18 +54,24 @@ function context(): ConversationalInterviewerContext {
   };
 }
 
-function serviceWithOutput(output: Record<string, unknown>) {
+function serviceWithOutput(
+  output: Record<string, unknown>,
+  capture?: (request: { input: Record<string, unknown> }) => void,
+) {
   const ai = {
-    executeStructured: async () => ({
-      executionId: "execution-1",
-      output,
-      provenance: {
-        provider: "openai-compatible",
-        model: "test-model",
-        promptId: "interview.conversational_next_turn",
-        promptVersion: "v1",
-      },
-    }),
+    executeStructured: async (request: { input: Record<string, unknown> }) => {
+      capture?.(request);
+      return {
+        executionId: "execution-1",
+        output,
+        provenance: {
+          provider: "openai-compatible",
+          model: "test-model",
+          promptId: "interview.conversational_next_turn",
+          promptVersion: "v2",
+        },
+      };
+    },
     realtimeReadiness: async () => ({
       enabled: true,
       configured: true,
@@ -92,7 +98,41 @@ test("LLM interviewer accepts a grounded Persian conversational follow-up with t
   assert.doesNotMatch(result.turn.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
   assert.equal(result.trace.mode, "llm");
   assert.equal(result.trace.provider, "openai-compatible");
-  assert.equal(result.trace.promptVersion, "v1");
+  assert.equal(result.trace.promptVersion, "v2");
+});
+
+test("LLM receives explicit previous question and persisted evidence coverage in its bounded context", async () => {
+  let capturedInput: Record<string, unknown> | null = null;
+  const service = serviceWithOutput({
+    action: "probe",
+    criterion: "backend_depth",
+    objective: "validate production backend depth",
+    spokenText: "وقتی می‌گید نتیجه‌ای نگرفتید، دقیقاً چه چیزی اثر نکرد و بعدش چه تصمیمی گرفتید؟",
+    expectedEvidence: ["technical decision"],
+    reason: "Probe the ambiguous result.",
+  }, (request) => {
+    capturedInput = request.input;
+  });
+
+  await service.generateTurn(context());
+  assert.ok(capturedInput);
+  assert.equal(capturedInput.previousInterviewerQuestion, "درباره یک تجربه واقعی بک‌اند توضیح دهید.");
+  assert.deepEqual(capturedInput.evidenceCoverage, { backend_depth: 0, system_design: 0 });
+});
+
+test("LLM interviewer rejects evidence labels that are not declared by the rubric criterion", async () => {
+  const service = serviceWithOutput({
+    action: "probe",
+    criterion: "backend_depth",
+    objective: "validate production backend depth",
+    spokenText: "بعد از این نتیجه چه تصمیم فنی گرفتید؟",
+    expectedEvidence: ["favorite color"],
+    reason: "invalid evidence label",
+  });
+  await assert.rejects(
+    () => service.generateTurn(context()),
+    (error) => error instanceof LlmInterviewerFailure && error.code === "expected_evidence_outside_criterion",
+  );
 });
 
 test("LLM interviewer rejects near-duplicate questions", async () => {
