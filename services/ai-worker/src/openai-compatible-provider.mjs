@@ -24,6 +24,13 @@ function costMicros(env, inputTokens, outputTokens) {
   return Math.ceil((inputTokens * inputRate + outputTokens * outputRate) / 1_000_000);
 }
 
+function providerReadinessFailure(status) {
+  if (status === 401 || status === 403) {
+    return { reachable: true, ready: false, reason: "provider_auth_failed" };
+  }
+  return { reachable: true, ready: false, reason: "provider_not_ready" };
+}
+
 export function createOpenAiCompatibleProvider(env = process.env) {
   const apiKey = env.LLM_API_KEY?.trim();
   const model = env.LLM_MODEL?.trim();
@@ -33,6 +40,25 @@ export function createOpenAiCompatibleProvider(env = process.env) {
 
   return {
     name: "openai-compatible",
+    async checkReadiness({ signal } = {}) {
+      let response;
+      try {
+        response = await fetch(`${baseUrl}/models`, {
+          method: "GET",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            accept: "application/json",
+          },
+          signal,
+          cache: "no-store",
+          redirect: "manual",
+        });
+      } catch {
+        return { reachable: false, ready: false, reason: "provider_unreachable" };
+      }
+      if (!response.ok) return providerReadinessFailure(response.status);
+      return { reachable: true, ready: true };
+    },
     async generate({ prompt, maxOutputTokens, signal }) {
       let response;
       try {
@@ -94,6 +120,9 @@ export function createOpenAiCompatibleProvider(env = process.env) {
 export function createUnavailableProvider() {
   return {
     name: "disabled",
+    async checkReadiness() {
+      return { reachable: false, ready: false, reason: "provider_disabled" };
+    },
     async generate() {
       throw new LLMProviderError("PROVIDER_UNAVAILABLE", { provider: "disabled" });
     },
