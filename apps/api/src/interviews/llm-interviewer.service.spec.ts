@@ -115,9 +115,9 @@ test("LLM receives explicit previous question and persisted evidence coverage in
   });
 
   await service.generateTurn(context());
-  assert.ok(capturedInput);
-  assert.equal(capturedInput.previousInterviewerQuestion, "درباره یک تجربه واقعی بک‌اند توضیح دهید.");
-  assert.deepEqual(capturedInput.evidenceCoverage, { backend_depth: 0, system_design: 0 });
+  const captured = capturedInput as unknown as Record<string, unknown>;
+  assert.equal(captured.previousInterviewerQuestion, "درباره یک تجربه واقعی بک‌اند توضیح دهید.");
+  assert.deepEqual(captured.evidenceCoverage, { backend_depth: 0, system_design: 0 });
 });
 
 test("LLM interviewer rejects evidence labels that are not declared by the rubric criterion", async () => {
