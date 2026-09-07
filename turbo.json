@@ -3,7 +3,15 @@
   "tasks": {
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "MEDIA_REALTIME_ENABLED",
+        "MEDIA_TRANSPORT_PROVIDER",
+        "LIVEKIT_URL",
+        "LIVEKIT_HEALTH_URL",
+        "LIVEKIT_API_KEY",
+        "LIVEKIT_API_SECRET"
+      ]
     },
     "build": {
       "dependsOn": ["^build"],
