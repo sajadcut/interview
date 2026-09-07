@@ -5,6 +5,8 @@ const root = process.cwd();
 const envExample = readFileSync(resolve(root, ".env.example"), "utf8");
 const serverTemplate = readFileSync(resolve(root, "ops/livekit/livekit.yaml.example"), "utf8");
 const runbook = readFileSync(resolve(root, "docs/operations/livekit-deployment.md"), "utf8");
+const startAll = readFileSync(resolve(root, "start-all.ps1"), "utf8");
+const turboConfig = JSON.parse(readFileSync(resolve(root, "turbo.json"), "utf8"));
 
 const requiredEnv = [
   "MEDIA_REALTIME_ENABLED",
@@ -33,6 +35,24 @@ if (!/^MEDIA_TRANSPORT_PROVIDER=disabled$/m.test(envExample)) {
 const secretLine = envExample.match(/^LIVEKIT_API_SECRET=(.*)$/m)?.[1] ?? "missing";
 if (secretLine !== "") {
   throw new Error("LIVEKIT_API_SECRET must remain empty in .env.example");
+}
+
+const localDevRuntimeEnv = [
+  "MEDIA_REALTIME_ENABLED",
+  "MEDIA_TRANSPORT_PROVIDER",
+  "LIVEKIT_URL",
+  "LIVEKIT_HEALTH_URL",
+  "LIVEKIT_API_KEY",
+  "LIVEKIT_API_SECRET",
+];
+const turboDevEnv = new Set(turboConfig.tasks?.dev?.env ?? []);
+for (const name of localDevRuntimeEnv) {
+  if (!turboDevEnv.has(name)) {
+    throw new Error(`Turbo dev task must pass ${name} so start-all.ps1 overrides reach Web/API`);
+  }
+  if (!startAll.includes(`$env:${name}`)) {
+    throw new Error(`start-all.ps1 must explicitly set ${name} for local LiveKit --dev mode`);
+  }
 }
 
 const requiredTemplateFragments = [
@@ -66,4 +86,4 @@ for (const fragment of requiredRunbookFragments) {
   }
 }
 
-console.log("✓ LiveKit deployment config, env and health contracts are present and safe by default");
+console.log("✓ LiveKit deployment config, env, local dev propagation and health contracts are present and safe by default");
