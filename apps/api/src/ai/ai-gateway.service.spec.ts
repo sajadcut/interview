@@ -149,6 +149,7 @@ test("realtime readiness reports reachable provider state without exposing crede
           service: "llm-interviewer",
           enabled: true,
           configured: true,
+          reachable: true,
           ready: true,
           provider: "openai-compatible",
           model: "test-model",
@@ -162,5 +163,32 @@ test("realtime readiness reports reachable provider state without exposing crede
     assert.equal(readiness.ready, true);
     assert.equal(readiness.provider, "openai-compatible");
     assert.equal(JSON.stringify(readiness).includes("test-ai-worker-secret"), false);
+  });
+});
+
+test("reachable sidecar does not make an unreachable LLM provider ready", async () => {
+  await withRealtimeEnvironment(async () => {
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          service: "llm-interviewer",
+          enabled: true,
+          configured: true,
+          reachable: false,
+          ready: false,
+          provider: "openai-compatible",
+          promptId: "interview.conversational_next_turn",
+          promptVersion: "v1",
+          reason: "provider_unreachable",
+          fallbackAvailable: true,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    const readiness = await gateway().realtimeReadiness();
+    assert.equal(readiness.enabled, true);
+    assert.equal(readiness.configured, true);
+    assert.equal(readiness.reachable, false);
+    assert.equal(readiness.ready, false);
+    assert.equal(readiness.reason, "provider_unreachable");
   });
 });
