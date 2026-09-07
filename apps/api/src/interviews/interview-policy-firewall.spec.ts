@@ -130,6 +130,14 @@ test("forbidden topic is rejected", () => {
   assert.ok(violations({ ...ask, spokenText: "Tell me about your religion." }).includes("forbidden_topic"));
 });
 
+test("short Persian forbidden topic labels are enforced instead of silently dropped", () => {
+  const persianAsk = {
+    ...ask,
+    spokenText: "سن شما چند سال است؟",
+  };
+  assert.ok(violations(persianAsk, { language: "fa", forbiddenTopics: ["سن"] }).includes("forbidden_topic"));
+});
+
 test("duplicate questions are rejected", () => {
   assert.ok(violations(ask, { priorTurns: [{ action: "ask", criterion: "systems", spokenText: ask.spokenText }] }).includes("duplicate_question"));
 });
