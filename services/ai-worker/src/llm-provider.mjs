@@ -132,7 +132,7 @@ export class PromptRegistry {
       throw fail("PROMPT_VARIABLE_MISMATCH");
     }
     for (const value of Object.values(variables)) {
-      if (!['string', 'number', 'boolean'].includes(typeof value) || (!Number.isFinite(value) && typeof value === "number")) {
+      if (!["string", "number", "boolean"].includes(typeof value) || (!Number.isFinite(value) && typeof value === "number")) {
         throw fail("PROMPT_VARIABLE_MISMATCH");
       }
     }
@@ -149,12 +149,25 @@ function schemaError() {
   throw fail("STRUCTURED_OUTPUT_INVALID");
 }
 
+function schemaTypes(schema) {
+  const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+  if (
+    types.length === 0 ||
+    types.some((type) => typeof type !== "string") ||
+    new Set(types).size !== types.length
+  ) {
+    throw fail("INVALID_REQUEST");
+  }
+  return types;
+}
+
 function validateSchemaDefinition(schema, depth = 0) {
   if (!schema || typeof schema !== "object" || Array.isArray(schema) || depth > 20) throw fail("INVALID_REQUEST");
   const allowedTypes = new Set(["object", "array", "string", "number", "integer", "boolean", "null"]);
-  if (!allowedTypes.has(schema.type)) throw fail("INVALID_REQUEST");
+  const types = schemaTypes(schema);
+  if (types.some((type) => !allowedTypes.has(type))) throw fail("INVALID_REQUEST");
   if (schema.enum !== undefined && (!Array.isArray(schema.enum) || schema.enum.length === 0)) throw fail("INVALID_REQUEST");
-  if (schema.type === "object") {
+  if (types.includes("object")) {
     if (schema.properties !== undefined && (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties))) {
       throw fail("INVALID_REQUEST");
     }
@@ -164,9 +177,30 @@ function validateSchemaDefinition(schema, depth = 0) {
     if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== "boolean") throw fail("INVALID_REQUEST");
     for (const child of Object.values(schema.properties ?? {})) validateSchemaDefinition(child, depth + 1);
   }
-  if (schema.type === "array") {
+  if (types.includes("array")) {
     if (!schema.items) throw fail("INVALID_REQUEST");
     validateSchemaDefinition(schema.items, depth + 1);
+  }
+}
+
+function matchesSchemaType(value, type) {
+  switch (type) {
+    case "null":
+      return value === null;
+    case "boolean":
+      return typeof value === "boolean";
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return Number.isSafeInteger(value);
+    case "array":
+      return Array.isArray(value);
+    case "object":
+      return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+    default:
+      return false;
   }
 }
 
@@ -174,36 +208,31 @@ function validateValue(value, schema, depth = 0) {
   if (depth > 40) schemaError();
   if (schema.enum && !schema.enum.some((candidate) => Object.is(candidate, value))) schemaError();
 
-  switch (schema.type) {
+  const activeType = schemaTypes(schema).find((type) => matchesSchemaType(value, type));
+  if (!activeType) schemaError();
+
+  switch (activeType) {
     case "null":
-      if (value !== null) schemaError();
-      return;
     case "boolean":
-      if (typeof value !== "boolean") schemaError();
       return;
     case "string":
-      if (typeof value !== "string") schemaError();
       if (schema.minLength !== undefined && value.length < schema.minLength) schemaError();
       if (schema.maxLength !== undefined && value.length > schema.maxLength) schemaError();
       return;
     case "number":
-      if (typeof value !== "number" || !Number.isFinite(value)) schemaError();
       if (schema.minimum !== undefined && value < schema.minimum) schemaError();
       if (schema.maximum !== undefined && value > schema.maximum) schemaError();
       return;
     case "integer":
-      if (!Number.isSafeInteger(value)) schemaError();
       if (schema.minimum !== undefined && value < schema.minimum) schemaError();
       if (schema.maximum !== undefined && value > schema.maximum) schemaError();
       return;
     case "array":
-      if (!Array.isArray(value)) schemaError();
       if (schema.minItems !== undefined && value.length < schema.minItems) schemaError();
       if (schema.maxItems !== undefined && value.length > schema.maxItems) schemaError();
       for (const item of value) validateValue(item, schema.items, depth + 1);
       return;
     case "object": {
-      if (!value || typeof value !== "object" || Array.isArray(value)) schemaError();
       const properties = schema.properties ?? {};
       for (const required of schema.required ?? []) {
         if (!Object.hasOwn(value, required)) schemaError();
