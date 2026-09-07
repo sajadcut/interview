@@ -116,6 +116,31 @@ test("technical follow-up can stay anchored on a concrete Redis choice", async (
   assert.match(result.output.spokenText, /indexing|caching/);
 });
 
+test("close turns use the contract-native null criterion", async () => {
+  const provider = {
+    name: "scripted",
+    async generate() {
+      return {
+        output: {
+          action: "close",
+          criterion: null,
+          objective: "complete_evidence_coverage",
+          spokenText: "معیارهای لازم پوشش داده شدند و مصاحبه را همین‌جا به پایان می‌رسانم.",
+          expectedEvidence: [],
+          reason: "Persisted evidence coverage is complete.",
+        },
+        usage: { inputTokens: 160, outputTokens: 35, costMicros: 6 },
+      };
+    },
+  };
+  const result = await generateConversationalInterviewTurn({
+    llm: layerWith(provider),
+    input: context(),
+  });
+  assert.equal(result.output.action, "close");
+  assert.equal(result.output.criterion, null);
+});
+
 test("invalid structured interviewer output fails closed", async () => {
   const provider = {
     name: "broken",
