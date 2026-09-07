@@ -37,10 +37,22 @@ export interface AiRealtimeProvenance {
   usage?: unknown;
 }
 
+export interface AiRealtimeReadiness {
+  enabled: boolean;
+  configured: boolean;
+  reachable: boolean;
+  ready: boolean;
+  provider: string;
+  model?: string;
+  promptId?: string;
+  promptVersion?: string;
+  reason?: string;
+}
+
 export class RealtimeAiExecutionError extends Error {
   readonly code: string;
   readonly retryable: boolean;
-  readonly httpStatus?: number;
+  readonly httpStatus: number | undefined;
 
   constructor(code: string, options: { retryable: boolean; httpStatus?: number }) {
     super(`Realtime AI execution failed: ${code}`);
@@ -226,7 +238,7 @@ export class AiGatewayService {
     };
   }
 
-  async realtimeReadiness() {
+  async realtimeReadiness(): Promise<AiRealtimeReadiness> {
     let config: ReturnType<typeof realtimeConfiguration>;
     try {
       config = realtimeConfiguration();
@@ -236,6 +248,7 @@ export class AiGatewayService {
         configured: false,
         reachable: false,
         ready: false,
+        provider: "unknown",
         reason: "invalid_base_url",
       };
     }
@@ -258,7 +271,7 @@ export class AiGatewayService {
         ...(typeof payload.model === "string" ? { model: payload.model } : {}),
         ...(typeof payload.promptId === "string" ? { promptId: payload.promptId } : {}),
         ...(typeof payload.promptVersion === "string" ? { promptVersion: payload.promptVersion } : {}),
-        reason: sidecarReady && config.sharedSecret ? undefined : "provider_not_ready",
+        ...(sidecarReady && config.sharedSecret ? {} : { reason: "provider_not_ready" }),
       };
     } catch {
       return {
@@ -266,6 +279,7 @@ export class AiGatewayService {
         configured: Boolean(config.sharedSecret),
         reachable: false,
         ready: false,
+        provider: "unknown",
         reason: "sidecar_unreachable",
       };
     }
