@@ -3,17 +3,43 @@ import { loadRootEnvironment } from "./lib/root-env";
 
 loadRootEnvironment();
 
+function addUrlOrigin(target: Set<string>, value: string | undefined): void {
+  const trimmed = value?.trim();
+  if (!trimmed) return;
+  try {
+    target.add(new URL(trimmed).origin);
+  } catch {
+    // Environment validation in application code reports malformed URLs.
+  }
+}
+
+function addLiveKitConnectOrigins(target: Set<string>, value: string | undefined): void {
+  const trimmed = value?.trim();
+  if (!trimmed) return;
+
+  try {
+    const liveKitUrl = new URL(trimmed);
+    if (liveKitUrl.protocol !== "ws:" && liveKitUrl.protocol !== "wss:") return;
+
+    target.add(liveKitUrl.origin);
+
+    // The LiveKit browser client may use an HTTP(S) validation fallback while
+    // establishing the signal connection, so allow only the matching exact origin.
+    const fallbackUrl = new URL(liveKitUrl.toString());
+    fallbackUrl.protocol = liveKitUrl.protocol === "wss:" ? "https:" : "http:";
+    target.add(fallbackUrl.origin);
+  } catch {
+    // Environment validation in application code reports malformed LiveKit URLs.
+  }
+}
+
 function webSecurityHeaders(): Array<{ key: string; value: string }> {
   const production = process.env.NODE_ENV === "production";
   const connectSources = new Set(["'self'", "ws:", "wss:"]);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (apiUrl) {
-    try {
-      connectSources.add(new URL(apiUrl).origin);
-    } catch {
-      // Environment validation in application code reports malformed API URLs.
-    }
-  }
+
+  addUrlOrigin(connectSources, process.env.NEXT_PUBLIC_API_URL);
+  addUrlOrigin(connectSources, process.env.API_INTERNAL_URL);
+  addLiveKitConnectOrigins(connectSources, process.env.LIVEKIT_URL);
 
   const scriptSources = production
     ? "'self' 'unsafe-inline'"
