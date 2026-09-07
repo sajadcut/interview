@@ -1,0 +1,77 @@
+{
+  "contractVersion": "llm-interviewer.v1",
+  "capability": {
+    "name": "interview.next_turn",
+    "version": "v2"
+  },
+  "prompt": {
+    "id": "interview.conversational_next_turn",
+    "version": "v1"
+  },
+  "transport": {
+    "path": "/v1/interview/next-turn",
+    "authHeader": "x-ai-worker-secret",
+    "maxRequestBytes": 98304
+  },
+  "output": {
+    "required": [
+      "action",
+      "criterion",
+      "objective",
+      "spokenText",
+      "expectedEvidence",
+      "reason"
+    ],
+    "actions": ["ask", "probe", "clarify", "transition", "close"],
+    "criterionNullable": true,
+    "maxSpokenTextChars": 1200,
+    "maxReasonChars": 500
+  },
+  "context": {
+    "historyTurnsDefault": 8,
+    "historyTurnsMaximum": 16,
+    "includes": [
+      "latestCandidateText",
+      "currentCriterion",
+      "criteria",
+      "evidenceGaps",
+      "evidenceCoverage",
+      "recentTranscript",
+      "remainingSeconds",
+      "language",
+      "job",
+      "plan",
+      "deterministicRecommendation"
+    ]
+  },
+  "safety": {
+    "policyFirewallRequiredAfterLlm": true,
+    "evidenceCoverageReadOnly": true,
+    "scoringSeparated": true,
+    "rawPromptLoggingForbidden": true,
+    "duplicateQuestionGuardRequired": true
+  },
+  "fallback": {
+    "mode": "deterministic_fallback",
+    "requiredFor": [
+      "provider_unavailable",
+      "provider_timeout",
+      "invalid_structured_output",
+      "budget_exceeded",
+      "policy_rejection",
+      "unexpected_provider_failure"
+    ],
+    "mustKeepInterviewRecoverable": true
+  },
+  "persistence": {
+    "finalizedOnlyAfterValidationAndPolicy": true,
+    "traceFields": [
+      "mode",
+      "provider",
+      "promptId",
+      "promptVersion",
+      "reason",
+      "fallbackReason"
+    ]
+  }
+}
