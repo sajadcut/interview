@@ -55,6 +55,7 @@ const server = createInterviewerHttpServer({
   llm,
   sharedSecret,
   providerInfo: selected.info,
+  providerReadiness: (options) => selected.provider.checkReadiness(options),
 });
 
 await new Promise((resolve, reject) => {
