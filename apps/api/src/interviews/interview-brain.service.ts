@@ -66,16 +66,32 @@ function finalQuestionId(turn: StructuredInterviewTurn, sequence: number): strin
   return `${turn.criterion ?? "session"}:${turn.action}:${sequence + 1}`;
 }
 
+function traceValue(value: string | undefined, maximum: number): string {
+  return (value ?? "")
+    .replace(/[|\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maximum);
+}
+
 function traceReference(input: {
   mode: "llm" | "deterministic_fallback";
   provider?: string;
+  promptId?: string;
   promptVersion?: string;
+  reason?: string;
   fallbackReason?: string;
   policyVersion: string;
 }): string {
-  const raw = input.mode === "llm"
-    ? `llm:${input.provider ?? "unknown"}:${input.promptVersion ?? "unknown"}:${input.policyVersion}`
-    : `deterministic_fallback:${input.fallbackReason ?? "llm_not_attempted"}:${input.policyVersion}`;
+  const prefix = input.mode === "llm"
+    ? `llm:${traceValue(input.provider ?? "unknown", 64)}:${traceValue(input.promptVersion ?? "unknown", 24)}:${traceValue(input.policyVersion, 80)}`
+    : `deterministic_fallback:${traceValue(input.fallbackReason ?? "llm_not_attempted", 120)}:${traceValue(input.policyVersion, 80)}`;
+  const raw = [
+    prefix,
+    `promptId=${traceValue(input.promptId ?? LLM_INTERVIEWER_PROMPT_ID, 80)}`,
+    `reason=${traceValue(input.reason, 180)}`,
+    ...(input.fallbackReason ? [`fallbackReason=${traceValue(input.fallbackReason, 120)}`] : []),
+  ].join("|");
   return raw.slice(0, 512);
 }
 
@@ -292,7 +308,7 @@ export class InterviewBrainService {
       let llmPolicyViolations: string[] = [];
 
       const conversationalIntent = candidateIntent === null || candidateIntent === "ANSWER";
-      const llmEligible = conversationalIntent && deterministic.turn.action !== "close" && criteria.length > 0;
+      const llmEligible = conversationalIntent && criteria.length > 0;
       if (llmEligible) {
         const historyLimit = boundedInteger(
           process.env.AI_INTERVIEWER_HISTORY_TURNS,
@@ -433,8 +449,11 @@ export class InterviewBrainService {
           ${this.database.sql.json(turn.expectedEvidence as never)},
           ${traceReference({
             mode: brainMode,
-            ...(brainMode === "llm" && llmTrace ? { provider: llmTrace.provider, promptVersion: llmTrace.promptVersion } : {}),
-            ...(brainMode === "deterministic_fallback" ? { fallbackReason: trace.fallbackReason } : {}),
+            provider: trace.provider,
+            promptId: trace.promptId,
+            promptVersion: trace.promptVersion,
+            reason: trace.reason,
+            ...(trace.fallbackReason ? { fallbackReason: trace.fallbackReason } : {}),
             policyVersion: finalPolicy.policyVersion,
           })}, true
         )
