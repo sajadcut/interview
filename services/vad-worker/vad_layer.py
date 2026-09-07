@@ -124,7 +124,6 @@ class SileroVadEngine:
         self._lock = threading.RLock()
         self._model: object | None = None
         self._get_speech_timestamps = None
-        self._read_audio = None
         self._version = "unknown"
 
     def ensure_ready(self) -> str:
@@ -133,31 +132,66 @@ class SileroVadEngine:
                 return self._version
             try:
                 import silero_vad  # type: ignore
-                from silero_vad import get_speech_timestamps, load_silero_vad, read_audio  # type: ignore
+                from silero_vad import get_speech_timestamps, load_silero_vad  # type: ignore
 
                 model = load_silero_vad()
             except Exception as exc:
                 raise VADError("provider_unavailable") from exc
             self._model = model
             self._get_speech_timestamps = get_speech_timestamps
-            self._read_audio = read_audio
             self._version = str(getattr(silero_vad, "__version__", "unknown"))
             return self._version
+
+    @staticmethod
+    def _load_audio_tensor(audio_path: Path):
+        """Decode PCM WAV without torchaudio/torchcodec and return mono float32 at 16 kHz."""
+        try:
+            import soundfile as sf  # type: ignore
+            import torch  # type: ignore
+
+            samples, sample_rate = sf.read(
+                str(audio_path),
+                dtype="float32",
+                always_2d=True,
+            )
+            if sample_rate <= 0 or samples.shape[0] <= 0 or samples.shape[1] <= 0:
+                raise ValueError("decoded audio is empty")
+
+            mono = samples.mean(axis=1)
+            audio = torch.from_numpy(mono.copy()).to(dtype=torch.float32)
+            if sample_rate != TARGET_SAMPLE_RATE:
+                target_frames = max(
+                    1,
+                    int(round(audio.numel() * TARGET_SAMPLE_RATE / sample_rate)),
+                )
+                audio = torch.nn.functional.interpolate(
+                    audio.reshape(1, 1, -1),
+                    size=target_frames,
+                    mode="linear",
+                    align_corners=False,
+                ).reshape(-1)
+            return audio.contiguous()
+        except Exception as exc:
+            raise VADError(
+                "provider_error",
+                diagnostic=f"audio_decode_failed:{type(exc).__name__}",
+            ) from exc
 
     def analyze_path(self, audio_path: Path) -> list[dict[str, Any]]:
         with self._lock:
             self.ensure_ready()
             assert self._model is not None
             assert self._get_speech_timestamps is not None
-            assert self._read_audio is not None
             try:
-                audio = self._read_audio(str(audio_path), sampling_rate=TARGET_SAMPLE_RATE)
+                audio = self._load_audio_tensor(audio_path)
                 segments = self._get_speech_timestamps(
                     audio,
                     self._model,
                     sampling_rate=TARGET_SAMPLE_RATE,
                     return_seconds=True,
                 )
+            except VADError:
+                raise
             except Exception as exc:
                 raise VADError("provider_error") from exc
         if not isinstance(segments, list):
