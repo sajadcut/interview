@@ -148,6 +148,52 @@ test("LLM interviewer accepts a transition only when deterministic evidence stat
   assert.equal(result.turn.criterion, "system_design");
 });
 
+test("LLM interviewer may close conversationally only after deterministic state authorizes closing", async () => {
+  const input = context();
+  input.criteria[0]!.evidenceCount = 1;
+  input.criteria[1]!.evidenceCount = 1;
+  input.evidenceGaps = [];
+  input.deterministicRecommendation = {
+    action: "close",
+    criterion: null,
+    objective: "complete_evidence_coverage",
+    expectedEvidence: [],
+  };
+  const service = serviceWithOutput({
+    action: "close",
+    criterion: null,
+    objective: "complete_evidence_coverage",
+    spokenText: "بخش‌های لازم را پوشش دادیم و مصاحبه را همین‌جا به پایان می‌رسونیم.",
+    expectedEvidence: [],
+    reason: "Persisted evidence coverage is complete.",
+  });
+  const result = await service.generateTurn(input);
+  assert.equal(result.turn.action, "close");
+  assert.equal(result.turn.criterion, null);
+});
+
+test("LLM interviewer rejects close turns that retain a criterion key", async () => {
+  const input = context();
+  input.deterministicRecommendation = {
+    action: "close",
+    criterion: null,
+    objective: "complete_evidence_coverage",
+    expectedEvidence: [],
+  };
+  const service = serviceWithOutput({
+    action: "close",
+    criterion: "backend_depth",
+    objective: "complete_evidence_coverage",
+    spokenText: "مصاحبه را همین‌جا به پایان می‌رسونیم.",
+    expectedEvidence: [],
+    reason: "close",
+  });
+  await assert.rejects(
+    () => service.generateTurn(input),
+    (error) => error instanceof LlmInterviewerFailure && error.code === "close_criterion_must_be_null",
+  );
+});
+
 test("invalid structured output fails closed before policy or persistence", async () => {
   const service = serviceWithOutput({
     action: "probe",
