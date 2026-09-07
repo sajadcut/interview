@@ -21,6 +21,7 @@ function harness(options: {
   llmTurn?: Record<string, unknown>;
   llmFailure?: string;
   forbiddenTopics?: string[];
+  evidenceCount?: number;
 } = {}): HarnessResult {
   let inserted: { query: string; values: unknown[] } | null = null;
   let checkpoint: Record<string, unknown> | null = null;
@@ -70,7 +71,11 @@ function harness(options: {
         display_order: 0,
       }];
     }
-    if (query.includes("FROM interview_evidence e")) return [];
+    if (query.includes("FROM interview_evidence e")) {
+      return options.evidenceCount
+        ? [{ criterion_key: "backend_depth", evidence_count: options.evidenceCount }]
+        : [];
+    }
     if (query.includes("FROM interview_turns")) {
       return [{
         sequence: 0,
@@ -185,7 +190,11 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.ok(inserted);
   assert.match(inserted.query, /interviewer_trace_reference, finalized/);
   assert.match(inserted.query, /true/);
-  assert.ok(inserted.values.some((value) => typeof value === "string" && value.startsWith("llm:openai-compatible:v1:")));
+  const traceReference = inserted.values.find(
+    (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v1:"),
+  );
+  assert.ok(traceReference);
+  assert.match(traceReference, /\|promptId=interview\.conversational_next_turn\|reason=/);
 
   const checkpoint = testHarness.getCheckpoint();
   assert.ok(checkpoint);
@@ -193,6 +202,32 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.equal(brain.mode, "llm");
   assert.equal(brain.provider, "openai-compatible");
   assert.deepEqual(brain.evidenceCoverage, {});
+});
+
+test("LLM supplies natural close wording only after deterministic evidence state authorizes closing", async () => {
+  const testHarness = harness({
+    evidenceCount: 1,
+    llmTurn: {
+      action: "close",
+      criterion: null,
+      objective: "complete_evidence_coverage",
+      spokenText: "ممنون از توضیحاتتون. بخش‌های لازم را پوشش دادیم و مصاحبه را همین‌جا به پایان می‌رسونیم.",
+      expectedEvidence: [],
+      reason: "Persisted evidence coverage is complete, so close naturally without changing evaluation state.",
+    },
+  });
+  const result = await testHarness.service.nextTurn(sessionId, {
+    latestCandidateText: "آخرش latency حدود بیست درصد بهتر شد.",
+    candidateIntent: "ANSWER",
+    elapsedSeconds: 4,
+  });
+
+  assert.equal(result.brainMode, "llm");
+  assert.equal(result.action, "close");
+  assert.equal(result.criterion, null);
+  assert.equal(result.objective, "complete_evidence_coverage");
+  assert.equal(result.finalized, true);
+  assert.deepEqual(result.evidenceCoverage, { backend_depth: 1 });
 });
 
 test("policy rejection of an LLM question falls back deterministically without crashing the interview", async () => {
@@ -236,7 +271,9 @@ test("provider timeout becomes a fast deterministic fallback and still persists 
   assert.equal(result.brainFallbackReason, "PROVIDER_TIMEOUT");
   assert.equal(result.finalized, true);
   const inserted = testHarness.getInsert();
-  assert.ok(inserted?.values.some(
-    (value) => typeof value === "string" && value.startsWith("deterministic_fallback:PROVIDER_TIMEOUT:"),
-  ));
+  const traceReference = inserted?.values.find(
+    (value): value is string => typeof value === "string" && value.startsWith("deterministic_fallback:PROVIDER_TIMEOUT:"),
+  );
+  assert.ok(traceReference);
+  assert.match(traceReference, /\|fallbackReason=PROVIDER_TIMEOUT$/);
 });
