@@ -6,11 +6,26 @@
       "persistent": true,
       "env": [
         "MEDIA_REALTIME_ENABLED",
+        "MEDIA_PROVIDER_TIMEOUT_MS",
+        "MEDIA_WORKER_SHARED_SECRET",
         "MEDIA_TRANSPORT_PROVIDER",
         "LIVEKIT_URL",
         "LIVEKIT_HEALTH_URL",
         "LIVEKIT_API_KEY",
-        "LIVEKIT_API_SECRET"
+        "LIVEKIT_API_SECRET",
+        "LIVEKIT_TOKEN_TTL_SECONDS",
+        "TURN_URLS",
+        "VAD_PROVIDER",
+        "VAD_BASE_URL",
+        "STT_PROVIDER",
+        "STT_BASE_URL",
+        "STT_REQUEST_TIMEOUT_MS",
+        "STT_MAX_ATTEMPTS",
+        "STT_RETRY_BASE_MS",
+        "TTS_PROVIDER",
+        "TTS_BASE_URL",
+        "AVATAR_PROVIDER",
+        "AVATAR_BASE_URL"
       ]
     },
     "build": {
