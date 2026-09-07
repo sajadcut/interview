@@ -14,14 +14,15 @@ function integerEnv(name, fallback, minimum, maximum) {
 function providerFromEnvironment() {
   const selected = (process.env.LLM_PROVIDER ?? "disabled").trim().toLowerCase();
   if (selected === "openai-compatible") {
-    const provider = createOpenAiCompatibleProvider(process.env);
+    const configured = Boolean(process.env.LLM_API_KEY?.trim() && process.env.LLM_MODEL?.trim());
+    const provider = configured ? createOpenAiCompatibleProvider(process.env) : createUnavailableProvider();
     return {
       provider,
       info: {
-        provider: provider.name,
+        provider: "openai-compatible",
         model: process.env.LLM_MODEL?.trim() || null,
         enabled: true,
-        configured: Boolean(process.env.LLM_API_KEY?.trim() && process.env.LLM_MODEL?.trim()),
+        configured,
       },
     };
   }
