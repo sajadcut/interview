@@ -12,6 +12,8 @@ import {
 } from "./interviewer-capability.mjs";
 
 const MAX_REQUEST_BYTES = 96 * 1024;
+const PROVIDER_READINESS_TIMEOUT_MS = 2_000;
+const PROVIDER_READINESS_CACHE_MS = 30_000;
 
 function writeJson(response, status, payload) {
   const body = Buffer.from(JSON.stringify(payload), "utf8");
@@ -82,7 +84,18 @@ function safeError(error) {
   return { code: "PROVIDER_FAILURE", message: "LLM provider request failed" };
 }
 
-export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo }) {
+function normalizedReadiness(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { reachable: false, ready: false, reason: "provider_readiness_invalid" };
+  }
+  return {
+    reachable: value.reachable === true,
+    ready: value.ready === true,
+    ...(typeof value.reason === "string" && value.reason.trim() ? { reason: value.reason.trim().slice(0, 120) } : {}),
+  };
+}
+
+export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, providerReadiness }) {
   if (!sharedSecret?.trim()) throw new Error("AI_WORKER_SHARED_SECRET is required for realtime interviewer");
   const info = {
     provider: providerInfo?.provider ?? "unknown",
@@ -90,22 +103,57 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo })
     enabled: providerInfo?.enabled === true,
     configured: providerInfo?.configured === true,
   };
+  let readinessCache = null;
+  let readinessExpiresAt = 0;
+  let readinessInFlight = null;
+
+  async function getProviderReadiness() {
+    if (!info.enabled) return { reachable: false, ready: false, reason: "provider_disabled" };
+    if (!info.configured) return { reachable: false, ready: false, reason: "provider_not_configured" };
+    if (Date.now() < readinessExpiresAt && readinessCache) return readinessCache;
+    if (readinessInFlight) return readinessInFlight;
+    readinessInFlight = (async () => {
+      let result;
+      if (typeof providerReadiness !== "function") {
+        result = { reachable: false, ready: false, reason: "provider_readiness_unavailable" };
+      } else {
+        try {
+          result = normalizedReadiness(await providerReadiness({
+            signal: AbortSignal.timeout(PROVIDER_READINESS_TIMEOUT_MS),
+          }));
+        } catch {
+          result = { reachable: false, ready: false, reason: "provider_unreachable" };
+        }
+      }
+      readinessCache = result;
+      readinessExpiresAt = Date.now() + PROVIDER_READINESS_CACHE_MS;
+      return result;
+    })();
+    try {
+      return await readinessInFlight;
+    } finally {
+      readinessInFlight = null;
+    }
+  }
 
   return createServer(async (request, response) => {
     try {
       const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
       if (request.method === "GET" && path === "/health") {
+        const providerState = await getProviderReadiness();
         writeJson(response, 200, {
           service: "llm-interviewer",
           contractVersion: LLM_INTERVIEWER_CONTRACT_VERSION,
           enabled: info.enabled,
           configured: info.configured,
-          ready: info.enabled && info.configured,
+          reachable: providerState.reachable,
+          ready: info.enabled && info.configured && providerState.ready,
           provider: info.provider,
           ...(info.model ? { model: info.model } : {}),
           promptId: LLM_INTERVIEWER_PROMPT_ID,
           promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
           fallbackAvailable: true,
+          ...(providerState.reason ? { reason: providerState.reason } : {}),
         });
         return;
       }
