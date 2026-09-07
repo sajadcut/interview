@@ -45,6 +45,16 @@ const localDevRuntimeEnv = [
   "LIVEKIT_API_KEY",
   "LIVEKIT_API_SECRET",
 ];
+const realtimeProviderEnv = [
+  "MEDIA_PROVIDER_TIMEOUT_MS",
+  "MEDIA_WORKER_SHARED_SECRET",
+  "VAD_PROVIDER",
+  "VAD_BASE_URL",
+  "STT_PROVIDER",
+  "STT_BASE_URL",
+  "TTS_PROVIDER",
+  "TTS_BASE_URL",
+];
 const turboDevEnv = new Set(turboConfig.tasks?.dev?.env ?? []);
 for (const name of localDevRuntimeEnv) {
   if (!turboDevEnv.has(name)) {
@@ -53,6 +63,17 @@ for (const name of localDevRuntimeEnv) {
   if (!startAll.includes(`$env:${name}`)) {
     throw new Error(`start-all.ps1 must explicitly set ${name} for local LiveKit --dev mode`);
   }
+}
+for (const name of realtimeProviderEnv) {
+  if (!turboDevEnv.has(name)) {
+    throw new Error(`Turbo dev task must pass ${name} so API and local workers share one realtime configuration`);
+  }
+}
+if (!startAll.includes("Import-RootEnvironment -Path $envFile")) {
+  throw new Error("start-all.ps1 must import the root .env before starting local workers");
+}
+if (!startAll.includes("[System.EnvironmentVariableTarget]::Process")) {
+  throw new Error("start-all.ps1 must synchronize root .env values into the child-process environment");
 }
 
 const requiredTemplateFragments = [
@@ -86,4 +107,4 @@ for (const fragment of requiredRunbookFragments) {
   }
 }
 
-console.log("✓ LiveKit deployment config, env, local dev propagation and health contracts are present and safe by default");
+console.log("✓ LiveKit deployment config, env, local dev propagation, worker synchronization and health contracts are present and safe by default");
