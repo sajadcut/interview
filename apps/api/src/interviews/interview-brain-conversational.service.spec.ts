@@ -214,7 +214,7 @@ test("policy rejection of an LLM question falls back deterministically without c
   });
 
   assert.equal(result.brainMode, "deterministic_fallback");
-  assert.match(result.brainFallbackReason, /^policy_rejection:/);
+  assert.match(String(result.brainFallbackReason), /^policy_rejection:/);
   assert.equal(result.finalized, true);
   assert.doesNotMatch(result.spokenText, /سن شما/);
   const checkpoint = testHarness.getCheckpoint();
