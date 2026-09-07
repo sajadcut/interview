@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
-import { CandidateIntents, type CandidateIntent } from "./interview-contracts";
+import { CandidateIntents, type CandidateIntent, type StructuredInterviewTurn } from "./interview-contracts";
 import {
   decideInterviewTurn,
   type InterviewBrainCriterion,
@@ -9,12 +9,22 @@ import {
 } from "./interview-brain";
 import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
+  LlmInterviewerFailure,
+  LlmInterviewerService,
+  LLM_INTERVIEWER_PROMPT_ID,
+  LLM_INTERVIEWER_PROMPT_VERSION,
+  type ConversationalInterviewerTrace,
+} from "./llm-interviewer.service";
+import {
   enforceInterviewTurnPolicy,
+  type InterviewPolicyContext,
   type InterviewPolicyPriorTurn,
 } from "./interview-policy-firewall";
 import { evaluateInterviewRelease, parseInterviewLifecycleStage } from "./interview-release.policy";
 
-const BRAIN_VERSION = "deterministic-state-machine-v1";
+const BRAIN_VERSION = "llm-conversational-orchestrator-v1";
+const DETERMINISTIC_FALLBACK_VERSION = "deterministic-state-machine-v1";
+const DEFAULT_HISTORY_TURNS = 8;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -33,6 +43,17 @@ function positiveInteger(value: unknown, fallback: number): number {
   return Math.max(1, Math.trunc(value));
 }
 
+function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(minimum, Math.min(maximum, Math.trunc(parsed)));
+}
+
+function boundedText(value: unknown, maximum: number): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text.length <= maximum ? text : `${text.slice(0, Math.max(0, maximum - 1))}…`;
+}
+
 function strategyForCriterion(
   questionStrategy: Record<string, unknown>,
   criterionKey: string,
@@ -41,12 +62,48 @@ function strategyForCriterion(
   return asRecord(criteria[criterionKey]);
 }
 
+function finalQuestionId(turn: StructuredInterviewTurn, sequence: number): string {
+  return `${turn.criterion ?? "session"}:${turn.action}:${sequence + 1}`;
+}
+
+function traceReference(input: {
+  mode: "llm" | "deterministic_fallback";
+  provider?: string;
+  promptVersion?: string;
+  fallbackReason?: string;
+  policyVersion: string;
+}): string {
+  const raw = input.mode === "llm"
+    ? `llm:${input.provider ?? "unknown"}:${input.promptVersion ?? "unknown"}:${input.policyVersion}`
+    : `deterministic_fallback:${input.fallbackReason ?? "llm_not_attempted"}:${input.policyVersion}`;
+  return raw.slice(0, 512);
+}
+
 @Injectable()
 export class InterviewBrainService {
   constructor(
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
+    private readonly llmInterviewer: LlmInterviewerService,
   ) {}
+
+  async readiness() {
+    const llm = await this.llmInterviewer.readiness();
+    return {
+      brainVersion: BRAIN_VERSION,
+      enabled: llm.enabled,
+      configured: llm.configured,
+      reachable: llm.reachable,
+      ready: llm.ready,
+      provider: llm.provider,
+      ...(llm.model ? { model: llm.model } : {}),
+      promptId: llm.promptId,
+      promptVersion: llm.promptVersion,
+      fallbackAvailable: true,
+      fallbackVersion: DETERMINISTIC_FALLBACK_VERSION,
+      ...(llm.reason ? { reason: llm.reason } : {}),
+    };
+  }
 
   async nextTurn(sessionId: string, body: unknown) {
     if (!body || typeof body !== "object") throw new Error("Interview brain input is required");
@@ -77,16 +134,26 @@ export class InterviewBrainService {
           s.remaining_seconds,
           s.reconnect_count,
           s.checkpoint,
+          p.job_id,
           p.rubric_version_id,
+          p.version AS plan_version,
           p.language,
+          p.interview_type,
+          p.time_budget_minutes,
           p.question_strategy,
           p.forbidden_topics,
+          j.title AS job_title,
+          j.department AS job_department,
+          j.seniority AS job_seniority,
+          j.summary AS job_summary,
           r.lifecycle_stage,
           r.production_approved_at,
           r.production_approved_by_user_id
         FROM interview_sessions s
         JOIN interview_plans p
           ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+        JOIN jobs j
+          ON j.organization_id = p.organization_id AND j.id = p.job_id
         JOIN interview_release_units r
           ON r.organization_id = p.organization_id AND r.id = p.release_unit_id
         WHERE s.organization_id = ${organizationId}::uuid
@@ -98,12 +165,7 @@ export class InterviewBrainService {
       const session = sessionRows[0];
       const language = normalizeInterviewSpokenLanguage(session?.language);
       const checkpoint = asRecord(session?.checkpoint);
-      if (checkpoint.candidateIsRealCustomerCandidate === true) {
-        throw new Error(
-          "The deterministic development brain endpoint cannot run a real-customer candidate session",
-        );
-      }
-
+      const candidateIsRealCustomerCandidate = checkpoint.candidateIsRealCustomerCandidate === true;
       const lifecycleStage = parseInterviewLifecycleStage(session?.lifecycle_stage);
       const release = evaluateInterviewRelease({
         lifecycleStage,
@@ -113,7 +175,7 @@ export class InterviewBrainService {
         productionApprovedByUserId: session?.production_approved_by_user_id
           ? String(session.production_approved_by_user_id)
           : null,
-        candidateIsRealCustomerCandidate: false,
+        candidateIsRealCustomerCandidate,
         synchronousHumanSupervisorPresent: false,
       });
       if (!release.allowed) throw new Error(`Interview release blocked: ${release.reasons.join("; ")}`);
@@ -193,7 +255,7 @@ export class InterviewBrainService {
         reconnectCount: Math.max(0, Number(session?.reconnect_count ?? 0)),
       };
 
-      const decision = decideInterviewTurn({
+      const deterministic = decideInterviewTurn({
         criteria,
         state,
         latestCandidateText,
@@ -201,7 +263,10 @@ export class InterviewBrainService {
         elapsedSeconds,
         language,
       });
-      const policy = enforceInterviewTurnPolicy(decision.turn, {
+      const sequence = priorTurnRows.length
+        ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
+        : 0;
+      const policyContext: InterviewPolicyContext = {
         criteria: criteria.map((item) => ({ key: item.key, objective: item.objective })),
         forbiddenTopics: session?.forbidden_topics,
         priorTurns: priorTurnRows.map((row): InterviewPolicyPriorTurn => ({
@@ -210,14 +275,151 @@ export class InterviewBrainService {
           objective: row.objective ? String(row.objective) : null,
           spokenText: String(row.spoken_text ?? ""),
         })),
-        remainingSeconds: decision.nextState.remainingSeconds,
+        remainingSeconds: deterministic.nextState.remainingSeconds,
         candidateIntent,
         latestCandidateText,
         language,
-      });
-      const sequence = priorTurnRows.length
-        ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
-        : 0;
+      };
+
+      let selectedTurn = deterministic.turn;
+      let brainMode: "llm" | "deterministic_fallback" = "deterministic_fallback";
+      let llmTrace: ConversationalInterviewerTrace | null = null;
+      let fallbackReason = candidateIntent && candidateIntent !== "ANSWER"
+        ? `deterministic_operational_intent:${candidateIntent}`
+        : deterministic.turn.action === "close"
+          ? "deterministic_terminal_state"
+          : "llm_not_attempted";
+      let llmPolicyViolations: string[] = [];
+
+      const conversationalIntent = candidateIntent === null || candidateIntent === "ANSWER";
+      const llmEligible = conversationalIntent && deterministic.turn.action !== "close" && criteria.length > 0;
+      if (llmEligible) {
+        const historyLimit = boundedInteger(
+          process.env.AI_INTERVIEWER_HISTORY_TURNS,
+          DEFAULT_HISTORY_TURNS,
+          4,
+          16,
+        );
+        const recentRows = await transaction`
+          SELECT speaker, text
+          FROM interview_transcript_segments
+          WHERE organization_id = ${organizationId}::uuid
+            AND interview_session_id = ${sessionId}::uuid
+            AND is_final = true
+            AND speaker IN ('candidate', 'interviewer')
+          ORDER BY start_ms DESC, created_at DESC, id DESC
+          LIMIT ${historyLimit}
+        `;
+        const requirements = await transaction`
+          SELECT requirement_type, name, description
+          FROM job_requirements
+          WHERE organization_id = ${organizationId}::uuid
+            AND job_id = ${String(session?.job_id)}::uuid
+          ORDER BY weight DESC, created_at
+          LIMIT 8
+        `;
+        const closeObjectives = ["respect_time_budget", "complete_evidence_coverage"];
+        try {
+          const generated = await this.llmInterviewer.generateTurn({
+            sessionId,
+            sequence,
+            language,
+            latestCandidateText: boundedText(latestCandidateText, 1600),
+            candidateIntent,
+            currentCriterion: state.currentCriterion,
+            remainingSeconds: deterministic.nextState.remainingSeconds,
+            criteria: criteria.map((criterion) => ({
+              key: criterion.key,
+              label: boundedText(criterion.label, 240),
+              ...(criterion.spokenLabel ? { spokenLabel: boundedText(criterion.spokenLabel, 240) } : {}),
+              objective: criterion.objective,
+              expectedEvidence: criterion.expectedEvidence.slice(0, 8).map((item) => boundedText(item, 500)),
+              minimumEvidence: criterion.minimumEvidence,
+              evidenceCount: Math.max(0, evidenceCoverage[criterion.key] ?? 0),
+            })),
+            evidenceGaps: criteria
+              .filter((criterion) => (evidenceCoverage[criterion.key] ?? 0) < criterion.minimumEvidence)
+              .map((criterion) => criterion.key),
+            recentTranscript: [...recentRows]
+              .reverse()
+              .map((row) => ({
+                speaker: String(row.speaker) as "candidate" | "interviewer",
+                text: boundedText(row.text, 1200),
+              })),
+            job: {
+              title: boundedText(session?.job_title, 240),
+              ...(session?.job_department ? { department: boundedText(session.job_department, 160) } : {}),
+              ...(session?.job_seniority ? { seniority: boundedText(session.job_seniority, 80) } : {}),
+              ...(session?.job_summary ? { summary: boundedText(session.job_summary, 1600) } : {}),
+              requirements: requirements.map((row) => ({
+                type: boundedText(row.requirement_type, 24),
+                name: boundedText(row.name, 240),
+                ...(row.description ? { description: boundedText(row.description, 500) } : {}),
+              })),
+            },
+            plan: {
+              version: Number(session?.plan_version ?? 1),
+              interviewType: boundedText(session?.interview_type, 80),
+              timeBudgetMinutes: Number(session?.time_budget_minutes ?? 0),
+            },
+            deterministicRecommendation: {
+              action: deterministic.turn.action,
+              criterion: deterministic.turn.criterion,
+              objective: deterministic.turn.objective,
+              expectedEvidence: deterministic.turn.expectedEvidence,
+            },
+            closeObjectives,
+          });
+          const llmPolicy = enforceInterviewTurnPolicy(generated.turn, policyContext);
+          if (llmPolicy.decision === "accepted") {
+            selectedTurn = llmPolicy.turn;
+            brainMode = "llm";
+            llmTrace = generated.trace;
+            fallbackReason = "";
+          } else {
+            llmPolicyViolations = llmPolicy.violations;
+            fallbackReason = `policy_rejection:${llmPolicy.violations.join("+")}`.slice(0, 240);
+          }
+        } catch (cause) {
+          fallbackReason = cause instanceof LlmInterviewerFailure
+            ? cause.code
+            : "unexpected_provider_failure";
+        }
+      }
+
+      const policy = enforceInterviewTurnPolicy(selectedTurn, policyContext);
+      const finalTurn = policy.turn;
+      if (brainMode === "llm" && policy.decision !== "accepted") {
+        brainMode = "deterministic_fallback";
+        fallbackReason = `policy_rejection:${policy.violations.join("+")}`.slice(0, 240);
+        const fallbackPolicy = enforceInterviewTurnPolicy(deterministic.turn, policyContext);
+        selectedTurn = fallbackPolicy.turn;
+        llmPolicyViolations = policy.violations;
+      } else {
+        selectedTurn = finalTurn;
+      }
+      const finalPolicy = brainMode === "llm"
+        ? policy
+        : enforceInterviewTurnPolicy(selectedTurn, policyContext);
+      const turn = finalPolicy.turn;
+      const questionId = finalQuestionId(turn, sequence);
+      const trace = brainMode === "llm" && llmTrace
+        ? {
+            mode: brainMode,
+            provider: llmTrace.provider,
+            ...(llmTrace.model ? { model: llmTrace.model } : {}),
+            promptId: llmTrace.promptId,
+            promptVersion: llmTrace.promptVersion,
+            reason: llmTrace.reason,
+          }
+        : {
+            mode: "deterministic_fallback" as const,
+            provider: "none",
+            promptId: LLM_INTERVIEWER_PROMPT_ID,
+            promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
+            reason: deterministic.reason,
+            fallbackReason: fallbackReason || "deterministic_fallback",
+          };
 
       const inserted = await transaction`
         INSERT INTO interview_turns (
@@ -226,10 +428,15 @@ export class InterviewBrainService {
           interviewer_trace_reference, finalized
         ) VALUES (
           ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
-          ${policy.turn.action}, ${policy.turn.criterion}, ${policy.turn.objective},
-          ${policy.turn.spokenText},
-          ${this.database.sql.json(policy.turn.expectedEvidence as never)},
-          ${`${BRAIN_VERSION}:${policy.policyVersion}`}, true
+          ${turn.action}, ${turn.criterion}, ${turn.objective},
+          ${turn.spokenText},
+          ${this.database.sql.json(turn.expectedEvidence as never)},
+          ${traceReference({
+            mode: brainMode,
+            ...(brainMode === "llm" && llmTrace ? { provider: llmTrace.provider, promptVersion: llmTrace.promptVersion } : {}),
+            ...(brainMode === "deterministic_fallback" ? { fallbackReason: trace.fallbackReason } : {}),
+            policyVersion: finalPolicy.policyVersion,
+          })}, true
         )
         RETURNING id, created_at
       `;
@@ -238,22 +445,29 @@ export class InterviewBrainService {
         ...checkpoint,
         brain: {
           version: BRAIN_VERSION,
+          fallbackVersion: DETERMINISTIC_FALLBACK_VERSION,
           language,
-          lastQuestionId: decision.questionId,
-          lastReason: decision.reason,
-          askedQuestionIds: decision.nextState.askedQuestionIds,
-          evidenceCoverage: decision.nextState.evidenceCoverage,
+          mode: brainMode,
+          provider: trace.provider,
+          promptId: trace.promptId,
+          promptVersion: trace.promptVersion,
+          lastQuestionId: questionId,
+          lastReason: trace.reason,
+          ...(trace.fallbackReason ? { fallbackReason: trace.fallbackReason } : {}),
+          askedQuestionIds: [...state.askedQuestionIds, questionId],
+          evidenceCoverage,
         },
         policy: {
-          version: policy.policyVersion,
-          decision: policy.decision,
-          violations: policy.violations,
+          version: finalPolicy.policyVersion,
+          decision: finalPolicy.decision,
+          violations: finalPolicy.violations,
+          ...(llmPolicyViolations.length ? { rejectedLlmViolations: llmPolicyViolations } : {}),
         },
       };
       await transaction`
         UPDATE interview_sessions
-        SET current_criterion_key = ${policy.turn.criterion},
-            remaining_seconds = ${decision.nextState.remainingSeconds},
+        SET current_criterion_key = ${turn.criterion},
+            remaining_seconds = ${deterministic.nextState.remainingSeconds},
             checkpoint = ${this.database.sql.json(nextCheckpoint as never)},
             updated_at = now()
         WHERE organization_id = ${organizationId}::uuid AND id = ${sessionId}::uuid
@@ -262,23 +476,28 @@ export class InterviewBrainService {
       return {
         id: String(inserted[0]?.id),
         sequence,
-        questionId: decision.questionId,
-        action: policy.turn.action,
-        criterion: policy.turn.criterion,
-        objective: policy.turn.objective,
-        spokenText: policy.turn.spokenText,
-        expectedEvidence: policy.turn.expectedEvidence,
+        questionId,
+        action: turn.action,
+        criterion: turn.criterion,
+        objective: turn.objective,
+        spokenText: turn.spokenText,
+        expectedEvidence: turn.expectedEvidence,
         ...(candidateIntent ? { candidateIntent } : {}),
         finalized: true,
         brainVersion: BRAIN_VERSION,
-        brainReason: decision.reason,
+        brainMode,
+        brainReason: trace.reason,
+        brainProvider: trace.provider,
+        brainPromptId: trace.promptId,
+        brainPromptVersion: trace.promptVersion,
+        ...(trace.fallbackReason ? { brainFallbackReason: trace.fallbackReason } : {}),
         language,
-        remainingSeconds: decision.nextState.remainingSeconds,
-        evidenceCoverage: decision.nextState.evidenceCoverage,
+        remainingSeconds: deterministic.nextState.remainingSeconds,
+        evidenceCoverage,
         releaseMode: release.mode,
-        policyVersion: policy.policyVersion,
-        policyDecision: policy.decision,
-        policyViolations: policy.violations,
+        policyVersion: finalPolicy.policyVersion,
+        policyDecision: finalPolicy.decision,
+        policyViolations: finalPolicy.violations,
         createdAt: new Date(String(inserted[0]?.created_at)).toISOString(),
       };
     });
