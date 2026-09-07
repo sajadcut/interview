@@ -33,7 +33,7 @@ function context(latestCandidateText = "نتیجه هیچی نشد") {
     ],
     evidenceGaps: ["backend_depth"],
     recentTranscript: [
-      { speaker: "interviewer", text: "درباره یک تجربه واقعی بک‌اند توضیح دهید." },
+      { speaker: "interviewer", text: "درباره تجربه backend توضیح بده" },
       { speaker: "candidate", text: latestCandidateText },
     ],
     job: { title: "Senior Backend Engineer", requirements: [] },
@@ -59,7 +59,7 @@ function layerWith(provider, options = {}) {
   });
 }
 
-test("Persian conversational interviewer reacts to the candidate instead of returning the old probe template", async () => {
+test("regression: درباره تجربه backend توضیح بده -> نتیجه هیچی نشد gets a contextual Persian follow-up", async () => {
   const spokenText = "وقتی می‌گید نتیجه‌ای نگرفتید، تغییر فنی اثر نکرد یا پروژه به اجرا نرسید؟ بعدش چه تصمیمی گرفتید؟";
   const provider = {
     name: "scripted-openai-compatible",
@@ -86,6 +86,7 @@ test("Persian conversational interviewer reacts to the candidate instead of retu
   assert.equal(result.output.spokenText, spokenText);
   assert.match(result.output.spokenText, /نتیجه|تغییر فنی/);
   assert.doesNotMatch(result.output.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
+  assert.notEqual(result.output.spokenText, "درباره تجربه backend توضیح بده");
   assert.equal(result.provenance.provider, "scripted-openai-compatible");
   assert.equal(result.provenance.promptId, "interview.conversational_next_turn");
   assert.equal(result.provenance.promptVersion, "v1");
