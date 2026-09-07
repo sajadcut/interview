@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [string]$LiveKitCommand = "livekit-server",
-    [string[]]$LiveKitArgs = @("--dev")
+    [string[]]$LiveKitArgs = @("--dev"),
+    [string]$LiveKitUrl = "ws://127.0.0.1:7880",
+    [string]$LiveKitHealthUrl = "http://127.0.0.1:7880"
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,6 +34,20 @@ if (-not $liveKitExecutable) {
 
 if (-not (Test-Path -LiteralPath (Join-Path $repoRoot ".env"))) {
     Write-Warning "Root .env was not found. The services may fail until local environment variables are configured."
+}
+
+# livekit-server --dev binds locally and uses the documented development credentials.
+# Explicitly set the child-process environment so stale machine/user environment variables
+# cannot make the API hand the browser an old LAN LiveKit URL while this script starts a
+# localhost LiveKit instance. Custom/non-dev deployments keep their existing environment.
+$liveKitDevMode = @($LiveKitArgs) -contains "--dev"
+if ($liveKitDevMode) {
+    $env:MEDIA_REALTIME_ENABLED = "true"
+    $env:MEDIA_TRANSPORT_PROVIDER = "livekit"
+    $env:LIVEKIT_URL = $LiveKitUrl
+    $env:LIVEKIT_HEALTH_URL = $LiveKitHealthUrl
+    $env:LIVEKIT_API_KEY = "devkey"
+    $env:LIVEKIT_API_SECRET = "secret"
 }
 
 New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
@@ -164,7 +180,12 @@ if ($startedCount -eq 0) {
 else {
     Write-Host "Interview development stack started."
 }
-Write-Host "LiveKit: ws://127.0.0.1:7880 (default --dev mode)"
+if ($liveKitDevMode) {
+    Write-Host "LiveKit: $LiveKitUrl (local --dev mode)"
+}
+else {
+    Write-Host "LiveKit: managed with custom arguments; application connection settings come from the configured environment."
+}
 Write-Host "Web:     http://localhost:3000"
 Write-Host "Stop the complete tracked stack with: .\stop-all.ps1"
 Write-Host ""
