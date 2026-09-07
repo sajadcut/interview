@@ -23,6 +23,7 @@ import { InterviewSpeechService } from "./interview-speech.service";
 import { InterviewsController } from "./interviews.controller";
 import { InterviewsService } from "./interviews.service";
 import { LiveKitTransportAdapter } from "./livekit-transport.adapter";
+import { LlmInterviewerService } from "./llm-interviewer.service";
 import { REALTIME_TRANSPORT_ADAPTER } from "./realtime-transport.adapter";
 import { SileroVadHttpClient } from "./silero-vad-http.client";
 import { SPEECH_TO_TEXT_ADAPTER } from "./speech-to-text.adapter";
@@ -45,7 +46,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
   providers: [
     SupervisedPilotRuntimeGateService, SupervisedPilotService, SupervisedPilotAwareInterviewsService,
     { provide: InterviewsService, useExisting: SupervisedPilotAwareInterviewsService },
-    InterviewSessionStateService, InterviewBrainService, InterviewEvaluatorService,
+    InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService,
     InterviewReviewService, InterviewReleaseGovernanceService,
     EvaluatorCalibrationService, EvaluatorCalibrationAnalyticsService, EvaluatorShadowTestingService,
     LiveKitTransportAdapter, SileroVadHttpClient,
@@ -57,7 +58,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     CandidateInterviewService,
   ],
   exports: [
-    InterviewsService, InterviewSessionStateService, InterviewBrainService, InterviewEvaluatorService,
+    InterviewsService, InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService,
     InterviewReviewService, InterviewReleaseGovernanceService,
     EvaluatorCalibrationService, EvaluatorCalibrationAnalyticsService, EvaluatorShadowTestingService,
     LiveKitTransportAdapter, REALTIME_TRANSPORT_ADAPTER, SileroVadHttpClient, VOICE_ACTIVITY_DETECTION_ADAPTER,
