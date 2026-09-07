@@ -76,6 +76,22 @@ function Import-RootEnvironment {
 
 Import-RootEnvironment -Path $envFile
 
+# The realtime interviewer is a local sidecar. Keep a development-only shared secret in
+# this parent process when the developer has not configured one, so both the sidecar and
+# the API child receive the same value without committing a credential.
+if ([string]::IsNullOrWhiteSpace($env:AI_WORKER_SHARED_SECRET)) {
+    $env:AI_WORKER_SHARED_SECRET = "local-interview-ai-worker-dev-secret"
+}
+if ([string]::IsNullOrWhiteSpace($env:AI_INTERVIEWER_BASE_URL)) {
+    $env:AI_INTERVIEWER_BASE_URL = "http://127.0.0.1:9040"
+}
+if ([string]::IsNullOrWhiteSpace($env:AI_INTERVIEWER_HOST)) {
+    $env:AI_INTERVIEWER_HOST = "127.0.0.1"
+}
+if ([string]::IsNullOrWhiteSpace($env:AI_INTERVIEWER_PORT)) {
+    $env:AI_INTERVIEWER_PORT = "9040"
+}
+
 # livekit-server --dev binds locally and uses the documented development credentials.
 # Override only the LiveKit development values after importing .env so the server, API and
 # browser token response all point at the same local instance.
@@ -158,6 +174,13 @@ $services = @(
         Display   = "npm run tts-worker:dev"
     },
     [pscustomobject]@{
+        Name      = "ai-interviewer"
+        Kind      = "npm"
+        NpmScript = "ai-interviewer:dev"
+        Title     = "Interview - LLM Interviewer"
+        Display   = "npm run ai-interviewer:dev"
+    },
+    [pscustomobject]@{
         Name      = "app"
         Kind      = "npm"
         NpmScript = "dev"
@@ -225,6 +248,7 @@ if ($liveKitDevMode) {
 else {
     Write-Host "LiveKit: managed with custom arguments; application connection settings come from the configured environment."
 }
+Write-Host "LLM:     $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
 Write-Host "Web:     http://localhost:3000"
 Write-Host "Stop the complete tracked stack with: .\stop-all.ps1"
 Write-Host ""
