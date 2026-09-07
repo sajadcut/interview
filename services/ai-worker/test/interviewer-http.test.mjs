@@ -19,8 +19,18 @@ function validEnvelope() {
   };
 }
 
-async function withServer(llm, run, info = { provider: "fake", model: "fake-1", enabled: true, configured: true }) {
-  const server = createInterviewerHttpServer({ llm, sharedSecret: secret, providerInfo: info });
+async function withServer(
+  llm,
+  run,
+  info = { provider: "fake", model: "fake-1", enabled: true, configured: true },
+  providerReadiness = async () => ({ reachable: true, ready: true }),
+) {
+  const server = createInterviewerHttpServer({
+    llm,
+    sharedSecret: secret,
+    providerInfo: info,
+    providerReadiness,
+  });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -55,16 +65,45 @@ function successfulLlm() {
   };
 }
 
-test("realtime interviewer health exposes readiness without credentials", async () => {
+test("realtime interviewer health exposes provider reachability without credentials", async () => {
   await withServer(successfulLlm(), async (baseUrl) => {
     const response = await fetch(`${baseUrl}/health`);
     assert.equal(response.status, 200);
     const body = await response.json();
+    assert.equal(body.reachable, true);
     assert.equal(body.ready, true);
     assert.equal(body.provider, "fake");
     assert.equal(body.promptVersion, "v1");
+    assert.equal(body.fallbackAvailable, true);
     assert.equal(JSON.stringify(body).includes(secret), false);
   });
+});
+
+test("configured sidecar reports provider unreachable instead of a false-ready health", async () => {
+  let probes = 0;
+  await withServer(
+    successfulLlm(),
+    async (baseUrl) => {
+      const first = await fetch(`${baseUrl}/health`);
+      const firstBody = await first.json();
+      assert.equal(firstBody.enabled, true);
+      assert.equal(firstBody.configured, true);
+      assert.equal(firstBody.reachable, false);
+      assert.equal(firstBody.ready, false);
+      assert.equal(firstBody.reason, "provider_unreachable");
+      assert.equal(firstBody.fallbackAvailable, true);
+
+      const second = await fetch(`${baseUrl}/health`);
+      const secondBody = await second.json();
+      assert.equal(secondBody.ready, false);
+      assert.equal(probes, 1, "provider readiness should be cached to avoid repeated health traffic");
+    },
+    undefined,
+    async () => {
+      probes += 1;
+      return { reachable: false, ready: false, reason: "provider_unreachable" };
+    },
+  );
 });
 
 test("realtime interviewer rejects unauthenticated execution", async () => {
