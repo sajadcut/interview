@@ -261,17 +261,23 @@ export class AiGatewayService {
         redirect: "manual",
       });
       const payload = await boundedJson(response);
+      const providerReachable = response.ok && payload.reachable === true;
       const sidecarReady = response.ok && payload.ready === true;
+      const configured = Boolean(config.sharedSecret) && payload.configured === true;
+      const ready = configured && providerReachable && sidecarReady;
+      const providerReason = typeof payload.reason === "string" && payload.reason.trim()
+        ? payload.reason.trim().slice(0, 120)
+        : "provider_not_ready";
       return {
         enabled: payload.enabled === true,
-        configured: Boolean(config.sharedSecret) && payload.configured === true,
-        reachable: true,
-        ready: Boolean(config.sharedSecret) && sidecarReady,
+        configured,
+        reachable: providerReachable,
+        ready,
         provider: typeof payload.provider === "string" ? payload.provider : "unknown",
         ...(typeof payload.model === "string" ? { model: payload.model } : {}),
         ...(typeof payload.promptId === "string" ? { promptId: payload.promptId } : {}),
         ...(typeof payload.promptVersion === "string" ? { promptVersion: payload.promptVersion } : {}),
-        ...(sidecarReady && config.sharedSecret ? {} : { reason: "provider_not_ready" }),
+        ...(ready ? {} : { reason: providerReason }),
       };
     } catch {
       return {
