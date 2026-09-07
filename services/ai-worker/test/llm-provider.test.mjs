@@ -113,6 +113,25 @@ test("structured output parser accepts only the declared JSON shape", () => {
   );
 });
 
+test("structured output parser supports standard nullable union types", () => {
+  const nullableSchema = {
+    type: "object",
+    required: ["criterion"],
+    additionalProperties: false,
+    properties: {
+      criterion: { type: ["string", "null"], maxLength: 120 },
+    },
+  };
+  assert.deepEqual(parseStructuredOutput({ criterion: null }, nullableSchema), { criterion: null });
+  assert.deepEqual(parseStructuredOutput({ criterion: "backend_depth" }, nullableSchema), {
+    criterion: "backend_depth",
+  });
+  assert.throws(
+    () => parseStructuredOutput({ criterion: 42 }, nullableSchema),
+    (error) => error instanceof LLMProviderError && error.code === "STRUCTURED_OUTPUT_INVALID",
+  );
+});
+
 test("provider layer retries malformed structured output and charges every attempt", async () => {
   const provider = scriptedProvider("primary", [
     async () => ({
