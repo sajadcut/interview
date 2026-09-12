@@ -44,6 +44,21 @@ BEGIN
   IF EXISTS (SELECT 1 FROM applications WHERE rubric_version_id IS NULL) THEN
     RAISE EXCEPTION 'M1 closure requires every existing application to resolve to a rubric version';
   END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM applications a
+    LEFT JOIN rubric_versions rv
+      ON rv.organization_id = a.organization_id
+     AND rv.id = a.rubric_version_id
+    LEFT JOIN rubrics r
+      ON r.organization_id = rv.organization_id
+     AND r.id = rv.rubric_id
+     AND r.job_id = a.job_id
+    WHERE r.id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'M1 closure found an application pinned to a rubric version outside its job';
+  END IF;
 END;
 $$;
 
@@ -219,14 +234,32 @@ FROM (
         si.score::text,
         array_to_string(si.evidence_ids, ',')
       ),
-      ';' ORDER BY si.criterion_id
+      ';' ORDER BY rc.display_order, si.criterion_id
     )) AS fingerprint
   FROM scorecard_inputs si
+  JOIN rubric_criteria rc
+    ON rc.organization_id = si.organization_id
+   AND rc.id = si.criterion_id
   GROUP BY si.organization_id, si.scorecard_id
 ) fingerprints
 WHERE s.organization_id = fingerprints.organization_id
   AND s.id = fingerprints.scorecard_id
   AND s.input_fingerprint IS NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM scorecards s
+    WHERE s.input_fingerprint IS NULL
+  ) THEN
+    RAISE EXCEPTION 'M1 closure could not reconstruct deterministic inputs for every legacy scorecard';
+  END IF;
+END;
+$$;
+
+ALTER TABLE scorecards
+  ALTER COLUMN input_fingerprint SET NOT NULL;
 
 ALTER TABLE scorecards
   ADD CONSTRAINT scorecards_idempotency_uniq
@@ -238,6 +271,8 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   expected_rubric_version uuid;
+  expected_required_count integer;
+  evaluated_required_count integer;
   snapshot_payload text;
 BEGIN
   SELECT a.rubric_version_id
@@ -251,7 +286,14 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 
-  SELECT string_agg(
+  SELECT count(*)::int
+    INTO expected_required_count
+  FROM rubric_criteria rc
+  WHERE rc.organization_id = NEW.organization_id
+    AND rc.rubric_version_id = NEW.rubric_version_id
+    AND rc.required = true;
+
+  SELECT count(*)::int, string_agg(
     concat_ws('|',
       rc.id::text,
       latest.id::text,
@@ -261,7 +303,7 @@ BEGIN
     ),
     ';' ORDER BY rc.display_order, rc.id
   )
-  INTO snapshot_payload
+  INTO evaluated_required_count, snapshot_payload
   FROM rubric_criteria rc
   JOIN LATERAL (
     SELECT e.id, e.score, e.evidence_ids
@@ -277,8 +319,8 @@ BEGIN
     AND rc.rubric_version_id = NEW.rubric_version_id
     AND rc.required = true;
 
-  IF snapshot_payload IS NULL THEN
-    RAISE EXCEPTION 'Scorecard requires evaluated required criteria'
+  IF expected_required_count = 0 OR evaluated_required_count <> expected_required_count OR snapshot_payload IS NULL THEN
+    RAISE EXCEPTION 'Scorecard requires evaluations for every required rubric criterion'
       USING ERRCODE = '23514';
   END IF;
 
