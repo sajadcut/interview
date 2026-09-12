@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - package.json
+      - apps/api/package.json
       - .github/workflows/refresh-lock-temp.yml
 
 permissions:
@@ -25,10 +26,10 @@ jobs:
           test "$(npm --version)" = "11.6.2"
       - name: Refresh canonical lockfile
         run: npm install --package-lock-only --ignore-scripts
-      - name: Verify patched production dependency audit
-        run: npm audit --omit=dev --audit-level=high
       - uses: actions/upload-artifact@v4
         with:
           name: refreshed-package-lock
           path: package-lock.json
           if-no-files-found: error
+      - name: Verify patched production dependency audit
+        run: npm audit --omit=dev --audit-level=high
