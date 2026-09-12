@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { NotFoundException } from "@nestjs/common";
 import postgres from "postgres";
 import type { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
@@ -72,13 +73,15 @@ test(
       assert.deepEqual(candidatesForA.map((candidate) => candidate.id), [candidateA]);
       assert.equal(candidatesForA.some((candidate) => candidate.id === candidateB), false);
 
-      const crossTenantCandidate = await tenantContext.run(organizationA, () =>
-        recruiting.getCandidateWorkspace(candidateB),
+      await assert.rejects(
+        tenantContext.run(organizationA, () => recruiting.getCandidateWorkspace(candidateB)),
+        (error: unknown) => error instanceof NotFoundException,
       );
-      assert.equal(crossTenantCandidate, null);
 
-      const crossTenantJob = await tenantContext.run(organizationA, () => recruiting.getJobWorkspace(jobB));
-      assert.equal(crossTenantJob, null);
+      await assert.rejects(
+        tenantContext.run(organizationA, () => recruiting.getJobWorkspace(jobB)),
+        (error: unknown) => error instanceof NotFoundException,
+      );
     } finally {
       await database.sql`DELETE FROM organizations WHERE id IN (${organizationA}::uuid, ${organizationB}::uuid)`;
       await database.onModuleDestroy();

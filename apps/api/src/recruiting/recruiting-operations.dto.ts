@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
   IsNumber,
@@ -118,6 +119,67 @@ export class CreateJobDto {
   @ValidateNested({ each: true })
   @Type(() => CreateRubricCriterionDto)
   rubricCriteria!: CreateRubricCriterionDto[];
+}
+
+export class CreateCandidateDto {
+  @ApiProperty()
+  @IsString()
+  @Length(1, 240)
+  displayName!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  @Length(3, 320)
+  primaryEmail?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  primaryPhone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  currentRole?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  currentCompany?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  location?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(2, 16)
+  preferredLanguage?: string;
+}
+
+export class CreateApplicationDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  candidateId!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  source?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  pipelineStage?: string;
 }
 
 export class UpdateJobDto {

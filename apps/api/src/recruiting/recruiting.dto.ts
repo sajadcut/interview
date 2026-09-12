@@ -73,6 +73,7 @@ export class CandidateSkillDto {
 export class CandidateApplicationDto {
   @ApiProperty() id!: string;
   @ApiProperty() jobId!: string;
+  @ApiProperty() rubricVersionId!: string;
   @ApiProperty() jobTitle!: string;
   @ApiProperty() status!: string;
   @ApiProperty() pipelineStage!: string;

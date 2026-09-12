@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import {
@@ -58,7 +58,7 @@ export class RecruitingService {
       WHERE organization_id = ${organizationId}::uuid AND id = ${jobId}::uuid
       LIMIT 1
     `;
-    if (!jobs.length) return null;
+    if (!jobs.length) throw new NotFoundException("Job not found");
 
     const requirements = await this.database.sql`
       SELECT id, requirement_type, name, description, weight, minimum_years
@@ -80,7 +80,7 @@ export class RecruitingService {
           SELECT rv2.id
           FROM rubric_versions rv2
           WHERE rv2.organization_id = r.organization_id AND rv2.rubric_id = r.id
-          ORDER BY rv2.version DESC
+          ORDER BY CASE WHEN rv2.status = 'published' THEN 0 ELSE 1 END, rv2.version DESC
           LIMIT 1
         )
       ORDER BY rc.display_order, rc.label
@@ -193,7 +193,7 @@ export class RecruitingService {
       WHERE organization_id = ${organizationId}::uuid AND id = ${candidateId}::uuid
       LIMIT 1
     `;
-    if (!candidates.length) return null;
+    if (!candidates.length) throw new NotFoundException("Candidate not found");
 
     const skills = await this.database.sql`
       SELECT id, skill_key, skill_label, verification_state, confidence, source_reference
@@ -202,7 +202,8 @@ export class RecruitingService {
       ORDER BY verification_state, confidence DESC NULLS LAST, skill_label
     `;
     const applications = await this.database.sql`
-      SELECT a.id, a.job_id, j.title AS job_title, a.status, a.pipeline_stage, a.source, a.pre_interview_match_score
+      SELECT a.id, a.job_id, a.rubric_version_id, j.title AS job_title,
+             a.status, a.pipeline_stage, a.source, a.pre_interview_match_score
       FROM applications a
       JOIN jobs j ON j.organization_id = a.organization_id AND j.id = a.job_id
       WHERE a.organization_id = ${organizationId}::uuid AND a.candidate_id = ${candidateId}::uuid
@@ -230,6 +231,7 @@ export class RecruitingService {
       applications: applications.map((row) => ({
         id: String(row.id),
         jobId: String(row.job_id),
+        rubricVersionId: String(row.rubric_version_id),
         jobTitle: String(row.job_title),
         status: String(row.status),
         pipelineStage: String(row.pipeline_stage),
@@ -251,6 +253,7 @@ export class RecruitingService {
         a.pipeline_stage,
         a.source,
         a.pre_interview_match_score,
+        a.rubric_version_id,
         j.id AS job_id,
         j.title AS job_title,
         c.id AS candidate_id,
@@ -267,7 +270,7 @@ export class RecruitingService {
       LIMIT 1
     `;
 
-    if (!application.length) return null;
+    if (!application.length) throw new NotFoundException("Application not found");
 
     const evidence = await this.database.sql`
       SELECT id, evidence_type, source_type, source_reference, excerpt, occurred_at, metadata, created_at
@@ -281,6 +284,7 @@ export class RecruitingService {
       SELECT
         e.id,
         e.criterion_id,
+        e.rubric_version_id,
         rc.criterion_key,
         rc.label,
         rc.weight,
@@ -297,15 +301,16 @@ export class RecruitingService {
         ON rc.organization_id = e.organization_id AND rc.id = e.criterion_id
       WHERE e.organization_id = ${organizationId}::uuid
         AND e.application_id = ${applicationId}::uuid
-      ORDER BY rc.display_order, e.created_at DESC
+      ORDER BY rc.display_order, e.created_at DESC, e.id DESC
     `;
 
     const scorecards = await this.database.sql`
-      SELECT id, rubric_version_id, overall_score, recommendation, algorithm_version, review_state, created_at
+      SELECT id, rubric_version_id, overall_score, recommendation, algorithm_version,
+             input_fingerprint, review_state, created_at
       FROM scorecards
       WHERE organization_id = ${organizationId}::uuid
         AND application_id = ${applicationId}::uuid
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, id DESC
     `;
 
     return {
@@ -318,22 +323,34 @@ export class RecruitingService {
 
   previewScorecard(input: unknown): ScoreResult {
     if (!input || typeof input !== "object" || !("criteria" in input)) {
-      throw new Error("criteria are required");
+      throw new BadRequestException("criteria are required");
     }
 
     const rawCriteria = (input as { criteria?: unknown }).criteria;
-    if (!Array.isArray(rawCriteria)) throw new Error("criteria must be an array");
+    if (!Array.isArray(rawCriteria)) throw new BadRequestException("criteria must be an array");
+    if (rawCriteria.length === 0) throw new BadRequestException("At least one rubric criterion is required");
 
     const criteria: CriterionScoreInput[] = rawCriteria.map((value, index) => {
       if (!value || typeof value !== "object") {
-        throw new Error(`criterion ${index} must be an object`);
+        throw new BadRequestException(`criterion ${index} must be an object`);
       }
       const candidate = value as Record<string, unknown>;
-      if (typeof candidate.criterionId !== "string") throw new Error(`criterion ${index} requires criterionId`);
-      if (typeof candidate.weight !== "number") throw new Error(`criterion ${index} requires numeric weight`);
-      if (typeof candidate.score !== "number") throw new Error(`criterion ${index} requires numeric score`);
+      if (typeof candidate.criterionId !== "string" || candidate.criterionId.length === 0) {
+        throw new BadRequestException(`criterion ${index} requires criterionId`);
+      }
+      if (typeof candidate.weight !== "number" || !Number.isFinite(candidate.weight) || candidate.weight <= 0) {
+        throw new BadRequestException(`criterion ${index} requires a positive numeric weight`);
+      }
+      if (
+        typeof candidate.score !== "number" ||
+        !Number.isFinite(candidate.score) ||
+        candidate.score < 0 ||
+        candidate.score > 100
+      ) {
+        throw new BadRequestException(`criterion ${index} requires a score in 0..100`);
+      }
       if (!Array.isArray(candidate.evidenceIds) || !candidate.evidenceIds.every((id) => typeof id === "string")) {
-        throw new Error(`criterion ${index} requires string evidenceIds`);
+        throw new BadRequestException(`criterion ${index} requires string evidenceIds`);
       }
       return {
         criterionId: candidate.criterionId,

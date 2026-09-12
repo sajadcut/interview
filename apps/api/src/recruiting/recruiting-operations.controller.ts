@@ -6,6 +6,8 @@ import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
+  CreateApplicationDto,
+  CreateCandidateDto,
   CreateCriterionEvaluationDto,
   CreateEvidenceDto,
   CreateJobDto,
@@ -29,6 +31,20 @@ export class RecruitingOperationsController {
   @AuditedAction("job.create", "job")
   createJob(@Body() body: CreateJobDto) {
     return this.operations.createJob(body);
+  }
+
+  @Post("candidates")
+  @RequirePermissions(Permissions.CandidateResumeManage)
+  @AuditedAction("candidate.create", "candidate")
+  createCandidate(@Body() body: CreateCandidateDto) {
+    return this.operations.createCandidate(body);
+  }
+
+  @Post("jobs/:jobId/applications")
+  @RequirePermissions(Permissions.CandidateMoveStage)
+  @AuditedAction("application.create", "application")
+  createApplication(@Param("jobId") jobId: string, @Body() body: CreateApplicationDto) {
+    return this.operations.createApplication(jobId, body);
   }
 
   @Patch("jobs/:jobId")

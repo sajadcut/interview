@@ -4,6 +4,8 @@ import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { calculateEvidenceBackedScore, type CriterionScoreInput } from "./score-engine";
 import type {
+  CreateApplicationDto,
+  CreateCandidateDto,
   CreateCriterionEvaluationDto,
   CreateEvidenceDto,
   CreateJobDto,
@@ -115,6 +117,172 @@ export class RecruitingOperationsService {
         status: String(job.status),
         rubricId,
         rubricVersionId,
+      };
+    });
+  }
+
+  async createCandidate(input: CreateCandidateDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const normalizedEmail = input.primaryEmail?.trim().toLowerCase();
+    const normalizedPhone = input.primaryPhone?.trim().replace(/\s+/g, "");
+
+    return this.database.sql.begin(async (tx) => {
+      if (normalizedEmail) {
+        const existing = await tx`
+          SELECT id::text
+          FROM candidates
+          WHERE organization_id = ${organizationId}::uuid
+            AND lower(primary_email) = ${normalizedEmail}
+          LIMIT 1
+        `;
+        if (existing[0]) throw new BadRequestException("A candidate with this email already exists");
+      }
+
+      const rows = await tx`
+        INSERT INTO candidates (
+          organization_id, display_name, primary_email, primary_phone,
+          "current_role", current_company, location, preferred_language
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${input.displayName.trim()},
+          ${normalizedEmail ?? null},
+          ${input.primaryPhone?.trim() || null},
+          ${input.currentRole?.trim() || null},
+          ${input.currentCompany?.trim() || null},
+          ${input.location?.trim() || null},
+          ${input.preferredLanguage?.trim() || null}
+        )
+        RETURNING id::text, display_name, primary_email, primary_phone,
+                  "current_role" AS current_role, current_company, location, preferred_language, created_at
+      `;
+      const candidate = rows[0];
+      if (!candidate?.id) throw new BadRequestException("Candidate could not be created");
+      const candidateId = String(candidate.id);
+
+      const identities = [
+        normalizedEmail ? { type: "email", value: normalizedEmail } : undefined,
+        normalizedPhone ? { type: "phone", value: normalizedPhone } : undefined,
+      ].filter((value): value is { type: string; value: string } => Boolean(value));
+
+      for (const identity of identities) {
+        const inserted = await tx`
+          INSERT INTO candidate_identities (
+            organization_id, candidate_id, identity_type, normalized_value, is_verified
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${candidateId}::uuid,
+            ${identity.type},
+            ${identity.value},
+            false
+          )
+          ON CONFLICT (organization_id, identity_type, normalized_value) DO NOTHING
+          RETURNING id::text
+        `;
+        if (!inserted[0]) {
+          throw new BadRequestException(`A candidate with this ${identity.type} identity already exists`);
+        }
+      }
+
+      return {
+        id: candidateId,
+        displayName: String(candidate.display_name),
+        ...(candidate.primary_email ? { primaryEmail: String(candidate.primary_email) } : {}),
+        ...(candidate.primary_phone ? { primaryPhone: String(candidate.primary_phone) } : {}),
+        ...(candidate.current_role ? { currentRole: String(candidate.current_role) } : {}),
+        ...(candidate.current_company ? { currentCompany: String(candidate.current_company) } : {}),
+        ...(candidate.location ? { location: String(candidate.location) } : {}),
+        ...(candidate.preferred_language ? { preferredLanguage: String(candidate.preferred_language) } : {}),
+        createdAt: new Date(String(candidate.created_at)).toISOString(),
+      };
+    });
+  }
+
+  async createApplication(jobId: string, input: CreateApplicationDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+
+    return this.database.sql.begin(async (tx) => {
+      const candidate = await tx`
+        SELECT id::text
+        FROM candidates
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${input.candidateId}::uuid
+        LIMIT 1
+      `;
+      if (!candidate[0]) throw new NotFoundException("Candidate not found");
+
+      const job = await tx`
+        SELECT id::text
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${jobId}::uuid
+        LIMIT 1
+      `;
+      if (!job[0]) throw new NotFoundException("Job not found");
+
+      const existing = await tx`
+        SELECT id::text, rubric_version_id::text, status, pipeline_stage, source, created_at
+        FROM applications
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${jobId}::uuid
+          AND candidate_id = ${input.candidateId}::uuid
+        LIMIT 1
+      `;
+      if (existing[0]) {
+        return {
+          id: String(existing[0].id),
+          jobId,
+          candidateId: input.candidateId,
+          rubricVersionId: String(existing[0].rubric_version_id),
+          status: String(existing[0].status),
+          pipelineStage: String(existing[0].pipeline_stage),
+          ...(existing[0].source ? { source: String(existing[0].source) } : {}),
+          createdAt: new Date(String(existing[0].created_at)).toISOString(),
+          alreadyExisted: true,
+        };
+      }
+
+      const rubricVersions = await tx`
+        SELECT rv.id::text
+        FROM rubrics r
+        JOIN rubric_versions rv
+          ON rv.organization_id = r.organization_id
+         AND rv.rubric_id = r.id
+        WHERE r.organization_id = ${organizationId}::uuid
+          AND r.job_id = ${jobId}::uuid
+          AND rv.status = 'published'
+        ORDER BY rv.version DESC
+        LIMIT 1
+      `;
+      const rubricVersionId = rubricVersions[0]?.id ? String(rubricVersions[0].id) : undefined;
+      if (!rubricVersionId) {
+        throw new BadRequestException("Publish the job rubric before creating an application");
+      }
+
+      const rows = await tx`
+        INSERT INTO applications (
+          organization_id, job_id, candidate_id, rubric_version_id, status, pipeline_stage, source
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${jobId}::uuid,
+          ${input.candidateId}::uuid,
+          ${rubricVersionId}::uuid,
+          'active',
+          ${input.pipelineStage?.trim() || "new"},
+          ${input.source?.trim() || "manual"}
+        )
+        RETURNING id::text, rubric_version_id::text, status, pipeline_stage, source, created_at
+      `;
+      const application = rows[0];
+      return {
+        id: String(application?.id),
+        jobId,
+        candidateId: input.candidateId,
+        rubricVersionId: String(application?.rubric_version_id),
+        status: String(application?.status),
+        pipelineStage: String(application?.pipeline_stage),
+        ...(application?.source ? { source: String(application.source) } : {}),
+        createdAt: new Date(String(application?.created_at)).toISOString(),
+        alreadyExisted: false,
       };
     });
   }
@@ -346,24 +514,22 @@ export class RecruitingOperationsService {
   async createCriterionEvaluation(applicationId: string, input: CreateCriterionEvaluationDto) {
     const organizationId = this.tenantContext.require().organizationId;
     const context = await this.database.sql`
-      SELECT rc.rubric_version_id::text
+      SELECT a.rubric_version_id::text
       FROM applications a
-      JOIN rubrics r
-        ON r.organization_id = a.organization_id AND r.job_id = a.job_id
-      JOIN rubric_versions rv
-        ON rv.organization_id = r.organization_id AND rv.rubric_id = r.id
       JOIN rubric_criteria rc
-        ON rc.organization_id = rv.organization_id AND rc.rubric_version_id = rv.id
+        ON rc.organization_id = a.organization_id
+       AND rc.rubric_version_id = a.rubric_version_id
       WHERE a.organization_id = ${organizationId}::uuid
         AND a.id = ${applicationId}::uuid
         AND rc.id = ${input.criterionId}::uuid
-      ORDER BY rv.version DESC
       LIMIT 1
     `;
     const rubricVersionId = context[0]?.rubric_version_id
       ? String(context[0].rubric_version_id)
       : undefined;
-    if (!rubricVersionId) throw new BadRequestException("Criterion does not belong to the application job rubric");
+    if (!rubricVersionId) {
+      throw new BadRequestException("Criterion does not belong to the application pinned rubric version");
+    }
     if (input.evidenceIds.length === 0) {
       throw new BadRequestException("Criterion evaluations require at least one evidence item");
     }
@@ -403,19 +569,16 @@ export class RecruitingOperationsService {
 
   async finalizeScorecard(applicationId: string) {
     const organizationId = this.tenantContext.require().organizationId;
-    const rubricVersions = await this.database.sql`
-      SELECT rv.id::text
-      FROM applications a
-      JOIN rubrics r
-        ON r.organization_id = a.organization_id AND r.job_id = a.job_id
-      JOIN rubric_versions rv
-        ON rv.organization_id = r.organization_id AND rv.rubric_id = r.id
-      WHERE a.organization_id = ${organizationId}::uuid
-        AND a.id = ${applicationId}::uuid
-      ORDER BY CASE WHEN rv.status = 'published' THEN 0 ELSE 1 END, rv.version DESC
+    const applications = await this.database.sql`
+      SELECT rubric_version_id::text
+      FROM applications
+      WHERE organization_id = ${organizationId}::uuid
+        AND id = ${applicationId}::uuid
       LIMIT 1
     `;
-    const rubricVersionId = rubricVersions[0]?.id ? String(rubricVersions[0].id) : undefined;
+    const rubricVersionId = applications[0]?.rubric_version_id
+      ? String(applications[0].rubric_version_id)
+      : undefined;
     if (!rubricVersionId) throw new NotFoundException("Application rubric not found");
 
     const rows = await this.database.sql`
@@ -432,7 +595,7 @@ export class RecruitingOperationsService {
           AND e.application_id = ${applicationId}::uuid
           AND e.rubric_version_id = rc.rubric_version_id
           AND e.criterion_id = rc.id
-        ORDER BY e.created_at DESC
+        ORDER BY e.created_at DESC, e.id DESC
         LIMIT 1
       ) latest ON true
       WHERE rc.organization_id = ${organizationId}::uuid
@@ -479,11 +642,15 @@ export class RecruitingOperationsService {
         ${score.algorithmVersion},
         'pending'
       )
-      RETURNING id::text, created_at
+      ON CONFLICT (
+        organization_id, application_id, rubric_version_id, algorithm_version, input_fingerprint
+      ) DO UPDATE SET input_fingerprint = EXCLUDED.input_fingerprint
+      RETURNING id::text, created_at, input_fingerprint
     `;
     return {
       persisted: true,
       scorecardId: String(scorecards[0]?.id),
+      inputFingerprint: String(scorecards[0]?.input_fingerprint),
       createdAt: new Date(String(scorecards[0]?.created_at)).toISOString(),
       ...score,
     };
@@ -620,8 +787,9 @@ export class RecruitingOperationsService {
   async getDecisionSupport(applicationId: string) {
     const organizationId = this.tenantContext.require().organizationId;
     const applications = await this.database.sql`
-      SELECT a.id::text, a.job_id::text, a.candidate_id::text, a.status, a.pipeline_stage,
-             a.pre_interview_match_score, j.title AS job_title, c.display_name AS candidate_name
+      SELECT a.id::text, a.job_id::text, a.candidate_id::text, a.rubric_version_id::text,
+             a.status, a.pipeline_stage, a.pre_interview_match_score,
+             j.title AS job_title, c.display_name AS candidate_name
       FROM applications a
       JOIN jobs j ON j.organization_id = a.organization_id AND j.id = a.job_id
       JOIN candidates c ON c.organization_id = a.organization_id AND c.id = a.candidate_id
@@ -636,10 +804,21 @@ export class RecruitingOperationsService {
       ORDER BY created_at DESC
     `;
     const scorecards = await this.database.sql`
-      SELECT id::text, overall_score, recommendation, algorithm_version, review_state, created_at
+      SELECT id::text, rubric_version_id::text, overall_score, recommendation, algorithm_version,
+             input_fingerprint, review_state, created_at
       FROM scorecards
       WHERE organization_id = ${organizationId}::uuid AND application_id = ${applicationId}::uuid
       ORDER BY created_at DESC
+    `;
+    const scorecardInputs = await this.database.sql`
+      SELECT si.scorecard_id::text, si.criterion_evaluation_id::text, si.criterion_id::text,
+             si.weight, si.score, si.evidence_ids, si.created_at
+      FROM scorecard_inputs si
+      JOIN scorecards s
+        ON s.organization_id = si.organization_id AND s.id = si.scorecard_id
+      WHERE si.organization_id = ${organizationId}::uuid
+        AND s.application_id = ${applicationId}::uuid
+      ORDER BY si.scorecard_id, si.criterion_id
     `;
     const decisions = await this.database.sql`
       SELECT id::text, decision, reason, actor_user_id::text, scorecard_id::text, created_at
@@ -653,6 +832,6 @@ export class RecruitingOperationsService {
       WHERE organization_id = ${organizationId}::uuid AND application_id = ${applicationId}::uuid
       ORDER BY created_at DESC
     `;
-    return { application: applications[0], transitions, scorecards, decisions, evidence };
+    return { application: applications[0], transitions, scorecards, scorecardInputs, decisions, evidence };
   }
 }
