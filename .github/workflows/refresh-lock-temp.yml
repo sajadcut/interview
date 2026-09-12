@@ -24,8 +24,10 @@ jobs:
         run: |
           npm install --global npm@11.6.2 --ignore-scripts
           test "$(npm --version)" = "11.6.2"
-      - name: Refresh canonical lockfile
-        run: npm install --package-lock-only --ignore-scripts
+      - name: Rebuild canonical lockfile from package contracts
+        run: |
+          rm package-lock.json
+          npm install --package-lock-only --ignore-scripts
       - uses: actions/upload-artifact@v4
         with:
           name: refreshed-package-lock
