@@ -1,8 +1,8 @@
 # AI Recruiter Platform — PROJECT STATE
 
-> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, Whisper STT Integration Contract v1, FFmpeg Integration Layer v1, and LLM Provider Layer v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.36.0
-> **Date:** 2026-09-05
+> **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
+> **Version:** 0.37.0
+> **Date:** 2026-09-12
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
@@ -13,6 +13,24 @@
 The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, FFmpeg integration-contract validation, LLM provider-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 
 Recent implementation evidence:
+
+M1 closure evidence (Job → Candidate → Evidence)
+
+```text
+validated implementation commit              5627efc9411b51df9f33a954ccf408a2b7e6e5bb
+quality-gate                                  34717598585 / run #767
+application provenance                       immutable rubric_version_id pinned at application creation
+rubric evolution                              new rubric versions do not rewrite historical applications
+scorecard provenance                         immutable scorecard_inputs snapshot + input fingerprint
+scorecard replay                              deterministic/idempotent finalization protected by database constraints
+candidate/application mutations              tenant-scoped API paths with cross-tenant regression coverage
+public API contract                           OpenAPI + generated typed client synchronized and drift-checked
+database                                      append-only migration 0058_m1_closure.sql validated on PostgreSQL
+production dependency audit                  high/critical production audit gate passes; Multer patched to 2.3.0
+verification                                  migrations / indexes / lint / typecheck / tests / build / Browser E2E all pass
+result                                        ✅ M1 CLOSED / regression-protected
+production-safety boundary                    this milestone does not approve autonomous real-candidate production interviewing
+```
 
 ```text
 Coding Assessment Sandbox worker
@@ -215,7 +233,7 @@ Consequential hiring decisions remain human-controlled and score/evidence bounda
 
 # 4. Database and migration operations
 
-The append-only schema is current through `0052_monitoring_indexes.sql`.
+The append-only schema is current through `0058_m1_closure.sql`.
 
 Recent operational migrations include:
 
@@ -228,6 +246,12 @@ Recent operational migrations include:
 0050_auth_rate_limit_hardening.sql
 0051_audit_secret_redaction.sql         PostgreSQL audit defense-in-depth
 0052_monitoring_indexes.sql             queue/interview/media monitoring read paths
+0053_interview_session_state_machine.sql  canonical persisted interview session transitions
+0054_ai_capability_provenance.sql         durable AI capability/prompt/result provenance
+0055_interview_evidence_provenance.sql    transcript-anchored interview evidence provenance
+0056_interview_release_gate_v2.sql        release-unit approval and material-change guard
+0057_interview_human_review_queue.sql     durable human-review queue and immutable events
+0058_m1_closure.sql                       application rubric pinning + scorecard input snapshots
 ```
 
 Realtime provider telemetry is intentionally not persisted as OLTP rows merely to satisfy monitoring. Prometheus is the intended time-series sink; durable interview lifecycle/audit evidence remains in the existing relational/event schema.
@@ -266,7 +290,7 @@ LLM execution behavior is governed by `contracts/llm-provider.v1.json`, `service
 # 6. Current milestone state beyond Core Closure
 
 ```text
-M1 Job → Candidate → Evidence        materially implemented
+M1 Job → Candidate → Evidence        CLOSED / CI-validated / regression-protected
 M2 Sourcing + Talent                provider-neutral architecture + internal/external provider implementations
 M3 Outreach/Screening/Scheduling    persisted workflow/policy + SMTP/SES/SendGrid + Google/Microsoft Calendar implemented; external credential smoke tests deployment-specific
 M4 Interview Brain/Evaluator        brain + evaluator/calibration/shadow + LLM provider layer + monitoring + realtime/alerting + LiveKit deployment + Whisper STT + FFmpeg integration contracts/layers implemented; actual LLM/realtime provider runtime and representative Gate F evidence pending
