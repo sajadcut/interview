@@ -42,6 +42,57 @@ ON CONFLICT (id) DO UPDATE SET
   summary = EXCLUDED.summary,
   updated_at = now();
 
+-- M1 closure requires every application to be pinned to a rubric version. Keep
+-- the scalable load fixture production-shaped instead of bypassing the invariant.
+INSERT INTO rubrics (id, organization_id, job_id, name, status)
+SELECT
+  '90909090-9090-4090-8090-909090909091'::uuid,
+  context.organization_id,
+  '90909090-9090-4090-8090-909090909090'::uuid,
+  'Load Test Rubric',
+  'published'
+FROM _load_test_context context
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  status = EXCLUDED.status,
+  updated_at = now();
+
+INSERT INTO rubric_versions (id, organization_id, rubric_id, version, status, published_at)
+SELECT
+  '90909090-9090-4090-8090-909090909092'::uuid,
+  context.organization_id,
+  '90909090-9090-4090-8090-909090909091'::uuid,
+  1,
+  'published',
+  now()
+FROM _load_test_context context
+ON CONFLICT (rubric_id, version) DO UPDATE SET
+  status = EXCLUDED.status,
+  published_at = COALESCE(rubric_versions.published_at, EXCLUDED.published_at);
+
+INSERT INTO rubric_criteria (
+  id, organization_id, rubric_version_id, criterion_key, label, description,
+  weight, required, evidence_policy, display_order
+)
+SELECT
+  '90909090-9090-4090-8090-909090909093'::uuid,
+  context.organization_id,
+  '90909090-9090-4090-8090-909090909092'::uuid,
+  'load_test_baseline',
+  'Load-test baseline',
+  'Synthetic required criterion used only to keep application rubric provenance valid.',
+  1,
+  true,
+  '{}'::jsonb,
+  0
+FROM _load_test_context context
+ON CONFLICT (rubric_version_id, criterion_key) DO UPDATE SET
+  label = EXCLUDED.label,
+  description = EXCLUDED.description,
+  weight = EXCLUDED.weight,
+  required = EXCLUDED.required,
+  display_order = EXCLUDED.display_order;
+
 INSERT INTO jobs (
   id, organization_id, title, status, department, location, seniority, summary, created_by_user_id
 )
