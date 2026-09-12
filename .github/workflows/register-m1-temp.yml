@@ -1,0 +1,53 @@
+name: register-m1-temp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/register-m1-temp.yml
+
+permissions:
+  contents: write
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Register M1 closure in project state
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("projectstate.md")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = {
+              "> **Status:** Core Product Closure and the current pre-realtime hardening stack are implementation-complete and CI-validated. This includes authentication/authorization hardening, privacy deletion and retention workers, isolated assessment execution, Security Hardening, base/advanced operational Monitoring, Realtime Metrics Contract v1, Alerting Contract v1, LiveKit Deployment Contract, Whisper STT Integration Contract v1, FFmpeg Integration Layer v1, and LLM Provider Layer v1. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.": "> **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.",
+              "> **Version:** 0.36.0": "> **Version:** 0.37.0",
+              "> **Date:** 2026-09-05": "> **Date:** 2026-09-12",
+              "The append-only schema is current through `0052_monitoring_indexes.sql`.": "The append-only schema is current through `0058_m1_closure.sql`.",
+              "0052_monitoring_indexes.sql             queue/interview/media monitoring read paths\n": "0052_monitoring_indexes.sql             queue/interview/media monitoring read paths\n0053_interview_session_state_machine.sql  canonical persisted interview session transitions\n0054_ai_capability_provenance.sql         durable AI capability/prompt/result provenance\n0055_interview_evidence_provenance.sql    transcript-anchored interview evidence provenance\n0056_interview_release_gate_v2.sql        release-unit approval and material-change guard\n0057_interview_human_review_queue.sql     durable human-review queue and immutable events\n0058_m1_closure.sql                       application rubric pinning + scorecard input snapshots\n",
+              "M1 Job → Candidate → Evidence        materially implemented": "M1 Job → Candidate → Evidence        CLOSED / CI-validated / regression-protected",
+          }
+
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected projectstate marker not found: {old[:80]}")
+              text = text.replace(old, new, 1)
+
+          marker = "Recent implementation evidence:\n\n"
+          if marker not in text:
+              raise SystemExit("Recent implementation evidence marker not found")
+
+          closure = """M1 closure evidence (Job → Candidate → Evidence)\n\n```text\nvalidated implementation commit              5627efc9411b51df9f33a954ccf408a2b7e6e5bb\nquality-gate                                  34717598585 / run #767\napplication provenance                       immutable rubric_version_id pinned at application creation\nrubric evolution                              new rubric versions do not rewrite historical applications\nscorecard provenance                         immutable scorecard_inputs snapshot + input fingerprint\nscorecard replay                              deterministic/idempotent finalization protected by database constraints\ncandidate/application mutations              tenant-scoped API paths with cross-tenant regression coverage\npublic API contract                           OpenAPI + generated typed client synchronized and drift-checked\ndatabase                                      append-only migration 0058_m1_closure.sql validated on PostgreSQL\nproduction dependency audit                  high/critical production audit gate passes; Multer patched to 2.3.0\nverification                                  migrations / indexes / lint / typecheck / tests / build / Browser E2E all pass\nresult                                        ✅ M1 CLOSED / regression-protected\nproduction-safety boundary                    this milestone does not approve autonomous real-candidate production interviewing\n```\n\n"""
+          text = text.replace(marker, marker + closure, 1)
+          path.write_text(text, encoding="utf-8")
+      - name: Commit project state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add projectstate.md
+          git diff --cached --exit-code && { echo "No state changes produced"; exit 1; } || true
+          git commit -m "docs(state): close M1 job candidate evidence"
+          git push origin HEAD:main
