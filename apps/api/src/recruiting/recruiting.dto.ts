@@ -1,3 +1,5 @@
+import { Type } from "class-transformer";
+import { ArrayMinSize, IsArray, IsNumber, IsUUID, Max, Min, ValidateNested } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class JobSummaryDto {
@@ -92,4 +94,35 @@ export class CandidateWorkspaceDto {
   @ApiPropertyOptional() preferredLanguage?: string;
   @ApiProperty({ type: [CandidateSkillDto] }) skills!: CandidateSkillDto[];
   @ApiProperty({ type: [CandidateApplicationDto] }) applications!: CandidateApplicationDto[];
+}
+
+export class PreviewScoreCriterionDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  criterionId!: string;
+
+  @ApiProperty({ minimum: 0.001 })
+  @IsNumber()
+  @Min(0.001)
+  weight!: number;
+
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  score!: number;
+
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  evidenceIds!: string[];
+}
+
+export class PreviewScorecardDto {
+  @ApiProperty({ type: [PreviewScoreCriterionDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PreviewScoreCriterionDto)
+  criteria!: PreviewScoreCriterionDto[];
 }

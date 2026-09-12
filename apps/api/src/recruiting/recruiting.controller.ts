@@ -10,6 +10,7 @@ import {
   CandidateWorkspaceDto,
   JobSummaryDto,
   JobWorkspaceDto,
+  PreviewScorecardDto,
 } from "./recruiting.dto";
 import { RecruitingService } from "./recruiting.service";
 
@@ -58,7 +59,7 @@ export class RecruitingController {
   @Post("applications/:applicationId/scorecards/preview")
   @RequirePermissions(Permissions.CandidateScore)
   @AuditedAction("scorecard.preview", "application")
-  previewScorecard(@Body() body: unknown) {
+  previewScorecard(@Body() body: PreviewScorecardDto) {
     return this.recruiting.previewScorecard(body);
   }
 }
