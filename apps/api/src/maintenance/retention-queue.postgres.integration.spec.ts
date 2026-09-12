@@ -32,6 +32,8 @@ test(
     const queue = new RetentionQueueService(database);
     const organizationId = randomUUID();
     const jobId = randomUUID();
+    const rubricId = randomUUID();
+    const rubricVersionId = randomUUID();
     const candidateId = randomUUID();
     const heldCandidateId = randomUUID();
     const activeCandidateId = randomUUID();
@@ -57,6 +59,31 @@ test(
           ${organizationId}::uuid,
           'Retention Test Job',
           'open',
+          ${oldDate},
+          ${oldDate}
+        )
+      `;
+      await database.sql`
+        INSERT INTO rubrics (id, organization_id, job_id, name, status, created_at, updated_at)
+        VALUES (
+          ${rubricId}::uuid,
+          ${organizationId}::uuid,
+          ${jobId}::uuid,
+          'Retention Test Rubric',
+          'published',
+          ${oldDate},
+          ${oldDate}
+        )
+      `;
+      await database.sql`
+        INSERT INTO rubric_versions (
+          id, organization_id, rubric_id, version, status, published_at, created_at
+        ) VALUES (
+          ${rubricVersionId}::uuid,
+          ${organizationId}::uuid,
+          ${rubricId}::uuid,
+          1,
+          'published',
           ${oldDate},
           ${oldDate}
         )
