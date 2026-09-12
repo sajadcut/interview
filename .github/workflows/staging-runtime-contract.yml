@@ -6,6 +6,7 @@ on:
     paths:
       - .env.example
       - apps/api/src/config/env.ts
+      - contracts/realtime-metrics.v1.json
       - contracts/whisper-stt.v1.json
       - contracts/tts-synthesis.v1.json
       - contracts/silero-vad.v1.json
@@ -21,13 +22,17 @@ on:
       - scripts/staging-runtime-preflight.test.mjs
       - scripts/staging-runtime-smoke.mjs
       - scripts/staging-runtime-smoke.test.mjs
+      - scripts/realtime-benchmark-evidence.mjs
+      - scripts/realtime-benchmark-evidence.test.mjs
       - docs/operations/staging-runtime-preflight.md
       - docs/operations/staging-runtime-deployment.md
+      - docs/operations/realtime-benchmark-evidence.md
       - .github/workflows/staging-runtime-contract.yml
   pull_request:
     paths:
       - .env.example
       - apps/api/src/config/env.ts
+      - contracts/realtime-metrics.v1.json
       - contracts/whisper-stt.v1.json
       - contracts/tts-synthesis.v1.json
       - contracts/silero-vad.v1.json
@@ -43,8 +48,11 @@ on:
       - scripts/staging-runtime-preflight.test.mjs
       - scripts/staging-runtime-smoke.mjs
       - scripts/staging-runtime-smoke.test.mjs
+      - scripts/realtime-benchmark-evidence.mjs
+      - scripts/realtime-benchmark-evidence.test.mjs
       - docs/operations/staging-runtime-preflight.md
       - docs/operations/staging-runtime-deployment.md
+      - docs/operations/realtime-benchmark-evidence.md
       - .github/workflows/staging-runtime-contract.yml
 
 permissions:
@@ -65,6 +73,7 @@ jobs:
         run: |
           node --check scripts/staging-runtime-preflight.mjs
           node --check scripts/staging-runtime-smoke.mjs
+          node --check scripts/realtime-benchmark-evidence.mjs
           node --check scripts/check-staging-runtime-bundle.mjs
       - name: Test staging runtime evidence gates
-        run: node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs
+        run: node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs scripts/realtime-benchmark-evidence.test.mjs

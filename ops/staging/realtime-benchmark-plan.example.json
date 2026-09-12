@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "realtime-benchmark-plan.v1",
+  "releaseUnit": {
+    "jobFamily": "REPLACE_ME",
+    "language": "fa-en",
+    "interviewType": "technical_screening",
+    "rubricVersionFamily": "REPLACE_ME",
+    "interviewerPolicyVersion": "REPLACE_ME",
+    "speechStackVersion": "REPLACE_ME",
+    "evaluatorVersion": "REPLACE_ME"
+  },
+  "minimumCompletedInterviews": 100,
+  "scenarios": [
+    { "id": "baseline_fa", "minimumCompletedInterviews": 25 },
+    { "id": "code_switch", "minimumCompletedInterviews": 25 },
+    { "id": "english", "minimumCompletedInterviews": 10 },
+    { "id": "weak_network", "minimumCompletedInterviews": 15 },
+    { "id": "reconnect", "minimumCompletedInterviews": 15 },
+    { "id": "browser_refresh", "minimumCompletedInterviews": 10 }
+  ],
+  "thresholds": {
+    "maxE2EP95Seconds": null,
+    "maxFailureRate": null,
+    "maxAbandonmentRate": null
+  }
+}

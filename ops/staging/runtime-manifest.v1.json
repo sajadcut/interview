@@ -11,14 +11,11 @@
     { "id": "tts-worker", "kind": "http", "required": true, "baseUrlEnv": "TTS_BASE_URL", "healthPath": "/health" },
     { "id": "ai-interviewer", "kind": "http", "required": true, "baseUrlEnv": "AI_INTERVIEWER_BASE_URL", "healthPath": "/health" }
   ],
-  "runtimeRequirements": [
-    "ffmpeg",
-    "whisper.cpp-model",
-    "turn-tls",
-    "real-llm-provider"
-  ],
+  "runtimeRequirements": ["ffmpeg", "whisper.cpp-model", "turn-tls", "real-llm-provider"],
   "gates": {
     "preflight": "scripts/staging-runtime-preflight.mjs",
-    "smoke": "scripts/staging-runtime-smoke.mjs"
-  }
+    "smoke": "scripts/staging-runtime-smoke.mjs",
+    "benchmarkEvidence": "scripts/realtime-benchmark-evidence.mjs"
+  },
+  "benchmarkPlanTemplate": "ops/staging/realtime-benchmark-plan.example.json"
 }
