@@ -37,6 +37,10 @@ test(
     const userB = randomUUID();
     const jobA = randomUUID();
     const jobB = randomUUID();
+    const rubricA = randomUUID();
+    const rubricB = randomUUID();
+    const rubricVersionA = randomUUID();
+    const rubricVersionB = randomUUID();
     const candidateA = randomUUID();
     const candidateB = randomUUID();
     const applicationA = randomUUID();
@@ -62,6 +66,16 @@ test(
         INSERT INTO jobs (id, organization_id, title, status) VALUES
           (${jobA}::uuid, ${organizationA}::uuid, 'Audit Job A', 'open'),
           (${jobB}::uuid, ${organizationB}::uuid, 'Audit Job B', 'open')
+      `;
+      await database.sql`
+        INSERT INTO rubrics (id, organization_id, job_id, name, status) VALUES
+          (${rubricA}::uuid, ${organizationA}::uuid, ${jobA}::uuid, 'Audit Rubric A', 'published'),
+          (${rubricB}::uuid, ${organizationB}::uuid, ${jobB}::uuid, 'Audit Rubric B', 'published')
+      `;
+      await database.sql`
+        INSERT INTO rubric_versions (id, organization_id, rubric_id, version, status, published_at) VALUES
+          (${rubricVersionA}::uuid, ${organizationA}::uuid, ${rubricA}::uuid, 1, 'published', now()),
+          (${rubricVersionB}::uuid, ${organizationB}::uuid, ${rubricB}::uuid, 1, 'published', now())
       `;
       await database.sql`
         INSERT INTO candidates (id, organization_id, display_name) VALUES
