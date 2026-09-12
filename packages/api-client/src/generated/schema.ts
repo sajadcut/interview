@@ -413,7 +413,7 @@ export interface paths {
         };
         get: operations["RecruitingController_listCandidates"];
         put?: never;
-        post?: never;
+        post: operations["RecruitingOperationsController_createCandidate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -462,6 +462,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["RecruitingController_previewScorecard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RecruitingOperationsController_createApplication"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2546,6 +2562,7 @@ export interface components {
         CandidateApplicationDto: {
             id: string;
             jobId: string;
+            rubricVersionId: string;
             jobTitle: string;
             status: string;
             pipelineStage: string;
@@ -2563,6 +2580,16 @@ export interface components {
             preferredLanguage?: string;
             skills: components["schemas"]["CandidateSkillDto"][];
             applications: components["schemas"]["CandidateApplicationDto"][];
+        };
+        PreviewScoreCriterionDto: {
+            /** Format: uuid */
+            criterionId: string;
+            weight: number;
+            score: number;
+            evidenceIds: string[];
+        };
+        PreviewScorecardDto: {
+            criteria: components["schemas"]["PreviewScoreCriterionDto"][];
         };
         CreateJobRequirementDto: {
             /** @enum {string} */
@@ -2590,6 +2617,21 @@ export interface components {
             requirements: components["schemas"]["CreateJobRequirementDto"][];
             rubricName: string;
             rubricCriteria: components["schemas"]["CreateRubricCriterionDto"][];
+        };
+        CreateCandidateDto: {
+            displayName: string;
+            primaryEmail?: string;
+            primaryPhone?: string;
+            currentRole?: string;
+            currentCompany?: string;
+            location?: string;
+            preferredLanguage?: string;
+        };
+        CreateApplicationDto: {
+            /** Format: uuid */
+            candidateId: string;
+            source?: string;
+            pipelineStage?: string;
         };
         UpdateJobDto: {
             title?: string;
@@ -4865,6 +4907,59 @@ export interface operations {
             };
         };
     };
+    RecruitingOperationsController_createCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCandidateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
     RecruitingController_getCandidateWorkspace: {
         parameters: {
             query?: never;
@@ -4976,7 +5071,66 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewScorecardDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_createApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateApplicationDto"];
+            };
+        };
         responses: {
             201: {
                 headers: {

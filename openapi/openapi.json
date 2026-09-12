@@ -1351,6 +1351,68 @@
         "tags": [
           "recruiting"
         ]
+      },
+      "post": {
+        "operationId": "RecruitingOperationsController_createCandidate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCandidateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
       }
     },
     "/v1/candidates/{candidateId}/workspace": {
@@ -1490,6 +1552,16 @@
       "post": {
         "operationId": "RecruitingController_previewScorecard",
         "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewScorecardDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -1537,6 +1609,79 @@
         },
         "tags": [
           "recruiting"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/applications": {
+      "post": {
+        "operationId": "RecruitingOperationsController_createApplication",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApplicationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
         ]
       }
     },
@@ -8014,6 +8159,9 @@
           "jobId": {
             "type": "string"
           },
+          "rubricVersionId": {
+            "type": "string"
+          },
           "jobTitle": {
             "type": "string"
           },
@@ -8033,6 +8181,7 @@
         "required": [
           "id",
           "jobId",
+          "rubricVersionId",
           "jobTitle",
           "status",
           "pipelineStage"
@@ -8083,6 +8232,51 @@
           "displayName",
           "skills",
           "applications"
+        ]
+      },
+      "PreviewScoreCriterionDto": {
+        "type": "object",
+        "properties": {
+          "criterionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.001
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "criterionId",
+          "weight",
+          "score",
+          "evidenceIds"
+        ]
+      },
+      "PreviewScorecardDto": {
+        "type": "object",
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewScoreCriterionDto"
+            }
+          }
+        },
+        "required": [
+          "criteria"
         ]
       },
       "CreateJobRequirementDto": {
@@ -8188,6 +8382,53 @@
           "requirements",
           "rubricName",
           "rubricCriteria"
+        ]
+      },
+      "CreateCandidateDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "primaryEmail": {
+            "type": "string"
+          },
+          "primaryPhone": {
+            "type": "string"
+          },
+          "currentRole": {
+            "type": "string"
+          },
+          "currentCompany": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "preferredLanguage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "displayName"
+        ]
+      },
+      "CreateApplicationDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string"
+          },
+          "pipelineStage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidateId"
         ]
       },
       "UpdateJobDto": {
