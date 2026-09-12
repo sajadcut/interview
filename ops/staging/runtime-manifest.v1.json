@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "staging-runtime-manifest.v1",
+  "environmentTemplate": "ops/staging/staging.env.example",
+  "evidenceDirectory": ".local-data/evidence",
+  "components": [
+    { "id": "postgresql", "kind": "database", "required": true, "configuration": "DATABASE_URL", "readinessVia": "api" },
+    { "id": "api", "kind": "http", "required": true, "baseUrlEnv": "STAGING_API_BASE_URL", "healthPath": "/health/ready" },
+    { "id": "livekit", "kind": "rtc", "required": true, "baseUrlEnv": "LIVEKIT_HEALTH_URL", "healthPath": "/" },
+    { "id": "media-worker", "kind": "http", "required": true, "baseUrlEnv": "MEDIA_WORKER_BASE_URL", "healthPath": "/health" },
+    { "id": "vad-worker", "kind": "http", "required": true, "baseUrlEnv": "VAD_BASE_URL", "healthPath": "/health" },
+    { "id": "tts-worker", "kind": "http", "required": true, "baseUrlEnv": "TTS_BASE_URL", "healthPath": "/health" },
+    { "id": "ai-interviewer", "kind": "http", "required": true, "baseUrlEnv": "AI_INTERVIEWER_BASE_URL", "healthPath": "/health" }
+  ],
+  "runtimeRequirements": [
+    "ffmpeg",
+    "whisper.cpp-model",
+    "turn-tls",
+    "real-llm-provider"
+  ],
+  "gates": {
+    "preflight": "scripts/staging-runtime-preflight.mjs",
+    "smoke": "scripts/staging-runtime-smoke.mjs"
+  }
+}

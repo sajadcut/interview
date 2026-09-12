@@ -6,25 +6,45 @@ on:
     paths:
       - .env.example
       - apps/api/src/config/env.ts
+      - contracts/whisper-stt.v1.json
+      - contracts/tts-synthesis.v1.json
+      - contracts/silero-vad.v1.json
       - services/media-worker/**
+      - services/vad-worker/**
+      - services/tts-worker/**
       - services/ai-worker/src/interviewer-*.mjs
       - ops/livekit/**
+      - ops/staging/**
       - infra/realtime/**
+      - scripts/check-staging-runtime-bundle.mjs
       - scripts/staging-runtime-preflight.mjs
       - scripts/staging-runtime-preflight.test.mjs
+      - scripts/staging-runtime-smoke.mjs
+      - scripts/staging-runtime-smoke.test.mjs
       - docs/operations/staging-runtime-preflight.md
+      - docs/operations/staging-runtime-deployment.md
       - .github/workflows/staging-runtime-contract.yml
   pull_request:
     paths:
       - .env.example
       - apps/api/src/config/env.ts
+      - contracts/whisper-stt.v1.json
+      - contracts/tts-synthesis.v1.json
+      - contracts/silero-vad.v1.json
       - services/media-worker/**
+      - services/vad-worker/**
+      - services/tts-worker/**
       - services/ai-worker/src/interviewer-*.mjs
       - ops/livekit/**
+      - ops/staging/**
       - infra/realtime/**
+      - scripts/check-staging-runtime-bundle.mjs
       - scripts/staging-runtime-preflight.mjs
       - scripts/staging-runtime-preflight.test.mjs
+      - scripts/staging-runtime-smoke.mjs
+      - scripts/staging-runtime-smoke.test.mjs
       - docs/operations/staging-runtime-preflight.md
+      - docs/operations/staging-runtime-deployment.md
       - .github/workflows/staging-runtime-contract.yml
 
 permissions:
@@ -39,7 +59,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 25.9.0
-      - name: Validate staging runtime preflight syntax
-        run: node --check scripts/staging-runtime-preflight.mjs
-      - name: Test staging runtime preflight contract
-        run: node --test scripts/staging-runtime-preflight.test.mjs
+      - name: Validate staging bundle contract
+        run: node scripts/check-staging-runtime-bundle.mjs
+      - name: Validate staging runtime script syntax
+        run: |
+          node --check scripts/staging-runtime-preflight.mjs
+          node --check scripts/staging-runtime-smoke.mjs
+          node --check scripts/check-staging-runtime-bundle.mjs
+      - name: Test staging runtime evidence gates
+        run: node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs
