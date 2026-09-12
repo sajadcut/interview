@@ -74,7 +74,9 @@
     "api:sync": "npm run openapi:export && npm run api-client:generate"
   },
   "overrides": {
-    "multer": "2.3.0"
+    "@nestjs/platform-express": {
+      "multer": "2.3.0"
+    }
   },
   "scarfSettings": {
     "enabled": false
