@@ -40,7 +40,7 @@ function requestMetadata(env, metadata = {}) {
   const userId = String(references.userId ?? env.LLM_USER_ID ?? sessionId ?? "interview-platform").trim();
   const requestId = String(metadata.executionId ?? "").trim();
   return {
-    "x-request-id": requestId || crypto.randomUUID(),
+    "x-request-id": requestId || randomUUID(),
     "x-session-id": sessionId || requestId || "interview-platform",
     "x-user-id": userId || "interview-platform",
   };
