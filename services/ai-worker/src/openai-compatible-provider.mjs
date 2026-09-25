@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { LLMProviderError } from "./llm-provider.mjs";
 
 function boundedNonNegativeInteger(value) {
@@ -31,6 +32,31 @@ function providerReadinessFailure(status) {
   return { reachable: true, ready: false, reason: "provider_not_ready" };
 }
 
+function requestMetadata(env, metadata = {}) {
+  const references = metadata?.inputReferences && typeof metadata.inputReferences === "object"
+    ? metadata.inputReferences
+    : {};
+  const sessionId = String(references.sessionId ?? "").trim();
+  const userId = String(references.userId ?? env.LLM_USER_ID ?? sessionId ?? "interview-platform").trim();
+  const requestId = String(metadata.executionId ?? "").trim();
+  return {
+    "x-request-id": requestId || crypto.randomUUID(),
+    "x-session-id": sessionId || requestId || "interview-platform",
+    "x-user-id": userId || "interview-platform",
+  };
+}
+
+function parseBoolean(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value).trim().toLowerCase() === "true";
+}
+
+function reasoningEffort(value) {
+  const allowed = new Set(["low", "medium", "high", "xhigh", "max", "xmax"]);
+  const normalized = String(value ?? "medium").trim().toLowerCase();
+  return allowed.has(normalized) ? normalized : "medium";
+}
+
 export function createOpenAiCompatibleProvider(env = process.env) {
   const apiKey = env.LLM_API_KEY?.trim();
   const model = env.LLM_MODEL?.trim();
@@ -59,7 +85,7 @@ export function createOpenAiCompatibleProvider(env = process.env) {
       if (!response.ok) return providerReadinessFailure(response.status);
       return { reachable: true, ready: true };
     },
-    async generate({ prompt, maxOutputTokens, signal }) {
+    async generate({ prompt, maxOutputTokens, signal, metadata = {} }) {
       let response;
       try {
         response = await fetch(`${baseUrl}/chat/completions`, {
@@ -67,6 +93,7 @@ export function createOpenAiCompatibleProvider(env = process.env) {
           headers: {
             authorization: `Bearer ${apiKey}`,
             "content-type": "application/json",
+            ...requestMetadata(env, metadata),
           },
           signal,
           body: JSON.stringify({
@@ -77,6 +104,8 @@ export function createOpenAiCompatibleProvider(env = process.env) {
             ],
             temperature: 0.2,
             max_tokens: maxOutputTokens,
+            enable_thinking: parseBoolean(env.LLM_ENABLE_THINKING, false),
+            reasoning_effort: reasoningEffort(env.LLM_REASONING_EFFORT),
             response_format: { type: "json_object" },
           }),
         });
