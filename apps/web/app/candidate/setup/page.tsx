@@ -13,11 +13,11 @@ type ConsentType = "privacy_disclosure" | "ai_interview" | "recording";
 const NOTICE_VERSION = "candidate-access-v1";
 const REQUIRED_CONSENTS: ConsentType[] = ["privacy_disclosure", "ai_interview", "recording"];
 
-function messageFrom(value: unknown, fallback: string): string {
+function messageFrom(value: unknown, fallback: string, locale: "fa" | "en"): string {
   if (value && typeof value === "object" && "message" in value) {
     const message = (value as { message?: unknown }).message;
-    if (typeof message === "string") return localizeApiMessage(message);
-    if (Array.isArray(message)) return message.map((item) => localizeApiMessage(String(item))).join("؛ ");
+    if (typeof message === "string") return locale === "fa" ? localizeApiMessage(message) : message;
+    if (Array.isArray(message)) return message.map((item) => locale === "fa" ? localizeApiMessage(String(item)) : String(item)).join(locale === "fa" ? "؛ " : "; ");
   }
   return fallback;
 }
@@ -50,7 +50,7 @@ export default function CandidateSetupPage() {
         }
         setSession(sessionResult.data);
         if (consentResult.error || !consentResult.data) {
-          throw new Error(messageFrom(consentResult.error, candidateCopy[locale].genericError));
+          throw new Error(messageFrom(consentResult.error, candidateCopy[locale].genericError, locale));
         }
         setConsentStatus(consentResult.data);
         const granted = new Set(
@@ -99,12 +99,12 @@ export default function CandidateSetupPage() {
           body: { consentType, noticeVersion: NOTICE_VERSION, granted: true },
         });
         if (result.error || !result.data) {
-          throw new Error(messageFrom(result.error, candidateCopy[locale].genericError));
+          throw new Error(messageFrom(result.error, candidateCopy[locale].genericError, locale));
         }
       }
       const refreshed = await api.GET("/v1/candidate-consent");
       if (refreshed.error || !refreshed.data?.readyForInterview) {
-        throw new Error(messageFrom(refreshed.error, candidateCopy[locale].genericError));
+        throw new Error(messageFrom(refreshed.error, candidateCopy[locale].genericError, locale));
       }
       window.location.assign("/candidate/interview");
     } catch (cause) {
