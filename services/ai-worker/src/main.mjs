@@ -3,19 +3,12 @@ import process from "node:process";
 import { AiWorkerApiClient } from "./api-client.mjs";
 import { capabilityPromptDefinitions, createCapabilityProcessors } from "./capabilities.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
-import { createOpenAiCompatibleProvider, createUnavailableProvider } from "./openai-compatible-provider.mjs";
+import { createConfiguredProvider } from "./provider-factory.mjs";
 import { AiWorkerRuntime } from "./runtime.mjs";
 
 function integerEnv(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
   return Number.isFinite(value) ? Math.trunc(value) : fallback;
-}
-
-function providerFromEnvironment() {
-  const selected = (process.env.LLM_PROVIDER ?? "disabled").trim().toLowerCase();
-  if (selected === "openai-compatible") return createOpenAiCompatibleProvider(process.env);
-  if (selected === "disabled") return createUnavailableProvider();
-  throw new Error(`Unsupported LLM_PROVIDER ${selected}`);
 }
 
 const sharedSecret = process.env.AI_WORKER_SHARED_SECRET?.trim();
@@ -25,7 +18,7 @@ const promptRegistry = new PromptRegistry(
   capabilityPromptDefinitions().map(({ capability: _capability, ...definition }) => definition),
 );
 const llm = new LLMProviderLayer({
-  providers: [providerFromEnvironment()],
+  providers: [createConfiguredProvider(process.env)],
   promptRegistry,
   timeoutMs: integerEnv("LLM_TIMEOUT_MS", 30_000),
   maxAttemptsPerProvider: integerEnv("LLM_MAX_ATTEMPTS_PER_PROVIDER", 2),
