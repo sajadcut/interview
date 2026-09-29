@@ -197,7 +197,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] text-slate-400">Candidates / {candidate.id}</div>
+          <div className="text-[10px] text-slate-400">کاندیداها / {candidate.id}</div>
           <h1 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950">{candidate.displayName}</h1>
           <p className="mt-1 text-[11px] text-slate-500">{[candidate.currentRole, candidate.currentCompany, candidate.location].filter(Boolean).join(" · ")}</p>
         </div>
