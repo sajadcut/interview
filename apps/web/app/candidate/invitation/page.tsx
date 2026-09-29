@@ -9,17 +9,18 @@ import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
 type InvitationContext = components["schemas"]["CandidateMagicLinkValidationDto"];
 
-function readMessage(payload: unknown, fallback: string): string {
+function readMessage(payload: unknown, fallback: string, locale: "fa" | "en"): string {
   if (payload && typeof payload === "object" && "message" in payload) {
     const value = (payload as { message?: unknown }).message;
-    if (typeof value === "string") return localizeApiMessage(value);
-    if (Array.isArray(value)) return value.map((item) => localizeApiMessage(String(item))).join("؛ ");
+    if (typeof value === "string") return locale === "fa" ? localizeApiMessage(value) : value;
+    if (Array.isArray(value)) return value.map((item) => locale === "fa" ? localizeApiMessage(String(item)) : String(item)).join(locale === "fa" ? "؛ " : "; ");
   }
   return fallback;
 }
 
 function CandidateInvitationContent() {
-  const copy = candidateCopy[getDefaultLocale()].invitation;
+  const locale = getDefaultLocale();
+  const copy = candidateCopy[locale].invitation;
   const search = useSearchParams();
   const token = search.get("token")?.trim() ?? "";
   const [context, setContext] = useState<InvitationContext | null>(null);
@@ -40,7 +41,7 @@ function CandidateInvitationContent() {
       .then((result) => {
         if (!active) return;
         if (result.error || !result.data) {
-          throw new Error(readMessage(result.error, copy.invalid));
+          throw new Error(readMessage(result.error, copy.invalid, locale));
         }
         setContext(result.data);
       })
@@ -62,7 +63,7 @@ function CandidateInvitationContent() {
         body: { token, otp: otp.trim() },
       });
       if (result.error || !result.data?.authenticated) {
-        throw new Error(readMessage(result.error, copy.invalid));
+        throw new Error(readMessage(result.error, copy.invalid, locale));
       }
       window.location.assign("/candidate/setup");
     } catch (cause) {
