@@ -82,13 +82,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [logoutError, setLogoutError] = useState<string>();
   const header = locale === "fa"
     ? {
-        search: "جستجوی کاندیدا، موقعیت یا مصاحبه...",
-        ask: "از AI بپرس",
+        search: "جست‌وجوی کاندیدا، موقعیت یا مصاحبه...",
+        ask: "از هوش مصنوعی بپرس",
         create: "ایجاد موقعیت",
         automation: "اتوماسیون",
         logout: "خروج امن",
         logoutFailed: "خروج امن انجام نشد. دوباره تلاش کنید.",
-        aiPending: "دستیار سراسری AI هنوز به این کنترل متصل نشده است",
+        aiPending: "دستیار سراسری هوش مصنوعی هنوز به این کنترل متصل نشده است",
         notificationsPending: "مرکز اعلان‌ها هنوز متصل نشده است",
       }
     : {
