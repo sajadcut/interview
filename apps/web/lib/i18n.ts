@@ -5,6 +5,10 @@ export function getDefaultLocale(): AppLocale {
   return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "en" ? "en" : "fa";
 }
 
+export function getInternalLocale(): AppLocale {
+  return "fa";
+}
+
 export function directionFor(locale: AppLocale): "rtl" | "ltr" {
   return locale === "fa" ? "rtl" : "ltr";
 }
@@ -139,8 +143,8 @@ export const shellCopy = {
       ["مصاحبه‌ها", "/app/interviews"],
       ["پیام‌ها", "/app/inbox"],
       ["تحلیل‌ها", "/app/analytics"],
-      ["اتوماسیون", "/app/automations"],
-      ["اتصال‌ها", "/app/integrations"],
+      ["اتوماسیون‌ها", "/app/automations"],
+      ["یکپارچه‌سازی‌ها", "/app/integrations"],
       ["تنظیمات", "/app/settings"],
     ],
   },
