@@ -113,7 +113,7 @@ export default function JobsPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-[10px] text-slate-400">
-          <span>{filteredJobs.length} of {jobs.length} موقعیت ثبت‌شده</span>
+          <span>{filteredJobs.length} از {jobs.length} موقعیت ثبت‌شده</span>
           <span className="font-medium text-slate-500">مرتب‌شده بر اساس آخرین به‌روزرسانی</span>
         </div>
       </Panel>
