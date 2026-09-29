@@ -1,14 +1,32 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.37.0
-> **Date:** 2026-09-12
+> **Version:** 0.38.0
+> **Date:** 2026-09-29
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
 ---
 
 # 1. Current validated baseline
+
+## Hiring Requisition → HR Recruiting → Requesting-Team Approval
+
+```text
+implementation                            pushed with this change; CI validation pending
+domain entrypoint                         HiringRequest before Job creation
+request owner                             Hiring Manager / requesting team
+recruiting owner                          HR Manager / Recruiter after HR approval
+candidate lifecycle                       Candidate remains organization-global; Application owns job lifecycle
+technical gate                            latest explicit technical approval required before requisition-backed hire
+legacy jobs                               backward-compatible when no HiringRequest is linked
+permissions                               hiring_request.read/create/manage + technical_approval.submit
+database                                  append-only migration 0059_hiring_request_workflow.sql
+UI                                        /app/hiring-requests + candidate technical-approval control
+production-safety boundary                consequential hire remains human-controlled
+```
+
+
 
 The deterministic GitHub Actions quality gate installs the committed lockfile, validates and applies PostgreSQL migrations, verifies operational indexes, regenerates OpenAPI and the typed client, rejects generated-contract drift, and runs lint, typecheck, PostgreSQL/integration/unit tests, specialized worker tests, alerting-contract validation, LiveKit deployment-contract validation, Whisper STT contract validation, FFmpeg integration-contract validation, LLM provider-contract validation, production builds, deterministic browser fixtures, and critical Browser E2E flows.
 

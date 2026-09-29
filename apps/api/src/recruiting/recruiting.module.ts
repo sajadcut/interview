@@ -1,6 +1,8 @@
 import { Module } from "@nestjs/common";
 import { InterviewsModule } from "../interviews/interviews.module";
 import { CandidateIntelligenceController } from "./candidate-intelligence.controller";
+import { HiringRequestsController } from "./hiring-requests.controller";
+import { HiringRequestsService } from "./hiring-requests.service";
 import { CandidateIntelligenceService } from "./candidate-intelligence.service";
 import { RecruitingOperationsController } from "./recruiting-operations.controller";
 import { RecruitingOperationsService } from "./recruiting-operations.service";
@@ -17,6 +19,7 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     RecruitingOperationsController,
     CandidateIntelligenceController,
     ScorecardReviewController,
+    HiringRequestsController,
   ],
   providers: [
     RecruitingService,
@@ -24,12 +27,14 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     { provide: RecruitingOperationsService, useExisting: SupervisedPilotAwareRecruitingOperationsService },
     CandidateIntelligenceService,
     ScorecardReviewService,
+    HiringRequestsService,
   ],
   exports: [
     RecruitingService,
     RecruitingOperationsService,
     CandidateIntelligenceService,
     ScorecardReviewService,
+    HiringRequestsService,
   ],
 })
 export class RecruitingModule {}

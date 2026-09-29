@@ -20,6 +20,10 @@ export type UiPermission =
   | "job.read"
   | "job.create"
   | "job.edit"
+  | "hiring_request.read"
+  | "hiring_request.create"
+  | "hiring_request.manage"
+  | "technical_approval.submit"
   | "candidate.read"
   | "candidate.contact"
   | "candidate.move_stage"
@@ -78,6 +82,10 @@ const ALL_PERMISSIONS: UiPermission[] = [
   "job.read",
   "job.create",
   "job.edit",
+  "hiring_request.read",
+  "hiring_request.create",
+  "hiring_request.manage",
+  "technical_approval.submit",
   "candidate.read",
   "candidate.contact",
   "candidate.move_stage",
@@ -111,7 +119,10 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "organization.read",
     "settings.manage",
     "job.read",
+    "job.create",
     "job.edit",
+    "hiring_request.read",
+    "hiring_request.manage",
     "candidate.read",
     "candidate.contact",
     "candidate.move_stage",
@@ -134,6 +145,8 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "job.read",
     "job.create",
     "job.edit",
+    "hiring_request.read",
+    "hiring_request.manage",
     "candidate.read",
     "candidate.contact",
     "candidate.move_stage",
@@ -163,6 +176,9 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
   HIRING_MANAGER: [
     "organization.read",
     "job.read",
+    "hiring_request.read",
+    "hiring_request.create",
+    "technical_approval.submit",
     "candidate.read",
     "candidate.score",
     "interview.read",
@@ -193,6 +209,7 @@ function permissionForPath(pathname: string): UiPermission | undefined {
   if (pathname.startsWith("/app/interviews")) return "interview.read";
   if (pathname.startsWith("/app/talent")) return "candidate.read";
   if (pathname.startsWith("/app/candidates")) return "candidate.read";
+  if (pathname.startsWith("/app/hiring-requests")) return "hiring_request.read";
   if (pathname.startsWith("/app/jobs")) return "job.read";
   if (pathname.startsWith("/app/settings")) return "organization.read";
   return undefined;

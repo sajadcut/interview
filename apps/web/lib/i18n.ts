@@ -16,6 +16,7 @@ export const shellCopy = {
     subtitle: "فضای کاری استخدام",
     navigation: [
       ["خانه", "/app"],
+      ["درخواست نیرو", "/app/hiring-requests"],
       ["موقعیت‌ها", "/app/jobs"],
       ["کاندیداها", "/app/candidates"],
       ["استعدادها", "/app/talent"],
@@ -33,6 +34,7 @@ export const shellCopy = {
     subtitle: "Recruiting workspace",
     navigation: [
       ["Home", "/app"],
+      ["Hiring Requests", "/app/hiring-requests"],
       ["Jobs", "/app/jobs"],
       ["Candidates", "/app/candidates"],
       ["Talent", "/app/talent"],

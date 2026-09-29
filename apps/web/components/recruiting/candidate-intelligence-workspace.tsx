@@ -51,6 +51,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
   const [selectedApplicationId, setSelectedApplicationId] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string>();
+  const [technicalApproval, setTechnicalApproval] = useState<{ decision: string; feedback: string; approverName?: string } | null>();
 
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
@@ -93,6 +94,28 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     [workspace, selectedApplicationId],
   );
 
+  useEffect(() => {
+    if (!selectedApplicationId) {
+      setTechnicalApproval(undefined);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const currentIdentity = identity ?? (await resolveTenantIdentity());
+        const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/technical-approval`, {
+          headers: tenantHeaders(currentIdentity),
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { decision: string; feedback: string; approverName?: string } | null;
+        if (active) setTechnicalApproval(payload);
+      } catch {
+        if (active) setTechnicalApproval(undefined);
+      }
+    })();
+    return () => { active = false; };
+  }, [identity, selectedApplicationId]);
+
   async function finalizeScorecard() {
     if (!identity || !selectedApplicationId) return;
     const result = await api.POST("/v1/applications/{applicationId}/scorecards/finalize", {
@@ -126,6 +149,25 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     });
     setMessage(result.error ? messageFrom(result.error, "Evidence creation failed") : "Evidence persisted.");
     if (!result.error) await load(identity);
+  }
+
+  async function submitTechnicalApproval(decision: "approve" | "needs_interview" | "reject") {
+    if (!identity || !selectedApplicationId) return;
+    const feedback = window.prompt(`Technical feedback for ${decision}`)?.trim();
+    if (!feedback) return;
+    const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/technical-approval`, {
+      method: "POST",
+      headers: tenantHeaders(identity, true),
+      body: JSON.stringify({ decision, feedback }),
+    });
+    const payload = await response.json().catch(() => ({})) as { message?: string; decision?: string; feedback?: string };
+    if (!response.ok) {
+      setMessage(payload.message || "Technical approval failed");
+      return;
+    }
+    setTechnicalApproval({ decision: payload.decision || decision, feedback: payload.feedback || feedback });
+    setMessage(`Technical approval recorded: ${decision}.`);
+    await load(identity);
   }
 
   async function submitDecision(decision: "advance" | "hold" | "reject" | "hire") {
@@ -193,6 +235,8 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
             <h2 className="text-[13px] font-semibold">Skills & verification</h2>
             <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.length ? workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {skill.verificationState}</span>) : <span className="text-[10px] text-slate-400">No persisted skills.</span>}</div>
           </Panel>
+
+          {selectedApplication && access.can("technical_approval.submit") ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">Requesting-team technical approval</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">For requisition-backed jobs, HR cannot record a hire until the latest technical approval is approve.</p>{technicalApproval ? <div className="mt-3 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-600">Latest: <strong>{technicalApproval.decision}</strong>{technicalApproval.approverName ? ` · ${technicalApproval.approverName}` : ""}<div className="mt-1">{technicalApproval.feedback}</div></div> : null}<div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={() => void submitTechnicalApproval("approve")} className="rounded-lg border border-emerald-100 px-2 py-2 text-[9px] font-semibold text-emerald-700">Approve</button><button type="button" onClick={() => void submitTechnicalApproval("needs_interview")} className="rounded-lg border border-amber-100 px-2 py-2 text-[9px] font-semibold text-amber-700">More interview</button><button type="button" onClick={() => void submitTechnicalApproval("reject")} className="rounded-lg border border-rose-100 px-2 py-2 text-[9px] font-semibold text-rose-700">Reject</button></div></Panel> : null}
 
           {selectedApplication ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">Human decision control</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">AI recommendations are decision support only. A human actor and reason are persisted for every decision.</p><div className="mt-4 grid grid-cols-2 gap-2">{access.can("decision.submit") ? (["advance", "hold", "reject", "hire"] as const).map((decision) => <button key={decision} type="button" onClick={() => void submitDecision(decision)} className={`rounded-lg border px-3 py-2 text-[10px] font-semibold ${decision === "reject" ? "border-rose-100 text-rose-700" : decision === "hire" ? "border-emerald-100 text-emerald-700" : "border-slate-200 text-slate-700"}`}>{decision}</button>) : <div className="col-span-2 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-500">Current role cannot submit hiring decisions.</div>}</div><Link href={`/app/jobs/${selectedApplication.jobId}`} className="mt-4 inline-flex text-[9px] font-semibold text-indigo-600">Open job workspace →</Link></Panel> : null}
         </div>

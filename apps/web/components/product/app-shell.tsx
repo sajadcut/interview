@@ -11,6 +11,7 @@ import { requiredPermissionForInternalPath, useInternalAccess } from "./internal
 
 const iconByHref: Record<string, IconName> = {
   "/app": "home",
+  "/app/hiring-requests": "briefcase",
   "/app/jobs": "jobs",
   "/app/candidates": "candidates",
   "/app/talent": "talent",

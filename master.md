@@ -994,3 +994,34 @@ Any future proposal that changes a locked decision should document:
 7. whether `projectstate.md` or `production-readiness.md` must also change.
 
 The goal is not to preserve decisions forever. The goal is to prevent accidental architecture drift.
+
+
+---
+
+# Hiring requisition → HR recruiting → requesting-team approval
+
+The enterprise workflow starts with business demand rather than an already-created Job:
+
+```text
+Requesting team / Hiring Manager
+→ HiringRequest
+→ HR review
+→ approved requisition
+→ Job + rubric + recruiting execution
+→ Candidate Applications
+→ evidence / interviews / assessments
+→ requesting-team technical approval
+→ HR final hiring action
+```
+
+Architecture rules:
+
+- `HiringRequest` represents workforce demand and approval context; it does not own candidate lifecycle.
+- `Candidate` remains organization-global. Job-specific lifecycle continues to belong to `Application`.
+- The requesting team supplies the role need and retains the technical approval gate.
+- HR/recruiting owns the recruiting process after a requisition is approved.
+- A requisition-backed `hire` decision is fail-closed unless the latest technical approval is `approve`.
+- Technical approval is explicit, attributable to a user, timestamped, feedback-bearing, and auditable.
+- A `needs_interview` technical decision sends the application to `technical_review`; it is not an approval.
+- Legacy Jobs without a linked HiringRequest remain backward-compatible.
+- Final employment decisions remain human-controlled; AI outputs remain decision support.

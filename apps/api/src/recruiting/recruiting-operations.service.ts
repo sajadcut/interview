@@ -3,6 +3,7 @@ import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { calculateEvidenceBackedScore, type CriterionScoreInput } from "./score-engine";
+import { canSubmitRequisitionBackedHire } from "./hiring-workflow-policy";
 import type {
   CreateApplicationDto,
   CreateCandidateDto,
@@ -729,13 +730,37 @@ export class RecruitingOperationsService {
     const userId = actorId(this.authContext);
     return this.database.sql.begin(async (tx) => {
       const applications = await tx`
-        SELECT id::text
-        FROM applications
-        WHERE organization_id = ${organizationId}::uuid AND id = ${applicationId}::uuid
+        SELECT a.id::text, a.job_id::text, hr.id::text AS hiring_request_id
+        FROM applications a
+        LEFT JOIN hiring_requests hr
+          ON hr.organization_id = a.organization_id
+         AND hr.linked_job_id = a.job_id
+        WHERE a.organization_id = ${organizationId}::uuid
+          AND a.id = ${applicationId}::uuid
         LIMIT 1
-        FOR UPDATE
+        FOR UPDATE OF a
       `;
-      if (!applications[0]) throw new NotFoundException("Application not found");
+      const application = applications[0];
+      if (!application) throw new NotFoundException("Application not found");
+
+      if (input.decision === "hire" && application.hiring_request_id) {
+        const approvals = await tx`
+          SELECT decision
+          FROM application_technical_approvals
+          WHERE organization_id = ${organizationId}::uuid
+            AND application_id = ${applicationId}::uuid
+            AND hiring_request_id = ${String(application.hiring_request_id)}::uuid
+          ORDER BY created_at DESC, id DESC
+          LIMIT 1
+        `;
+        const latestApproval = approvals[0]?.decision ? String(approvals[0].decision) : undefined;
+        if (!canSubmitRequisitionBackedHire(true, latestApproval)) {
+          throw new BadRequestException(
+            "Requesting-team technical approval is required before a requisition-backed application can be hired",
+          );
+        }
+      }
+
       if (input.scorecardId) {
         const scorecards = await tx`
           SELECT 1 FROM scorecards
@@ -757,7 +782,7 @@ export class RecruitingOperationsService {
           ${input.reason.trim()},
           ${userId}::uuid,
           ${input.scorecardId ?? null}::uuid,
-          '{}'::jsonb
+          ${JSON.stringify({ technicalApprovalRequired: Boolean(application.hiring_request_id) })}::jsonb
         )
         RETURNING id::text, decision, reason, created_at
       `;
@@ -772,6 +797,25 @@ export class RecruitingOperationsService {
               updated_at = now()
           WHERE organization_id = ${organizationId}::uuid AND id = ${applicationId}::uuid
         `;
+
+        if (input.decision === "hire" && application.hiring_request_id) {
+          await tx`
+            UPDATE hiring_requests hr
+            SET status = CASE
+                  WHEN (
+                    SELECT count(*)::int
+                    FROM applications a
+                    WHERE a.organization_id = hr.organization_id
+                      AND a.job_id = hr.linked_job_id
+                      AND a.pipeline_stage = 'hired'
+                  ) >= hr.headcount THEN 'filled'
+                  ELSE hr.status
+                END,
+                updated_at = now()
+            WHERE hr.organization_id = ${organizationId}::uuid
+              AND hr.id = ${String(application.hiring_request_id)}::uuid
+          `;
+        }
       }
 
       return {
