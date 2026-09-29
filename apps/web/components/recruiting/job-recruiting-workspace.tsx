@@ -112,7 +112,7 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] text-slate-400">Jobs / {job.id}</div>
+          <div className="text-[10px] text-slate-400">موقعیت‌های شغلی / {job.id}</div>
           <div className="mt-2 flex items-center gap-2"><h1 className="text-[24px] font-semibold tracking-tight">{job.title}</h1><Pill tone={job.status === "open" ? "green" : "slate"}>{faDomainLabel(job.status)}</Pill></div>
           <p className="mt-1 text-[11px] text-slate-500">{[job.department, job.location, job.seniority].filter(Boolean).join(" · ")}</p>
         </div>
@@ -128,7 +128,7 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
         <div className="space-y-4">
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">الزامات</h2>
-            <div className="mt-4 space-y-2">{job.requirements.length ? job.requirements.map((requirement) => <div key={requirement.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 p-3"><div><div className="text-[11px] font-semibold text-slate-800">{requirement.name}</div><div className="mt-1 text-[9px] text-slate-500">{requirement.requirementType.replaceAll("_", " ")}{requirement.minimumYears !== undefined ? ` · ${requirement.minimumYears}+ سال` : ""}</div></div><span className="text-[9px] text-slate-400">weight {requirement.weight}</span></div>) : <div className="text-[10px] text-slate-400">هنوز الزامی ثبت نشده است.</div>}</div>
+            <div className="mt-4 space-y-2">{job.requirements.length ? job.requirements.map((requirement) => <div key={requirement.id} className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 p-3"><div><div className="text-[11px] font-semibold text-slate-800">{requirement.name}</div><div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(requirement.requirementType)}{requirement.minimumYears !== undefined ? ` · ${requirement.minimumYears}+ سال` : ""}</div></div><span className="text-[9px] text-slate-400">وزن {requirement.weight}</span></div>) : <div className="text-[10px] text-slate-400">هنوز الزامی ثبت نشده است.</div>}</div>
           </Panel>
 
           <Panel className="p-5">
