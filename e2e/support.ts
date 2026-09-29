@@ -44,13 +44,13 @@ export function candidateIdentityForProject(projectName: string): CandidateE2EId
 
 export async function signInRecruiter(page: Page): Promise<void> {
   await page.goto("/login");
-  await page.getByLabel("Work email").fill(E2E_USER_EMAIL);
-  await page.getByLabel("Password").fill(E2E_USER_PASSWORD);
+  await page.getByLabel("ایمیل کاری").fill(E2E_USER_EMAIL);
+  await page.getByLabel("رمز عبور").fill(E2E_USER_PASSWORD);
   await Promise.all([
     page.waitForURL(/\/app(?:\/)?$/),
-    page.getByRole("button", { name: "Sign in" }).click(),
+    page.getByRole("button", { name: "ورود" }).click(),
   ]);
-  await expect(page.getByRole("heading", { name: "Hiring command center" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "مرکز فرمان جذب و استخدام" })).toBeVisible();
 }
 
 export async function activeOrganizationId(page: Page): Promise<string> {

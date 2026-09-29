@@ -22,6 +22,7 @@ export function localizeApiMessage(message: string): string {
     .replace(/Unauthorized/gi, "دسترسی احراز هویت نشده است")
     .replace(/Forbidden/gi, "اجازه انجام این عملیات را ندارید")
     .replace(/Invalid credentials/gi, "ایمیل یا رمز عبور نادرست است")
+    .replace(/Invalid email or password/gi, "ایمیل یا رمز عبور نادرست است")
     .replace(/Authentication is required/gi, "برای ادامه باید وارد حساب شوید")
     .replace(/Account is disabled/gi, "حساب کاربری غیرفعال است")
     .replace(/User is disabled/gi, "حساب کاربری غیرفعال است")

@@ -5,11 +5,11 @@ test.describe("browser compatibility smoke", () => {
   test("recruiter authentication and persisted candidate workspace render outside Chromium", async ({ page }) => {
     await signInRecruiter(page);
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Hiring command center" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "مرکز فرمان جذب و استخدام" })).toBeVisible();
 
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Resume ingestion" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "دریافت و پردازش رزومه" })).toBeVisible();
   });
 
   test("candidate public entry and protected setup render outside Chromium", async ({ page }) => {
