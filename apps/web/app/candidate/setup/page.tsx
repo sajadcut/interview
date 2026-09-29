@@ -2,7 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
-import { api } from "../../../lib/api";
+import { api, localizeApiMessage } from "../../../lib/api";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
 type CandidateSession = components["schemas"]["CandidateSessionDto"];
@@ -16,8 +16,8 @@ const REQUIRED_CONSENTS: ConsentType[] = ["privacy_disclosure", "ai_interview", 
 function messageFrom(value: unknown, fallback: string): string {
   if (value && typeof value === "object" && "message" in value) {
     const message = (value as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-    if (Array.isArray(message)) return message.map(String).join("; ");
+    if (typeof message === "string") return localizeApiMessage(message);
+    if (Array.isArray(message)) return message.map((item) => localizeApiMessage(String(item))).join("؛ ");
   }
   return fallback;
 }
