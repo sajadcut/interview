@@ -4,7 +4,7 @@ import type { components } from "@interview/api-client";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../../../lib/api";
+import { api, localizeApiMessage } from "../../../lib/api";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
 type InvitationContext = components["schemas"]["CandidateMagicLinkValidationDto"];
@@ -12,8 +12,8 @@ type InvitationContext = components["schemas"]["CandidateMagicLinkValidationDto"
 function readMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
     const value = (payload as { message?: unknown }).message;
-    if (typeof value === "string") return value;
-    if (Array.isArray(value)) return value.map(String).join("; ");
+    if (typeof value === "string") return localizeApiMessage(value);
+    if (Array.isArray(value)) return value.map((item) => localizeApiMessage(String(item))).join("؛ ");
   }
   return fallback;
 }
