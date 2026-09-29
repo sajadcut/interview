@@ -35,7 +35,7 @@ It provides:
 - no rendered prompt text in returned execution metadata;
 - typed/safe provider errors without leaking raw provider diagnostics.
 
-No OpenAI, Anthropic, Gemini, local-model, or other vendor SDK is installed by this layer. Tests use scripted in-memory providers and require no model, API key, network request, or paid inference.
+The runtime includes dependency-free HTTP adapters for Dotin General Chatbot, OpenAI, Gemini, DeepSeek, and arbitrary OpenAI-compatible gateways. Provider/model switching is environment-driven; contract tests remain credential-free and do not require paid inference.
 
 Contract:
 
@@ -107,3 +107,17 @@ The root `npm test` also runs the worker tests. PostgreSQL queue lifecycle cover
 Capability processors remain registered in `src/main.mjs` (or a dedicated registry module) and should call `LLMProviderLayer.generateStructured(...)` instead of implementing retries, timeout, budget, prompt rendering, or fallback themselves.
 
 Use queue-level `RetryableJobError` only after the provider layer has exhausted its own provider retry/fallback policy and the whole job should be rescheduled. Use `PermanentJobError` for invalid job payloads or policy failures. Provider adapters should use `LLMProviderError` for provider-local failure classification.
+
+
+### Built-in provider selection
+
+`LLM_PROVIDER` accepts:
+
+- `dotin-general-chatbot` — Dotin OpenAI-compatible gateway with Dotin request metadata.
+- `openai` — OpenAI API using the default `https://api.openai.com/v1` base URL.
+- `gemini` — Google Gemini native REST `generateContent` API.
+- `deepseek` — DeepSeek OpenAI-compatible Chat Completions API.
+- `openai-compatible` — any compatible gateway; `LLM_BASE_URL` is required.
+- `disabled` — fail-closed no-provider mode.
+
+All enabled providers require `LLM_API_KEY` and `LLM_MODEL`. `LLM_BASE_URL` can override the provider default. Do not commit real credentials.
