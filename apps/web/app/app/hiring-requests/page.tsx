@@ -1,11 +1,14 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api, apiErrorMessage } from "../../../lib/api";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../../lib/tenant-client";
 import { useInternalAccess } from "../../../components/product/internal-access";
 import { Panel, Pill } from "../../../components/product/recruiting-ui";
+
+type JobSummary = components["schemas"]["JobSummaryDto"];
 
 interface HiringRequest {
   id: string;
@@ -40,6 +43,8 @@ export default function HiringRequestsPage() {
   const access = useInternalAccess();
   const [identity, setIdentity] = useState<TenantIdentity>();
   const [items, setItems] = useState<HiringRequest[]>([]);
+  const [jobs, setJobs] = useState<JobSummary[]>([]);
+  const [selectedJobIds, setSelectedJobIds] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState<string>();
@@ -54,11 +59,15 @@ export default function HiringRequestsPage() {
     try {
       const currentIdentity = knownIdentity ?? identity ?? (await resolveTenantIdentity());
       if (!identity) setIdentity(currentIdentity);
-      const result = await api.GET("/v1/hiring-requests", {
-        headers: tenantHeaders(currentIdentity),
-      });
-      if (result.error) throw new Error(apiErrorMessage(result, "Hiring requests could not be loaded"));
-      setItems((result.data ?? []) as HiringRequest[]);
+      const headers = tenantHeaders(currentIdentity);
+      const [requestsResult, jobsResult] = await Promise.all([
+        api.GET("/v1/hiring-requests", { headers }),
+        api.GET("/v1/jobs", { headers }),
+      ]);
+      if (requestsResult.error) throw new Error(apiErrorMessage(requestsResult, "Hiring requests could not be loaded"));
+      if (jobsResult.error) throw new Error(apiErrorMessage(jobsResult, "Jobs could not be loaded"));
+      setItems((requestsResult.data ?? []) as HiringRequest[]);
+      setJobs(jobsResult.data ?? []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hiring requests could not be loaded");
     } finally {
@@ -145,15 +154,27 @@ export default function HiringRequestsPage() {
 
   async function linkJob(item: HiringRequest) {
     if (!identity) return;
-    const jobId = window.prompt("Paste the approved Job ID to link to this request")?.trim();
-    if (!jobId) return;
+    const jobId = selectedJobIds[item.id];
+    if (!jobId) {
+      setError("Select a Job before linking it to the hiring request");
+      return;
+    }
     setBusy(`link-${item.id}`);
+    setError(undefined);
     const result = await api.POST("/v1/hiring-requests/{hiringRequestId}/link-job", {
       params: { path: { hiringRequestId: item.id } },
       headers: tenantHeaders(identity),
       body: { jobId },
     });
-    if (result.error) setError(apiErrorMessage(result, "Job could not be linked"));
+    if (result.error) {
+      setError(apiErrorMessage(result, "Job could not be linked"));
+    } else {
+      setSelectedJobIds((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+    }
     setBusy(undefined);
     if (!result.error) await load(identity);
   }
@@ -214,10 +235,38 @@ export default function HiringRequestsPage() {
                       <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-emerald-600" onClick={() => void reviewRequest(item.id, "approve")}>Approve</button>
                       <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-rose-600" onClick={() => void reviewRequest(item.id, "reject")}>Reject</button>
                     </> : null}
-                    {item.status === "approved" && canManage ? <>
-                      <Link href="/app/jobs/new" className="text-[10px] font-semibold text-indigo-600">Create Job</Link>
-                      <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-indigo-600" onClick={() => void linkJob(item)}>Link Job</button>
-                    </> : null}
+                    {item.status === "approved" && canManage ? (
+                      <div className="flex min-w-[280px] flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <select
+                            aria-label={`Select Job for ${item.title}`}
+                            value={selectedJobIds[item.id] ?? ""}
+                            onChange={(event) => setSelectedJobIds((current) => ({ ...current, [item.id]: event.target.value }))}
+                            className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-[10px] text-slate-700 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-50"
+                          >
+                            <option value="">Select a Job…</option>
+                            {jobs.map((job) => (
+                              <option key={job.id} value={job.id}>
+                                {job.title}{job.department ? ` · ${job.department}` : ""} · {job.status}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            disabled={Boolean(busy) || !selectedJobIds[item.id]}
+                            className="h-8 rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={() => void linkJob(item)}
+                          >
+                            {busy === `link-${item.id}` ? "Linking…" : "Link"}
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 text-[9px]">
+                          <span className="text-slate-400">
+                            {jobs.length ? `${jobs.length} available job${jobs.length === 1 ? "" : "s"}` : "No jobs available yet"}
+                          </span>
+                          <Link href="/app/jobs/new" className="font-semibold text-indigo-600">Create new Job</Link>
+                        </div>
+                      </div>
+                    ) : null}
                   </div></td>
                 </tr>
               ))}
