@@ -86,6 +86,8 @@ const faDomainLabels: Record<string, string> = {
   sms: "پیامک",
   technical: "فنی",
   behavioral: "رفتاری",
+  email_exact: "تطبیق دقیق ایمیل",
+  phone_exact: "تطبیق دقیق تلفن",
 };
 
 export function faDomainLabel(value: string | null | undefined): string {

@@ -127,7 +127,7 @@ export function JobCreateForm() {
         <Panel className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">عنوان
-              <input className={field} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="توسعه‌دهنده ارشد Backend" />
+              <input className={field} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="توسعه‌دهنده ارشد بک‌اند" />
             </label>
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">دپارتمان
               <input className={field} value={department} onChange={(event) => setDepartment(event.target.value)} placeholder="مهندسی" />
@@ -135,7 +135,7 @@ export function JobCreateForm() {
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">موقعیت
               <input className={field} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="تهران / ترکیبی" />
             </label>
-            <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">Seniority
+            <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">سطح ارشدیت
               <input className={field} value={seniority} onChange={(event) => setSeniority(event.target.value)} placeholder="ارشد" />
             </label>
           </div>
