@@ -58,6 +58,8 @@ function reasoningEffort(value) {
 }
 
 export function createOpenAiCompatibleProvider(env = process.env) {
+  const providerName = String(env.LLM_PROVIDER_NAME ?? "openai-compatible").trim() || "openai-compatible";
+  const includeDotinMetadata = String(env.LLM_DOTIN_METADATA ?? "false").trim().toLowerCase() === "true";
   const apiKey = env.LLM_API_KEY?.trim();
   const model = env.LLM_MODEL?.trim();
   if (!apiKey) throw new Error("LLM_API_KEY is required for openai-compatible worker provider");
@@ -65,7 +67,7 @@ export function createOpenAiCompatibleProvider(env = process.env) {
   const baseUrl = endpointFromEnvironment(env);
 
   return {
-    name: "openai-compatible",
+    name: providerName,
     async checkReadiness({ signal } = {}) {
       let response;
       try {
@@ -93,7 +95,7 @@ export function createOpenAiCompatibleProvider(env = process.env) {
           headers: {
             authorization: `Bearer ${apiKey}`,
             "content-type": "application/json",
-            ...requestMetadata(env, metadata),
+            ...(includeDotinMetadata ? requestMetadata(env, metadata) : {}),
           },
           signal,
           body: JSON.stringify({
@@ -110,26 +112,26 @@ export function createOpenAiCompatibleProvider(env = process.env) {
           }),
         });
       } catch (error) {
-        if (signal?.aborted) throw new LLMProviderError("REQUEST_ABORTED", { provider: "openai-compatible" });
-        throw new LLMProviderError("PROVIDER_UNAVAILABLE", { provider: "openai-compatible" });
+        if (signal?.aborted) throw new LLMProviderError("REQUEST_ABORTED", { provider: providerName });
+        throw new LLMProviderError("PROVIDER_UNAVAILABLE", { provider: providerName });
       }
 
       if (!response.ok) {
         const code = response.status === 408 || response.status === 429 || response.status >= 500
           ? "PROVIDER_UNAVAILABLE"
           : "PROVIDER_FAILURE";
-        throw new LLMProviderError(code, { provider: "openai-compatible" });
+        throw new LLMProviderError(code, { provider: providerName });
       }
 
       let result;
       try {
         result = await response.json();
       } catch {
-        throw new LLMProviderError("PROVIDER_FAILURE", { provider: "openai-compatible" });
+        throw new LLMProviderError("PROVIDER_FAILURE", { provider: providerName });
       }
       const content = result?.choices?.[0]?.message?.content;
       if (typeof content !== "string" || !content.trim()) {
-        throw new LLMProviderError("PROVIDER_FAILURE", { provider: "openai-compatible" });
+        throw new LLMProviderError("PROVIDER_FAILURE", { provider: providerName });
       }
       const inputTokens = boundedNonNegativeInteger(result?.usage?.prompt_tokens);
       const outputTokens = boundedNonNegativeInteger(result?.usage?.completion_tokens);
