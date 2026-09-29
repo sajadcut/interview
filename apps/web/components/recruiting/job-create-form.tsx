@@ -151,7 +151,7 @@ export function JobCreateForm() {
             </label>
           </div>
           <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای چارچوب ارزیابی — هر خط یک معیار
-            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش Backend\nاستدلال قابلیت اطمینان\nارتباط مؤثر"} />
+            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش بک‌اند\nاستدلال قابلیت اطمینان\nارتباط مؤثر"} />
           </label>
         </Panel>
 
