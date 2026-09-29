@@ -205,7 +205,7 @@ export default function HiringRequestsPage() {
             <input value={form.seniority} onChange={(e) => setForm({ ...form, seniority: e.target.value })} placeholder="سطح ارشدیت" className="h-10 rounded-lg border border-slate-200 px-3 text-xs" />
             <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="محل کار" className="h-10 rounded-lg border border-slate-200 px-3 text-xs" />
             <textarea required value={form.businessReason} onChange={(e) => setForm({ ...form, businessReason: e.target.value })} placeholder="چرا تیم به این نیروی جدید نیاز دارد؟" className="min-h-24 rounded-lg border border-slate-200 p-3 text-xs md:col-span-2" />
-            <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} placeholder={"الزامات اولیه، هر خط یک مورد\nC# / ASP.NET Core\nSQL\nMicroservices"} className="min-h-24 rounded-lg border border-slate-200 p-3 text-xs md:col-span-2" />
+            <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} placeholder={"الزامات اولیه، هر خط یک مورد\nC# / ASP.NET Core\nSQL\nمعماری میکروسرویس"} className="min-h-24 rounded-lg border border-slate-200 p-3 text-xs md:col-span-2" />
             <div className="flex items-end">
               <button disabled={busy === "create"} className="h-10 rounded-lg bg-indigo-600 px-4 text-xs font-semibold text-white disabled:opacity-50" type="submit">
                 {busy === "create" ? "در حال ایجاد…" : "ایجاد پیش‌نویس درخواست"}
