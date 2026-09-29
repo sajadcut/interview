@@ -104,3 +104,26 @@ test("openai-compatible generation matches the Dotin OpenAI-compatible contract"
     assert.deepEqual(result.usage, { inputTokens: 10, outputTokens: 5, costMicros: 0 });
   });
 });
+
+test("provider name is configurable and Dotin metadata is opt-in", async () => {
+  const configured = createOpenAiCompatibleProvider({
+    NODE_ENV: "development",
+    LLM_API_KEY: "key",
+    LLM_MODEL: "model",
+    LLM_BASE_URL: "http://provider.test/v1",
+    LLM_PROVIDER_NAME: "openai",
+    LLM_DOTIN_METADATA: "false",
+  });
+  assert.equal(configured.name, "openai");
+  await withFetch(async (_url, init) => {
+    const headers = new Headers(init?.headers);
+    assert.equal(headers.get("x-request-id"), null);
+    return new Response(JSON.stringify({
+      model: "model",
+      choices: [{ message: { content: "{\"ok\":true}" } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }, async () => {
+    await configured.generate({ prompt: { system: "s", user: "u" }, maxOutputTokens: 10 });
+  });
+});
