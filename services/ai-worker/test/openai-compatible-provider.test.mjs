@@ -11,6 +11,7 @@ function provider() {
     LLM_USER_ID: "test-user",
     LLM_ENABLE_THINKING: "false",
     LLM_REASONING_EFFORT: "medium",
+    LLM_DOTIN_METADATA: "true",
   });
 }
 
