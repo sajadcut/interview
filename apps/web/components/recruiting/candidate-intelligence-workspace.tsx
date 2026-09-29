@@ -103,11 +103,12 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     void (async () => {
       try {
         const currentIdentity = identity ?? (await resolveTenantIdentity());
-        const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/technical-approval`, {
+        const result = await api.GET("/v1/applications/{applicationId}/technical-approval", {
+          params: { path: { applicationId: selectedApplicationId } },
           headers: tenantHeaders(currentIdentity),
         });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { decision: string; feedback: string; approverName?: string } | null;
+        if (result.error) return;
+        const payload = (result.data ?? null) as { decision: string; feedback: string; approverName?: string } | null;
         if (active) setTechnicalApproval(payload);
       } catch {
         if (active) setTechnicalApproval(undefined);
@@ -155,14 +156,14 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     if (!identity || !selectedApplicationId) return;
     const feedback = window.prompt(`Technical feedback for ${decision}`)?.trim();
     if (!feedback) return;
-    const response = await fetch(`/api/backend/v1/applications/${selectedApplicationId}/technical-approval`, {
-      method: "POST",
-      headers: tenantHeaders(identity, true),
-      body: JSON.stringify({ decision, feedback }),
+    const result = await api.POST("/v1/applications/{applicationId}/technical-approval", {
+      params: { path: { applicationId: selectedApplicationId } },
+      headers: tenantHeaders(identity),
+      body: { decision, feedback },
     });
-    const payload = await response.json().catch(() => ({})) as { message?: string; decision?: string; feedback?: string };
-    if (!response.ok) {
-      setMessage(payload.message || "Technical approval failed");
+    const payload = (result.data ?? result.error ?? {}) as { message?: string; decision?: string; feedback?: string };
+    if (result.error) {
+      setMessage(messageFrom(payload, "Technical approval failed"));
       return;
     }
     setTechnicalApproval({ decision: payload.decision || decision, feedback: payload.feedback || feedback });

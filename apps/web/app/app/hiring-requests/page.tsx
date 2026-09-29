@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Panel, Pill } from "../../../components/product/recruiting-ui";
+import { api, apiErrorMessage } from "../../../lib/api";
+import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../../lib/tenant-client";
 import { useInternalAccess } from "../../../components/product/internal-access";
-import { resolveTenantIdentity, tenantHeaders } from "../../../lib/tenant-client";
+import { Panel, Pill } from "../../../components/product/recruiting-ui";
 
 interface HiringRequest {
   id: string;
@@ -27,22 +28,6 @@ interface HiringRequest {
   updatedAt: string;
 }
 
-async function requestJson(path: string, init?: RequestInit) {
-  const identity = await resolveTenantIdentity();
-  const response = await fetch(`/api/backend${path}`, {
-    ...init,
-    headers: { ...tenantHeaders(identity, Boolean(init?.body)), ...(init?.headers ?? {}) },
-  });
-  const payload = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    const message = payload && typeof payload === "object" && "message" in payload
-      ? String(payload.message)
-      : `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-  return payload;
-}
-
 function statusTone(status: string): "slate" | "green" | "blue" | "amber" | "red" {
   if (status === "approved" || status === "filled") return "green";
   if (status === "recruiting") return "blue";
@@ -53,6 +38,7 @@ function statusTone(status: string): "slate" | "green" | "blue" | "amber" | "red
 
 export default function HiringRequestsPage() {
   const access = useInternalAccess();
+  const [identity, setIdentity] = useState<TenantIdentity>();
   const [items, setItems] = useState<HiringRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
@@ -62,74 +48,114 @@ export default function HiringRequestsPage() {
     seniority: "", location: "", businessReason: "", requirements: "",
   });
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (knownIdentity?: TenantIdentity) => {
     setLoading(true);
     setError(undefined);
     try {
-      setItems((await requestJson("/v1/hiring-requests")) as HiringRequest[]);
+      const currentIdentity = knownIdentity ?? identity ?? (await resolveTenantIdentity());
+      if (!identity) setIdentity(currentIdentity);
+      const result = await api.GET("/v1/hiring-requests", {
+        headers: tenantHeaders(currentIdentity),
+      });
+      if (result.error) throw new Error(apiErrorMessage(result, "Hiring requests could not be loaded"));
+      setItems((result.data ?? []) as HiringRequest[]);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Hiring requests could not be loaded");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [identity]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const resolved = await resolveTenantIdentity();
+        if (!active) return;
+        setIdentity(resolved);
+        await load(resolved);
+      } catch (cause) {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "Hiring requests could not be loaded");
+          setLoading(false);
+        }
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   async function create(event: FormEvent) {
     event.preventDefault();
+    if (!identity) return;
     setBusy("create");
     setError(undefined);
-    try {
-      await requestJson("/v1/hiring-requests", {
-        method: "POST",
-        body: JSON.stringify({
-          title: form.title,
-          hiringTeam: form.hiringTeam,
-          department: form.department || undefined,
-          headcount: Number(form.headcount),
-          seniority: form.seniority || undefined,
-          location: form.location || undefined,
-          businessReason: form.businessReason,
-          requirements: form.requirements.split("\n").map((value) => value.trim()).filter(Boolean),
-        }),
-      });
-      setForm({
-        title: "", hiringTeam: "", department: "", headcount: "1",
-        seniority: "", location: "", businessReason: "", requirements: "",
-      });
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Hiring request could not be created");
-    } finally {
+    const result = await api.POST("/v1/hiring-requests", {
+      headers: tenantHeaders(identity),
+      body: {
+        title: form.title,
+        hiringTeam: form.hiringTeam,
+        ...(form.department ? { department: form.department } : {}),
+        headcount: Number(form.headcount),
+        ...(form.seniority ? { seniority: form.seniority } : {}),
+        ...(form.location ? { location: form.location } : {}),
+        businessReason: form.businessReason,
+        requirements: form.requirements.split("\n").map((value) => value.trim()).filter(Boolean),
+      },
+    });
+    if (result.error) {
+      setError(apiErrorMessage(result, "Hiring request could not be created"));
       setBusy(undefined);
+      return;
     }
+    setForm({
+      title: "", hiringTeam: "", department: "", headcount: "1",
+      seniority: "", location: "", businessReason: "", requirements: "",
+    });
+    setBusy(undefined);
+    await load(identity);
   }
 
-  async function action(key: string, path: string, body?: unknown) {
-    setBusy(key);
-    setError(undefined);
-    try {
-      await requestJson(path, {
-        method: "POST",
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Workflow action failed");
-    } finally {
-      setBusy(undefined);
-    }
+  async function submitRequest(id: string) {
+    if (!identity) return;
+    setBusy(`submit-${id}`);
+    const result = await api.POST("/v1/hiring-requests/{hiringRequestId}/submit", {
+      params: { path: { hiringRequestId: id } },
+      headers: tenantHeaders(identity),
+    });
+    if (result.error) setError(apiErrorMessage(result, "Hiring request could not be submitted"));
+    setBusy(undefined);
+    if (!result.error) await load(identity);
+  }
+
+  async function reviewRequest(id: string, decision: "approve" | "reject") {
+    if (!identity) return;
+    setBusy(`${decision}-${id}`);
+    const result = await api.POST("/v1/hiring-requests/{hiringRequestId}/review", {
+      params: { path: { hiringRequestId: id } },
+      headers: tenantHeaders(identity),
+      body: {
+        decision,
+        note: decision === "approve" ? "Approved for recruiting" : "Rejected by HR review",
+      },
+    });
+    if (result.error) setError(apiErrorMessage(result, "Hiring request review failed"));
+    setBusy(undefined);
+    if (!result.error) await load(identity);
   }
 
   async function linkJob(item: HiringRequest) {
+    if (!identity) return;
     const jobId = window.prompt("Paste the approved Job ID to link to this request")?.trim();
     if (!jobId) return;
-    await action(
-      `link-${item.id}`,
-      `/v1/hiring-requests/${item.id}/link-job`,
-      { jobId },
-    );
+    setBusy(`link-${item.id}`);
+    const result = await api.POST("/v1/hiring-requests/{hiringRequestId}/link-job", {
+      params: { path: { hiringRequestId: item.id } },
+      headers: tenantHeaders(identity),
+      body: { jobId },
+    });
+    if (result.error) setError(apiErrorMessage(result, "Job could not be linked"));
+    setBusy(undefined);
+    if (!result.error) await load(identity);
   }
 
   const canCreate = access.can("hiring_request.create");
@@ -183,10 +209,10 @@ export default function HiringRequestsPage() {
                   <td>{item.linkedJobId ? <Link className="font-medium text-indigo-600" href={`/app/jobs/${item.linkedJobId}`}>{item.linkedJobTitle || "Open job"}</Link> : <span className="text-slate-400">Not linked</span>}</td>
                   <td><Pill tone={statusTone(item.status)}>{item.status}</Pill></td>
                   <td><div className="flex flex-wrap gap-2">
-                    {item.status === "draft" && canCreate ? <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-indigo-600" onClick={() => void action(`submit-${item.id}`, `/v1/hiring-requests/${item.id}/submit`)}>Submit to HR</button> : null}
+                    {item.status === "draft" && canCreate ? <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-indigo-600" onClick={() => void submitRequest(item.id)}>Submit to HR</button> : null}
                     {item.status === "submitted" && canManage ? <>
-                      <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-emerald-600" onClick={() => void action(`approve-${item.id}`, `/v1/hiring-requests/${item.id}/review`, { decision: "approve", note: "Approved for recruiting" })}>Approve</button>
-                      <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-rose-600" onClick={() => void action(`reject-${item.id}`, `/v1/hiring-requests/${item.id}/review`, { decision: "reject", note: "Rejected by HR review" })}>Reject</button>
+                      <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-emerald-600" onClick={() => void reviewRequest(item.id, "approve")}>Approve</button>
+                      <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-rose-600" onClick={() => void reviewRequest(item.id, "reject")}>Reject</button>
                     </> : null}
                     {item.status === "approved" && canManage ? <>
                       <Link href="/app/jobs/new" className="text-[10px] font-semibold text-indigo-600">Create Job</Link>
