@@ -66,7 +66,7 @@ export default function CandidatesPage() {
             <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-              placeholder="جستجو بر اساس نام، مهارت، شرکت، نقش یا محل..."
+              placeholder="جست‌وجو بر اساس نام، مهارت، شرکت، نقش یا محل..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -86,7 +86,7 @@ export default function CandidatesPage() {
               {loading ? (
                 <tr><td colSpan={6} className="py-12 text-center text-slate-400">در حال بارگذاری کاندیداها…</td></tr>
               ) : filteredCandidates.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">{candidates.length ? "کاندیدایی با این جستجو پیدا نشد." : "هنوز کاندیدایی برای این سازمان ثبت نشده است."}</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">{candidates.length ? "کاندیدایی با این جست‌وجو پیدا نشد." : "هنوز کاندیدایی برای این سازمان ثبت نشده است."}</td></tr>
               ) : filteredCandidates.map((candidate, index) => (
                 <tr key={candidate.id}>
                   <td>
