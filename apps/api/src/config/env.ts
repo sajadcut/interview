@@ -99,7 +99,7 @@ const envSchema = z
     SENDGRID_API_KEY: z.string().default(""),
     SENDGRID_BASE_URL: optionalUrl,
 
-    LLM_PROVIDER: z.enum(["disabled", "openai-compatible"]).default("disabled"),
+    LLM_PROVIDER: z.enum(["disabled", "openai-compatible", "dotin-general-chatbot", "openai", "gemini", "deepseek"]).default("disabled"),
     LLM_MODEL: z.string().default(""),
     LLM_API_KEY: z.string().default(""),
     LLM_BASE_URL: optionalUrl,
@@ -185,19 +185,19 @@ const envSchema = z
       context.addIssue({ code: "custom", path: ["SENDGRID_API_KEY"], message: "required when EMAIL_PROVIDER=sendgrid" });
     }
 
-    if (value.LLM_PROVIDER === "openai-compatible") {
+    if (value.LLM_PROVIDER !== "disabled") {
       if (!value.LLM_API_KEY) {
         context.addIssue({
           code: "custom",
           path: ["LLM_API_KEY"],
-          message: "required when LLM_PROVIDER=openai-compatible",
+          message: "required when LLM_PROVIDER is enabled",
         });
       }
       if (!value.LLM_MODEL) {
         context.addIssue({
           code: "custom",
           path: ["LLM_MODEL"],
-          message: "required when LLM_PROVIDER=openai-compatible unless every call supplies a model",
+          message: "required when LLM_PROVIDER is enabled unless every call supplies a model",
         });
       }
     }
