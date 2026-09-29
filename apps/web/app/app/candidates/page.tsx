@@ -114,7 +114,7 @@ export default function CandidatesPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">
-          <span>{filteredCandidates.length} of {candidates.length} کاندیدای ثبت‌شده</span>
+          <span>{filteredCandidates.length} از {candidates.length} کاندیدای ثبت‌شده</span>
           <span>تطبیق پیش از مصاحبه مختص هر پرونده استخدامی است و در فضای کاری موقعیت نمایش داده می‌شود.</span>
         </div>
       </Panel>
