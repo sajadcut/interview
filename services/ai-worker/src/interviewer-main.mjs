@@ -3,7 +3,7 @@ import process from "node:process";
 import { interviewerPromptDefinition } from "./interviewer-capability.mjs";
 import { createInterviewerHttpServer } from "./interviewer-http.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
-import { createOpenAiCompatibleProvider, createUnavailableProvider } from "./openai-compatible-provider.mjs";
+import { createConfiguredProvider, providerInfoFromEnvironment } from "./provider-factory.mjs";
 
 function integerEnv(name, fallback, minimum, maximum) {
   const value = Number(process.env[name] ?? fallback);
@@ -12,27 +12,10 @@ function integerEnv(name, fallback, minimum, maximum) {
 }
 
 function providerFromEnvironment() {
-  const selected = (process.env.LLM_PROVIDER ?? "disabled").trim().toLowerCase();
-  if (selected === "openai-compatible") {
-    const configured = Boolean(process.env.LLM_API_KEY?.trim() && process.env.LLM_MODEL?.trim());
-    const provider = configured ? createOpenAiCompatibleProvider(process.env) : createUnavailableProvider();
-    return {
-      provider,
-      info: {
-        provider: "openai-compatible",
-        model: process.env.LLM_MODEL?.trim() || null,
-        enabled: true,
-        configured,
-      },
-    };
-  }
-  if (selected === "disabled") {
-    return {
-      provider: createUnavailableProvider(),
-      info: { provider: "disabled", model: null, enabled: false, configured: false },
-    };
-  }
-  throw new Error(`Unsupported LLM_PROVIDER ${selected}`);
+  const info = providerInfoFromEnvironment(process.env);
+  if (!info.enabled) return { provider: createConfiguredProvider(process.env), info };
+  if (!info.configured) return { provider: createConfiguredProvider({ ...process.env, LLM_PROVIDER: "disabled" }), info };
+  return { provider: createConfiguredProvider(process.env), info };
 }
 
 const sharedSecret = process.env.AI_WORKER_SHARED_SECRET?.trim();
