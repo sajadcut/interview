@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { api } from "../../lib/api";
-import { directionFor, faRoleLabel, getDefaultLocale, shellCopy } from "../../lib/i18n";
+import { directionFor, faRoleLabel, getInternalLocale, shellCopy } from "../../lib/i18n";
 import { clearRememberedOrganizationId } from "../../lib/tenant-client";
 import { Icon, type IconName } from "./icon";
 import { requiredPermissionForInternalPath, useInternalAccess } from "./internal-access";
@@ -76,7 +76,7 @@ function readableRole(role: string | undefined): string {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const access = useInternalAccess();
-  const locale = getDefaultLocale();
+  const locale = getInternalLocale();
   const copy = shellCopy[locale];
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string>();
