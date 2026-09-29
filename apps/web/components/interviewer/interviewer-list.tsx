@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
+import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 
 type AssignedInterview = {
@@ -15,7 +16,7 @@ type AssignedInterview = {
   jobTitle: string;
 };
 
-export function InterviewerList({ title = "My interviews" }: { title?: string }) {
+export function InterviewerList({ title = "مصاحبه‌های من" }: { title?: string }) {
   const [items, setItems] = useState<AssignedInterview[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,12 +33,12 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
           return;
         }
         if (!result.response.ok) {
-          throw new Error(apiErrorMessage(result, "Unable to load assigned interviews"));
+          throw new Error(apiErrorMessage(result, "مصاحبه‌های تخصیص‌یافته بارگذاری نشدند"));
         }
         if (active) setItems((result.data ?? []) as AssignedInterview[]);
       })
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Unable to load assigned interviews");
+        if (active) setError(cause instanceof Error ? cause.message : "مصاحبه‌های تخصیص‌یافته بارگذاری نشدند");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -51,9 +52,9 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
     <section>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">Assigned work</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">کارهای تخصیص‌یافته</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-slate-950">{title}</h1>
-          <p className="mt-1 text-xs text-slate-500">Only interviews assigned to your user account are available in this workspace.</p>
+          <p className="mt-1 text-xs text-slate-500">فقط مصاحبه‌هایی که به حساب کاربری شما تخصیص یافته‌اند در این فضای کاری نمایش داده می‌شوند.</p>
         </div>
       </div>
 
@@ -66,15 +67,15 @@ export function InterviewerList({ title = "My interviews" }: { title?: string })
                 <div className="text-sm font-semibold text-slate-900">{item.candidateName}</div>
                 <div className="mt-1 text-xs text-slate-500">{item.jobTitle}</div>
               </div>
-              <div className="text-right text-[10px] text-slate-500">
-                <div className="font-semibold uppercase tracking-[.06em] text-indigo-600">{item.sessionStatus.replaceAll("_", " ")}</div>
-                <div className="mt-1">{item.scheduledFor ? new Date(item.scheduledFor).toLocaleString() : "Schedule not set"}</div>
+              <div className="text-end text-[10px] text-slate-500">
+                <div className="font-semibold uppercase tracking-[.06em] text-indigo-600">{faDomainLabel(item.sessionStatus)}</div>
+                <div className="mt-1">{item.scheduledFor ? formatFaDateTime(item.scheduledFor) : "زمان‌بندی نشده"}</div>
               </div>
             </div>
           </Link>
         ))}
-        {!loading && items.length === 0 && !error ? <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-400">No interviews are currently assigned to you.</div> : null}
-        {loading ? <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">Loading assignments…</div> : null}
+        {!loading && items.length === 0 && !error ? <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-sm text-slate-400">در حال حاضر مصاحبه‌ای به شما تخصیص داده نشده است.</div> : null}
+        {loading ? <div role="status" className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">در حال بارگذاری تخصیص‌ها…</div> : null}
       </div>
     </section>
   );
