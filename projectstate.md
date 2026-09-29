@@ -13,7 +13,7 @@
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
 
 ```text
-implementation                            pushed with this change; CI validation pending
+implementation                            pushed; generated API contracts synchronized; CI validation pending
 domain entrypoint                         HiringRequest before Job creation
 request owner                             Hiring Manager / requesting team
 recruiting owner                          HR Manager / Recruiter after HR approval
