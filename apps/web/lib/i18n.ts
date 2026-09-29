@@ -91,6 +91,11 @@ const faDomainLabels: Record<string, string> = {
   "application.stage_changed": "تغییر مرحله پرونده",
   "notification.create": "ایجاد اعلان",
   api: "رابط برنامه‌نویسی",
+  strong_yes: "کاملاً موافق",
+  yes: "موافق",
+  mixed: "ترکیبی",
+  no: "مخالف",
+  strong_no: "کاملاً مخالف",
 };
 
 export function faDomainLabel(value: string | null | undefined): string {
