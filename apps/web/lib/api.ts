@@ -28,7 +28,16 @@ export function localizeApiMessage(message: string): string {
     .replace(/User is disabled/gi, "حساب کاربری غیرفعال است")
     .replace(/Password reset failed/gi, "بازیابی رمز عبور ناموفق بود")
     .replace(/Invitation is invalid, expired, or already used/gi, "دعوت‌نامه نامعتبر، منقضی یا قبلاً استفاده شده است")
-    .replace(/Invitation token is missing/gi, "توکن دعوت‌نامه وجود ندارد");
+    .replace(/Invitation token is missing/gi, "توکن دعوت‌نامه وجود ندارد")
+    .replace(/Candidate invitation is invalid or expired/gi, "دعوت‌نامه کاندیدا نامعتبر یا منقضی شده است")
+    .replace(/Candidate invitation is invalid/gi, "دعوت‌نامه کاندیدا نامعتبر است")
+    .replace(/Candidate invitation has already been used/gi, "دعوت‌نامه کاندیدا قبلاً استفاده شده است")
+    .replace(/Candidate invitation has expired/gi, "دعوت‌نامه کاندیدا منقضی شده است")
+    .replace(/Candidate invitation is temporarily locked/gi, "دعوت‌نامه کاندیدا موقتاً قفل شده است")
+    .replace(/Candidate OTP challenge was not found/gi, "درخواست کد یک‌بارمصرف پیدا نشد")
+    .replace(/Candidate OTP challenge has expired/gi, "کد یک‌بارمصرف منقضی شده است")
+    .replace(/Candidate OTP challenge is locked/gi, "کد یک‌بارمصرف به‌دلیل تلاش‌های ناموفق قفل شده است")
+    .replace(/Candidate OTP is invalid/gi, "کد یک‌بارمصرف نامعتبر است");
 }
 
 export function apiErrorMessage(result: unknown, fallback: string): string {
