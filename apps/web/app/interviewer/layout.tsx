@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { directionFor, getDefaultLocale } from "../../lib/i18n";
+import { directionFor, getInternalLocale } from "../../lib/i18n";
 
 export default function InterviewerLayout({ children }: { children: ReactNode }) {
-  const locale = getDefaultLocale();
+  const locale = getInternalLocale();
   return (
     <div className="min-h-screen bg-slate-50" dir={directionFor(locale)}>
       <header className="border-b border-slate-200 bg-white">
