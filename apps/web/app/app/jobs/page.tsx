@@ -71,7 +71,7 @@ export default function JobsPage() {
             <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-              placeholder="جستجو بر اساس عنوان، تیم، محل یا وضعیت..."
+              placeholder="جست‌وجو بر اساس عنوان، تیم، محل یا وضعیت..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -91,7 +91,7 @@ export default function JobsPage() {
               {loading ? (
                 <tr><td colSpan={7} className="py-12 text-center text-slate-400">در حال بارگذاری موقعیت‌های شغلی…</td></tr>
               ) : filteredJobs.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">{jobs.length ? "موقعیتی با این جستجو پیدا نشد." : "هنوز موقعیت شغلی برای این سازمان ایجاد نشده است."}</td></tr>
+                <tr><td colSpan={7} className="py-12 text-center text-slate-400">{jobs.length ? "موقعیتی با این جست‌وجو پیدا نشد." : "هنوز موقعیت شغلی برای این سازمان ایجاد نشده است."}</td></tr>
               ) : filteredJobs.map((job) => (
                 <tr key={job.id}>
                   <td>
