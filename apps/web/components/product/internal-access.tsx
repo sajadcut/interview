@@ -262,13 +262,13 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
             if (context.ready && context.organizationId && context.userId && active) {
               const developmentOrganization: InternalOrganization = {
                 id: context.organizationId,
-                name: "Development Organization",
+                name: "سازمان توسعه",
                 slug: "development",
                 roles: ["ORGANIZATION_ADMIN"],
               };
               setAuthenticated(true);
               setDevelopmentFallback(true);
-              setUser({ id: context.userId, displayName: "Development Admin" });
+              setUser({ id: context.userId, displayName: "مدیر توسعه" });
               setOrganizations([developmentOrganization]);
               setOrganizationId(context.organizationId);
               window.localStorage.setItem(STORAGE_KEY, context.organizationId);
@@ -342,7 +342,7 @@ export function InternalAccessGate({ children }: { children: ReactNode }) {
         <div className="grid min-h-screen place-items-center bg-slate-50 p-6">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-              Access denied
+              دسترسی غیرمجاز
             </div>
             <h1 className="mt-2 text-xl font-semibold text-slate-900">
               این بخش برای نقش فعلی شما مجاز نیست

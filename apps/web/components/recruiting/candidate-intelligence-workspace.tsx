@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
+import { faDomainLabel } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -61,7 +62,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
       headers: tenantHeaders(currentIdentity),
     });
     const payload = (result.data ?? result.error ?? {}) as CandidateWorkspacePayload & { message?: string };
-    if (result.error || !payload.candidate) throw new Error(messageFrom(payload, "Candidate workspace could not be loaded"));
+    if (result.error || !payload.candidate) throw new Error(messageFrom(payload, "فضای کاری کاندیدا بارگذاری نشد"));
     setWorkspace(payload);
     setSelectedApplicationId((current) => current ?? payload.applications[0]?.id);
   }
@@ -75,7 +76,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
         setIdentity(resolved);
         await load(resolved);
       } catch (error) {
-        if (active) setMessage(error instanceof Error ? error.message : "Load failed");
+        if (active) setMessage(error instanceof Error ? error.message : "بارگذاری ناموفق بود");
       } finally {
         if (active) setLoading(false);
       }
@@ -125,36 +126,36 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     });
     const payload = (result.data ?? result.error ?? {}) as { persisted?: boolean; overallScore?: number | null; recommendation?: string; message?: string; missingEvaluationCriterionIds?: string[]; missingEvidenceCriterionIds?: string[] };
     if (result.error) {
-      setMessage(messageFrom(payload, "Scorecard finalization failed"));
+      setMessage(messageFrom(payload, "نهایی‌سازی امتیازنامه ناموفق بود"));
       return;
     }
     if (!payload.persisted) {
       const missing = [...(payload.missingEvaluationCriterionIds ?? []), ...(payload.missingEvidenceCriterionIds ?? [])];
-      setMessage(`Scorecard remains incomplete. Missing criterion evidence/evaluations: ${missing.length}.`);
+      setMessage(`امتیازنامه ناقص است؛ ${missing.length} معیار هنوز شواهد یا ارزیابی کافی ندارد.`);
       return;
     }
-    setMessage(`Scorecard finalized: ${payload.overallScore ?? "—"} · ${payload.recommendation ?? ""}`);
+    setMessage(`امتیازنامه نهایی شد: ${payload.overallScore ?? "—"} · ${payload.recommendation ?? ""}`);
     await load(identity);
   }
 
   async function addEvidence() {
     if (!identity || !selectedApplicationId) return;
-    const excerpt = window.prompt("Evidence excerpt or concise paraphrase")?.trim();
+    const excerpt = window.prompt("متن کوتاه شاهد یا بازنویسی دقیق آن")?.trim();
     if (!excerpt) return;
-    const sourceReference = window.prompt("Source reference (document, transcript timestamp, assessment id)")?.trim();
+    const sourceReference = window.prompt("مرجع منبع (سند، زمان رونویسی یا شناسه ارزیابی)")?.trim();
     if (!sourceReference) return;
     const result = await api.POST("/v1/applications/{applicationId}/evidence", {
       params: { path: { applicationId: selectedApplicationId } },
       headers: tenantHeaders(identity),
       body: { evidenceType: "review_note", sourceType: "human_review", sourceReference, excerpt },
     });
-    setMessage(result.error ? messageFrom(result.error, "Evidence creation failed") : "Evidence persisted.");
+    setMessage(result.error ? messageFrom(result.error, "ثبت شاهد ناموفق بود") : "شاهد ثبت شد.");
     if (!result.error) await load(identity);
   }
 
   async function submitTechnicalApproval(decision: "approve" | "needs_interview" | "reject") {
     if (!identity || !selectedApplicationId) return;
-    const feedback = window.prompt(`Technical feedback for ${decision}`)?.trim();
+    const feedback = window.prompt(`بازخورد فنی برای «${faDomainLabel(decision)}»`)?.trim();
     if (!feedback) return;
     const result = await api.POST("/v1/applications/{applicationId}/technical-approval", {
       params: { path: { applicationId: selectedApplicationId } },
@@ -163,17 +164,17 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     });
     const payload = (result.data ?? result.error ?? {}) as { message?: string; decision?: string; feedback?: string };
     if (result.error) {
-      setMessage(messageFrom(payload, "Technical approval failed"));
+      setMessage(messageFrom(payload, "ثبت تأیید فنی ناموفق بود"));
       return;
     }
     setTechnicalApproval({ decision: payload.decision || decision, feedback: payload.feedback || feedback });
-    setMessage(`Technical approval recorded: ${decision}.`);
+    setMessage(`تصمیم فنی ثبت شد: ${faDomainLabel(decision)}.`);
     await load(identity);
   }
 
   async function submitDecision(decision: "advance" | "hold" | "reject" | "hire") {
     if (!identity || !selectedApplicationId) return;
-    const reason = window.prompt(`Human reason for ${decision}`)?.trim();
+    const reason = window.prompt(`دلیل انسانی برای «${faDomainLabel(decision)}»`)?.trim();
     if (!reason) return;
     const result = await api.POST("/v1/applications/{applicationId}/decision", {
       params: { path: { applicationId: selectedApplicationId } },
@@ -184,12 +185,12 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
         ...(selectedApplication?.scorecardId ? { scorecardId: selectedApplication.scorecardId } : {}),
       },
     });
-    setMessage(result.error ? messageFrom(result.error, "Decision submission failed") : `Human decision recorded: ${decision}.`);
+    setMessage(result.error ? messageFrom(result.error, "ثبت تصمیم ناموفق بود") : `تصمیم انسانی ثبت شد: ${faDomainLabel(decision)}.`);
     if (!result.error) await load(identity);
   }
 
-  if (loading) return <div className="py-16 text-center text-sm text-slate-500">Loading candidate intelligence…</div>;
-  if (!workspace) return <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-700">{message || "Candidate not found"}</div>;
+  if (loading) return <div className="py-16 text-center text-sm text-slate-500">در حال بارگذاری فضای هوشمندی کاندیدا…</div>;
+  if (!workspace) return <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-700">{message || "کاندیدا پیدا نشد"}</div>;
 
   const { candidate } = workspace;
   return (
@@ -201,8 +202,8 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
           <p className="mt-1 text-[11px] text-slate-500">{[candidate.currentRole, candidate.currentCompany, candidate.location].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void addEvidence()} className="h-10 rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold">Add evidence</button> : null}
-          {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void finalizeScorecard()} className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white">Finalize scorecard</button> : null}
+          {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void addEvidence()} className="h-10 rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold">افزودن شاهد</button> : null}
+          {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void finalizeScorecard()} className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white">نهایی‌سازی امتیازنامه</button> : null}
         </div>
       </div>
 
@@ -211,35 +212,35 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
         <div className="space-y-4">
           <Panel className="p-5">
-            <h2 className="text-[13px] font-semibold">Applications & job matches</h2>
-            <div className="mt-4 grid gap-2">{workspace.applications.length ? workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-left transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{application.pipelineStage} · {application.status}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">Match {application.preInterviewMatchScore}%</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">Hiring {application.hiringScore}</Pill> : <Pill>Hiring score incomplete</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">Latest human decision: <strong>{application.decision}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>) : <div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">No applications are associated with this candidate yet.</div>}</div>
+            <h2 className="text-[13px] font-semibold">پرونده‌های استخدامی و تطبیق موقعیت‌ها</h2>
+            <div className="mt-4 grid gap-2">{workspace.applications.length ? workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-start transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(application.pipelineStage)} · {faDomainLabel(application.status)}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">تطبیق {application.preInterviewMatchScore}%</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">امتیاز استخدام {application.hiringScore}</Pill> : <Pill>امتیاز استخدام ناقص</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">آخرین تصمیم انسانی: <strong>{faDomainLabel(application.decision)}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>) : <div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">هنوز پرونده استخدامی برای این کاندیدا ثبت نشده است.</div>}</div>
           </Panel>
 
           <Panel className="p-5">
-            <h2 className="text-[13px] font-semibold">Experience</h2>
-            <div className="mt-4 space-y-3">{workspace.experiences.length ? workspace.experiences.map((experience) => <div key={experience.id} className="rounded-xl border border-slate-100 p-3"><div className="text-[11px] font-semibold text-slate-800">{experience.title} · {experience.company}</div><div className="mt-1 text-[9px] text-slate-400">{experience.startedOn || "?"} → {experience.endedOn || "Present"}</div>{experience.description ? <p className="mt-2 text-[10px] leading-5 text-slate-600">{experience.description}</p> : null}{experience.sourceReference ? <div className="mt-2 text-[8px] text-slate-400">Source: {experience.sourceReference}</div> : null}</div>) : <div className="text-[10px] text-slate-400">No persisted experience records.</div>}</div>
+            <h2 className="text-[13px] font-semibold">سوابق حرفه‌ای</h2>
+            <div className="mt-4 space-y-3">{workspace.experiences.length ? workspace.experiences.map((experience) => <div key={experience.id} className="rounded-xl border border-slate-100 p-3"><div className="text-[11px] font-semibold text-slate-800">{experience.title} · {experience.company}</div><div className="mt-1 text-[9px] text-slate-400">{experience.startedOn || "?"} → {experience.endedOn || "اکنون"}</div>{experience.description ? <p className="mt-2 text-[10px] leading-5 text-slate-600">{experience.description}</p> : null}{experience.sourceReference ? <div className="mt-2 text-[8px] text-slate-400">منبع: {experience.sourceReference}</div> : null}</div>) : <div className="text-[10px] text-slate-400">سابقه حرفه‌ای ثبت‌شده‌ای وجود ندارد.</div>}</div>
           </Panel>
 
           <Panel className="p-5">
-            <h2 className="text-[13px] font-semibold">Evidence for selected application</h2>
-            <div className="mt-4 space-y-2">{applicationEvidence.length ? applicationEvidence.map((item) => <div key={item.id} className="rounded-xl border border-slate-100 p-3"><div className="flex items-center justify-between"><Pill>{item.evidenceType}</Pill><span className="text-[8px] text-slate-400">{item.sourceType}</span></div>{item.excerpt ? <p className="mt-2 text-[10px] leading-5 text-slate-700">{item.excerpt}</p> : null}<div className="mt-2 text-[8px] text-slate-400">{item.sourceReference}</div></div>) : <div className="rounded-xl bg-amber-50 p-3 text-[10px] text-amber-800">No evidence persisted for this application. Hiring score must remain incomplete.</div>}</div>
+            <h2 className="text-[13px] font-semibold">شواهد پرونده انتخاب‌شده</h2>
+            <div className="mt-4 space-y-2">{applicationEvidence.length ? applicationEvidence.map((item) => <div key={item.id} className="rounded-xl border border-slate-100 p-3"><div className="flex items-center justify-between"><Pill>{faDomainLabel(item.evidenceType)}</Pill><span className="text-[8px] text-slate-400">{faDomainLabel(item.sourceType)}</span></div>{item.excerpt ? <p className="mt-2 text-[10px] leading-5 text-slate-700">{item.excerpt}</p> : null}<div className="mt-2 text-[8px] text-slate-400">{item.sourceReference}</div></div>) : <div className="rounded-xl bg-amber-50 p-3 text-[10px] text-amber-800">برای این پرونده هنوز شاهدی ثبت نشده است؛ امتیاز استخدام باید ناقص باقی بماند.</div>}</div>
           </Panel>
         </div>
 
         <div className="space-y-4">
           <Panel className="p-5">
-            <h2 className="text-[13px] font-semibold">Identity & contact</h2>
-            <dl className="mt-4 space-y-3 text-[10px]"><div><dt className="text-slate-400">Email</dt><dd className="mt-1 text-slate-700">{candidate.primaryEmail || "—"}</dd></div><div><dt className="text-slate-400">Phone</dt><dd className="mt-1 text-slate-700">{candidate.primaryPhone || "—"}</dd></div><div><dt className="text-slate-400">Language</dt><dd className="mt-1 text-slate-700">{candidate.preferredLanguage || "—"}</dd></div></dl>
+            <h2 className="text-[13px] font-semibold">هویت و اطلاعات تماس</h2>
+            <dl className="mt-4 space-y-3 text-[10px]"><div><dt className="text-slate-400">ایمیل</dt><dd className="mt-1 text-slate-700">{candidate.primaryEmail || "—"}</dd></div><div><dt className="text-slate-400">تلفن</dt><dd className="mt-1 text-slate-700">{candidate.primaryPhone || "—"}</dd></div><div><dt className="text-slate-400">زبان</dt><dd className="mt-1 text-slate-700">{candidate.preferredLanguage || "—"}</dd></div></dl>
           </Panel>
 
           <Panel className="p-5">
-            <h2 className="text-[13px] font-semibold">Skills & verification</h2>
-            <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.length ? workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {skill.verificationState}</span>) : <span className="text-[10px] text-slate-400">No persisted skills.</span>}</div>
+            <h2 className="text-[13px] font-semibold">مهارت‌ها و وضعیت تأیید</h2>
+            <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.length ? workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {faDomainLabel(skill.verificationState)}</span>) : <span className="text-[10px] text-slate-400">مهارتی ثبت نشده است.</span>}</div>
           </Panel>
 
-          {selectedApplication && access.can("technical_approval.submit") ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">Requesting-team technical approval</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">For requisition-backed jobs, HR cannot record a hire until the latest technical approval is approve.</p>{technicalApproval ? <div className="mt-3 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-600">Latest: <strong>{technicalApproval.decision}</strong>{technicalApproval.approverName ? ` · ${technicalApproval.approverName}` : ""}<div className="mt-1">{technicalApproval.feedback}</div></div> : null}<div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={() => void submitTechnicalApproval("approve")} className="rounded-lg border border-emerald-100 px-2 py-2 text-[9px] font-semibold text-emerald-700">Approve</button><button type="button" onClick={() => void submitTechnicalApproval("needs_interview")} className="rounded-lg border border-amber-100 px-2 py-2 text-[9px] font-semibold text-amber-700">More interview</button><button type="button" onClick={() => void submitTechnicalApproval("reject")} className="rounded-lg border border-rose-100 px-2 py-2 text-[9px] font-semibold text-rose-700">Reject</button></div></Panel> : null}
+          {selectedApplication && access.can("technical_approval.submit") ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">تأیید فنی تیم درخواست‌کننده</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">برای موقعیت متصل به درخواست نیرو، منابع انسانی تا زمانی که آخرین تصمیم فنی «تأیید» نباشد نمی‌تواند استخدام نهایی را ثبت کند.</p>{technicalApproval ? <div className="mt-3 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-600">آخرین تصمیم: <strong>{faDomainLabel(technicalApproval.decision)}</strong>{technicalApproval.approverName ? ` · ${technicalApproval.approverName}` : ""}<div className="mt-1">{technicalApproval.feedback}</div></div> : null}<div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={() => void submitTechnicalApproval("approve")} className="rounded-lg border border-emerald-100 px-2 py-2 text-[9px] font-semibold text-emerald-700">تأیید</button><button type="button" onClick={() => void submitTechnicalApproval("needs_interview")} className="rounded-lg border border-amber-100 px-2 py-2 text-[9px] font-semibold text-amber-700">مصاحبه بیشتر</button><button type="button" onClick={() => void submitTechnicalApproval("reject")} className="rounded-lg border border-rose-100 px-2 py-2 text-[9px] font-semibold text-rose-700">رد</button></div></Panel> : null}
 
-          {selectedApplication ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">Human decision control</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">AI recommendations are decision support only. A human actor and reason are persisted for every decision.</p><div className="mt-4 grid grid-cols-2 gap-2">{access.can("decision.submit") ? (["advance", "hold", "reject", "hire"] as const).map((decision) => <button key={decision} type="button" onClick={() => void submitDecision(decision)} className={`rounded-lg border px-3 py-2 text-[10px] font-semibold ${decision === "reject" ? "border-rose-100 text-rose-700" : decision === "hire" ? "border-emerald-100 text-emerald-700" : "border-slate-200 text-slate-700"}`}>{decision}</button>) : <div className="col-span-2 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-500">Current role cannot submit hiring decisions.</div>}</div><Link href={`/app/jobs/${selectedApplication.jobId}`} className="mt-4 inline-flex text-[9px] font-semibold text-indigo-600">Open job workspace →</Link></Panel> : null}
+          {selectedApplication ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">کنترل تصمیم انسانی</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">پیشنهادهای هوش مصنوعی فقط پشتیبان تصمیم هستند؛ برای هر تصمیم، تصمیم‌گیر انسانی و دلیل آن ثبت می‌شود.</p><div className="mt-4 grid grid-cols-2 gap-2">{access.can("decision.submit") ? (["advance", "hold", "reject", "hire"] as const).map((decision) => <button key={decision} type="button" onClick={() => void submitDecision(decision)} className={`rounded-lg border px-3 py-2 text-[10px] font-semibold ${decision === "reject" ? "border-rose-100 text-rose-700" : decision === "hire" ? "border-emerald-100 text-emerald-700" : "border-slate-200 text-slate-700"}`}>{faDomainLabel(decision)}</button>) : <div className="col-span-2 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-500">نقش فعلی اجازه ثبت تصمیم استخدام را ندارد.</div>}</div><Link href={`/app/jobs/${selectedApplication.jobId}`} className="mt-4 inline-flex text-[9px] font-semibold text-indigo-600">باز کردن فضای کاری موقعیت ←</Link></Panel> : null}
         </div>
       </div>
     </div>

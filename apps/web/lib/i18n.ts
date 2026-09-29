@@ -2,11 +2,96 @@ export const supportedLocales = ["fa", "en"] as const;
 export type AppLocale = (typeof supportedLocales)[number];
 
 export function getDefaultLocale(): AppLocale {
-  return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "fa" ? "fa" : "en";
+  return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "en" ? "en" : "fa";
 }
 
 export function directionFor(locale: AppLocale): "rtl" | "ltr" {
   return locale === "fa" ? "rtl" : "ltr";
+}
+
+const faDomainLabels: Record<string, string> = {
+  draft: "پیش‌نویس",
+  submitted: "ارسال‌شده به منابع انسانی",
+  approved: "تأییدشده",
+  rejected: "ردشده",
+  recruiting: "در حال جذب",
+  filled: "تکمیل ظرفیت",
+  cancelled: "لغوشده",
+  open: "باز",
+  closed: "بسته",
+  active: "فعال",
+  disabled: "غیرفعال",
+  pending: "در انتظار",
+  completed: "تکمیل‌شده",
+  failed: "ناموفق",
+  extracting: "در حال استخراج",
+  parsing: "در حال پردازش",
+  configured: "پیکربندی‌شده",
+  verified: "تأییدشده",
+  degraded: "دارای اختلال",
+  approval_required: "نیازمند تأیید",
+  pending_human_review: "در انتظار بررسی انسانی",
+  screening: "غربالگری",
+  interview: "مصاحبه",
+  review: "بررسی",
+  technical_approved: "تأیید فنی",
+  technical_review: "نیازمند مصاحبه بیشتر",
+  technical_rejected: "رد فنی",
+  hired: "استخدام‌شده",
+  withdrawn: "انصراف‌داده",
+  advance: "انتقال به مرحله بعد",
+  hold: "در انتظار تصمیم",
+  hire: "استخدام",
+  approve: "تأیید",
+  needs_interview: "مصاحبه بیشتر",
+  reject: "رد",
+  sent: "ارسال‌شده",
+  blocked: "مسدود",
+  outbound: "خروجی",
+  inbound: "ورودی",
+  accepted: "پذیرفته‌شده",
+  enabled: "فعال",
+  required: "الزامی",
+  "not required": "غیرالزامی",
+  job: "موقعیت شغلی",
+  candidate: "کاندیدا",
+  application: "پرونده استخدامی",
+  interview_session: "نشست مصاحبه",
+  system: "سیستم",
+  human: "انسان",
+  manual: "دستی",
+  manual_test: "تست دستی",
+  unknown: "نامشخص",
+  must_have: "ضروری",
+  nice_to_have: "ترجیحی",
+  unverified: "تأییدنشده",
+};
+
+export function faDomainLabel(value: string | null | undefined): string {
+  if (!value) return "—";
+  const normalized = value.trim().toLowerCase();
+  return faDomainLabels[normalized] ?? value.replaceAll("_", " ");
+}
+
+const faRoleLabels: Record<string, string> = {
+  org_admin: "مدیر سازمان",
+  organization_admin: "مدیر سازمان",
+  hr_manager: "مدیر منابع انسانی",
+  recruiter: "کارشناس جذب",
+  interviewer: "مصاحبه‌گر",
+  hiring_manager: "مدیر استخدام",
+};
+
+export function faRoleLabel(role: string | null | undefined): string {
+  if (!role) return "عضو سازمان";
+  return faRoleLabels[role.toLowerCase()] ?? faDomainLabel(role);
+}
+
+export function formatFaDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.valueOf())) return "—";
+  return new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
 export const shellCopy = {
@@ -50,25 +135,25 @@ export const shellCopy = {
 
 export const foundationCopy = {
   fa: {
-    commandTitle: "Command Center",
-    commandDescription: "کارهای نیازمند توجه، فعالیت‌های AI و تصمیم‌های در انتظار بررسی در اینجا جمع می‌شوند.",
+    commandTitle: "مرکز فرمان استخدام",
+    commandDescription: "کارهای نیازمند توجه، فعالیت‌های هوش مصنوعی و تصمیم‌های در انتظار بررسی در اینجا جمع می‌شوند.",
     attention: "نیازمند توجه",
     noData: "هنوز داده‌ای وجود ندارد",
-    aiActivity: "فعالیت AI",
-    aiReady: "Gateway آماده اتصال است",
-    aiSuggestion: "پیشنهاد AI",
+    aiActivity: "فعالیت هوش مصنوعی",
+    aiReady: "درگاه هوش مصنوعی آماده اتصال است",
+    aiSuggestion: "پیشنهاد هوش مصنوعی",
     firstJobTitle: "اولین موقعیت شغلی را ایجاد کنید",
-    firstJobDescription: "Job Workspace در milestone بعدی به این shell متصل می‌شود.",
-    candidateBrand: "Interview Platform · کاندیدا",
+    firstJobDescription: "فضای کاری موقعیت شغلی در مرحله بعدی محصول به این پوسته متصل می‌شود.",
+    candidateBrand: "سامانه استخدام هوشمند · کاندیدا",
     candidateTitle: "پرتال کاندیدا",
     candidateDescription: "ورود این بخش از طریق دعوت‌نامه امن و نشست محدود کاندیدا انجام می‌شود.",
-    candidateSurfaceTitle: "تجربه‌ای جدا از پنل HR",
+    candidateSurfaceTitle: "تجربه‌ای جدا از پنل منابع انسانی",
     candidateSurfaceDescription: "رضایت‌نامه، بررسی دستگاه، غربالگری، مصاحبه و ارزیابی در این بخش مستقل اجرا می‌شوند.",
     workspaceReady: "فضای کاری آماده است",
-    workspaceDeferred: "داده و قابلیت‌های این بخش در vertical slice مربوط به خودش اضافه می‌شوند.",
+    workspaceDeferred: "داده و قابلیت‌های این بخش در مرحله محصول مربوط به خودش اضافه می‌شوند.",
   },
   en: {
-    commandTitle: "Command Center",
+    commandTitle: "مرکز فرمان استخدام",
     commandDescription: "Attention items, AI activity, and pending human decisions are collected here.",
     attention: "Needs attention",
     noData: "No data yet",

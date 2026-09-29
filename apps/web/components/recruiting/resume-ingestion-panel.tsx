@@ -3,6 +3,7 @@
 import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
+import { faDomainLabel } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -61,7 +62,7 @@ export function ResumeIngestionPanel({
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setMessage(error instanceof Error ? error.message : "No active organization is available");
+        setMessage(error instanceof Error ? error.message : "سازمان فعالی در دسترس نیست");
         setLoading(false);
       });
     return () => {
@@ -76,7 +77,7 @@ export function ResumeIngestionPanel({
       headers: tenantHeaders(identity),
     });
     if (result.error) {
-      setMessage(apiErrorMessage(result, "Resume history could not be loaded"));
+      setMessage(apiErrorMessage(result, "سوابق رزومه بارگذاری نشد"));
       setLoading(false);
       return;
     }
@@ -91,11 +92,11 @@ export function ResumeIngestionPanel({
   async function uploadResume(file: File) {
     if (!identity || !canManageResume) return;
     if (file.size <= 0 || file.size > MAX_RESUME_BYTES) {
-      setMessage("Resume must be between 1 byte and 10 MB.");
+      setMessage("حجم رزومه باید بین ۱ بایت تا ۱۰ مگابایت باشد.");
       return;
     }
     if (!ACCEPTED_RESUME_TYPES.has(file.type)) {
-      setMessage("Supported resume formats are PDF, DOCX and UTF-8 plain text.");
+      setMessage("فرمت‌های پشتیبانی‌شده رزومه PDF، DOCX و متن UTF-8 هستند.");
       return;
     }
 
@@ -117,7 +118,7 @@ export function ResumeIngestionPanel({
         },
       });
       if (result.error || !result.data) {
-        setMessage(apiErrorMessage(result, "Resume ingestion failed"));
+        setMessage(apiErrorMessage(result, "پردازش رزومه ناموفق بود"));
         return;
       }
       const ingested = result.data;
@@ -141,7 +142,7 @@ export function ResumeIngestionPanel({
       headers: tenantHeaders(identity),
     });
     if (result.error || !result.data?.url) {
-      setMessage(apiErrorMessage(result, "Resume file reference could not be created"));
+      setMessage(apiErrorMessage(result, "مرجع فایل رزومه ایجاد نشد"));
       return;
     }
     window.open(result.data.url, "_blank", "noopener,noreferrer");
@@ -151,14 +152,14 @@ export function ResumeIngestionPanel({
     <Panel className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[13px] font-semibold">Resume ingestion</h2>
+          <h2 className="text-[13px] font-semibold">دریافت و پردازش رزومه</h2>
           <p className="mt-1 max-w-xl text-[9px] leading-4 text-slate-500">
             PDF, DOCX or UTF-8 text is stored, extracted, parsed, chunked and converted into candidate evidence. Resume-derived skills stay unverified until corroborated.
           </p>
         </div>
         {canManageResume ? (
           <label className={`inline-flex h-9 cursor-pointer items-center rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white ${uploading ? "pointer-events-none opacity-60" : ""}`}>
-            {uploading ? "Processing…" : "Upload resume"}
+            {uploading ? "در حال پردازش…" : "بارگذاری رزومه"}
             <input
               ref={inputRef}
               type="file"
@@ -176,16 +177,16 @@ export function ResumeIngestionPanel({
 
       {applicationId ? (
         <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-[9px] text-slate-500">
-          New uploads will be linked to the selected application.
+          فایل جدید به پرونده استخدامی انتخاب‌شده متصل می‌شود.
         </div>
       ) : null}
       {message ? <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-[9px] text-indigo-800">{message}</div> : null}
 
       <div className="mt-4 space-y-2">
-        {loading ? <div className="text-[10px] text-slate-400">Loading resume history…</div> : null}
+        {loading ? <div className="text-[10px] text-slate-400">در حال بارگذاری سوابق رزومه…</div> : null}
         {!loading && resumes.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 p-4 text-[10px] text-slate-400">
-            No resume has been ingested for this candidate yet.
+            هنوز رزومه‌ای برای این کاندیدا پردازش نشده است.
           </div>
         ) : null}
         {resumes.map((resume) => (
@@ -198,7 +199,7 @@ export function ResumeIngestionPanel({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Pill tone={statusTone(resume.status)}>{resume.status}</Pill>
+                <Pill tone={statusTone(resume.status)}>{faDomainLabel(resume.status)}</Pill>
                 <button type="button" onClick={() => void openResume(resume.id)} className="text-[9px] font-semibold text-indigo-600">
                   Open file
                 </button>
@@ -207,21 +208,21 @@ export function ResumeIngestionPanel({
 
             {resume.status === "completed" ? (
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">Chunks</div><div className="mt-1 text-[11px] font-semibold">{resume.chunkCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">Embedded</div><div className="mt-1 text-[11px] font-semibold">{resume.embeddedChunkCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">Evidence</div><div className="mt-1 text-[11px] font-semibold">{resume.evidenceCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">Skills parsed</div><div className="mt-1 text-[11px] font-semibold">{resume.structuredProfile.skills.length}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بخش‌ها</div><div className="mt-1 text-[11px] font-semibold">{resume.chunkCount}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بردارسازی‌شده</div><div className="mt-1 text-[11px] font-semibold">{resume.embeddedChunkCount}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">شواهد</div><div className="mt-1 text-[11px] font-semibold">{resume.evidenceCount}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">مهارت‌های استخراج‌شده</div><div className="mt-1 text-[11px] font-semibold">{resume.structuredProfile.skills.length}</div></div>
               </div>
             ) : null}
 
             {resume.status === "completed" && resume.chunkCount > 0 && resume.embeddedChunkCount === 0 ? (
               <div className="mt-2 text-[8px] leading-4 text-amber-700">
-                Text/evidence ingestion completed; embeddings are disabled in this environment.
+                استخراج متن و شواهد انجام شده است؛ بردارسازی در این محیط غیرفعال است.
               </div>
             ) : null}
             {resume.status === "failed" ? (
               <div className="mt-2 rounded-lg bg-rose-50 p-2 text-[8px] leading-4 text-rose-700">
-                {resume.failureMessage || resume.failureCode || "Resume processing failed."}
+                {resume.failureMessage || resume.failureCode || "پردازش رزومه ناموفق بود."}
               </div>
             ) : null}
           </div>

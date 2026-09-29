@@ -6,10 +6,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Interview Platform",
-    template: "%s · Interview Platform",
+    default: "سامانه جذب و استخدام هوشمند",
+    template: "%s · سامانه جذب و استخدام هوشمند",
   },
-  description: "AI Recruiter platform",
+  description: "سامانه هوشمند جذب، ارزیابی و مدیریت فرایند استخدام",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

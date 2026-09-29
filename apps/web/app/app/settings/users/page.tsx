@@ -3,6 +3,7 @@
 import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api } from "../../../../lib/api";
+import { faDomainLabel, faRoleLabel, formatFaDateTime } from "../../../../lib/i18n";
 import {
   resolveTenantIdentity,
   tenantHeaders,
@@ -48,10 +49,10 @@ export default function OrganizationUsersPage() {
       api.GET("/v1/organization/users/invitations", { headers }),
     ]);
     if (usersResult.error || !usersResult.data) {
-      throw new Error(errorMessage(usersResult.error, "Unable to load organization users"));
+      throw new Error(errorMessage(usersResult.error, "کاربران سازمان بارگذاری نشدند"));
     }
     if (invitationsResult.error || !invitationsResult.data) {
-      throw new Error(errorMessage(invitationsResult.error, "Unable to load invitations"));
+      throw new Error(errorMessage(invitationsResult.error, "دعوت‌نامه‌ها بارگذاری نشدند"));
     }
     setUsers(usersResult.data);
     setInvitations(invitationsResult.data);
@@ -66,7 +67,7 @@ export default function OrganizationUsersPage() {
         await load(resolved);
       })
       .catch((cause) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : "Unable to load organization access");
+        if (!cancelled) setError(cause instanceof Error ? cause.message : "اطلاعات دسترسی سازمان بارگذاری نشد");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -98,12 +99,12 @@ export default function OrganizationUsersPage() {
         headers: tenantHeaders(resolved),
         body: { email, role },
       });
-      if (result.error || !result.data) throw new Error(errorMessage(result.error, "Unable to invite user"));
+      if (result.error || !result.data) throw new Error(errorMessage(result.error, "دعوت کاربر ناموفق بود"));
       setEmail("");
       if (result.data.developmentToken) setDevelopmentToken(result.data.developmentToken);
       await reload();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to invite user");
+      setError(cause instanceof Error ? cause.message : "دعوت کاربر ناموفق بود");
     } finally {
       setBusy(false);
     }
@@ -118,10 +119,10 @@ export default function OrganizationUsersPage() {
         headers: tenantHeaders(resolved),
         body: { role: nextRole },
       });
-      if (result.error) throw new Error(errorMessage(result.error, "Unable to change role"));
+      if (result.error) throw new Error(errorMessage(result.error, "تغییر نقش ناموفق بود"));
       await reload();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to change role");
+      setError(cause instanceof Error ? cause.message : "تغییر نقش ناموفق بود");
     }
   }
 
@@ -134,15 +135,15 @@ export default function OrganizationUsersPage() {
         headers: tenantHeaders(resolved),
         body: { status: user.status === "active" ? "disabled" : "active" },
       });
-      if (result.error) throw new Error(errorMessage(result.error, "Unable to change status"));
+      if (result.error) throw new Error(errorMessage(result.error, "تغییر وضعیت کاربر ناموفق بود"));
       await reload();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to change status");
+      setError(cause instanceof Error ? cause.message : "تغییر وضعیت کاربر ناموفق بود");
     }
   }
 
   async function remove(userId: string) {
-    if (!window.confirm("Remove this user from the organization? Their global account will not be deleted.")) return;
+    if (!window.confirm("این کاربر از سازمان حذف شود؟ حساب سراسری او حذف نخواهد شد.")) return;
     setError(null);
     try {
       const resolved = await currentIdentity();
@@ -150,27 +151,27 @@ export default function OrganizationUsersPage() {
         params: { path: { userId } },
         headers: tenantHeaders(resolved),
       });
-      if (result.error) throw new Error(errorMessage(result.error, "Unable to remove user"));
+      if (result.error) throw new Error(errorMessage(result.error, "حذف کاربر از سازمان ناموفق بود"));
       await reload();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to remove user");
+      setError(cause instanceof Error ? cause.message : "حذف کاربر از سازمان ناموفق بود");
     }
   }
 
   return (
     <div className="space-y-5">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-[.14em] text-indigo-600">Settings / Access</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-slate-950">Organization users</h1>
-        <p className="mt-1 text-xs text-slate-500">Invite internal users, assign one operating role, disable access, or remove organization membership.</p>
+        <div className="text-[11px] font-semibold uppercase tracking-[.14em] text-indigo-600">تنظیمات / دسترسی</div>
+        <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-slate-950">کاربران سازمان</h1>
+        <p className="mt-1 text-xs text-slate-500">کاربران داخلی را دعوت کنید، نقش عملیاتی تعیین کنید، دسترسی را غیرفعال کنید یا عضویت سازمان را حذف کنید.</p>
       </div>
 
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div> : null}
       {developmentToken ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
-          <div className="font-semibold">Development-only invitation token</div>
+          <div className="font-semibold">توکن دعوت مخصوص محیط توسعه</div>
           <div className="mt-1 break-all font-mono text-[10px]">{developmentToken}</div>
-          <div className="mt-1 text-[10px] text-amber-700">This value is never returned in production and must not be logged or committed.</div>
+          <div className="mt-1 text-[10px] text-amber-700">این مقدار در محیط تولید بازگردانده نمی‌شود و نباید در لاگ یا مخزن ثبت شود.</div>
         </div>
       ) : null}
 
@@ -182,39 +183,39 @@ export default function OrganizationUsersPage() {
         <label className="text-xs font-medium text-slate-700">
           Role
           <select className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" value={role} onChange={(event) => setRole(event.target.value as Role)}>
-            {ROLES.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
+            {ROLES.map((item) => <option key={item} value={item}>{faRoleLabel(item)}</option>)}
           </select>
         </label>
-        <button disabled={busy} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" type="submit">{busy ? "Creating…" : "Invite user"}</button>
+        <button disabled={busy} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" type="submit">{busy ? "در حال ایجاد…" : "دعوت کاربر"}</button>
       </form>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">Members</h2></div>
+        <div className="border-b border-slate-100 px-5 py-4"><h2 className="text-sm font-semibold text-slate-900">اعضای سازمان</h2></div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] uppercase tracking-[.06em] text-slate-400"><tr><th className="px-5 py-3">User</th><th className="px-3 py-3">Role</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Last login</th><th className="px-5 py-3 text-right">Actions</th></tr></thead>
+          <table className="w-full min-w-[820px] text-start text-xs">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-[.06em] text-slate-400"><tr><th className="px-5 py-3">کاربر</th><th className="px-3 py-3">نقش</th><th className="px-3 py-3">وضعیت</th><th className="px-3 py-3">آخرین ورود</th><th className="px-5 py-3 text-end">اقدامات</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? <tr><td className="px-5 py-8 text-center text-slate-400" colSpan={5}>Loading organization members…</td></tr> : users.map((user) => {
+              {loading ? <tr><td className="px-5 py-8 text-center text-slate-400" colSpan={5}>در حال بارگذاری اعضای سازمان…</td></tr> : users.map((user) => {
                 const currentRole = ROLES.find((item) => user.roles.includes(item)) ?? "RECRUITER";
                 return <tr key={user.userId}>
                   <td className="px-5 py-4"><div className="font-semibold text-slate-800">{user.displayName || user.email}</div><div className="mt-0.5 text-[10px] text-slate-500">{user.email}</div></td>
-                  <td className="px-3 py-4"><select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px]" value={currentRole} onChange={(event) => void changeRole(user.userId, event.target.value as Role)}>{ROLES.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select></td>
-                  <td className="px-3 py-4"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${user.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{user.status}</span></td>
-                  <td className="px-3 py-4 text-[11px] text-slate-500">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</td>
-                  <td className="px-5 py-4 text-right"><button className="mr-2 text-[11px] font-semibold text-indigo-600" type="button" onClick={() => void changeStatus(user)}>{user.status === "active" ? "Disable" : "Reactivate"}</button><button className="text-[11px] font-semibold text-red-600" type="button" onClick={() => void remove(user.userId)}>Remove</button></td>
+                  <td className="px-3 py-4"><select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px]" value={currentRole} onChange={(event) => void changeRole(user.userId, event.target.value as Role)}>{ROLES.map((item) => <option key={item} value={item}>{faRoleLabel(item)}</option>)}</select></td>
+                  <td className="px-3 py-4"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${user.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{faDomainLabel(user.status)}</span></td>
+                  <td className="px-3 py-4 text-[11px] text-slate-500">{user.lastLoginAt ? formatFaDateTime(user.lastLoginAt) : "هرگز"}</td>
+                  <td className="px-5 py-4 text-end"><button className="me-2 text-[11px] font-semibold text-indigo-600" type="button" onClick={() => void changeStatus(user)}>{user.status === "active" ? "غیرفعال‌کردن" : "فعال‌سازی مجدد"}</button><button className="text-[11px] font-semibold text-red-600" type="button" onClick={() => void remove(user.userId)}>حذف</button></td>
                 </tr>;
               })}
-              {!loading && users.length === 0 ? <tr><td className="px-5 py-8 text-center text-slate-400" colSpan={5}>No organization users found.</td></tr> : null}
+              {!loading && users.length === 0 ? <tr><td className="px-5 py-8 text-center text-slate-400" colSpan={5}>کاربری در سازمان پیدا نشد.</td></tr> : null}
             </tbody>
           </table>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Pending invitations</h2>
+        <h2 className="text-sm font-semibold text-slate-900">دعوت‌نامه‌های در انتظار</h2>
         <div className="mt-3 space-y-2">
-          {invitations.map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-3 text-xs"><div><div className="font-semibold text-slate-800">{invitation.email}</div><div className="mt-0.5 text-[10px] text-slate-500">{invitation.role.replaceAll("_", " ")} · expires {new Date(invitation.expiresAt).toLocaleString()}</div></div><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">Delivery pending</span></div>)}
-          {!loading && invitations.length === 0 ? <p className="text-xs text-slate-400">No pending invitations.</p> : null}
+          {invitations.map((invitation) => <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 px-3 py-3 text-xs"><div><div className="font-semibold text-slate-800">{invitation.email}</div><div className="mt-0.5 text-[10px] text-slate-500">{faRoleLabel(invitation.role)} · انقضا: {formatFaDateTime(invitation.expiresAt)}</div></div><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700">در انتظار ارسال</span></div>)}
+          {!loading && invitations.length === 0 ? <p className="text-xs text-slate-400">دعوت‌نامه‌ای در انتظار نیست.</p> : null}
         </div>
       </section>
     </div>

@@ -251,7 +251,7 @@ export function DemoNotice() {
   return (
     <div className="inline-flex max-w-max items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[9px] font-medium text-slate-500 shadow-sm">
       <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-      Development dataset · not production metrics
+      داده محیط توسعه · شاخص تولید نیست
     </div>
   );
 }

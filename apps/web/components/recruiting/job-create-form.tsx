@@ -116,10 +116,10 @@ export function JobCreateForm() {
   return (
     <div className="mx-auto max-w-[1180px] space-y-5">
       <div>
-        <div className="text-[10px] text-slate-400">Jobs / Create</div>
-        <h1 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950">Create a job and evidence rubric</h1>
+        <div className="text-[10px] text-slate-400">موقعیت‌های شغلی / ایجاد</div>
+        <h1 className="mt-2 text-[24px] font-semibold tracking-tight text-slate-950">ایجاد موقعیت شغلی و چارچوب ارزیابی مبتنی بر شواهد</h1>
         <p className="mt-1 max-w-3xl text-[11px] leading-5 text-slate-500">
-          این فرم از typed API client استفاده می‌کند و Job، Requirements و Rubric Version 1 را مستقیماً در دیتابیس ایجاد می‌کند. انتشار rubric یک اقدام جداگانه و قابل audit است.
+          این فرم موقعیت شغلی، الزامات و نسخه اول چارچوب ارزیابی را مستقیماً در پایگاه داده ایجاد می‌کند. انتشار چارچوب ارزیابی یک اقدام جداگانه و قابل حسابرسی است.
         </p>
       </div>
 
@@ -127,46 +127,46 @@ export function JobCreateForm() {
         <Panel className="space-y-4 p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">عنوان
-              <input className={field} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Senior Backend Engineer" />
+              <input className={field} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="توسعه‌دهنده ارشد Backend" />
             </label>
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">دپارتمان
-              <input className={field} value={department} onChange={(event) => setDepartment(event.target.value)} placeholder="Engineering" />
+              <input className={field} value={department} onChange={(event) => setDepartment(event.target.value)} placeholder="مهندسی" />
             </label>
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">موقعیت
-              <input className={field} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Tehran / Hybrid" />
+              <input className={field} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="تهران / ترکیبی" />
             </label>
             <label className="space-y-1.5 text-[10px] font-semibold text-slate-600">Seniority
-              <input className={field} value={seniority} onChange={(event) => setSeniority(event.target.value)} placeholder="Senior" />
+              <input className={field} value={seniority} onChange={(event) => setSeniority(event.target.value)} placeholder="ارشد" />
             </label>
           </div>
           <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">خلاصه نقش
             <textarea className={`${textarea} min-h-28`} value={summary} onChange={(event) => setSummary(event.target.value)} />
           </label>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">Must-have requirements — هر خط یک مورد
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">الزامات ضروری — هر خط یک مورد
               <textarea className={`${textarea} min-h-36`} value={mustHave} onChange={(event) => setMustHave(event.target.value)} placeholder={"C#/.NET\nDistributed systems\nPostgreSQL"} />
             </label>
-            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">Nice-to-have requirements — هر خط یک مورد
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">الزامات ترجیحی — هر خط یک مورد
               <textarea className={`${textarea} min-h-36`} value={niceToHave} onChange={(event) => setNiceToHave(event.target.value)} placeholder={"Azure\nKafka"} />
             </label>
           </div>
-          <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">Rubric criteria — هر خط یک معیار
-            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"System design\nBackend depth\nReliability reasoning\nCommunication"} />
+          <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای چارچوب ارزیابی — هر خط یک معیار
+            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش Backend\nاستدلال قابلیت اطمینان\nارتباط مؤثر"} />
           </label>
         </Panel>
 
         <Panel className="h-fit p-5">
-          <h2 className="text-[13px] font-semibold text-slate-900">Draft summary</h2>
+          <h2 className="text-[13px] font-semibold text-slate-900">خلاصه پیش‌نویس</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{requirements.length}</div><div className="text-[9px] text-slate-500">requirements</div></div>
-            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{criteria.length}</div><div className="text-[9px] text-slate-500">criteria</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{requirements.length}</div><div className="text-[9px] text-slate-500">الزام</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{criteria.length}</div><div className="text-[9px] text-slate-500">معیار</div></div>
           </div>
           <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] leading-5 text-indigo-800">
-            امتیاز نهایی تنها از rubric versioned و evidence-backed evaluation محاسبه می‌شود. ساخت Job هیچ Hiring Score مصنوعی تولید نمی‌کند.
+            امتیاز نهایی فقط از چارچوب ارزیابی نسخه‌دار و ارزیابی مبتنی بر شواهد محاسبه می‌شود. ایجاد موقعیت شغلی هیچ امتیاز استخدامی ساختگی تولید نمی‌کند.
           </div>
           {error ? <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[10px] text-rose-700">{error}</div> : null}
           <button type="button" onClick={() => void submit()} disabled={submitting} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
-            {submitting ? "در حال ایجاد…" : "Create draft job"}
+            {submitting ? "در حال ایجاد…" : "ایجاد پیش‌نویس موقعیت"}
           </button>
         </Panel>
       </div>

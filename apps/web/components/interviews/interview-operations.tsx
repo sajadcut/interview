@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
+import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 
 type InterviewerOption = { userId: string; email: string; displayName?: string };
@@ -39,7 +40,7 @@ export function InterviewOperations() {
       return;
     }
     if (!result.response.ok) {
-      throw new Error(apiErrorMessage(result, "Unable to load interview operations"));
+      throw new Error(apiErrorMessage(result, "عملیات مصاحبه بارگذاری نشد"));
     }
     const data = result.data as Options;
     setOptions(data);
@@ -56,7 +57,7 @@ export function InterviewOperations() {
     let active = true;
     void load()
       .catch((cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Unable to load interview operations");
+        if (active) setError(cause instanceof Error ? cause.message : "عملیات مصاحبه بارگذاری نشد");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -69,7 +70,7 @@ export function InterviewOperations() {
   async function assign(sessionId: string) {
     const interviewerUserId = selected[sessionId];
     if (!interviewerUserId) {
-      setError("Choose an interviewer first");
+      setError("ابتدا یک مصاحبه‌گر انتخاب کنید");
       return;
     }
     const current = identity ?? (await resolveTenantIdentity());
@@ -81,11 +82,11 @@ export function InterviewOperations() {
         body: { sessionId, interviewerUserId },
       });
       if (!result.response.ok) {
-        throw new Error(apiErrorMessage(result, "Unable to assign interviewer"));
+        throw new Error(apiErrorMessage(result, "تخصیص مصاحبه‌گر ناموفق بود"));
       }
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to assign interviewer");
+      setError(cause instanceof Error ? cause.message : "تخصیص مصاحبه‌گر ناموفق بود");
     } finally {
       setBusySession(null);
     }
@@ -94,34 +95,34 @@ export function InterviewOperations() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-[24px] font-semibold tracking-[-.03em] text-slate-950">Interviews</h1>
-        <p className="mt-1 text-[11px] text-slate-500">Real interview sessions, interviewer assignments, schedules and review state.</p>
+        <h1 className="text-[24px] font-semibold tracking-[-.03em] text-slate-950">مصاحبه‌ها</h1>
+        <p className="mt-1 text-[11px] text-slate-500">نشست‌های واقعی مصاحبه، تخصیص مصاحبه‌گر، زمان‌بندی و وضعیت بررسی.</p>
       </div>
       {error ? <div role="alert" className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left text-xs">
+          <table className="w-full min-w-[960px] text-start text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-[.06em] text-slate-400">
-              <tr><th className="px-5 py-3">Candidate</th><th className="px-3 py-3">Job</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Scheduled</th><th className="px-3 py-3">Interviewer</th><th className="px-5 py-3 text-right">Action</th></tr>
+              <tr><th className="px-5 py-3">کاندیدا</th><th className="px-3 py-3">موقعیت شغلی</th><th className="px-3 py-3">وضعیت</th><th className="px-3 py-3">زمان‌بندی</th><th className="px-3 py-3">مصاحبه‌گر</th><th className="px-5 py-3 text-end">اقدام</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">Loading interview operations…</td></tr> : options.sessions.map((session) => (
+              {loading ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">در حال بارگذاری عملیات مصاحبه…</td></tr> : options.sessions.map((session) => (
                 <tr key={session.sessionId}>
                   <td className="px-5 py-4 font-semibold text-slate-800">{session.candidateName}</td>
                   <td className="px-3 py-4 text-slate-600">{session.jobTitle}</td>
-                  <td className="px-3 py-4"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-600">{session.sessionStatus.replaceAll("_", " ")}</span></td>
-                  <td className="px-3 py-4 text-slate-500">{session.scheduledFor ? new Date(session.scheduledFor).toLocaleString() : "Not scheduled"}</td>
+                  <td className="px-3 py-4"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-600">{faDomainLabel(session.sessionStatus)}</span></td>
+                  <td className="px-3 py-4 text-slate-500">{session.scheduledFor ? formatFaDateTime(session.scheduledFor) : "زمان‌بندی نشده"}</td>
                   <td className="px-3 py-4">
-                    <label className="sr-only" htmlFor={`interviewer-${session.sessionId}`}>Interviewer for {session.candidateName}</label>
+                    <label className="sr-only" htmlFor={`interviewer-${session.sessionId}`}>مصاحبه‌گر برای {session.candidateName}</label>
                     <select id={`interviewer-${session.sessionId}`} value={selected[session.sessionId] ?? ""} onChange={(event) => setSelected((state) => ({ ...state, [session.sessionId]: event.target.value }))} className="w-full min-w-48 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px]">
-                      <option value="">Choose interviewer</option>
+                      <option value="">انتخاب مصاحبه‌گر</option>
                       {options.interviewers.map((interviewer) => <option key={interviewer.userId} value={interviewer.userId}>{interviewer.displayName || interviewer.email}</option>)}
                     </select>
                   </td>
-                  <td className="px-5 py-4 text-right"><button disabled={busySession === session.sessionId || !selected[session.sessionId]} onClick={() => void assign(session.sessionId)} className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40" type="button">{busySession === session.sessionId ? "Assigning…" : session.interviewerUserId ? "Reassign" : "Assign"}</button></td>
+                  <td className="px-5 py-4 text-end"><button disabled={busySession === session.sessionId || !selected[session.sessionId]} onClick={() => void assign(session.sessionId)} className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40" type="button">{busySession === session.sessionId ? "در حال تخصیص…" : session.interviewerUserId ? "تخصیص مجدد" : "تخصیص"}</button></td>
                 </tr>
               ))}
-              {!loading && options.sessions.length === 0 ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">No interview sessions found.</td></tr> : null}
+              {!loading && options.sessions.length === 0 ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">نشست مصاحبه‌ای پیدا نشد.</td></tr> : null}
             </tbody>
           </table>
         </div>

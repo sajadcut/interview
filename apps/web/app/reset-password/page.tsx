@@ -25,15 +25,15 @@ function ResetPasswordContent() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (!token) return setError("Reset token is missing");
-    if (password !== confirmPassword) return setError("Passwords do not match");
+    if (!token) return setError("توکن بازیابی وجود ندارد");
+    if (password !== confirmPassword) return setError("رمزهای عبور یکسان نیستند");
     setBusy(true);
     try {
       const result = await api.POST("/auth/password-reset/complete", { body: { token, password } });
-      if (result.error || !result.data?.reset) throw new Error(errorMessage(result.error, "Password reset failed"));
+      if (result.error || !result.data?.reset) throw new Error(errorMessage(result.error, "بازیابی رمز عبور ناموفق بود"));
       setDone(true);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Password reset failed");
+      setError(cause instanceof Error ? cause.message : "بازیابی رمز عبور ناموفق بود");
     } finally {
       setBusy(false);
     }
@@ -42,16 +42,16 @@ function ResetPasswordContent() {
   return (
     <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
       <section className="w-full max-w-[440px] rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-        <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-indigo-600">Account recovery</div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-[-.03em] text-slate-950">Choose a new password</h1>
+        <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-indigo-600">بازیابی حساب</div>
+        <h1 className="mt-2 text-2xl font-semibold tracking-[-.03em] text-slate-950">رمز عبور جدید انتخاب کنید</h1>
         {done ? (
-          <div className="mt-5"><div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">Password changed. Existing sessions have been revoked.</div><a className="mt-4 inline-block text-xs font-semibold text-indigo-600" href="/login">Sign in</a></div>
+          <div className="mt-5"><div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-700">رمز عبور تغییر کرد و نشست‌های قبلی باطل شدند.</div><a className="mt-4 inline-block text-xs font-semibold text-indigo-600" href="/login">ورود</a></div>
         ) : (
           <form className="mt-5 space-y-4" onSubmit={submit}>
-            <label className="block text-xs font-medium text-slate-700">New password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400" /></label>
-            <label className="block text-xs font-medium text-slate-700">Confirm password<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400" /></label>
+            <label className="block text-xs font-medium text-slate-700">رمز عبور جدید<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400" /></label>
+            <label className="block text-xs font-medium text-slate-700">تکرار رمز عبور<input type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400" /></label>
             {error ? <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
-            <button disabled={busy} className="w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" type="submit">{busy ? "Changing…" : "Change password"}</button>
+            <button disabled={busy} className="w-full rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" type="submit">{busy ? "در حال تغییر…" : "تغییر رمز عبور"}</button>
           </form>
         )}
       </section>
@@ -61,7 +61,7 @@ function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10 text-sm text-slate-500">Loading password reset…</main>}>
+    <Suspense fallback={<main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10 text-sm text-slate-500">در حال بارگذاری بازیابی رمز عبور…</main>}>
       <ResetPasswordContent />
     </Suspense>
   );

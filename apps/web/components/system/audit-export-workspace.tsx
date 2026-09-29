@@ -3,6 +3,7 @@
 import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
+import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -21,7 +22,7 @@ function useIdentity() {
         if (active) setIdentity(value);
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "Tenant context unavailable");
+        if (active) setError(reason instanceof Error ? reason.message : "بافت سازمان در دسترس نیست");
       });
     return () => {
       active = false;
@@ -63,7 +64,7 @@ export function AuditExportWorkspace() {
       headers: tenantHeaders(current),
     });
     if (!result.response.ok || !result.data) {
-      setMessage(apiErrorMessage(result, "Audit load failed"));
+      setMessage(apiErrorMessage(result, "رویدادهای حسابرسی بارگذاری نشدند"));
       return;
     }
     setRows(result.data);
@@ -96,26 +97,26 @@ export function AuditExportWorkspace() {
         headers: tenantHeaders(identity),
       });
       if (!result.response.ok || !result.data) {
-        setMessage(apiErrorMessage(result, "Audit export failed"));
+        setMessage(apiErrorMessage(result, "خروجی حسابرسی ایجاد نشد"));
         return;
       }
       downloadJson(result.data);
-      setMessage(`Complete audit export generated with ${result.data.count.toLocaleString()} records.`);
+      setMessage(`خروجی کامل حسابرسی با ${result.data.count.toLocaleString("fa-IR")} رکورد ایجاد شد.`);
     } finally {
       setExporting(false);
     }
   }
 
   if (!access.can("audit.read")) {
-    return <Panel className="p-5 text-[11px] text-slate-600">Audit access requires the organization audit.read permission.</Panel>;
+    return <Panel className="p-5 text-[11px] text-slate-600">دسترسی به حسابرسی نیازمند مجوز audit.read در سازمان است.</Panel>;
   }
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-[10px] font-medium text-indigo-600">Governance & decision provenance</div>
-          <h1 className="mt-2 text-[26px] font-semibold">Audit explorer</h1>
+          <div className="text-[10px] font-medium text-indigo-600">حاکمیت و منشأ تصمیم‌ها</div>
+          <h1 className="mt-2 text-[26px] font-semibold">مرور گزارش حسابرسی</h1>
           <p className="mt-1 max-w-3xl text-[11px] text-slate-500">
             Organization-scoped audit actions plus recruiting lifecycle, hiring decisions, evaluator provenance,
             score overrides, AI executions, consent, privacy and retention evidence.
@@ -127,7 +128,7 @@ export function AuditExportWorkspace() {
           onClick={() => void exportComplete()}
           className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:opacity-40"
         >
-          {exporting ? "Preparing export…" : "Download complete JSON"}
+          {exporting ? "در حال آماده‌سازی…" : "دریافت JSON کامل"}
         </button>
       </div>
 
@@ -172,7 +173,7 @@ export function AuditExportWorkspace() {
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="text-[9px] text-slate-500">
-            Complete export omits a row limit by default; secrets/tokens/password-like fields are recursively redacted.
+            خروجی کامل به‌صورت پیش‌فرض محدودیت تعداد ندارد؛ رازها، توکن‌ها و فیلدهای شبیه رمز عبور به‌صورت بازگشتی پوشانده می‌شوند.
           </div>
           <button
             type="button"
@@ -192,40 +193,40 @@ export function AuditExportWorkspace() {
 
       <div className="grid gap-3 md:grid-cols-3">
         <Panel className="p-4">
-          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">Preview rows</div>
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">ردیف‌های پیش‌نمایش</div>
           <div className="mt-2 text-[22px] font-semibold">{rows.length}</div>
         </Panel>
         <Panel className="p-4">
-          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">Export scope</div>
-          <div className="mt-2 text-[11px] font-semibold">All supported audit ledgers</div>
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">دامنه خروجی</div>
+          <div className="mt-2 text-[11px] font-semibold">همه دفترهای حسابرسی پشتیبانی‌شده</div>
         </Panel>
         <Panel className="p-4">
-          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">Integrity</div>
-          <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold"><Pill tone="green">SHA-256</Pill> manifest digest</div>
+          <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">یکپارچگی</div>
+          <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold"><Pill tone="green">SHA-256</Pill> هش مانیفست</div>
         </Panel>
       </div>
 
       <Panel className="overflow-x-auto">
         {loading ? (
-          <div className="p-5 text-[10px] text-slate-500">Loading audit events…</div>
+          <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری رویدادهای حسابرسی…</div>
         ) : (
-          <table className="w-full min-w-[900px] text-left text-[9px]">
+          <table className="w-full min-w-[900px] text-start text-[9px]">
             <thead className="bg-slate-50 text-slate-400">
               <tr>
-                <th className="p-3">Time</th>
-                <th className="p-3">Action</th>
-                <th className="p-3">Actor</th>
-                <th className="p-3">Entity</th>
-                <th className="p-3">Metadata</th>
+                <th className="p-3">زمان</th>
+                <th className="p-3">اقدام</th>
+                <th className="p-3">عامل</th>
+                <th className="p-3">موجودیت</th>
+                <th className="p-3">فراداده</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((row) => (
                 <tr key={row.id}>
-                  <td className="p-3">{new Date(row.created_at).toLocaleString()}</td>
+                  <td className="p-3">{formatFaDateTime(row.created_at)}</td>
                   <td className="p-3 font-semibold">{row.action}</td>
-                  <td className="p-3">{row.actor_type}:{row.actor_user_id || "system"}</td>
-                  <td className="p-3">{row.entity_type}:{row.entity_id || "—"}</td>
+                  <td className="p-3">{faDomainLabel(row.actor_type)}:{row.actor_user_id || "سیستم"}</td>
+                  <td className="p-3">{faDomainLabel(row.entity_type)}:{row.entity_id || "—"}</td>
                   <td className="max-w-[360px] truncate p-3 text-slate-500">{JSON.stringify(row.metadata || {})}</td>
                 </tr>
               ))}

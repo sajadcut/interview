@@ -57,7 +57,7 @@ Until the relevant typed API reads are wired into each visual surface, determini
 
 Fixtures are allowed only when their provenance is visible and they are not described as persisted customer production data. The shared development-data notice must remain subtle enough not to dominate the workflow while still preventing invented metrics from being mistaken for real customer metrics.
 
-The first visual implementation is English-content-first to match the approved visual references. English is therefore the default fixture locale. `NEXT_PUBLIC_DEFAULT_LOCALE=fa` explicitly enables the Persian shell for RTL review. Until complete Persian fixture copy is implemented, English fixture-backed product content remains LTR so tables and information hierarchy are not reversed merely because the shell is Persian.
+The internal recruiter/HR product is Persian-first by default. `NEXT_PUBLIC_DEFAULT_LOCALE=fa` is the default local/product baseline and the internal `/app/*` surface renders RTL with Persian navigation, actions, tables, statuses, validation fallbacks and governance copy. English remains an explicitly selectable locale through `NEXT_PUBLIC_DEFAULT_LOCALE=en`. Candidate-facing and interviewer-specific surfaces remain separate product boundaries and may retain their own locale strategy.
 
 ## Visual acceptance gate
 

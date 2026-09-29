@@ -6,14 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { Panel, PersonAvatar, Pill } from "../../../components/product/recruiting-ui";
 import { api } from "../../../lib/api";
+import { formatFaDateTime } from "../../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders } from "../../../lib/tenant-client";
 
 type CandidateSummary = components["schemas"]["CandidateSummaryDto"];
 
 function formatUpdatedAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.valueOf())) return "—";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return formatFaDateTime(value);
 }
 
 export default function CandidatesPage() {
@@ -28,10 +27,10 @@ export default function CandidatesPage() {
       try {
         const identity = await resolveTenantIdentity();
         const result = await api.GET("/v1/candidates", { headers: tenantHeaders(identity) });
-        if (result.error || !result.data) throw new Error("Candidates could not be loaded from the recruiting API");
+        if (result.error || !result.data) throw new Error("کاندیداها از سرویس جذب بارگذاری نشدند");
         if (active) setCandidates(result.data);
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : "Candidates could not be loaded");
+        if (active) setError(cause instanceof Error ? cause.message : "کاندیداها بارگذاری نشدند");
       } finally {
         if (active) setLoading(false);
       }
@@ -54,9 +53,9 @@ export default function CandidatesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <div className="mb-1 text-[11px] font-medium text-indigo-600">Candidate intelligence</div>
-        <h1 className="text-[28px] font-semibold tracking-[-.03em] text-slate-950">Candidates</h1>
-        <p className="mt-1.5 text-[12px] text-slate-500">Organization-wide persisted talent intelligence and active hiring relationships.</p>
+        <div className="mb-1 text-[11px] font-medium text-indigo-600">هوشمندی کاندیدا</div>
+        <h1 className="text-[28px] font-semibold tracking-[-.03em] text-slate-950">کاندیداها</h1>
+        <p className="mt-1.5 text-[12px] text-slate-500">پروفایل‌های کاندیدا در سطح سازمان و ارتباط آن‌ها با فرایندهای استخدام فعال.</p>
       </div>
 
       {error ? <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-xs text-rose-700">{error}</div> : null}
@@ -64,10 +63,10 @@ export default function CandidatesPage() {
       <Panel>
         <div className="border-b border-slate-200 p-4">
           <div className="relative min-w-[280px] flex-1">
-            <Icon name="search" size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
-              className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 pl-10 pr-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-              placeholder="Search candidates by name, skill, company, role or location..."
+              className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+              placeholder="جستجو بر اساس نام، مهارت، شرکت، نقش یا محل..."
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -78,16 +77,16 @@ export default function CandidatesPage() {
           <table className="data-table min-w-[980px]">
             <thead>
               <tr>
-                {["Candidate", "Current Role", "Company", "Skills", "Location", "Updated"].map((heading) => (
+                {["کاندیدا", "نقش فعلی", "شرکت", "مهارت‌ها", "محل", "آخرین به‌روزرسانی"].map((heading) => (
                   <th key={heading}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">Loading persisted candidates…</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">در حال بارگذاری کاندیداها…</td></tr>
               ) : filteredCandidates.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">{candidates.length ? "No candidates match this search." : "No candidates are available for this organization yet."}</td></tr>
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400">{candidates.length ? "کاندیدایی با این جستجو پیدا نشد." : "هنوز کاندیدایی برای این سازمان ثبت نشده است."}</td></tr>
               ) : filteredCandidates.map((candidate, index) => (
                 <tr key={candidate.id}>
                   <td>
@@ -95,7 +94,7 @@ export default function CandidatesPage() {
                       <PersonAvatar name={candidate.displayName} size={32} tone={index % 5} />
                       <div>
                         <div className="font-semibold text-slate-900">{candidate.displayName}</div>
-                        <div className="mt-1 text-[9px] text-slate-400">Persisted candidate intelligence profile</div>
+                        <div className="mt-1 text-[9px] text-slate-400">پروفایل هوشمندی کاندیدا</div>
                       </div>
                     </Link>
                   </td>
@@ -103,7 +102,7 @@ export default function CandidatesPage() {
                   <td>{candidate.currentCompany || "—"}</td>
                   <td>
                     <div className="flex max-w-[300px] flex-wrap gap-1">
-                      {candidate.skills.length ? candidate.skills.slice(0, 4).map((skill) => <Pill key={skill}>{skill}</Pill>) : <span className="text-slate-400">No skills recorded</span>}
+                      {candidate.skills.length ? candidate.skills.slice(0, 4).map((skill) => <Pill key={skill}>{skill}</Pill>) : <span className="text-slate-400">مهارتی ثبت نشده</span>}
                     </div>
                   </td>
                   <td>{candidate.location || "—"}</td>
@@ -115,8 +114,8 @@ export default function CandidatesPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">
-          <span>{filteredCandidates.length} of {candidates.length} persisted candidates</span>
-          <span>Pre-interview match remains application-specific and is shown inside a job workspace.</span>
+          <span>{filteredCandidates.length} of {candidates.length} کاندیدای ثبت‌شده</span>
+          <span>تطبیق پیش از مصاحبه مختص هر پرونده استخدامی است و در فضای کاری موقعیت نمایش داده می‌شود.</span>
         </div>
       </Panel>
     </div>

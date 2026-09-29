@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { api } from "../../lib/api";
-import { directionFor, getDefaultLocale, shellCopy } from "../../lib/i18n";
+import { directionFor, faRoleLabel, getDefaultLocale, shellCopy } from "../../lib/i18n";
 import { clearRememberedOrganizationId } from "../../lib/tenant-client";
 import { Icon, type IconName } from "./icon";
 import { requiredPermissionForInternalPath, useInternalAccess } from "./internal-access";
@@ -110,8 +110,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const secondaryHrefs = ["/app/automations", "/app/integrations", "/app/settings"];
   const primary = navigation.filter(([, href]) => !secondaryHrefs.includes(href));
   const secondary = navigation.filter(([, href]) => secondaryHrefs.includes(href));
-  const displayName = access.user?.displayName || access.user?.email || "Organization member";
-  const roleLabel = readableRole(access.roles[0]);
+  const displayName = access.user?.displayName || access.user?.email || (locale === "fa" ? "عضو سازمان" : "Organization member");
+  const roleLabel = locale === "fa" ? faRoleLabel(access.roles[0]) : readableRole(access.roles[0]);
   const canCreateJob = access.can("job.create");
 
   async function signOut() {
@@ -134,14 +134,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="hidden bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0 lg:flex-col">
         <div className="mb-5 flex shrink-0 items-center gap-3 px-2 py-1">
           <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30"><Icon name="sparkles" size={17} /></div>
-          <div className="min-w-0"><div className="text-[13px] font-semibold tracking-tight">AI Recruiter</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{access.organization?.name ?? copy.subtitle}</div></div>
+          <div className="min-w-0"><div className="text-[13px] font-semibold tracking-tight">{locale === "fa" ? "دستیار هوشمند جذب" : "AI Recruiter"}</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{access.organization?.name ?? copy.subtitle}</div></div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pe-1">
           <nav className="space-y-1" aria-label={copy.navigationLabel}>{primary.map(([label, href]) => <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
           {secondary.length > 0 ? <><div className="my-4 border-t border-white/10" /><div className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[.18em] text-slate-500">{header.automation}</div><nav className="space-y-1" aria-label={`${copy.navigationLabel} · ${header.automation}`}>{secondary.map(([label, href]) => <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav></> : null}
         </div>
         <div className="mt-3 rounded-[11px] border border-white/10 bg-white/[.045] p-3 shadow-[0_8px_28px_rgba(2,6,23,.18)]">
-          {access.organizations.length > 1 ? <select aria-label="Organization" value={access.organization?.id} onChange={(event) => access.selectOrganization(event.target.value)} className="mb-3 w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-[10px] text-slate-200">{access.organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select> : null}
+          {access.organizations.length > 1 ? <select aria-label={locale === "fa" ? "سازمان" : "Organization"} value={access.organization?.id} onChange={(event) => access.selectOrganization(event.target.value)} className="mb-3 w-full rounded-md border border-white/10 bg-slate-900 px-2 py-1.5 text-[10px] text-slate-200">{access.organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select> : null}
           <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-amber-100 to-violet-200 text-[10px] font-bold text-slate-800">{displayName.slice(0, 2).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{displayName}</div><div className="mt-0.5 truncate text-[9px] text-slate-400">{roleLabel}</div></div></div>
         </div>
       </aside>
@@ -170,7 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         {logoutError ? <div role="alert" className="border-b border-rose-100 bg-rose-50 px-4 py-2 text-xs text-rose-700 sm:px-6">{logoutError}</div> : null}
         <nav className="sticky top-16 z-20 flex gap-1 overflow-x-auto border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:hidden" aria-label={copy.mobileNavigationLabel}>{navigation.map(([label, href]) => <MobileNavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
-        <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir="ltr">{children}</main>
+        <main className="mx-auto max-w-[1560px] p-4 sm:p-5 lg:p-6 xl:p-7" dir={directionFor(locale)}>{children}</main>
       </div>
     </div>
   );

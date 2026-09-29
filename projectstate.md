@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.38.0
+> **Version:** 0.39.0
 > **Date:** 2026-09-29
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -10,10 +10,24 @@
 
 # 1. Current validated baseline
 
+## Persian-first internal product surface
+
+```text
+scope                                     internal organization dashboard /app/* + internal auth/account recovery
+default locale                            fa; NEXT_PUBLIC_DEFAULT_LOCALE=en remains explicit opt-in
+direction                                 RTL end-to-end; internal main content no longer forces LTR
+terminology                               centralized Persian labels for roles, lifecycle states and human decisions
+primary workspaces                        command center / hiring requests / jobs / candidates / talent / interviews / inbox / analytics
+governance workspaces                     automations / integrations / settings / users / audit / search
+safety boundaries                         evidence-first and human-decision copy preserved in Persian
+candidate/interviewer surfaces            remain separate product and locale boundaries
+validation                                quality gate required on the localization HEAD before closure
+```
+
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
 
 ```text
-implementation                            pushed; generated API contracts synchronized; CI validation pending
+implementation                            pushed; generated API contracts synchronized; quality-gate #796 validated core workflow
 domain entrypoint                         HiringRequest before Job creation
 request owner                             Hiring Manager / requesting team
 recruiting owner                          HR Manager / Recruiter after HR approval
