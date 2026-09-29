@@ -5,6 +5,16 @@ test.describe("mobile recruiter smoke", () => {
   test("recruiter session and primary workspace remain usable on a mobile viewport", async ({ page }) => {
     await signInRecruiter(page);
 
+    const expectRtlWithoutDocumentOverflow = async () => {
+      await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+      const fitsViewport = await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+      );
+      expect(fitsViewport).toBe(true);
+    };
+
+    await expectRtlWithoutDocumentOverflow();
+
     const mobileNavigation = page.getByRole("navigation", { name: "پیمایش موبایل" });
     await expect(mobileNavigation).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: "خانه", exact: true })).toHaveAttribute("aria-current", "page");
@@ -14,7 +24,26 @@ test.describe("mobile recruiter smoke", () => {
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "دریافت و پردازش رزومه" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
+    await expectRtlWithoutDocumentOverflow();
 
+    for (const route of [
+      "/app/hiring-requests",
+      "/app/jobs",
+      "/app/candidates",
+      "/app/talent",
+      "/app/interviews",
+      "/app/inbox",
+      "/app/analytics",
+      "/app/automations",
+      "/app/integrations",
+      "/app/settings",
+    ]) {
+      await page.goto(route);
+      await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
+      await expectRtlWithoutDocumentOverflow();
+    }
+
+    await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await page.reload();
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
   });
