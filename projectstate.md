@@ -13,15 +13,15 @@
 ## Persian-first internal product surface
 
 ```text
-scope                                     internal organization dashboard /app/* + internal auth/account recovery
-default locale                            fa; NEXT_PUBLIC_DEFAULT_LOCALE=en remains explicit opt-in
-direction                                 RTL end-to-end; internal main content no longer forces LTR
-terminology                               centralized Persian labels for roles, lifecycle states and human decisions
+scope                                     internal organization dashboard /app/* + internal auth/account recovery + interviewer workspace
+default locale                            internal dashboard/interviewer are Persian-first; candidate surface keeps its independent fa/en locale strategy
+direction                                 RTL end-to-end for internal surfaces; logical start/end primitives retained and mobile document overflow regression-covered
+terminology                               centralized Persian labels for roles, lifecycle states, human decisions, interview states and common integration/automation actions
 primary workspaces                        command center / hiring requests / jobs / candidates / talent / interviews / inbox / analytics
 governance workspaces                     automations / integrations / settings / users / audit / search
 safety boundaries                         evidence-first and human-decision copy preserved in Persian
-candidate/interviewer surfaces            remain separate product and locale boundaries
-validation                                quality gate required on the localization HEAD before closure
+candidate/interviewer surfaces            candidate remains a separate security/locale boundary; interviewer workspace is now Persian/RTL
+validation                                static copy/RTL/responsive audit complete; mobile E2E RTL/overflow coverage added; QUALITY_GATE_VALIDATION_PENDING on current HEAD
 ```
 
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
