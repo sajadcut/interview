@@ -2,7 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { api } from "../../../../lib/api";
+import { api, localizeApiMessage } from "../../../../lib/api";
 import { faDomainLabel, faRoleLabel, formatFaDateTime } from "../../../../lib/i18n";
 import {
   resolveTenantIdentity,
@@ -25,8 +25,8 @@ type Invitation = components["schemas"]["OrganizationInvitationDto"];
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
     const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-    if (Array.isArray(message)) return message.map(String).join("; ");
+    if (typeof message === "string") return localizeApiMessage(message);
+    if (Array.isArray(message)) return message.map((item) => localizeApiMessage(String(item))).join("؛ ");
   }
   return fallback;
 }
@@ -177,11 +177,11 @@ export default function OrganizationUsersPage() {
 
       <form onSubmit={invite} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_220px_auto] md:items-end">
         <label className="text-xs font-medium text-slate-700">
-          Email
+          ایمیل
           <input className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         </label>
         <label className="text-xs font-medium text-slate-700">
-          Role
+          نقش
           <select className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" value={role} onChange={(event) => setRole(event.target.value as Role)}>
             {ROLES.map((item) => <option key={item} value={item}>{faRoleLabel(item)}</option>)}
           </select>

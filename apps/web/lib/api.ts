@@ -12,7 +12,7 @@ export function apiError(result: unknown): unknown {
   return undefined;
 }
 
-function localizeApiMessage(message: string): string {
+export function localizeApiMessage(message: string): string {
   return message
     .replace(/must be longer than or equal to (\d+) characters/gi, "باید حداقل $1 کاراکتر باشد")
     .replace(/must be shorter than or equal to (\d+) characters/gi, "باید حداکثر $1 کاراکتر باشد")
@@ -20,7 +20,14 @@ function localizeApiMessage(message: string): string {
     .replace(/should not be empty/gi, "نباید خالی باشد")
     .replace(/must be a UUID/gi, "باید شناسه معتبر UUID باشد")
     .replace(/Unauthorized/gi, "دسترسی احراز هویت نشده است")
-    .replace(/Forbidden/gi, "اجازه انجام این عملیات را ندارید");
+    .replace(/Forbidden/gi, "اجازه انجام این عملیات را ندارید")
+    .replace(/Invalid credentials/gi, "ایمیل یا رمز عبور نادرست است")
+    .replace(/Authentication is required/gi, "برای ادامه باید وارد حساب شوید")
+    .replace(/Account is disabled/gi, "حساب کاربری غیرفعال است")
+    .replace(/User is disabled/gi, "حساب کاربری غیرفعال است")
+    .replace(/Password reset failed/gi, "بازیابی رمز عبور ناموفق بود")
+    .replace(/Invitation is invalid, expired, or already used/gi, "دعوت‌نامه نامعتبر، منقضی یا قبلاً استفاده شده است")
+    .replace(/Invitation token is missing/gi, "توکن دعوت‌نامه وجود ندارد");
 }
 
 export function apiErrorMessage(result: unknown, fallback: string): string {

@@ -3,7 +3,7 @@
 import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
-import { faDomainLabel } from "../../lib/i18n";
+import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -124,8 +124,8 @@ export function ResumeIngestionPanel({
       const ingested = result.data;
       setMessage(
         ingested.status === "completed"
-          ? `Resume processed: ${ingested.chunkCount} chunks, ${ingested.evidenceCount} evidence records.`
-          : `Resume accepted with status ${ingested.status}.`,
+          ? `رزومه پردازش شد: ${ingested.chunkCount} بخش و ${ingested.evidenceCount} شاهد.`
+          : `رزومه با وضعیت «${faDomainLabel(ingested.status)}» پذیرفته شد.`,
       );
       if (inputRef.current) inputRef.current.value = "";
       await loadResumes();
@@ -154,7 +154,7 @@ export function ResumeIngestionPanel({
         <div>
           <h2 className="text-[13px] font-semibold">دریافت و پردازش رزومه</h2>
           <p className="mt-1 max-w-xl text-[9px] leading-4 text-slate-500">
-            PDF, DOCX or UTF-8 text is stored, extracted, parsed, chunked and converted into candidate evidence. Resume-derived skills stay unverified until corroborated.
+            فایل PDF، DOCX یا متن UTF-8 ذخیره، استخراج و بخش‌بندی می‌شود و به شواهد کاندیدا تبدیل می‌گردد. مهارت‌های استخراج‌شده از رزومه تا زمان تأیید با شواهد دیگر، تأییدنشده باقی می‌مانند.
           </p>
         </div>
         {canManageResume ? (
@@ -195,13 +195,13 @@ export function ResumeIngestionPanel({
               <div className="min-w-0">
                 <div className="truncate text-[10px] font-semibold text-slate-800">{resume.originalFilename}</div>
                 <div className="mt-1 text-[8px] text-slate-400">
-                  {formatBytes(resume.byteSize)}{resume.pageCount ? ` · ${resume.pageCount} pages` : ""} · {new Date(resume.createdAt).toLocaleString()}
+                  {formatBytes(resume.byteSize)}{resume.pageCount ? ` · ${resume.pageCount} صفحه` : ""} · {formatFaDateTime(resume.createdAt)}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Pill tone={statusTone(resume.status)}>{faDomainLabel(resume.status)}</Pill>
                 <button type="button" onClick={() => void openResume(resume.id)} className="text-[9px] font-semibold text-indigo-600">
-                  Open file
+                  باز کردن فایل
                 </button>
               </div>
             </div>

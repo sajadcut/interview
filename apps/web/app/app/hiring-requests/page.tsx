@@ -189,7 +189,7 @@ export default function HiringRequestsPage() {
         <div className="mb-1 text-[11px] font-medium text-indigo-600">نیاز نیروی انسانی</div>
         <h1 className="text-[28px] font-semibold tracking-[-.03em] text-slate-950">درخواست‌های جذب نیرو</h1>
         <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-slate-500">
-          The requesting team defines the need. HR owns recruiting after approval. A requisition-backed hire remains blocked until the requesting team records technical approval.
+          تیم درخواست‌کننده نیاز را ثبت می‌کند؛ پس از تأیید، منابع انسانی فرایند جذب را پیش می‌برد و استخدام نهایی تا ثبت تأیید فنی تیم درخواست‌کننده مسدود می‌ماند.
         </p>
       </div>
 

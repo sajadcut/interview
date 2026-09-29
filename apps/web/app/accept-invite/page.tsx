@@ -3,13 +3,13 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../../lib/api";
+import { api, localizeApiMessage } from "../../lib/api";
 
 function errorMessage(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
     const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string") return message;
-    if (Array.isArray(message)) return message.map(String).join("; ");
+    if (typeof message === "string") return localizeApiMessage(message);
+    if (Array.isArray(message)) return message.map((item) => localizeApiMessage(String(item))).join("؛ ");
   }
   return fallback;
 }

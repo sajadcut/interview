@@ -118,8 +118,8 @@ export function AuditExportWorkspace() {
           <div className="text-[10px] font-medium text-indigo-600">حاکمیت و منشأ تصمیم‌ها</div>
           <h1 className="mt-2 text-[26px] font-semibold">مرور گزارش حسابرسی</h1>
           <p className="mt-1 max-w-3xl text-[11px] text-slate-500">
-            Organization-scoped audit actions plus recruiting lifecycle, hiring decisions, evaluator provenance,
-            score overrides, AI executions, consent, privacy and retention evidence.
+            اقدامات حسابرسی سازمان همراه با چرخه جذب، تصمیم‌های استخدام، منشأ ارزیابی، تغییر امتیاز،
+            اجرای هوش مصنوعی، رضایت، حریم خصوصی و شواهد نگه‌داری.
           </p>
         </div>
         <button
@@ -135,7 +135,7 @@ export function AuditExportWorkspace() {
       <Panel className="p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-[9px] font-semibold text-slate-500">
-            Exact action
+            اقدام دقیق
             <input
               value={action}
               onChange={(event) => setAction(event.target.value)}
@@ -144,7 +144,7 @@ export function AuditExportWorkspace() {
             />
           </label>
           <label className="text-[9px] font-semibold text-slate-500">
-            Entity type
+            نوع موجودیت
             <input
               value={entityType}
               onChange={(event) => setEntityType(event.target.value)}
@@ -153,7 +153,7 @@ export function AuditExportWorkspace() {
             />
           </label>
           <label className="text-[9px] font-semibold text-slate-500">
-            From
+            از تاریخ
             <input
               type="datetime-local"
               value={from}
@@ -162,7 +162,7 @@ export function AuditExportWorkspace() {
             />
           </label>
           <label className="text-[9px] font-semibold text-slate-500">
-            To
+            تا تاریخ
             <input
               type="datetime-local"
               value={to}
@@ -180,7 +180,7 @@ export function AuditExportWorkspace() {
             onClick={() => void load(identity, action)}
             className="rounded-lg border border-slate-200 px-4 py-2 text-[9px] font-semibold"
           >
-            Refresh preview
+            به‌روزرسانی پیش‌نمایش
           </button>
         </div>
       </Panel>
