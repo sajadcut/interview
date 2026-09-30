@@ -51,7 +51,7 @@ function MobileNavItem({ label, href, active }: { label: string; href: string; a
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[9px] px-3 text-[11px] font-semibold transition ${
+      className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-[9px] px-3 text-[11px] font-semibold transition ${
         active
           ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
           : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -130,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[236px_minmax(0,1fr)]" dir={directionFor(locale)}>
+    <div className="persian-ui min-h-screen bg-[#f5f7fb] text-slate-900 lg:grid lg:grid-cols-[250px_minmax(0,1fr)]" dir={directionFor(locale)}>
       <aside className="hidden bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0 lg:flex-col">
         <div className="mb-5 flex shrink-0 items-center gap-3 px-2 py-1">
           <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30"><Icon name="sparkles" size={17} /></div>
