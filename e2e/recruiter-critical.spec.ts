@@ -28,6 +28,13 @@ test.describe("critical recruiter flows", () => {
     const candidatesNote = await page.locator("main").getByText("کاندیداها", { exact: true })
       .locator("..").locator("div").nth(2).innerText();
     expect(candidatesNote).not.toMatch(/[0-9]/);
+    const funnelShares = page.locator("main").getByText(/٪ از پرونده‌ها/);
+    if (await funnelShares.count()) {
+      const percentage = await funnelShares.first().innerText();
+      expect(percentage).toMatch(/[۰-۹]+(?:٫[۰-۹]+)?٪/);
+      expect(percentage).not.toMatch(/[0-9]/);
+    }
+
 
 
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);

@@ -18,6 +18,7 @@ import type {
   CandidateRuntimeVoiceAnswer,
 } from "../../lib/candidate-realtime-runtime";
 import { getDefaultLocale } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 
 const TARGET_SAMPLE_RATE = 16_000;
 const SILENCE_TO_SUBMIT_MS = 1_400;
@@ -676,7 +677,7 @@ export function CandidateInterviewExperience({
           <h1 className="mt-5 text-2xl font-semibold text-slate-950">{liveCopy.completed}</h1>
           <p className="mt-2 text-sm text-slate-600">{liveCopy.completedBody}</p>
           <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-start text-xs text-slate-600">
-            {runtimeSnapshot.transcript.length} {liveCopy.conversation.toLowerCase()}
+            {locale === "fa" ? formatFaNumber(runtimeSnapshot.transcript.length) : runtimeSnapshot.transcript.length} {liveCopy.conversation.toLowerCase()}
           </div>
         </section>
       </main>
@@ -826,7 +827,7 @@ export function CandidateInterviewExperience({
 
               <section className="border-t border-slate-200 pt-5">
                 <h2 className="text-sm font-semibold text-slate-900">{copy.connection.title}</h2>
-                <dl className="mt-3 space-y-2 text-xs"><StatusRow label={copy.connection.browser} value={state.network === "online" ? copy.connection.connected : copy.connection.notConnected} /><StatusRow label={copy.connection.devices} value={permissionReady && hasLocalMedia ? copy.permissions.granted : copy.permissions.unknown} /><StatusRow label={copy.connection.realtime} value={runtime ? copy.connection.available : copy.connection.pending} />{state.reconnectAttempts > 0 ? <StatusRow label={copy.connection.attempt} value={`${state.reconnectAttempts}/${state.maxReconnectAttempts}`} /> : null}</dl>
+                <dl className="mt-3 space-y-2 text-xs"><StatusRow label={copy.connection.browser} value={state.network === "online" ? copy.connection.connected : copy.connection.notConnected} /><StatusRow label={copy.connection.devices} value={permissionReady && hasLocalMedia ? copy.permissions.granted : copy.permissions.unknown} /><StatusRow label={copy.connection.realtime} value={runtime ? copy.connection.available : copy.connection.pending} />{state.reconnectAttempts > 0 ? <StatusRow label={copy.connection.attempt} value={locale === "fa" ? `${formatFaNumber(state.reconnectAttempts)}/${formatFaNumber(state.maxReconnectAttempts)}` : `${state.reconnectAttempts}/${state.maxReconnectAttempts}`} /> : null}</dl>
                 {!runtime ? <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">{copy.connection.runtimePending}</div> : null}
               </section>
 

@@ -22,6 +22,7 @@ governance workspaces                     automations / integrations / settings 
 safety boundaries                         evidence-first and human-decision copy preserved in Persian
 candidate/interviewer surfaces            candidate remains a separate security/locale boundary; interviewer workspace is now Persian/RTL
 typography                                full nine-weight IRANSansX family bundled from root font/ via next/font/local; Persian navigation, forms, titles and tables use matching real weights with restrained compact sizes; English candidate remains independently styled
+numeric display                            shared fa-IR number/percentage presentation across recruiter dashboard, analytics, hiring requests, job/candidate workspaces, talent, inbox, resume, audit and Persian candidate interview; technical IDs and form/API values remain unchanged
 validation                                source-level IRANSansX mapping/RTL checks updated; browser E2E asserts loaded 400/700 font faces, text metrics and mobile/tablet/desktop overflow; runtime screenshots and same-HEAD quality gate remain VALIDATION_PENDING
 ```
 
