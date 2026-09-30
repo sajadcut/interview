@@ -39,7 +39,7 @@ test.describe("mobile recruiter smoke", () => {
     const mobileNavigation = page.getByRole("navigation", { name: "پیمایش موبایل" });
     await expect(mobileNavigation).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: "خانه", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("link", { name: "ایجاد موقعیت شغلی" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "ایجاد موقعیت" })).toBeVisible();
 
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
