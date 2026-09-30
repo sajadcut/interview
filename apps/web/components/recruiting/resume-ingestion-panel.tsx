@@ -4,6 +4,7 @@ import type { components } from "@interview/api-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -18,9 +19,9 @@ const ACCEPTED_RESUME_TYPES = new Set([
 ]);
 
 function formatBytes(value: number): string {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value < 1024) return `${formatFaNumber(value)} B`;
+  if (value < 1024 * 1024) return `${formatFaNumber(Number((value / 1024).toFixed(1)))} KB`;
+  return `${formatFaNumber(Number((value / (1024 * 1024)).toFixed(1)))} MB`;
 }
 
 function statusTone(status: string): "green" | "amber" | "red" | "blue" {
@@ -124,7 +125,7 @@ export function ResumeIngestionPanel({
       const ingested = result.data;
       setMessage(
         ingested.status === "completed"
-          ? `رزومه پردازش شد: ${ingested.chunkCount} بخش و ${ingested.evidenceCount} شاهد.`
+          ? `رزومه پردازش شد: ${formatFaNumber(ingested.chunkCount)} بخش و ${formatFaNumber(ingested.evidenceCount)} شاهد.`
           : `رزومه با وضعیت «${faDomainLabel(ingested.status)}» پذیرفته شد.`,
       );
       if (inputRef.current) inputRef.current.value = "";
@@ -195,7 +196,7 @@ export function ResumeIngestionPanel({
               <div className="min-w-0">
                 <div className="truncate text-[10px] font-semibold text-slate-800">{resume.originalFilename}</div>
                 <div className="mt-1 text-[8px] text-slate-400">
-                  {formatBytes(resume.byteSize)}{resume.pageCount ? ` · ${resume.pageCount} صفحه` : ""} · {formatFaDateTime(resume.createdAt)}
+                  {formatBytes(resume.byteSize)}{resume.pageCount ? ` · ${formatFaNumber(resume.pageCount)} صفحه` : ""} · {formatFaDateTime(resume.createdAt)}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -208,10 +209,10 @@ export function ResumeIngestionPanel({
 
             {resume.status === "completed" ? (
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بخش‌ها</div><div className="mt-1 text-[11px] font-semibold">{resume.chunkCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بردارسازی‌شده</div><div className="mt-1 text-[11px] font-semibold">{resume.embeddedChunkCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">شواهد</div><div className="mt-1 text-[11px] font-semibold">{resume.evidenceCount}</div></div>
-                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">مهارت‌های استخراج‌شده</div><div className="mt-1 text-[11px] font-semibold">{resume.structuredProfile.skills.length}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بخش‌ها</div><div className="mt-1 text-[11px] font-semibold">{formatFaNumber(resume.chunkCount)}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">بردارسازی‌شده</div><div className="mt-1 text-[11px] font-semibold">{formatFaNumber(resume.embeddedChunkCount)}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">شواهد</div><div className="mt-1 text-[11px] font-semibold">{formatFaNumber(resume.evidenceCount)}</div></div>
+                <div className="rounded-lg bg-slate-50 p-2"><div className="text-[8px] text-slate-400">مهارت‌های استخراج‌شده</div><div className="mt-1 text-[11px] font-semibold">{formatFaNumber(resume.structuredProfile.skills.length)}</div></div>
               </div>
             ) : null}
 

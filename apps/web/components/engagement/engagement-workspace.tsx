@@ -4,6 +4,7 @@ import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { Panel, Pill } from "../product/recruiting-ui";
 import { useInternalAccess } from "../product/internal-access";
@@ -150,10 +151,10 @@ export function EngagementWorkspace() {
       {loadError ? <div role="alert" className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-[10px] text-amber-800">{loadError}</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-4">
-        <Panel className="p-4"><div className="text-[9px] text-slate-500">گفت‌وگوها</div><div className="mt-2 text-2xl font-semibold">{conversations.length}</div></Panel>
-        <Panel className="p-4"><div className="text-[9px] text-slate-500">بررسی غربالگری</div><div className="mt-2 text-2xl font-semibold">{screening.filter((item) => item.review_state === "pending_human_review").length}</div></Panel>
-        <Panel className="p-4"><div className="text-[9px] text-slate-500">زمان‌بندی</div><div className="mt-2 text-2xl font-semibold">{scheduling.filter((item) => item.status !== "cancelled").length}</div></Panel>
-        <Panel className="p-4"><div className="text-[9px] text-slate-500">اعلان‌های در انتظار</div><div className="mt-2 text-2xl font-semibold">{notifications.filter((item) => item.status === "pending").length}</div></Panel>
+        <Panel className="p-4"><div className="text-[9px] text-slate-500">گفت‌وگوها</div><div className="mt-2 text-2xl font-semibold">{formatFaNumber(conversations.length)}</div></Panel>
+        <Panel className="p-4"><div className="text-[9px] text-slate-500">بررسی غربالگری</div><div className="mt-2 text-2xl font-semibold">{formatFaNumber(screening.filter((item) => item.review_state === "pending_human_review").length)}</div></Panel>
+        <Panel className="p-4"><div className="text-[9px] text-slate-500">زمان‌بندی</div><div className="mt-2 text-2xl font-semibold">{formatFaNumber(scheduling.filter((item) => item.status !== "cancelled").length)}</div></Panel>
+        <Panel className="p-4"><div className="text-[9px] text-slate-500">اعلان‌های در انتظار</div><div className="mt-2 text-2xl font-semibold">{formatFaNumber(notifications.filter((item) => item.status === "pending").length)}</div></Panel>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">

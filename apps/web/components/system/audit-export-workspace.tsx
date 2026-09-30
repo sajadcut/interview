@@ -4,6 +4,7 @@ import type { components } from "@interview/api-client";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -194,7 +195,7 @@ export function AuditExportWorkspace() {
       <div className="grid gap-3 md:grid-cols-3">
         <Panel className="p-4">
           <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">ردیف‌های پیش‌نمایش</div>
-          <div className="mt-2 text-[22px] font-semibold">{rows.length}</div>
+          <div className="mt-2 text-[22px] font-semibold">{formatFaNumber(rows.length)}</div>
         </Panel>
         <Panel className="p-4">
           <div className="text-[8px] uppercase tracking-[0.14em] text-slate-400">دامنه خروجی</div>

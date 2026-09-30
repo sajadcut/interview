@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { localizeApiMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 
 type Detail = {
@@ -144,7 +145,7 @@ export function InterviewerSession({ sessionId }: { sessionId: string }) {
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-slate-50 p-3 text-xs"><div className="text-[10px] text-slate-400">نقش فعلی</div><div className="mt-1 font-semibold text-slate-700">{detail.candidate.currentRole ?? "ثبت نشده"}</div></div>
           <div className="rounded-xl bg-slate-50 p-3 text-xs"><div className="text-[10px] text-slate-400">شرکت</div><div className="mt-1 font-semibold text-slate-700">{detail.candidate.currentCompany ?? "ثبت نشده"}</div></div>
-          <div className="rounded-xl bg-slate-50 p-3 text-xs"><div className="text-[10px] text-slate-400">زمان مصاحبه</div><div className="mt-1 font-semibold text-slate-700">{detail.plan.timeBudgetMinutes} دقیقه</div></div>
+          <div className="rounded-xl bg-slate-50 p-3 text-xs"><div className="text-[10px] text-slate-400">زمان مصاحبه</div><div className="mt-1 font-semibold text-slate-700">{formatFaNumber(detail.plan.timeBudgetMinutes)} دقیقه</div></div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <button disabled={busy || !["invited", "scheduled"].includes(detail.session.status)} onClick={() => action("start")} className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40" type="button">شروع مصاحبه</button>
