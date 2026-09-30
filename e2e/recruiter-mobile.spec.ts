@@ -14,6 +14,20 @@ test.describe("mobile recruiter smoke", () => {
     };
 
     await expectRtlWithoutDocumentOverflow();
+    // Font loading is part of the mobile acceptance gate, not merely a CSS declaration.
+    await page.evaluate(() => document.fonts.ready);
+    const fontStatus = await page.evaluate(() => {
+      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
+      const family = getComputedStyle(document.body).fontFamily;
+      return {
+        variable,
+        family,
+        loaded: Boolean(variable) && document.fonts.check(`16px ${variable.split(",")[0]?.trim()}`),
+      };
+    });
+    expect(fontStatus.variable).toBeTruthy();
+    expect(fontStatus.family).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
+    expect(fontStatus.loaded).toBe(true);
 
     const mobileNavigation = page.getByRole("navigation", { name: "پیمایش موبایل" });
     await expect(mobileNavigation).toBeVisible();
