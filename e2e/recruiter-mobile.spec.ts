@@ -53,6 +53,13 @@ test.describe("mobile recruiter smoke", () => {
     const mobileNavigation = page.getByRole("navigation", { name: "پیمایش موبایل" });
     await expect(mobileNavigation).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: "خانه", exact: true })).toHaveAttribute("aria-current", "page");
+    const navTypography = await mobileNavigation.getByRole("link", { name: "خانه", exact: true }).evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { family: style.fontFamily, size: parseFloat(style.fontSize), spacing: style.letterSpacing };
+    });
+    expect(navTypography.family.toLowerCase()).toContain("tahoma");
+    expect(navTypography.size).toBeGreaterThanOrEqual(13);
+    expect(navTypography.spacing).toBe("normal");
     await expect(page.getByRole("link", { name: "ایجاد موقعیت" })).toBeVisible();
 
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
