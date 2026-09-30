@@ -22,10 +22,10 @@ test.describe("critical recruiter flows", () => {
     // A full reload must preserve the server-side session and selected organization context.
     await page.reload();
     await expect(page.getByRole("heading", { name: "مرکز فرمان جذب و استخدام" })).toBeVisible();
-    const openJobsCount = await page.getByText("موقعیت‌های باز", { exact: true })
+    const openJobsCount = await page.locator("main").getByText("موقعیت‌های باز", { exact: true })
       .locator("..").locator("div").nth(1).innerText();
     expect(openJobsCount.trim()).toMatch(/^[۰-۹٬]+$/);
-    const candidatesNote = await page.getByText("کاندیداها", { exact: true })
+    const candidatesNote = await page.locator("main").getByText("کاندیداها", { exact: true })
       .locator("..").locator("div").nth(2).innerText();
     expect(candidatesNote).not.toMatch(/[0-9]/);
 
