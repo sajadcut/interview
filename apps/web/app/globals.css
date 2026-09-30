@@ -101,6 +101,8 @@ html[dir="rtl"] body { font-family: Tahoma, "Segoe UI", Arial, sans-serif; }
 .persian-ui .text-\[14px\] { font-size: 15px; }
 .persian-ui .text-xs { font-size: 13px; }
 .persian-ui .text-sm { font-size: 14px; }
+/* Preserve contrast for secondary text on pale dashboard cards. */
+.persian-ui main .text-slate-400 { color: #64748b; }
 .persian-ui .data-table th {
   height: auto;
   min-height: 42px;
