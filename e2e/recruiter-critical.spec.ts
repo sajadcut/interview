@@ -12,7 +12,7 @@ test.describe("critical recruiter flows", () => {
     await signInRecruiter(page);
     await page.evaluate(() => document.fonts.ready);
     const fontFamily = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
-    expect(fontFamily.toLowerCase()).toContain("traffic");
+    expect(fontFamily.toLowerCase()).toContain("tahoma");
 
     // A full reload must preserve the server-side session and selected organization context.
     await page.reload();
