@@ -216,7 +216,13 @@ for (const marker of [
 }
 
 invariant(webPackage.dependencies?.["livekit-client"], "web workspace must depend on livekit-client");
-invariant(webPackage.scripts?.test === "tsx --test lib/candidate-interview-state.spec.ts", "web reducer test script missing");
+const webTestCommand = webPackage.scripts?.test ?? "";
+invariant(
+  webTestCommand.startsWith("tsx --test ") &&
+    webTestCommand.includes("lib/candidate-interview-state.spec.ts") &&
+    webTestCommand.includes("lib/fa-numbers.spec.ts"),
+  "web test script must run both the candidate interview reducer and Persian number formatting tests",
+);
 invariant(rootPackage.scripts?.["candidate-interview-ui:contract:check"] === "node scripts/check-candidate-interview-ui.mjs", "root contract script missing");
 invariant(rootPackage.scripts?.test?.includes("candidate-interview-ui:contract:check"), "root test must enforce candidate interview UI contract");
 invariant(rootPackage.scripts?.check?.includes("candidate-interview-ui:contract:check"), "root check must enforce candidate interview UI contract");
