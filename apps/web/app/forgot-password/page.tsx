@@ -23,7 +23,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
+    <main className="persian-ui grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
       <section className="w-full max-w-[440px] rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
         <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-indigo-600">بازیابی حساب</div>
         <h1 className="mt-2 text-2xl font-semibold tracking-[-.03em] text-slate-950">بازیابی رمز عبور</h1>
