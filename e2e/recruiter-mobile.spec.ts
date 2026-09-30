@@ -73,6 +73,12 @@ test.describe("mobile recruiter smoke", () => {
       await page.goto(route);
       await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
       await expectRtlWithoutDocumentOverflow();
+      if (route === "/app/jobs") {
+        const search = page.getByPlaceholder("جست‌وجو بر اساس عنوان، تیم، محل یا وضعیت...");
+        await expect(search).toBeVisible();
+        const fontSize = await search.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+        expect(fontSize).toBeGreaterThanOrEqual(16);
+      }
     }
 
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
