@@ -21,8 +21,8 @@ primary workspaces                        command center / hiring requests / job
 governance workspaces                     automations / integrations / settings / users / audit / search
 safety boundaries                         evidence-first and human-decision copy preserved in Persian
 candidate/interviewer surfaces            candidate remains a separate security/locale boundary; interviewer workspace is now Persian/RTL
-typography                                original B Traffic TTF files preserved under root font/; web-safe TTF derivatives remove malformed hdmx tables and are bundled via next/font/local; Persian forms/navigation/tables retuned; English candidate fonts stay independent
-validation                                static font/RTL/responsive audit complete; browser E2E now checks loaded B Traffic and multi-viewport document overflow; FONT_VISUAL_VALIDATION_PENDING and QUALITY_GATE_VALIDATION_PENDING on current HEAD
+typography                                screenshot review rejected global B Traffic for dense UI: root web-safe B Traffic remains bundled for opt-in brand display; navigation, forms, tables and copy now use a readable Tahoma/Segoe UI fallback stack with normalized tracking and restrained small-text sizing; English candidate remains independent
+validation                                source-level CSS/font scoping review complete; browser E2E asserts readable body typography, optional loaded B Traffic brand font and mobile/tablet/desktop overflow; browser screenshots and same-HEAD quality gate remain VALIDATION_PENDING
 ```
 
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
