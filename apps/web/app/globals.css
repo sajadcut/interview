@@ -6,4 +6,36 @@
 ::selection{background:#c7d2fe;color:#312e81}*{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
 .data-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}.data-table th{height:42px;border-bottom:1px solid #e2e8f0;background:#f8fafc;padding:0 16px;text-align:start;white-space:nowrap;font-size:10px;font-weight:650;letter-spacing:.01em;color:#64748b}.data-table td{height:58px;border-bottom:1px solid #eef2f7;padding:0 16px;font-size:11px;line-height:1.4;color:#334155}.data-table tr:last-child td{border-bottom:0}.data-table tbody tr{transition:background-color .15s ease}.data-table tbody tr:hover td{background:#fafbff}.data-table a{transition:color .15s ease}.video-stage{background:radial-gradient(circle at 50% 28%,#38445d 0,#1b2434 38%,#0d1420 78%)}.digital-human{background:radial-gradient(circle at 50% 35%,#f0c9ad 0 9%,#c18f76 10% 16%,transparent 17%),radial-gradient(ellipse at 50% 72%,#28374d 0 25%,transparent 26%),linear-gradient(145deg,#202d41,#0e1522)}
 
-html[dir="rtl"] body{font-family:Tahoma,"Segoe UI",ui-sans-serif,system-ui,sans-serif}
+/* The Persian font is bundled from /font through next/font/local, never fetched from a CDN. */
+html[dir="rtl"] body{
+  font-family:var(--font-b-traffic),Tahoma,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.65;
+  font-synthesis:none;
+}
+html[dir="rtl"] button,
+html[dir="rtl"] input,
+html[dir="rtl"] textarea,
+html[dir="rtl"] select{font-family:inherit;line-height:1.45}
+/* The candidate experience has its own locale; do not impose Persian typography on its English pages. */
+html[dir="rtl"] [lang="en"][dir="ltr"]{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;
+  line-height:normal;
+  font-synthesis:auto;
+}
+/* Legacy dense UI used 9–11px labels. Normalize them for B Traffic in the internal workspaces. */
+.persian-ui .text-\\[8px\\]{font-size:11px}
+.persian-ui .text-\\[9px\\]{font-size:12px}
+.persian-ui .text-\\[10px\\]{font-size:13px}
+.persian-ui .text-\\[11px\\]{font-size:14px}
+.persian-ui .text-\\[12px\\]{font-size:15px}
+.persian-ui .text-\\[13px\\]{font-size:16px}
+.persian-ui .text-\\[14px\\]{font-size:17px}
+.persian-ui .data-table th{height:auto;min-height:44px;padding:11px 16px;font-size:13px;line-height:1.6;letter-spacing:normal}
+.persian-ui .data-table td{height:auto;min-height:58px;padding:10px 16px;font-size:14px;line-height:1.6}
+.persian-ui .data-table a,.persian-ui .data-table button{white-space:normal}
+.persian-ui [dir="ltr"],.persian-ui input[type="email"],.persian-ui input[type="url"]{unicode-bidi:isolate}
+@media (max-width:639px){
+  .persian-ui .data-table th,.persian-ui .data-table td{padding:9px 12px}
+}
