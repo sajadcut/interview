@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Icon, type IconName } from "./icon";
+import { formatFaDigits, formatFaNumber } from "../../lib/fa-numbers";
 
 export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -57,8 +58,8 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="text-[11px] font-medium text-slate-500">{label}</div>
-          <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-.035em] text-slate-950">{value}</div>
-          <div className="mt-2 text-[10px] text-slate-500">{note}</div>
+          <div className="mt-2 text-[28px] font-semibold leading-none tracking-[-.035em] text-slate-950">{formatFaDigits(value)}</div>
+          <div className="mt-2 text-[10px] text-slate-500">{formatFaDigits(note)}</div>
         </div>
         <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-[11px] ${tones[tone]}`}>
           <Icon name={icon} size={18} />
@@ -134,7 +135,7 @@ export function ProgressRing({
     <div className="relative grid shrink-0 place-items-center rounded-full" style={style}>
       <div className="absolute rounded-full bg-white" style={{ width: size - 12, height: size - 12 }} />
       <div className="relative text-center">
-        <div className="text-[22px] font-semibold tracking-tight text-slate-950">{value}</div>
+        <div className="text-[22px] font-semibold tracking-tight text-slate-950">{formatFaNumber(value)}</div>
         {label ? <div className="mt-[-2px] text-[9px] font-medium text-slate-500">{label}</div> : null}
       </div>
     </div>
@@ -233,7 +234,7 @@ export function ScoreBar({
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div className={`h-full rounded-full ${bar}`} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-right font-semibold text-slate-700">{value}</span>
+      <span className="text-end font-semibold text-slate-700">{formatFaNumber(value)}</span>
     </div>
   );
 }

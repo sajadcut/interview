@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api, apiErrorMessage } from "../../../lib/api";
 import { faDomainLabel } from "../../../lib/i18n";
+import { formatFaNumber } from "../../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../../lib/tenant-client";
 import { useInternalAccess } from "../../../components/product/internal-access";
 import { Panel, Pill } from "../../../components/product/recruiting-ui";
@@ -227,7 +228,7 @@ export default function HiringRequestsPage() {
                   <td className="max-w-[320px]"><div className="font-semibold text-slate-900">{item.title}</div><div className="mt-1 line-clamp-2 text-[10px] text-slate-400">{item.businessReason}</div></td>
                   <td><div className="font-medium">{item.hiringTeam}</div><div className="mt-1 text-[9px] text-slate-400">{item.department || item.seniority || "—"}</div></td>
                   <td><div>{item.requesterName}</div><div className="mt-1 text-[9px] text-slate-400">{item.hrOwnerName ? `منابع انسانی: ${item.hrOwnerName}` : "مسئول منابع انسانی تعیین نشده"}</div></td>
-                  <td>{item.hiredCount} / {item.headcount}</td>
+                  <td>{formatFaNumber(item.hiredCount)} / {formatFaNumber(item.headcount)}</td>
                   <td>{item.linkedJobId ? <Link className="font-medium text-indigo-600" href={`/app/jobs/${item.linkedJobId}`}>{item.linkedJobTitle || "مشاهده موقعیت"}</Link> : <span className="text-slate-400">متصل نشده</span>}</td>
                   <td><Pill tone={statusTone(item.status)}>{faDomainLabel(item.status)}</Pill></td>
                   <td><div className="flex flex-wrap gap-2">
@@ -262,7 +263,7 @@ export default function HiringRequestsPage() {
                         </div>
                         <div className="flex items-center justify-between gap-3 text-[9px]">
                           <span className="text-slate-400">
-                            {jobs.length ? `${jobs.length} موقعیت قابل انتخاب` : "هنوز موقعیتی برای انتخاب وجود ندارد"}
+                            {jobs.length ? `${formatFaNumber(jobs.length)} موقعیت قابل انتخاب` : "هنوز موقعیتی برای انتخاب وجود ندارد"}
                           </span>
                           <Link href="/app/jobs/new" className="font-semibold text-indigo-600">ایجاد موقعیت جدید</Link>
                         </div>

@@ -7,6 +7,7 @@ import { Icon } from "../../components/product/icon";
 import { MetricCard, Panel, Pill, SectionHeader } from "../../components/product/recruiting-ui";
 import { api } from "../../lib/api";
 import { faDomainLabel } from "../../lib/i18n";
+import { formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 
 type JobSummary = components["schemas"]["JobSummaryDto"];
@@ -56,13 +57,13 @@ export default function CommandCenterPage() {
   const attention = useMemo<AttentionItem[]>(() => {
     const items: AttentionItem[] = [];
     if ((analytics?.funnel.pendingHumanReviews ?? 0) > 0) {
-      items.push({ title: `${analytics?.funnel.pendingHumanReviews} بررسی انسانی در انتظار است`, detail: "صف بررسی غربالگری و امتیازنامه‌ها", href: "/app/analytics", icon: "shield" });
+      items.push({ title: `${formatFaNumber(analytics?.funnel.pendingHumanReviews ?? 0)} بررسی انسانی در انتظار است`, detail: "صف بررسی غربالگری و امتیازنامه‌ها", href: "/app/analytics", icon: "shield" });
     }
     for (const job of jobs.filter((item) => item.status.toLowerCase() === "open" && item.applicationCount === 0).slice(0, 2)) {
       items.push({ title: `${job.title} هنوز پرونده استخدامی ندارد`, detail: "پوشش منبع‌یابی یا وضعیت انتشار را بررسی کنید", href: `/app/jobs/${job.id}`, icon: "jobs" });
     }
     for (const job of jobs.filter((item) => item.applicationCount > 0 && item.interviewCount === 0).slice(0, 2)) {
-      items.push({ title: `${job.title} هنوز به مرحله مصاحبه نرسیده است`, detail: `${job.applicationCount} پرونده استخدامی در قیف جذب فعال است`, href: `/app/jobs/${job.id}`, icon: "interviews" });
+      items.push({ title: `${job.title} هنوز به مرحله مصاحبه نرسیده است`, detail: `${formatFaNumber(job.applicationCount)} پرونده استخدامی در قیف جذب فعال است`, href: `/app/jobs/${job.id}`, icon: "interviews" });
     }
     return items.slice(0, 5);
   }, [analytics, jobs]);
@@ -108,7 +109,7 @@ export default function CommandCenterPage() {
           <div className="space-y-2 p-5 pt-3">
             {jobs.slice(0, 5).map((job) => (
               <Link key={job.id} href={`/app/jobs/${job.id}`} className="flex items-center justify-between gap-3 rounded-[10px] border border-slate-100 px-3 py-3 hover:border-indigo-100 hover:bg-indigo-50/20">
-                <div className="min-w-0"><div className="truncate text-[11px] font-semibold text-slate-800">{job.title}</div><div className="mt-1 text-[9px] text-slate-400">{job.applicationCount} پرونده · {job.interviewCount} مصاحبه</div></div>
+                <div className="min-w-0"><div className="truncate text-[11px] font-semibold text-slate-800">{job.title}</div><div className="mt-1 text-[9px] text-slate-400">{formatFaNumber(job.applicationCount)} پرونده · {formatFaNumber(job.interviewCount)} مصاحبه</div></div>
                 <Pill tone={job.status.toLowerCase() === "open" ? "green" : "slate"}>{faDomainLabel(job.status)}</Pill>
               </Link>
             ))}
@@ -123,8 +124,8 @@ export default function CommandCenterPage() {
           {analytics.funnel.stages.length ? analytics.funnel.stages.slice(0, 6).map((stage) => (
             <div key={stage.stage} className="relative rounded-[11px] border border-slate-100 p-3.5">
               <div className="truncate text-[10px] font-medium capitalize text-slate-400">{faDomainLabel(stage.stage)}</div>
-              <div className="mt-1.5 text-[20px] font-semibold tracking-tight text-slate-900">{stage.count}</div>
-              <div className="mt-1 text-[9px] text-slate-400">{stage.shareOfApplications}% از پرونده‌ها</div>
+              <div className="mt-1.5 text-[20px] font-semibold tracking-tight text-slate-900">{formatFaNumber(stage.count)}</div>
+              <div className="mt-1 text-[9px] text-slate-400">{formatFaPercent(stage.shareOfApplications)} از پرونده‌ها</div>
               <div className="mt-3 h-1.5 rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style={{ width: `${Math.max(2, Math.min(100, stage.shareOfApplications))}%` }} /></div>
             </div>
           )) : <div className="col-span-full py-8 text-center text-[10px] text-slate-400">هنوز داده‌ای برای مراحل پرونده‌ها وجود ندارد.</div>}
@@ -137,8 +138,8 @@ export default function CommandCenterPage() {
           {analytics.sources.slice(0, 4).map((source) => (
             <div key={source.source} className="rounded-[11px] border border-slate-100 p-3.5">
               <div className="text-[10px] font-semibold text-slate-800">{source.source}</div>
-              <div className="mt-2 text-[18px] font-semibold text-slate-900">{source.candidates}</div>
-              <div className="mt-1 text-[9px] text-slate-400">کاندیدا · {source.interviewStageOrLater} نفر به مصاحبه رسیده‌اند</div>
+              <div className="mt-2 text-[18px] font-semibold text-slate-900">{formatFaNumber(source.candidates)}</div>
+              <div className="mt-1 text-[9px] text-slate-400">کاندیدا · {formatFaNumber(source.interviewStageOrLater)} نفر به مصاحبه رسیده‌اند</div>
             </div>
           ))}
           {analytics.sources.length === 0 ? <div className="col-span-full py-8 text-center text-[10px] text-slate-400">هنوز داده‌ای برای انتساب منبع جذب وجود ندارد.</div> : null}

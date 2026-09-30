@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { MetricCard, Panel, Pill, SectionHeader } from "../../../components/product/recruiting-ui";
 import { api } from "../../../lib/api";
 import { faDomainLabel } from "../../../lib/i18n";
+import { formatFaNumber, formatFaPercent } from "../../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../../lib/tenant-client";
 
 type AnalyticsSummary = components["schemas"]["AnalyticsSummaryDto"];
@@ -60,7 +61,7 @@ export default function AnalyticsPage() {
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.max(2, Math.min(100, stage.shareOfApplications))}%` }} />
                 </div>
-                <div className="text-end"><span className="font-semibold text-slate-900">{stage.count}</span><span className="ms-1 text-slate-400">{stage.shareOfApplications}%</span></div>
+                <div className="text-end"><span className="font-semibold text-slate-900">{formatFaNumber(stage.count)}</span><span className="ms-1 text-slate-400">{formatFaPercent(stage.shareOfApplications)}</span></div>
               </div>
             )) : <div className="py-8 text-center text-[11px] text-slate-400">هنوز داده‌ای برای مراحل پرونده‌ها وجود ندارد.</div>}
           </div>
@@ -71,8 +72,8 @@ export default function AnalyticsPage() {
           <div className="space-y-3 p-5 pt-4 text-[10px] leading-5 text-slate-600">
             <div className="rounded-[10px] border border-indigo-100 bg-indigo-50/60 p-3 text-indigo-900">این تحلیل‌ها صرفاً پشتیبان تصمیم عملیاتی‌اند؛ امتیاز تطبیق پیش از مصاحبه از امتیازنامه مبتنی بر شواهد جداست و تصمیم نهایی استخدام انسانی باقی می‌ماند.</div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-[10px] border border-slate-100 p-3"><div className="text-slate-400">صف بررسی انسانی</div><div className="mt-1 text-lg font-semibold text-slate-900">{summary.funnel.pendingHumanReviews}</div></div>
-              <div className="rounded-[10px] border border-slate-100 p-3"><div className="text-slate-400">مصاحبه‌های تکمیل‌شده</div><div className="mt-1 text-lg font-semibold text-slate-900">{summary.funnel.completedInterviews}</div></div>
+              <div className="rounded-[10px] border border-slate-100 p-3"><div className="text-slate-400">صف بررسی انسانی</div><div className="mt-1 text-lg font-semibold text-slate-900">{formatFaNumber(summary.funnel.pendingHumanReviews)}</div></div>
+              <div className="rounded-[10px] border border-slate-100 p-3"><div className="text-slate-400">مصاحبه‌های تکمیل‌شده</div><div className="mt-1 text-lg font-semibold text-slate-900">{formatFaNumber(summary.funnel.completedInterviews)}</div></div>
             </div>
           </div>
         </Panel>
@@ -89,9 +90,9 @@ export default function AnalyticsPage() {
               {summary.sources.length ? summary.sources.map((source) => (
                 <tr key={source.source}>
                   <td className="py-3.5 font-semibold text-slate-800">{source.source}</td>
-                  <td className="py-3.5 text-slate-600">{source.candidates}</td>
-                  <td className="py-3.5 text-slate-600">{source.averagePreInterviewMatchScore === undefined ? "—" : `${source.averagePreInterviewMatchScore}%`}</td>
-                  <td className="py-3.5 text-slate-600">{source.interviewStageOrLater}</td>
+                  <td className="py-3.5 text-slate-600">{formatFaNumber(source.candidates)}</td>
+                  <td className="py-3.5 text-slate-600">{source.averagePreInterviewMatchScore === undefined ? "—" : formatFaPercent(source.averagePreInterviewMatchScore)}</td>
+                  <td className="py-3.5 text-slate-600">{formatFaNumber(source.interviewStageOrLater)}</td>
                   <td className="py-3.5"><Pill tone="blue">عملیاتی / بازیابی</Pill></td>
                 </tr>
               )) : <tr><td colSpan={5} className="py-10 text-center text-slate-400">هنوز داده‌ای برای انتساب منبع جذب وجود ندارد.</td></tr>}
