@@ -1,5 +1,5 @@
-import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 #!/usr/bin/env node
+import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 import process from "node:process";
 import { AiWorkerApiClient } from "./api-client.mjs";
 import { capabilityPromptDefinitions, createCapabilityProcessors } from "./capabilities.mjs";
