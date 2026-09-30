@@ -18,18 +18,20 @@ test.describe("mobile recruiter smoke", () => {
     await page.evaluate(() => document.fonts.ready);
     const fontStatus = await page.evaluate(() => {
       const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
-      const family = getComputedStyle(document.body).fontFamily;
+      const display = document.querySelector<HTMLElement>(".font-b-traffic-display");
+      const expected = variable.split(",")[0]?.trim().replaceAll('"', "").replaceAll("'", "");
       return {
         variable,
-        family,
-        loaded: Boolean(variable) && Array.from(document.fonts).some((face) => {
-          const expected = variable.split(",")[0]?.trim().replaceAll('"', "").replaceAll("'", "");
-          return face.family.replaceAll('"', "").replaceAll("'", "") === expected && face.status === "loaded";
-        }),
+        bodyFamily: getComputedStyle(document.body).fontFamily,
+        displayFamily: display ? getComputedStyle(display).fontFamily : "",
+        loaded: Boolean(expected) && Array.from(document.fonts).some((face) =>
+          face.family.replaceAll('"', "").replaceAll("'", "") === expected && face.status === "loaded",
+        ),
       };
     });
     expect(fontStatus.variable).toBeTruthy();
-    expect(fontStatus.family).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
+    expect(fontStatus.bodyFamily.toLowerCase()).toContain("tahoma");
+    expect(fontStatus.displayFamily).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
     expect(fontStatus.loaded).toBe(true);
 
     // Font metric changes must not introduce page-wide overflow on phone, tablet or desktop.
@@ -37,7 +39,7 @@ test.describe("mobile recruiter smoke", () => {
       await page.setViewportSize({ width, height: 900 });
       await expectRtlWithoutDocumentOverflow();
       await page.screenshot({
-        path: testInfo.outputPath(`traffic-dashboard-${width}.png`),
+        path: testInfo.outputPath(`persian-ui-dashboard-${width}.png`),
         fullPage: true,
       });
     }
@@ -52,7 +54,7 @@ test.describe("mobile recruiter smoke", () => {
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "دریافت و پردازش رزومه" })).toBeVisible();
     await page.screenshot({
-      path: testInfo.outputPath("traffic-candidate-mobile.png"),
+      path: testInfo.outputPath("persian-ui-candidate-mobile.png"),
       fullPage: true,
     });
     await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
