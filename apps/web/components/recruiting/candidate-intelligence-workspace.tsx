@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { faDomainLabel } from "../../lib/i18n";
+import { formatFaDigits, formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
@@ -131,10 +132,10 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     }
     if (!payload.persisted) {
       const missing = [...(payload.missingEvaluationCriterionIds ?? []), ...(payload.missingEvidenceCriterionIds ?? [])];
-      setMessage(`امتیازنامه ناقص است؛ ${missing.length} معیار هنوز شواهد یا ارزیابی کافی ندارد.`);
+      setMessage(`امتیازنامه ناقص است؛ ${formatFaNumber(missing.length)} معیار هنوز شواهد یا ارزیابی کافی ندارد.`);
       return;
     }
-    setMessage(`امتیازنامه نهایی شد: ${payload.overallScore ?? "—"} · ${payload.recommendation ?? ""}`);
+    setMessage(`امتیازنامه نهایی شد: ${formatFaDigits(String(payload.overallScore ?? "—"))} · ${payload.recommendation ?? ""}`);
     await load(identity);
   }
 
@@ -213,12 +214,12 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
         <div className="space-y-4">
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">پرونده‌های استخدامی و تطبیق موقعیت‌ها</h2>
-            <div className="mt-4 grid gap-2">{workspace.applications.length ? workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-start transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(application.pipelineStage)} · {faDomainLabel(application.status)}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">تطبیق {application.preInterviewMatchScore}%</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">امتیاز استخدام {application.hiringScore}</Pill> : <Pill>امتیاز استخدام ناقص</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">آخرین تصمیم انسانی: <strong>{faDomainLabel(application.decision)}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>) : <div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">هنوز پرونده استخدامی برای این کاندیدا ثبت نشده است.</div>}</div>
+            <div className="mt-4 grid gap-2">{workspace.applications.length ? workspace.applications.map((application) => <button key={application.id} type="button" onClick={() => setSelectedApplicationId(application.id)} className={`w-full rounded-xl border p-3 text-start transition ${application.id === selectedApplicationId ? "border-indigo-200 bg-indigo-50" : "border-slate-100 hover:bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-semibold text-slate-800">{application.jobTitle}</div><div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(application.pipelineStage)} · {faDomainLabel(application.status)}</div></div><div className="flex items-center gap-2">{application.preInterviewMatchScore !== undefined ? <Pill tone="blue">تطبیق {formatFaPercent(application.preInterviewMatchScore)}</Pill> : null}{application.hiringScore !== undefined ? <Pill tone="violet">امتیاز استخدام {formatFaNumber(application.hiringScore)}</Pill> : <Pill>امتیاز استخدام ناقص</Pill>}</div></div>{application.decision ? <div className="mt-2 text-[9px] text-slate-600">آخرین تصمیم انسانی: <strong>{faDomainLabel(application.decision)}</strong>{application.decisionReason ? ` — ${application.decisionReason}` : ""}</div> : null}</button>) : <div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">هنوز پرونده استخدامی برای این کاندیدا ثبت نشده است.</div>}</div>
           </Panel>
 
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">سوابق حرفه‌ای</h2>
-            <div className="mt-4 space-y-3">{workspace.experiences.length ? workspace.experiences.map((experience) => <div key={experience.id} className="rounded-xl border border-slate-100 p-3"><div className="text-[11px] font-semibold text-slate-800">{experience.title} · {experience.company}</div><div className="mt-1 text-[9px] text-slate-400">{experience.startedOn || "?"} → {experience.endedOn || "اکنون"}</div>{experience.description ? <p className="mt-2 text-[10px] leading-5 text-slate-600">{experience.description}</p> : null}{experience.sourceReference ? <div className="mt-2 text-[8px] text-slate-400">منبع: {experience.sourceReference}</div> : null}</div>) : <div className="text-[10px] text-slate-400">سابقه حرفه‌ای ثبت‌شده‌ای وجود ندارد.</div>}</div>
+            <div className="mt-4 space-y-3">{workspace.experiences.length ? workspace.experiences.map((experience) => <div key={experience.id} className="rounded-xl border border-slate-100 p-3"><div className="text-[11px] font-semibold text-slate-800">{experience.title} · {experience.company}</div><div className="mt-1 text-[9px] text-slate-400">{formatFaDigits(experience.startedOn || "?")} → {formatFaDigits(experience.endedOn || "اکنون")}</div>{experience.description ? <p className="mt-2 text-[10px] leading-5 text-slate-600">{experience.description}</p> : null}{experience.sourceReference ? <div className="mt-2 text-[8px] text-slate-400">منبع: {experience.sourceReference}</div> : null}</div>) : <div className="text-[10px] text-slate-400">سابقه حرفه‌ای ثبت‌شده‌ای وجود ندارد.</div>}</div>
           </Panel>
 
           <Panel className="p-5">

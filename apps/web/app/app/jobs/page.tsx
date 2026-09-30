@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { Panel, Pill, ToolbarButton } from "../../../components/product/recruiting-ui";
 import { api } from "../../../lib/api";
+import { formatFaNumber } from "../../../lib/fa-numbers";
 import { faDomainLabel, formatFaDateTime } from "../../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders } from "../../../lib/tenant-client";
 
@@ -102,8 +103,8 @@ export default function JobsPage() {
                   </td>
                   <td>{job.department || "—"}</td>
                   <td>{job.location || "—"}</td>
-                  <td className="font-semibold text-slate-700">{job.applicationCount}</td>
-                  <td className="font-semibold text-slate-700">{job.interviewCount}</td>
+                  <td className="font-semibold text-slate-700">{formatFaNumber(job.applicationCount)}</td>
+                  <td className="font-semibold text-slate-700">{formatFaNumber(job.interviewCount)}</td>
                   <td><Pill tone={job.status.toLowerCase() === "open" ? "green" : "amber"}>{faDomainLabel(job.status)}</Pill></td>
                   <td className="whitespace-nowrap">{formatUpdatedAt(job.updatedAt)}</td>
                 </tr>
@@ -113,7 +114,7 @@ export default function JobsPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-[10px] text-slate-400">
-          <span>{filteredJobs.length} از {jobs.length} موقعیت ثبت‌شده</span>
+          <span>{formatFaNumber(filteredJobs.length)} از {formatFaNumber(jobs.length)} موقعیت ثبت‌شده</span>
           <span className="font-medium text-slate-500">مرتب‌شده بر اساس آخرین به‌روزرسانی</span>
         </div>
       </Panel>

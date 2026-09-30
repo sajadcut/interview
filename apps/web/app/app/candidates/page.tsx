@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { Panel, PersonAvatar, Pill } from "../../../components/product/recruiting-ui";
 import { api } from "../../../lib/api";
+import { formatFaNumber } from "../../../lib/fa-numbers";
 import { formatFaDateTime } from "../../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders } from "../../../lib/tenant-client";
 
@@ -114,7 +115,7 @@ export default function CandidatesPage() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400">
-          <span>{filteredCandidates.length} از {candidates.length} کاندیدای ثبت‌شده</span>
+          <span>{formatFaNumber(filteredCandidates.length)} از {formatFaNumber(candidates.length)} کاندیدای ثبت‌شده</span>
           <span>تطبیق پیش از مصاحبه مختص هر پرونده استخدامی است و در فضای کاری موقعیت نمایش داده می‌شود.</span>
         </div>
       </Panel>

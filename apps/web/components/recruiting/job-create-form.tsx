@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { api } from "../../lib/api";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 import { Panel } from "../product/recruiting-ui";
 
@@ -158,8 +159,8 @@ export function JobCreateForm() {
         <Panel className="h-fit p-5">
           <h2 className="text-[13px] font-semibold text-slate-900">خلاصه پیش‌نویس</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{requirements.length}</div><div className="text-[9px] text-slate-500">الزام</div></div>
-            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{criteria.length}</div><div className="text-[9px] text-slate-500">معیار</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{formatFaNumber(requirements.length)}</div><div className="text-[9px] text-slate-500">الزام</div></div>
+            <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{formatFaNumber(criteria.length)}</div><div className="text-[9px] text-slate-500">معیار</div></div>
           </div>
           <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] leading-5 text-indigo-800">
             امتیاز نهایی فقط از چارچوب ارزیابی نسخه‌دار و ارزیابی مبتنی بر شواهد محاسبه می‌شود. ایجاد موقعیت شغلی هیچ امتیاز استخدامی ساختگی تولید نمی‌کند.

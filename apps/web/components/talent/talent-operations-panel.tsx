@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel } from "../../lib/i18n";
+import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { Panel, Pill } from "../product/recruiting-ui";
 import { useInternalAccess } from "../product/internal-access";
@@ -83,7 +84,7 @@ export function TalentOperationsPanel() {
       return;
     }
     const payload = result.data as { scannedPairs?: number; reviewsCreated?: number } | undefined;
-    setMessage(`اسکن موارد تکراری انجام شد: ${payload?.scannedPairs ?? 0} جفت بررسی شد و ${payload?.reviewsCreated ?? 0} مورد جدید ساخته شد.`);
+    setMessage(`اسکن موارد تکراری انجام شد: ${formatFaNumber(payload?.scannedPairs ?? 0)} جفت بررسی شد و ${formatFaNumber(payload?.reviewsCreated ?? 0)} مورد جدید ساخته شد.`);
     await load(identity);
   }
 
@@ -138,8 +139,8 @@ export function TalentOperationsPanel() {
       {message ? <div role="status" aria-live="polite" className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{message}</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Panel className="p-5"><div className="text-[10px] text-slate-500">استعدادهای فعال</div><div className="mt-2 text-[28px] font-semibold">{candidates.filter((candidate) => candidate.status === "active").length}</div></Panel>
-        <Panel className="p-5"><div className="text-[10px] text-slate-500">بررسی‌های تکراری در انتظار</div><div className="mt-2 text-[28px] font-semibold">{reviews.length}</div></Panel>
+        <Panel className="p-5"><div className="text-[10px] text-slate-500">استعدادهای فعال</div><div className="mt-2 text-[28px] font-semibold">{formatFaNumber(candidates.filter((candidate) => candidate.status === "active").length)}</div></Panel>
+        <Panel className="p-5"><div className="text-[10px] text-slate-500">بررسی‌های تکراری در انتظار</div><div className="mt-2 text-[28px] font-semibold">{formatFaNumber(reviews.length)}</div></Panel>
         <Panel className="p-5"><div className="text-[10px] text-slate-500">حالت یکپارچه‌سازی هویت</div><div className="mt-2 text-[14px] font-semibold">نام مستعار بدون حذف داده</div><div className="mt-1 text-[9px] text-slate-400">بدون ادغام مخرب و پنهان</div></Panel>
       </div>
 
