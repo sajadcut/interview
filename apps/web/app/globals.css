@@ -39,3 +39,19 @@ html[dir="rtl"] [lang="en"][dir="ltr"]{
 @media (max-width:639px){
   .persian-ui .data-table th,.persian-ui .data-table td{padding:9px 12px}
 }
+
+/* Keep Latin identifiers and communication fields readable inside right-to-left forms. */
+html[dir="rtl"] input[type="email"],
+html[dir="rtl"] input[type="url"],
+html[dir="rtl"] input[type="tel"]{
+  direction:ltr;
+  text-align:left;
+  font-family:Arial,Tahoma,sans-serif;
+}
+.persian-ui :where(code,pre){
+  direction:ltr;
+  unicode-bidi:isolate;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+.persian-ui .text-xs{font-size:14px}
+.persian-ui .text-sm{font-size:16px}
