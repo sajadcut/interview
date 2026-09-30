@@ -10,9 +10,14 @@ test.describe("critical recruiter flows", () => {
 
   test("recruiter authenticates with persisted session and reaches candidate intelligence", async ({ page }) => {
     await signInRecruiter(page);
-    await page.evaluate(() => document.fonts.ready);
-    const fontFamily = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
-    expect(fontFamily.toLowerCase()).toContain("tahoma");
+    const fontStatus = await page.evaluate(async () => {
+      await document.fonts.ready;
+      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-iran-sans-x").trim();
+      const primary = variable.split(",")[0]?.trim().replaceAll('"', "").replaceAll("'", "") ?? "";
+      return { primary, body: getComputedStyle(document.body).fontFamily };
+    });
+    expect(fontStatus.primary).toBeTruthy();
+    expect(fontStatus.body).toContain(fontStatus.primary);
 
     // A full reload must preserve the server-side session and selected organization context.
     await page.reload();
