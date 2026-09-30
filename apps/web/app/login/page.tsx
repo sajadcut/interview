@@ -43,7 +43,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
+    <main className="persian-ui grid min-h-screen place-items-center bg-slate-50 px-4 py-10">
       <section className="w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
         <div className="mb-7">
           <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-indigo-600">سامانه جذب و استخدام هوشمند</div>
