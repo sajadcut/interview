@@ -25,13 +25,13 @@ html[dir="rtl"] [lang="en"][dir="ltr"]{
   font-synthesis:auto;
 }
 /* Legacy dense UI used 9–11px labels. Normalize them for B Traffic in the internal workspaces. */
-.persian-ui .text-\\[8px\\]{font-size:11px}
-.persian-ui .text-\\[9px\\]{font-size:12px}
-.persian-ui .text-\\[10px\\]{font-size:13px}
-.persian-ui .text-\\[11px\\]{font-size:14px}
-.persian-ui .text-\\[12px\\]{font-size:15px}
-.persian-ui .text-\\[13px\\]{font-size:16px}
-.persian-ui .text-\\[14px\\]{font-size:17px}
+.persian-ui .text-\[8px\]{font-size:11px}
+.persian-ui .text-\[9px\]{font-size:12px}
+.persian-ui .text-\[10px\]{font-size:13px}
+.persian-ui .text-\[11px\]{font-size:14px}
+.persian-ui .text-\[12px\]{font-size:15px}
+.persian-ui .text-\[13px\]{font-size:16px}
+.persian-ui .text-\[14px\]{font-size:17px}
 .persian-ui .data-table th{height:auto;min-height:44px;padding:11px 16px;font-size:13px;line-height:1.6;letter-spacing:normal}
 .persian-ui .data-table td{height:auto;min-height:58px;padding:10px 16px;font-size:14px;line-height:1.6}
 .persian-ui .data-table a,.persian-ui .data-table button{white-space:normal}
