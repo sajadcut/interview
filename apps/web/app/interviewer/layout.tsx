@@ -5,7 +5,7 @@ import { directionFor, getInternalLocale } from "../../lib/i18n";
 export default function InterviewerLayout({ children }: { children: ReactNode }) {
   const locale = getInternalLocale();
   return (
-    <div className="min-h-screen bg-slate-50" dir={directionFor(locale)}>
+    <div className="persian-ui min-h-screen bg-slate-50" dir={directionFor(locale)}>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
           <div>
