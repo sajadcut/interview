@@ -21,8 +21,8 @@ primary workspaces                        command center / hiring requests / job
 governance workspaces                     automations / integrations / settings / users / audit / search
 safety boundaries                         evidence-first and human-decision copy preserved in Persian
 candidate/interviewer surfaces            candidate remains a separate security/locale boundary; interviewer workspace is now Persian/RTL
-typography                                screenshot review rejected global B Traffic for dense UI: root web-safe B Traffic remains bundled for opt-in brand display; navigation, forms, tables and copy now use a readable Tahoma/Segoe UI fallback stack with normalized tracking and restrained small-text sizing; English candidate remains independent
-validation                                source-level CSS/font scoping review complete; browser E2E asserts readable body typography, optional loaded B Traffic brand font and mobile/tablet/desktop overflow; browser screenshots and same-HEAD quality gate remain VALIDATION_PENDING
+typography                                full nine-weight IRANSansX family bundled from root font/ via next/font/local; Persian navigation, forms, titles and tables use matching real weights with restrained compact sizes; English candidate remains independently styled
+validation                                source-level IRANSansX mapping/RTL checks updated; browser E2E asserts loaded 400/700 font faces, text metrics and mobile/tablet/desktop overflow; runtime screenshots and same-HEAD quality gate remain VALIDATION_PENDING
 ```
 
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
