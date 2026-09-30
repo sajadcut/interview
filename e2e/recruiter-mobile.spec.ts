@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import { SEEDED_CANDIDATE_ID, signInRecruiter } from "./support";
 
 test.describe("mobile recruiter smoke", () => {
-  test("recruiter session and primary workspace remain usable on a mobile viewport", async ({ page }) => {
+  test("recruiter session and primary workspace remain usable on a mobile viewport", async ({ page }, testInfo) => {
     await signInRecruiter(page);
 
     const expectRtlWithoutDocumentOverflow = async () => {
@@ -22,7 +22,10 @@ test.describe("mobile recruiter smoke", () => {
       return {
         variable,
         family,
-        loaded: Boolean(variable) && document.fonts.check(`16px ${variable.split(",")[0]?.trim()}`),
+        loaded: Boolean(variable) && Array.from(document.fonts).some((face) => {
+          const expected = variable.split(",")[0]?.trim().replaceAll('"', "").replaceAll("'", "");
+          return face.family.replaceAll('"', "").replaceAll("'", "") === expected && face.status === "loaded";
+        }),
       };
     });
     expect(fontStatus.variable).toBeTruthy();
@@ -30,9 +33,13 @@ test.describe("mobile recruiter smoke", () => {
     expect(fontStatus.loaded).toBe(true);
 
     // Font metric changes must not introduce page-wide overflow on phone, tablet or desktop.
-    for (const width of [390, 768, 1280]) {
+    for (const width of [320, 390, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectRtlWithoutDocumentOverflow();
+      await page.screenshot({
+        path: testInfo.outputPath(`traffic-dashboard-${width}.png`),
+        fullPage: true,
+      });
     }
     await page.setViewportSize({ width: 412, height: 915 });
 
@@ -44,6 +51,10 @@ test.describe("mobile recruiter smoke", () => {
     await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "دریافت و پردازش رزومه" })).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("traffic-candidate-mobile.png"),
+      fullPage: true,
+    });
     await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
     await expectRtlWithoutDocumentOverflow();
 

@@ -38,6 +38,11 @@ html[dir="rtl"] [lang="en"][dir="ltr"]{
 .persian-ui [dir="ltr"],.persian-ui input[type="email"],.persian-ui input[type="url"]{unicode-bidi:isolate}
 @media (max-width:639px){
   .persian-ui .data-table th,.persian-ui .data-table td{padding:9px 12px}
+  /* Avoid iOS focus zoom on dense form inputs without changing checkboxes. */
+  .persian-ui :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),textarea,select){
+    font-size:16px;
+    min-height:44px;
+  }
 }
 
 /* Keep Latin identifiers and communication fields readable inside right-to-left forms. */
