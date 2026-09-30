@@ -29,6 +29,13 @@ test.describe("mobile recruiter smoke", () => {
     expect(fontStatus.family).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
     expect(fontStatus.loaded).toBe(true);
 
+    // Font metric changes must not introduce page-wide overflow on phone, tablet or desktop.
+    for (const width of [390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectRtlWithoutDocumentOverflow();
+    }
+    await page.setViewportSize({ width: 412, height: 915 });
+
     const mobileNavigation = page.getByRole("navigation", { name: "پیمایش موبایل" });
     await expect(mobileNavigation).toBeVisible();
     await expect(mobileNavigation.getByRole("link", { name: "خانه", exact: true })).toHaveAttribute("aria-current", "page");
