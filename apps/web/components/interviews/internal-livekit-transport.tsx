@@ -176,7 +176,7 @@ export function InternalLiveKitTransport({ sessionId, organizationId, userId }: 
     } catch (error) {
       stopHeartbeat();
       setState("error");
-      const detail = error instanceof Error ? error.message : "Unknown LiveKit connection error";
+      const detail = error instanceof Error ? error.message : "خطای نامشخص در اتصال LiveKit";
       setMessage(detail);
       if (mediaSessionId) {
         void appendEvent(mediaSessionId, "error", { message: detail, fatal: false }).catch(() => undefined);
@@ -203,9 +203,9 @@ export function InternalLiveKitTransport({ sessionId, organizationId, userId }: 
     <section className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">Realtime transport · internal only</div>
-          <div className="mt-1 text-[13px] font-semibold text-slate-900">LiveKit room connection</div>
-          <p className="mt-1 max-w-2xl text-[10px] leading-5 text-slate-500">Short-lived room-scoped credential → browser WebRTC → reconnect/heartbeat events persisted against the synthetic session.</p>
+          <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">انتقال بلادرنگ · فقط استفاده داخلی</div>
+          <div className="mt-1 text-[13px] font-semibold text-slate-900">اتصال به اتاق LiveKit</div>
+          <p className="mt-1 max-w-2xl text-[10px] leading-5 text-slate-500">دسترسی کوتاه‌مدت اتاق ← WebRTC مرورگر ← ثبت رویدادهای اتصال مجدد و پیام‌های سلامت در نشست آزمایشی.</p>
         </div>
         <span className={`rounded-full px-3 py-1.5 text-[9px] font-semibold ${connected ? "bg-emerald-50 text-emerald-700" : state === "error" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}`}>{state}</span>
       </div>
@@ -213,14 +213,14 @@ export function InternalLiveKitTransport({ sessionId, organizationId, userId }: 
       <div className="mt-4 rounded-[10px] bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">{message}</div>
       {mediaSessionId ? (
         <div className="mt-3 grid gap-2 text-[9px] text-slate-500 sm:grid-cols-2">
-          <div className="rounded-[9px] border border-slate-100 px-3 py-2"><span className="text-slate-400">Media session</span><div className="mt-1 break-all font-mono">{mediaSessionId}</div></div>
-          <div className="rounded-[9px] border border-slate-100 px-3 py-2"><span className="text-slate-400">Opaque room</span><div className="mt-1 break-all font-mono">{roomReference ?? "—"}</div></div>
+          <div className="rounded-[9px] border border-slate-100 px-3 py-2"><span className="text-slate-400">نشست رسانه</span><div className="mt-1 break-all font-mono">{mediaSessionId}</div></div>
+          <div className="rounded-[9px] border border-slate-100 px-3 py-2"><span className="text-slate-400">شناسه اتاق</span><div className="mt-1 break-all font-mono">{roomReference ?? "—"}</div></div>
         </div>
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" disabled={busy || connected} onClick={connect} className="h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "Connecting…" : connected ? "Connected" : "Connect LiveKit"}</button>
-        <button type="button" disabled={!connected} onClick={() => void disconnect()} className="h-9 rounded-[9px] border border-slate-200 bg-white px-4 text-[10px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:text-slate-300">Disconnect</button>
+        <button type="button" disabled={busy || connected} onClick={connect} className="h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "در حال اتصال…" : connected ? "متصل" : "اتصال LiveKit"}</button>
+        <button type="button" disabled={!connected} onClick={() => void disconnect()} className="h-9 rounded-[9px] border border-slate-200 bg-white px-4 text-[10px] font-semibold text-slate-600 disabled:cursor-not-allowed disabled:text-slate-300">قطع اتصال</button>
       </div>
     </section>
   );

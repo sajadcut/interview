@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Icon } from "../product/icon";
+import { formatFaNumber } from "../../lib/fa-numbers";
+import { faDomainLabel } from "../../lib/i18n";
 
 const apiUrl = "/api/backend";
 
@@ -55,7 +57,7 @@ type HarnessMessage = {
 };
 
 function authHeaders(context: DevelopmentContext): HeadersInit {
-  if (!context.organizationId || !context.userId) throw new Error("Development API context is incomplete");
+  if (!context.organizationId || !context.userId) throw new Error("اطلاعات دسترسی API محیط توسعه کامل نیست.");
   return {
     "content-type": "application/json",
     "x-organization-id": context.organizationId,
@@ -141,7 +143,7 @@ export function InternalInterviewHarness() {
       const contextResponse = await fetch(`${apiUrl}/development/context`, { cache: "no-store" });
       const loadedContext = await readJson<DevelopmentContext>(contextResponse);
       if (!loadedContext.ready || !loadedContext.fixtures) {
-        throw new Error(loadedContext.reason ?? "Development fixtures are not ready");
+        throw new Error(loadedContext.reason ?? "داده‌های آزمایشی محیط توسعه آماده نیستند.");
       }
       setContext(loadedContext);
 
@@ -193,7 +195,7 @@ export function InternalInterviewHarness() {
         },
       ]);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not start the internal interview session");
+      setError(cause instanceof Error ? cause.message : "شروع نشست آزمایشی مصاحبه ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -284,7 +286,7 @@ export function InternalInterviewHarness() {
         },
       ]);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Candidate turn failed");
+      setError(cause instanceof Error ? cause.message : "ثبت نوبت پاسخ کاندیدا ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -294,15 +296,15 @@ export function InternalInterviewHarness() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">M4 · internal engineering harness</div>
-          <h1 className="mt-2 text-[26px] font-semibold tracking-tight text-slate-950">Controlled Interview Brain</h1>
+          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">مرحله ۴ · ابزار آزمایش داخلی</div>
+          <h1 className="mt-2 text-[26px] font-semibold tracking-tight text-slate-950">مغز کنترل‌شده مصاحبه</h1>
           <p className="mt-1 max-w-3xl text-[11px] leading-5 text-slate-500">
-            Real persisted session/turn/transcript/evidence flow using the deterministic state machine. Synthetic development candidate only; no realtime STT/TTS/avatar is represented as connected.
+            جریان واقعی ذخیره‌سازی نشست، نوبت، متن گفت‌وگو و شواهد با ماشین حالت قطعی آزمایش می‌شود. این بخش فقط برای کاندیدای آزمایشی است و اتصال واقعی STT، TTS یا آواتار را شبیه‌سازی نمی‌کند.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[10px]">
-          <span className="rounded-full bg-amber-50 px-3 py-1.5 font-semibold text-amber-700">DEV_ONLY</span>
-          <span className="rounded-full bg-indigo-50 px-3 py-1.5 font-semibold text-indigo-700">deterministic-state-machine-v1</span>
+          <span className="rounded-full bg-amber-50 px-3 py-1.5 font-semibold text-amber-700">فقط محیط توسعه</span>
+          <span className="rounded-full bg-indigo-50 px-3 py-1.5 font-semibold text-indigo-700">ماشین حالت قطعی · نسخه ۱</span>
         </div>
       </div>
 
@@ -310,9 +312,9 @@ export function InternalInterviewHarness() {
         <div className="rounded-[14px] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
-              <div className="text-[13px] font-semibold text-slate-900">Start a synthetic persisted interview session</div>
+              <div className="text-[13px] font-semibold text-slate-900">شروع نشست آزمایشی و ذخیره‌شونده مصاحبه</div>
               <p className="mt-1 text-[10px] leading-5 text-slate-500">
-                The API resolves your development organization/user and seeded interview plan, enforces DEV_ONLY release policy, then persists every controlled turn.
+                API سازمان، کاربر و طرح آزمایشی مصاحبه را بازیابی می‌کند، سیاست محدود به محیط توسعه را اعمال می‌کند و هر نوبت گفت‌وگو را ذخیره می‌کند.
               </p>
             </div>
             <button
@@ -322,7 +324,7 @@ export function InternalInterviewHarness() {
               className="inline-flex h-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:bg-slate-300"
             >
               <Icon name="play" size={14} />
-              {busy ? "Starting…" : "Start internal session"}
+              {busy ? "در حال شروع…" : "شروع نشست داخلی"}
             </button>
           </div>
         </div>
@@ -337,11 +339,11 @@ export function InternalInterviewHarness() {
           <section className="overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
-                <div className="text-[12px] font-semibold">Interview transcript harness</div>
-                <div className="mt-1 font-mono text-[9px] text-slate-400">session {sessionId}</div>
+                <div className="text-[12px] font-semibold">آزمایش متن گفت‌وگوی مصاحبه</div>
+                <div className="mt-1 font-mono text-[9px] text-slate-400">نشست {sessionId}</div>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${sessionClosed ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>
-                {sessionClosed ? "Completed" : "In progress"}
+                {sessionClosed ? "تکمیل‌شده" : "در حال انجام"}
               </span>
             </div>
 
@@ -357,7 +359,7 @@ export function InternalInterviewHarness() {
                         : "mx-auto border-amber-100 bg-amber-50"
                   }`}
                 >
-                  <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-slate-400">{message.speaker}</div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-slate-400">{faDomainLabel(message.speaker)}</div>
                   <div className="mt-1 text-[11px] leading-5 text-slate-700">{message.text}</div>
                   {message.meta ? <div className="mt-2 text-[9px] text-slate-400">{message.meta}</div> : null}
                 </div>
@@ -370,7 +372,7 @@ export function InternalInterviewHarness() {
                   value={candidateText}
                   onChange={(event) => setCandidateText(event.target.value)}
                   rows={4}
-                  placeholder="Type a synthetic candidate answer…"
+                  placeholder="پاسخ آزمایشی کاندیدا را وارد کنید…"
                   className="w-full resize-y rounded-[11px] border border-slate-200 bg-white p-3 text-[11px] leading-5 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50"
                 />
                 <div className="grid gap-3 md:grid-cols-[220px_1fr_auto] md:items-center">
@@ -379,7 +381,7 @@ export function InternalInterviewHarness() {
                     onChange={(event) => setIntent(event.target.value as CandidateIntent)}
                     className="h-10 rounded-[10px] border border-slate-200 bg-white px-3 text-[10px] text-slate-700 outline-none"
                   >
-                    {intents.map((item) => <option key={item} value={item}>{item}</option>)}
+                    {intents.map((item) => <option key={item} value={item}>{({ ANSWER: "پاسخ", CLARIFICATION: "درخواست توضیح", SKIP: "صرف‌نظر", STOP: "پایان" } as Record<string, string>)[item] ?? faDomainLabel(item)}</option>)}
                   </select>
                   <label className="flex items-center gap-2 text-[10px] text-slate-600">
                     <input
@@ -389,7 +391,7 @@ export function InternalInterviewHarness() {
                       disabled={intent !== "ANSWER"}
                       className="h-4 w-4 accent-indigo-600"
                     />
-                    Manual harness: record this answer as criterion evidence
+                    ثبت دستی این پاسخ به‌عنوان شاهد معیار ارزیابی
                   </label>
                   <button
                     type="button"
@@ -397,7 +399,7 @@ export function InternalInterviewHarness() {
                     disabled={busy}
                     className="inline-flex h-10 items-center justify-center gap-2 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:bg-slate-300"
                   >
-                    {busy ? "Persisting…" : "Submit turn"}
+                    {busy ? "در حال ذخیره…" : "ثبت پاسخ"}
                     <Icon name="arrow" size={14} />
                   </button>
                 </div>
@@ -407,29 +409,29 @@ export function InternalInterviewHarness() {
 
           <aside className="space-y-3">
             <div className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="text-[12px] font-semibold">Brain state</div>
+              <div className="text-[12px] font-semibold">وضعیت مغز مصاحبه</div>
               <div className="mt-4 space-y-3 text-[10px]">
-                <div className="flex justify-between gap-3"><span className="text-slate-400">Criterion</span><span className="font-semibold text-slate-700">{currentCriterion?.label ?? lastTurn?.criterion ?? "—"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-400">Action</span><span className="font-semibold text-slate-700">{lastTurn?.action ?? "—"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-400">Remaining</span><span className="font-semibold text-slate-700">{lastTurn ? `${Math.floor(lastTurn.remainingSeconds / 60)}m ${lastTurn.remainingSeconds % 60}s` : "—"}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-400">Release mode</span><span className="font-semibold text-slate-700">{lastTurn?.releaseMode ?? "—"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-400">معیار</span><span className="font-semibold text-slate-700">{currentCriterion?.label ?? lastTurn?.criterion ?? "—"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-400">اقدام</span><span className="font-semibold text-slate-700">{lastTurn?.action ? faDomainLabel(lastTurn.action) : "—"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-400">زمان باقی‌مانده</span><span className="font-semibold text-slate-700">{lastTurn ? `${formatFaNumber(Math.floor(lastTurn.remainingSeconds / 60))} دقیقه و ${formatFaNumber(lastTurn.remainingSeconds % 60)} ثانیه` : "—"}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-400">حالت انتشار</span><span className="font-semibold text-slate-700">{lastTurn?.releaseMode ? faDomainLabel(lastTurn.releaseMode) : "—"}</span></div>
               </div>
             </div>
 
             <div className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="text-[12px] font-semibold">Evidence coverage</div>
+              <div className="text-[12px] font-semibold">پوشش شواهد</div>
               <div className="mt-4 space-y-2">
                 {context?.fixtures?.criteria.map((criterion) => (
                   <div key={criterion.id} className="flex items-center justify-between rounded-[9px] bg-slate-50 px-3 py-2 text-[10px]">
                     <span>{criterion.label}</span>
-                    <span className="font-semibold text-indigo-700">{lastTurn?.evidenceCoverage[criterion.key] ?? 0}</span>
+                    <span className="font-semibold text-indigo-700">{formatFaNumber(lastTurn?.evidenceCoverage[criterion.key] ?? 0)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div className="rounded-[14px] border border-amber-100 bg-amber-50 p-4 text-[10px] leading-5 text-amber-800">
-              This harness intentionally stops before realtime speech/media. Candidate video is not analyzed for personality, emotion, honesty, confidence or suitability.
+              این ابزار عمداً پیش از پردازش بلادرنگ گفتار و رسانه متوقف می‌شود. ویدئوی کاندیدا برای استنباط شخصیت، احساس، صداقت، اعتمادبه‌نفس یا تناسب شغلی تحلیل نمی‌شود.
             </div>
           </aside>
         </div>

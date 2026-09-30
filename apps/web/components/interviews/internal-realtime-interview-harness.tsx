@@ -54,7 +54,7 @@ const apiUrl = "/api/backend";
 const TARGET_SAMPLE_RATE = 16_000;
 
 function authHeaders(context: DevelopmentContext, contentType = "application/json"): HeadersInit {
-  if (!context.organizationId || !context.userId) throw new Error("Development API context is incomplete");
+  if (!context.organizationId || !context.userId) throw new Error("اطلاعات دسترسی API محیط توسعه کامل نیست.");
   return {
     "content-type": contentType,
     "x-organization-id": context.organizationId,
@@ -263,7 +263,7 @@ export function InternalRealtimeInterviewHarness() {
         await fetch(`${apiUrl}/development/context`, { cache: "no-store" }),
       );
       if (!context.ready || !context.fixtures || !context.organizationId || !context.userId) {
-        throw new Error(context.reason ?? "Development fixtures are not ready");
+        throw new Error(context.reason ?? "داده‌های آزمایشی محیط توسعه آماده نیستند.");
       }
       contextRef.current = context;
 
@@ -340,7 +340,7 @@ export function InternalRealtimeInterviewHarness() {
       setCompleted(firstTurn.action === "close");
       await playTurnAudio(context, session.id, mediaSession.id, firstTurn);
     } catch (cause) {
-      setStatus(cause instanceof Error ? cause.message : "Could not start realtime interview harness");
+      setStatus(cause instanceof Error ? cause.message : "شروع آزمایش مصاحبه بلادرنگ ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -367,7 +367,7 @@ export function InternalRealtimeInterviewHarness() {
       const activeMediaSessionId = mediaSessionIdRef.current;
       const audioContext = audioContextRef.current;
       if (!context || !activeSessionId || !activeMediaSessionId || !audioContext) {
-        throw new Error("Realtime interview runtime is incomplete");
+        throw new Error("اجزای اجرای مصاحبه بلادرنگ کامل نیستند.");
       }
       const samples = mergeFloat32(sampleChunksRef.current, sampleCountRef.current);
       if (samples.length < audioContext.sampleRate / 4) throw new Error("Recorded answer is too short. Speak for at least a moment.");
@@ -416,7 +416,7 @@ export function InternalRealtimeInterviewHarness() {
       setCompleted(nextTurn.action === "close");
       await playTurnAudio(context, activeSessionId, activeMediaSessionId, nextTurn);
     } catch (cause) {
-      setStatus(cause instanceof Error ? cause.message : "Candidate realtime turn failed");
+      setStatus(cause instanceof Error ? cause.message : "نوبت پاسخ بلادرنگ کاندیدا ناموفق بود.");
     } finally {
       setProcessing(false);
       sampleChunksRef.current = [];
@@ -441,22 +441,22 @@ export function InternalRealtimeInterviewHarness() {
     <section className="rounded-[14px] border border-indigo-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">M4 · realtime end-to-end harness</div>
+          <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">مرحله ۴ · آزمایش سرتاسری بلادرنگ</div>
           <div className="mt-1 text-[15px] font-semibold text-slate-900">Microphone → LiveKit → Silero VAD → Whisper → Brain → Piper</div>
-          <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">Synthetic development candidate only. The microphone track is published to LiveKit and sampled in-memory for the DEV_ONLY VAD/STT bridge. Raw audio is never persisted by the API.</p>
+          <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">فقط برای کاندیدای آزمایشی: صدای میکروفن از طریق LiveKit منتقل می‌شود و برای اتصال آزمایشی VAD/STT در حافظه پردازش می‌شود. API فایل صوتی خام را ذخیره نمی‌کند.</p>
         </div>
-        <span className={`rounded-full px-3 py-1.5 text-[9px] font-semibold ${connected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{connected ? "connected" : "idle"}</span>
+        <span className={`rounded-full px-3 py-1.5 text-[9px] font-semibold ${connected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{connected ? "متصل" : "در انتظار"}</span>
       </div>
 
       <div className="mt-4 rounded-[10px] bg-slate-50 p-3 text-[10px] leading-5 text-slate-700">{status}</div>
-      {sessionId ? <div className="mt-2 text-[9px] text-slate-400">session <span className="font-mono">{sessionId}</span>{mediaSessionId ? <> · media <span className="font-mono">{mediaSessionId}</span></> : null}</div> : null}
+      {sessionId ? <div className="mt-2 text-[9px] text-slate-400">نشست <span className="font-mono">{sessionId}</span>{mediaSessionId ? <> · رسانه <span className="font-mono">{mediaSessionId}</span></> : null}</div> : null}
 
       {!sessionId ? (
-        <button type="button" onClick={() => void startInterview()} disabled={busy} className="mt-4 h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">{busy ? "Starting realtime interview…" : "Start realtime interview"}</button>
+        <button type="button" onClick={() => void startInterview()} disabled={busy} className="mt-4 h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">{busy ? "در حال شروع مصاحبه بلادرنگ…" : "شروع مصاحبه بلادرنگ"}</button>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={startAnswer} disabled={!connected || completed || processing || recording} className="h-10 rounded-[10px] bg-emerald-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">{recording ? "Listening…" : "Start answer"}</button>
-          <button type="button" onClick={() => void stopAnswer()} disabled={!recording} className="h-10 rounded-[10px] bg-rose-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">Stop answer</button>
+          <button type="button" onClick={startAnswer} disabled={!connected || completed || processing || recording} className="h-10 rounded-[10px] bg-emerald-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">{recording ? "در حال شنیدن…" : "شروع پاسخ"}</button>
+          <button type="button" onClick={() => void stopAnswer()} disabled={!recording} className="h-10 rounded-[10px] bg-rose-600 px-4 text-[11px] font-semibold text-white disabled:bg-slate-300">پایان پاسخ</button>
         </div>
       )}
 
@@ -466,7 +466,7 @@ export function InternalRealtimeInterviewHarness() {
         <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto rounded-[12px] border border-slate-100 bg-slate-50 p-3">
           {messages.map((message) => (
             <div key={message.id} className={`rounded-[10px] border p-3 ${message.speaker === "candidate" ? "ms-auto max-w-[88%] border-indigo-100 bg-indigo-50" : message.speaker === "interviewer" ? "max-w-[88%] border-slate-200 bg-white" : "border-amber-100 bg-amber-50"}`}>
-              <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-slate-400">{message.speaker}</div>
+              <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-slate-400">{({ candidate: "کاندیدا", interviewer: "مصاحبه‌گر", system: "سیستم" } as Record<string, string>)[message.speaker] ?? message.speaker}</div>
               <div className="mt-1 text-[11px] leading-5 text-slate-700">{message.text}</div>
               {message.meta ? <div className="mt-2 text-[9px] text-slate-400">{message.meta}</div> : null}
             </div>
