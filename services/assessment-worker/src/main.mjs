@@ -1,7 +1,10 @@
+import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { AssessmentWorkerApiClient } from "./api-client.mjs";
 import { executeAssessmentJob } from "./sandbox.mjs";
+
+configureWorkerTls();
 
 function intEnv(name, fallback, min, max) {
   const value = Number(process.env[name]);

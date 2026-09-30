@@ -1,3 +1,4 @@
+import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 #!/usr/bin/env node
 import process from "node:process";
 import { AiWorkerApiClient } from "./api-client.mjs";
@@ -5,6 +6,8 @@ import { capabilityPromptDefinitions, createCapabilityProcessors } from "./capab
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider } from "./provider-factory.mjs";
 import { AiWorkerRuntime } from "./runtime.mjs";
+
+configureWorkerTls();
 
 function integerEnv(name, fallback) {
   const value = Number(process.env[name] ?? fallback);

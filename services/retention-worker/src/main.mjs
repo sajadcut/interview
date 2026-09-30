@@ -1,6 +1,9 @@
+import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { RetentionWorkerApiClient, RetentionWorkerApiError } from "./api-client.mjs";
+
+configureWorkerTls();
 
 function intEnv(name, fallback, min, max) {
   const value = Number(process.env[name]);

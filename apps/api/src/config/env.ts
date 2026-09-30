@@ -55,6 +55,7 @@ function urlProtocol(value: string | undefined): string | null {
 const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    HTTPS_TLS_VERIFY: trueBooleanFlag,
     API_HOST: z.string().trim().min(1).default("127.0.0.1"),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     CORS_ORIGIN: z.string().trim().min(1).default("http://localhost:3000"),
@@ -133,6 +134,9 @@ const envSchema = z
     AVATAR_BASE_URL: optionalUrl,
   })
   .superRefine((value, context) => {
+    if (value.NODE_ENV === "production" && !value.HTTPS_TLS_VERIFY) {
+      context.addIssue({ code: "custom", path: ["HTTPS_TLS_VERIFY"], message: "TLS verification cannot be disabled in production" });
+    }
     if (value.EMAIL_PROVIDER !== "disabled") {
       if (!value.EMAIL_FROM_ADDRESS || !emailAddress.safeParse(value.EMAIL_FROM_ADDRESS).success) {
         context.addIssue({
@@ -325,6 +329,13 @@ export function getEnv(): AppEnv {
         .map((issue) => `${issue.path.join(".") || "environment"}: ${issue.message}`)
         .join("; ");
       throw new Error(`Invalid environment configuration: ${details}`);
+    }
+    if (parsed.data.NODE_ENV === "production" && process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0") {
+      throw new Error("NODE_TLS_REJECT_UNAUTHORIZED=0 is forbidden in production");
+    }
+    if (!parsed.data.HTTPS_TLS_VERIFY) {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+      process.emitWarning("HTTPS_TLS_VERIFY=false disables outbound TLS certificate verification for this Node.js API process. Development/test only.");
     }
     cached = parsed.data;
   }

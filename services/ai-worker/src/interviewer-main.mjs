@@ -1,9 +1,12 @@
+import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 #!/usr/bin/env node
 import process from "node:process";
 import { interviewerPromptDefinition } from "./interviewer-capability.mjs";
 import { createInterviewerHttpServer } from "./interviewer-http.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider, providerInfoFromEnvironment } from "./provider-factory.mjs";
+
+configureWorkerTls();
 
 function integerEnv(name, fallback, minimum, maximum) {
   const value = Number(process.env[name] ?? fallback);
