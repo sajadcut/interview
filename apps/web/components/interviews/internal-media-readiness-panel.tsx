@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
+import { formatFaDigits } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 
 type RealtimeMediaMode = "audio" | "avatar";
@@ -33,10 +34,10 @@ type MediaReadiness = {
 };
 
 function statusLabel(provider: ProviderStatus): string {
-  if (provider.ready) return "Ready";
-  if (provider.reachable) return "Reachable · not ready";
-  if (provider.configured) return "Configured · unreachable";
-  return "Not configured";
+  if (provider.ready) return "آماده";
+  if (provider.reachable) return "در دسترس · آماده نیست";
+  if (provider.configured) return "پیکربندی‌شده · خارج از دسترس";
+  return "پیکربندی نشده";
 }
 
 function statusClass(provider: ProviderStatus): string {
@@ -46,11 +47,11 @@ function statusClass(provider: ProviderStatus): string {
 }
 
 const componentLabels: Record<ProviderStatus["component"], string> = {
-  transport: "Transport",
-  vad: "Voice activity detection",
-  stt: "Speech to text",
-  tts: "Text to speech",
-  avatar: "Avatar",
+  transport: "انتقال رسانه",
+  vad: "تشخیص فعالیت صوتی",
+  stt: "تبدیل گفتار به متن",
+  tts: "تبدیل متن به گفتار",
+  avatar: "آواتار",
 };
 
 export function InternalMediaReadinessPanel() {
@@ -69,12 +70,12 @@ export function InternalMediaReadinessPanel() {
         params: { query: { mode } },
       });
       if (!result.response.ok) {
-        throw new Error(apiErrorMessage(result, "Could not load realtime media readiness"));
+        throw new Error(apiErrorMessage(result, "بارگذاری وضعیت آمادگی رسانه بلادرنگ ناموفق بود."));
       }
       setReadiness(result.data as MediaReadiness);
     } catch (cause) {
       setReadiness(null);
-      setError(cause instanceof Error ? cause.message : "Could not load realtime media readiness");
+      setError(cause instanceof Error ? cause.message : "بارگذاری وضعیت آمادگی رسانه بلادرنگ ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -88,10 +89,10 @@ export function InternalMediaReadinessPanel() {
     <section className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">M4 · realtime readiness boundary</div>
-          <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-slate-950">Self-hosted media pipeline readiness</h2>
+          <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">مرحله ۴ · آمادگی سامانه بلادرنگ</div>
+          <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-slate-950">وضعیت آمادگی رسانه روی زیرساخت داخلی</h2>
           <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">
-            Provider health is checked through the typed API contract. Configuration alone never marks transport, VAD, STT, TTS or avatar as connected.
+            سلامت سرویس‌ها از طریق قرارداد API بررسی می‌شود. پیکربندی به‌تنهایی به معنای اتصال انتقال رسانه، VAD، STT، TTS یا آواتار نیست.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -107,7 +108,7 @@ export function InternalMediaReadinessPanel() {
                   : "bg-white text-slate-500 ring-slate-200 hover:bg-slate-50"
               }`}
             >
-              {item === "audio" ? "Audio mode" : "Avatar mode"}
+              {item === "audio" ? "حالت صوتی" : "حالت آواتار"}
             </button>
           ))}
           <button
@@ -116,7 +117,7 @@ export function InternalMediaReadinessPanel() {
             disabled={busy}
             className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-semibold text-slate-600 hover:bg-slate-200 disabled:cursor-wait disabled:opacity-60"
           >
-            {busy ? "Checking…" : "Refresh health"}
+            {busy ? "در حال بررسی…" : "بررسی دوباره سلامت"}
           </button>
         </div>
       </div>
@@ -133,12 +134,12 @@ export function InternalMediaReadinessPanel() {
                 ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
                 : "bg-amber-50 text-amber-700 ring-amber-100"
             }`}>
-              {readiness.ready ? "Pipeline ready" : "Launch blocked"}
+              {readiness.ready ? "سامانه رسانه آماده است" : "راه‌اندازی مسدود است"}
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-semibold text-slate-600">
-              realtime {readiness.enabled ? "enabled" : "disabled"}
+              بلادرنگ {readiness.enabled ? "فعال" : "غیرفعال"}
             </span>
-            <span className="text-[9px] text-slate-400">Mode: {readiness.mode}</span>
+            <span className="text-[9px] text-slate-400">حالت: {readiness.mode === "audio" ? "صوتی" : "آواتار"}</span>
           </div>
 
           <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -149,14 +150,14 @@ export function InternalMediaReadinessPanel() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-[10px] font-semibold text-slate-800">{componentLabels[provider.component]}</div>
-                      <div className="mt-1 font-mono text-[8px] text-slate-400">{provider.provider || "disabled"}</div>
+                      <div className="mt-1 font-mono text-[8px] text-slate-400">{provider.provider || "غیرفعال"}</div>
                     </div>
-                    <span className="text-[8px] font-medium text-slate-400">{required ? "required" : "optional"}</span>
+                    <span className="text-[8px] font-medium text-slate-400">{required ? "الزامی" : "اختیاری"}</span>
                   </div>
                   <div className={`mt-3 inline-flex rounded-full px-2 py-1 text-[8px] font-semibold ring-1 ${statusClass(provider)}`}>
                     {statusLabel(provider)}
                   </div>
-                  {provider.version ? <div className="mt-2 text-[8px] text-slate-400">Version {provider.version}</div> : null}
+                  {provider.version ? <div className="mt-2 text-[8px] text-slate-400">نسخه {formatFaDigits(provider.version)}</div> : null}
                   {provider.reason ? <div className="mt-2 text-[8px] leading-4 text-slate-500">{provider.reason}</div> : null}
                 </div>
               );
@@ -165,7 +166,7 @@ export function InternalMediaReadinessPanel() {
 
           {readiness.blockers.length > 0 ? (
             <div className="mt-4 rounded-[11px] border border-amber-100 bg-amber-50 p-4">
-              <div className="text-[10px] font-semibold text-amber-800">Launch blockers</div>
+              <div className="text-[10px] font-semibold text-amber-800">موانع راه‌اندازی</div>
               <ul className="mt-2 space-y-1 text-[9px] leading-4 text-amber-800">
                 {readiness.blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}
               </ul>
@@ -173,13 +174,13 @@ export function InternalMediaReadinessPanel() {
           ) : null}
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">Candidate video analysis</div><div className="mt-1 text-slate-500">None</div></div>
-            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">Biometric inference</div><div className="mt-1 text-slate-500">Not allowed</div></div>
-            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">Raw media in API DB</div><div className="mt-1 text-slate-500">Not persisted</div></div>
-            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">Avatar input</div><div className="mt-1 text-slate-500">Final spoken text only</div></div>
+            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">تحلیل ویدئوی کاندیدا</div><div className="mt-1 text-slate-500">انجام نمی‌شود</div></div>
+            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">استنباط زیست‌سنجی</div><div className="mt-1 text-slate-500">مجاز نیست</div></div>
+            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">رسانه خام در پایگاه داده API</div><div className="mt-1 text-slate-500">ذخیره نمی‌شود</div></div>
+            <div className="rounded-[10px] border border-slate-100 p-3 text-[9px]"><div className="font-semibold text-slate-700">ورودی آواتار</div><div className="mt-1 text-slate-500">فقط متن گفتاری نهایی</div></div>
           </div>
         </>
-      ) : busy ? <div role="status" className="mt-4 rounded-[10px] bg-slate-50 p-4 text-[10px] text-slate-500">Checking provider readiness…</div> : null}
+      ) : busy ? <div role="status" className="mt-4 rounded-[10px] bg-slate-50 p-4 text-[10px] text-slate-500">در حال بررسی آمادگی سرویس‌ها…</div> : null}
     </section>
   );
 }

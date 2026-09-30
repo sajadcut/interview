@@ -17,7 +17,7 @@ type DevelopmentContext = {
 const apiUrl = "/api/backend";
 
 function authHeaders(context: DevelopmentContext): HeadersInit {
-  if (!context.organizationId || !context.userId) throw new Error("Development API context is incomplete");
+  if (!context.organizationId || !context.userId) throw new Error("اطلاعات دسترسی API محیط توسعه کامل نیست.");
   return {
     "content-type": "application/json",
     "x-organization-id": context.organizationId,
@@ -40,7 +40,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export function InternalSpeechLoopHarness() {
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("Brain → persisted spoken_text → local TTS has not been exercised yet.");
+  const [message, setMessage] = useState("مسیر مغز مصاحبه ← متن گفتاری ذخیره‌شده ← TTS محلی هنوز آزمایش نشده است.");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [turnPreview, setTurnPreview] = useState<string | null>(null);
 
@@ -52,7 +52,7 @@ export function InternalSpeechLoopHarness() {
 
   async function run() {
     setBusy(true);
-    setMessage("Preparing synthetic Brain → TTS validation…");
+    setMessage("در حال آماده‌سازی آزمایش مسیر مغز مصاحبه به TTS…");
     setTurnPreview(null);
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
@@ -62,7 +62,7 @@ export function InternalSpeechLoopHarness() {
       const context = await readJson<DevelopmentContext>(
         await fetch(`${apiUrl}/development/context`, { cache: "no-store" }),
       );
-      if (!context.ready || !context.fixtures) throw new Error(context.reason ?? "Development fixtures are not ready");
+      if (!context.ready || !context.fixtures) throw new Error(context.reason ?? "داده‌های آزمایشی محیط توسعه آماده نیستند.");
 
       const session = await readJson<{ id: string }>(
         await fetch(`${apiUrl}/v1/interviews/sessions`, {
@@ -115,15 +115,15 @@ export function InternalSpeechLoopHarness() {
       );
       if (!audioResponse.ok) {
         const detail = await audioResponse.text();
-        throw new Error(`TTS bridge failed (${audioResponse.status}): ${detail.slice(0, 500)}`);
+        throw new Error(`پل ارتباطی TTS ناموفق بود (${audioResponse.status}): ${detail.slice(0, 500)}`);
       }
       const blob = await audioResponse.blob();
-      if (!blob.type.startsWith("audio/")) throw new Error(`Unexpected TTS response type: ${blob.type || "missing"}`);
+      if (!blob.type.startsWith("audio/")) throw new Error(`نوع پاسخ TTS غیرمنتظره است: ${blob.type || "نامشخص"}`);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
-      setMessage("Persisted finalized Brain spoken_text was synthesized by the local worker. No client-supplied interview text was accepted by the TTS endpoint.");
+      setMessage("متن گفتاری نهایی و ذخیره‌شده با پردازشگر محلی به گفتار تبدیل شد. سرویس TTS متن دلخواه ارسالی از مرورگر را نپذیرفته است.");
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "Brain → TTS validation failed");
+      setMessage(cause instanceof Error ? cause.message : "آزمایش مسیر مغز مصاحبه به TTS ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -131,13 +131,13 @@ export function InternalSpeechLoopHarness() {
 
   return (
     <section className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">M4 · speech loop validation</div>
-      <div className="mt-1 text-[13px] font-semibold text-slate-900">Persisted Brain turn → local TTS</div>
-      <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">This path loads `spoken_text` from a finalized persisted Interview Brain turn on the server. The browser never posts arbitrary interview text to TTS.</p>
+      <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">مرحله ۴ · آزمایش چرخه گفتار</div>
+      <div className="mt-1 text-[13px] font-semibold text-slate-900">نوبت ذخیره‌شده مغز مصاحبه ← TTS محلی</div>
+      <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">این مسیر فیلد `spoken_text` را از نوبت نهایی ذخیره‌شده در سرور می‌خواند. مرورگر هیچ متن دلخواهی برای مصاحبه به TTS ارسال نمی‌کند.</p>
       <div className="mt-4 rounded-[10px] bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">{message}</div>
-      {turnPreview ? <div className="mt-3 rounded-[10px] border border-slate-100 p-3 text-[10px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">Persisted spoken text:</span> {turnPreview}</div> : null}
+      {turnPreview ? <div className="mt-3 rounded-[10px] border border-slate-100 p-3 text-[10px] leading-5 text-slate-600"><span className="font-semibold text-slate-800">متن گفتاری ذخیره‌شده:</span> {turnPreview}</div> : null}
       {audioUrl ? <audio className="mt-3 w-full" controls src={audioUrl} /> : null}
-      <button type="button" disabled={busy} onClick={run} className="mt-4 h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:bg-slate-300">{busy ? "Running…" : "Run Brain → TTS check"}</button>
+      <button type="button" disabled={busy} onClick={run} className="mt-4 h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:bg-slate-300">{busy ? "در حال اجرا…" : "آزمایش مسیر مغز مصاحبه به TTS"}</button>
     </section>
   );
 }

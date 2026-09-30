@@ -2,7 +2,7 @@ import { Icon } from "./icon";
 
 export function InterviewMediaPlayer({
   src,
-  title = "Interview recording",
+  title = "ضبط مصاحبه",
 }: {
   src?: string;
   title?: string;
@@ -21,9 +21,9 @@ export function InterviewMediaPlayer({
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white/10 text-indigo-300">
           <Icon name="interviews" size={20} />
         </div>
-        <div className="mt-4 text-[13px] font-semibold">No recording attached to this development session</div>
+        <div className="mt-4 text-[13px] font-semibold">برای این نشست آزمایشی، فایل ضبط‌شده‌ای وجود ندارد</div>
         <p className="mt-2 text-[10px] leading-5 text-slate-400">
-          The review surface now renders a real HTML video player only when a recording URL exists. LiveKit recording/media-worker integration is still an M4 implementation gap; a decorative avatar image is not treated as interview video.
+          پخش‌کننده واقعی ویدئو فقط زمانی نمایش داده می‌شود که نشانی فایل ضبط‌شده وجود داشته باشد. اتصال ضبط LiveKit به پردازشگر رسانه هنوز در مرحله ۴ تکمیل نشده است؛ تصویر تزئینی آواتار به‌عنوان ویدئوی مصاحبه نمایش داده نمی‌شود.
         </p>
       </div>
     </div>

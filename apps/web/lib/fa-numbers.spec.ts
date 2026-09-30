@@ -13,5 +13,6 @@ test("raw percentage values are not multiplied", () => {
 test("Persian display text conversion does not touch the original input", () => {
   const raw = "2 پرونده · 10 مصاحبه";
   assert.equal(formatFaDigits(raw), "۲ پرونده · ۱۰ مصاحبه");
+  assert.equal(formatFaDigits("۱۲ ١٢ 12"), "۱۲ ۱۲ ۱۲");
   assert.equal(raw, "2 پرونده · 10 مصاحبه");
 });

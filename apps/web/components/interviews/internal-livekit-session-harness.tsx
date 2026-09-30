@@ -18,7 +18,7 @@ type DevelopmentContext = {
 const apiUrl = "/api/backend";
 
 function authHeaders(context: DevelopmentContext): HeadersInit {
-  if (!context.organizationId || !context.userId) throw new Error("Development API context is incomplete");
+  if (!context.organizationId || !context.userId) throw new Error("اطلاعات دسترسی API محیط توسعه کامل نیست.");
   return {
     "content-type": "application/json",
     "x-organization-id": context.organizationId,
@@ -53,7 +53,7 @@ export function InternalLiveKitSessionHarness() {
         await fetch(`${apiUrl}/development/context`, { cache: "no-store" }),
       );
       if (!loaded.ready || !loaded.fixtures || !loaded.organizationId || !loaded.userId) {
-        throw new Error(loaded.reason ?? "Development fixtures are not ready");
+        throw new Error(loaded.reason ?? "داده‌های آزمایشی محیط توسعه آماده نیستند.");
       }
       const session = await readJson<{ id: string }>(
         await fetch(`${apiUrl}/v1/interviews/sessions`, {
@@ -71,7 +71,7 @@ export function InternalLiveKitSessionHarness() {
       setContext(loaded);
       setSessionId(session.id);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not prepare LiveKit transport session");
+      setError(cause instanceof Error ? cause.message : "آماده‌سازی نشست انتقال LiveKit ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -89,11 +89,11 @@ export function InternalLiveKitSessionHarness() {
 
   return (
     <section className="rounded-[14px] border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">M4 · transport runtime</div>
-      <div className="mt-1 text-[13px] font-semibold text-slate-900">Prepare synthetic LiveKit transport session</div>
-      <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">Creates a separate synthetic interview session for WebRTC transport validation. It never issues credentials for a real customer candidate.</p>
+      <div className="text-[10px] font-semibold uppercase tracking-[.12em] text-indigo-600">مرحله ۴ · اجرای انتقال رسانه</div>
+      <div className="mt-1 text-[13px] font-semibold text-slate-900">آماده‌سازی نشست آزمایشی انتقال LiveKit</div>
+      <p className="mt-1 max-w-3xl text-[10px] leading-5 text-slate-500">برای اعتبارسنجی انتقال WebRTC یک نشست مصاحبه آزمایشی و مستقل ایجاد می‌شود. برای کاندیدای واقعی مشتری هیچ اطلاعات دسترسی صادر نمی‌شود.</p>
       {error ? <div className="mt-3 rounded-[10px] border border-rose-100 bg-rose-50 p-3 text-[10px] text-rose-700">{error}</div> : null}
-      <button type="button" onClick={prepare} disabled={busy} className="mt-4 h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:bg-slate-300">{busy ? "Preparing…" : "Prepare transport session"}</button>
+      <button type="button" onClick={prepare} disabled={busy} className="mt-4 h-9 rounded-[9px] bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:bg-slate-300">{busy ? "در حال آماده‌سازی…" : "آماده‌سازی نشست انتقال"}</button>
     </section>
   );
 }
