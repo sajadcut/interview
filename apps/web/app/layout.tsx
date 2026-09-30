@@ -5,14 +5,22 @@ import { directionFor, getInternalLocale } from "../lib/i18n";
 import { AppProviders } from "./providers";
 import "./globals.css";
 
-const bTraffic = localFont({
+const iranSansX = localFont({
   src: [
-    { path: "../../../font/B Traffic Web.ttf", weight: "400", style: "normal" },
-    { path: "../../../font/B Traffic Bold Web.ttf", weight: "700", style: "normal" },
+    { path: "../../../font/IRANSansXThin.ttf", weight: "100", style: "normal" },
+    { path: "../../../font/IRANSansXUltraLight.ttf", weight: "200", style: "normal" },
+    { path: "../../../font/IRANSansXLight.ttf", weight: "300", style: "normal" },
+    { path: "../../../font/IRANSansXRegular.ttf", weight: "400", style: "normal" },
+    { path: "../../../font/IRANSansXMedium.ttf", weight: "500", style: "normal" },
+    { path: "../../../font/IRANSansXDemiBold.ttf", weight: "600", style: "normal" },
+    { path: "../../../font/IRANSansXBold.ttf", weight: "700", style: "normal" },
+    { path: "../../../font/IRANSansXExtraBold.ttf", weight: "800", style: "normal" },
+    { path: "../../../font/IRANSansXBlack.ttf", weight: "900", style: "normal" },
   ],
-  variable: "--font-b-traffic",
+  variable: "--font-iran-sans-x",
   display: "swap",
-  preload: true,
+  // Only the weights used by each route should download; preloading nine files is wasteful.
+  preload: false,
   fallback: ["Tahoma", "Arial", "sans-serif"],
 });
 
@@ -27,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   const locale = getInternalLocale();
   return (
-    <html lang={locale} dir={directionFor(locale)} className={bTraffic.variable}>
+    <html lang={locale} dir={directionFor(locale)} className={iranSansX.variable}>
       <body>
         <AppProviders>{children}</AppProviders>
       </body>
