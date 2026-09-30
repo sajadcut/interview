@@ -21,7 +21,8 @@ primary workspaces                        command center / hiring requests / job
 governance workspaces                     automations / integrations / settings / users / audit / search
 safety boundaries                         evidence-first and human-decision copy preserved in Persian
 candidate/interviewer surfaces            candidate remains a separate security/locale boundary; interviewer workspace is now Persian/RTL
-validation                                static copy/RTL/responsive audit complete; mobile E2E RTL/overflow coverage added; QUALITY_GATE_VALIDATION_PENDING on current HEAD
+typography                                root /font/B Traffic_0.ttf and /font/B Traffic Bold_0.ttf bundled with next/font/local; Persian forms, navigation and tables retuned; English candidate fonts remain independent
+validation                                static font/RTL/responsive audit complete; browser E2E now checks loaded B Traffic and multi-viewport document overflow; FONT_VISUAL_VALIDATION_PENDING and QUALITY_GATE_VALIDATION_PENDING on current HEAD
 ```
 
 ## Hiring Requisition → HR Recruiting → Requesting-Team Approval
