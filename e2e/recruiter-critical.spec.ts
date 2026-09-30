@@ -10,6 +10,9 @@ test.describe("critical recruiter flows", () => {
 
   test("recruiter authenticates with persisted session and reaches candidate intelligence", async ({ page }) => {
     await signInRecruiter(page);
+    await page.evaluate(() => document.fonts.ready);
+    const fontFamily = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+    expect(fontFamily.toLowerCase()).toContain("traffic");
 
     // A full reload must preserve the server-side session and selected organization context.
     await page.reload();
