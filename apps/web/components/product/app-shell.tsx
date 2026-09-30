@@ -134,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="hidden bg-[#0d1728] px-3.5 py-4 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:min-h-0 lg:flex-col">
         <div className="mb-5 flex shrink-0 items-center gap-3 px-2 py-1">
           <div className="grid h-9 w-9 place-items-center rounded-[11px] bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-950/30"><Icon name="sparkles" size={17} /></div>
-          <div className="min-w-0"><div className="text-[13px] font-semibold tracking-tight">{locale === "fa" ? "دستیار هوشمند جذب" : "AI Recruiter"}</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{access.organization?.name ?? copy.subtitle}</div></div>
+          <div className="min-w-0"><div className="font-b-traffic-display text-[17px] tracking-normal">{locale === "fa" ? "دستیار هوشمند جذب" : "AI Recruiter"}</div><div className="mt-0.5 truncate text-[10px] text-slate-400">{access.organization?.name ?? copy.subtitle}</div></div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto pe-1">
           <nav className="space-y-1" aria-label={copy.navigationLabel}>{primary.map(([label, href]) => <NavItem key={href} label={label} href={href} active={isActivePath(pathname, href)} />)}</nav>
