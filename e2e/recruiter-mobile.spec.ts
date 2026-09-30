@@ -29,6 +29,7 @@ test.describe("mobile recruiter smoke", () => {
         variable,
         bodyFamily: getComputedStyle(document.body).fontFamily,
         displayFamily: display ? getComputedStyle(display).fontFamily : "",
+        titleFamily: getComputedStyle(document.querySelector("main h1")!).fontFamily,
         loaded: Boolean(expected) && Array.from(document.fonts).some((face) =>
           face.family.replaceAll('"', "").replaceAll("'", "") === expected && face.status === "loaded",
         ),
@@ -37,6 +38,7 @@ test.describe("mobile recruiter smoke", () => {
     expect(fontStatus.variable).toBeTruthy();
     expect(fontStatus.bodyFamily.toLowerCase()).toContain("tahoma");
     expect(fontStatus.displayFamily).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
+    expect(fontStatus.titleFamily).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
     expect(fontStatus.loaded).toBe(true);
 
     // Font metric changes must not introduce page-wide overflow on phone, tablet or desktop.

@@ -91,6 +91,14 @@ html[dir="rtl"] body { font-family: Tahoma, "Segoe UI", Arial, sans-serif; }
   line-height: 1.8;
   letter-spacing: normal;
 }
+/* Use the selected B Traffic face for readable, large page titles on both
+   desktop and mobile. Dense controls keep the legible operational stack. */
+.persian-ui h1 {
+  font-family: var(--font-b-traffic), Tahoma, Arial, sans-serif;
+  font-weight: 700;
+  line-height: 1.55;
+  letter-spacing: normal;
+}
 /* Only rescue illegibly small legacy labels; do not inflate every font size. */
 .persian-ui .text-\[8px\],
 .persian-ui .text-\[9px\] { font-size: 11px; }
