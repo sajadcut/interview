@@ -15,7 +15,12 @@ test.describe("mobile recruiter smoke", () => {
 
     await expectRtlWithoutDocumentOverflow();
     // Font loading is part of the mobile acceptance gate, not merely a CSS declaration.
-    await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(async () => {
+      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
+      const family = variable.split(",")[0]?.trim();
+      if (family) await document.fonts.load(`400 17px ${family}`, "دستیار هوشمند جذب");
+      await document.fonts.ready;
+    });
     const fontStatus = await page.evaluate(() => {
       const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
       const display = document.querySelector<HTMLElement>(".font-b-traffic-display");
