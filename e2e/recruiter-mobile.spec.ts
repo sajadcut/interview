@@ -14,39 +14,44 @@ test.describe("mobile recruiter smoke", () => {
     };
 
     await expectRtlWithoutDocumentOverflow();
-    // Font loading is part of the mobile acceptance gate, not merely a CSS declaration.
-    await page.evaluate(async () => {
-      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
-      const family = variable.split(",")[0]?.trim();
-      if (family) await document.fonts.load(`400 17px ${family}`, "دستیار هوشمند جذب");
+    // Check the self-hosted Persian family, including its real regular and bold faces.
+    const fontStatus = await page.evaluate(async () => {
+      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-iran-sans-x").trim();
+      const primary = variable.split(",")[0]?.trim() ?? "";
+      const clean = (name: string) => name.replaceAll('"', "").replaceAll("'", "").trim();
+      if (primary) {
+        await Promise.all([
+          document.fonts.load(`400 14px ${primary}`, "متن فارسی"),
+          document.fonts.load(`700 24px ${primary}`, "عنوان فارسی"),
+        ]);
+      }
       await document.fonts.ready;
-    });
-    const fontStatus = await page.evaluate(() => {
-      const variable = getComputedStyle(document.documentElement).getPropertyValue("--font-b-traffic").trim();
-      const display = document.querySelector<HTMLElement>(".font-b-traffic-display");
-      const expected = variable.split(",")[0]?.trim().replaceAll('"', "").replaceAll("'", "");
+      const faces = Array.from(document.fonts);
+      const faceLoaded = (weight: string) => faces.some((face) =>
+        clean(face.family) === clean(primary) && face.weight === weight && face.status === "loaded",
+      );
+      const mainTitle = document.querySelector<HTMLElement>("main h1");
       return {
         variable,
+        primary: clean(primary),
         bodyFamily: getComputedStyle(document.body).fontFamily,
-        displayFamily: display ? getComputedStyle(display).fontFamily : "",
-        titleFamily: getComputedStyle(document.querySelector("main h1")!).fontFamily,
-        loaded: Boolean(expected) && Array.from(document.fonts).some((face) =>
-          face.family.replaceAll('"', "").replaceAll("'", "") === expected && face.status === "loaded",
-        ),
+        titleFamily: mainTitle ? getComputedStyle(mainTitle).fontFamily : "",
+        regularLoaded: faceLoaded("400"),
+        boldLoaded: faceLoaded("700"),
       };
     });
     expect(fontStatus.variable).toBeTruthy();
-    expect(fontStatus.bodyFamily.toLowerCase()).toContain("tahoma");
-    expect(fontStatus.displayFamily).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
-    expect(fontStatus.titleFamily).toContain(fontStatus.variable.split(",")[0]?.trim().replaceAll('"', ""));
-    expect(fontStatus.loaded).toBe(true);
+    expect(fontStatus.bodyFamily).toContain(fontStatus.primary);
+    expect(fontStatus.titleFamily).toContain(fontStatus.primary);
+    expect(fontStatus.regularLoaded).toBe(true);
+    expect(fontStatus.boldLoaded).toBe(true);
 
     // Font metric changes must not introduce page-wide overflow on phone, tablet or desktop.
     for (const width of [320, 390, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectRtlWithoutDocumentOverflow();
       await page.screenshot({
-        path: testInfo.outputPath(`persian-ui-dashboard-${width}.png`),
+        path: testInfo.outputPath(`iransansx-dashboard-${width}.png`),
         fullPage: true,
       });
     }
@@ -59,7 +64,7 @@ test.describe("mobile recruiter smoke", () => {
       const style = getComputedStyle(element);
       return { family: style.fontFamily, size: parseFloat(style.fontSize), spacing: style.letterSpacing };
     });
-    expect(navTypography.family.toLowerCase()).toContain("tahoma");
+    expect(navTypography.family).toContain(fontStatus.primary);
     expect(navTypography.size).toBeGreaterThanOrEqual(13);
     expect(navTypography.spacing).toBe("normal");
     await expect(page.getByRole("link", { name: "ایجاد موقعیت" })).toBeVisible();
@@ -68,7 +73,7 @@ test.describe("mobile recruiter smoke", () => {
     await expect(page.getByRole("heading", { name: "Ali Rahimi" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "دریافت و پردازش رزومه" })).toBeVisible();
     await page.screenshot({
-      path: testInfo.outputPath("persian-ui-candidate-mobile.png"),
+      path: testInfo.outputPath("iransansx-candidate-mobile.png"),
       fullPage: true,
     });
     await expect(page.getByRole("navigation", { name: "پیمایش موبایل" })).toBeVisible();
