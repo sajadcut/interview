@@ -45,7 +45,8 @@ export class InterviewAssignmentAdminService {
         SELECT DISTINCT
           u.id::text AS user_id,
           u.email,
-          u.display_name
+          u.display_name,
+          lower(u.email) AS email_sort_key
         FROM memberships m
         JOIN users u ON u.id = m.user_id
         JOIN membership_roles mr
@@ -56,7 +57,7 @@ export class InterviewAssignmentAdminService {
           AND m.status = 'active'
           AND u.disabled_at IS NULL
           AND r.key = 'INTERVIEWER'
-        ORDER BY lower(u.email)
+        ORDER BY email_sort_key
       `,
     ]);
 

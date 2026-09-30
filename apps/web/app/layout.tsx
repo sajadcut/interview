@@ -7,8 +7,8 @@ import "./globals.css";
 
 const bTraffic = localFont({
   src: [
-    { path: "../../../font/B Traffic_0.ttf", weight: "400", style: "normal" },
-    { path: "../../../font/B Traffic Bold_0.ttf", weight: "700", style: "normal" },
+    { path: "../../../font/B Traffic Web.ttf", weight: "400", style: "normal" },
+    { path: "../../../font/B Traffic Bold Web.ttf", weight: "700", style: "normal" },
   ],
   variable: "--font-b-traffic",
   display: "swap",
