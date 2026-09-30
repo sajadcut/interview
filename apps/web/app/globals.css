@@ -1,73 +1,153 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 
-:root{--background:#f5f7fb;--surface:#fff;--surface-subtle:#f8fafc;--foreground:#111827;--muted:#64748b;--border:#e2e8f0;--accent:#4f46e5;--accent-foreground:#fff;--success:#059669;--warning:#d97706;--danger:#e11d48;--radius:12px}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--background);color:var(--foreground)}body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input,textarea,select{font:inherit}:focus-visible{outline:2px solid #818cf8;outline-offset:2px}
-::selection{background:#c7d2fe;color:#312e81}*{scrollbar-width:thin;scrollbar-color:#cbd5e1 transparent}
-.data-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto}.data-table th{height:42px;border-bottom:1px solid #e2e8f0;background:#f8fafc;padding:0 16px;text-align:start;white-space:nowrap;font-size:10px;font-weight:650;letter-spacing:.01em;color:#64748b}.data-table td{height:58px;border-bottom:1px solid #eef2f7;padding:0 16px;font-size:11px;line-height:1.4;color:#334155}.data-table tr:last-child td{border-bottom:0}.data-table tbody tr{transition:background-color .15s ease}.data-table tbody tr:hover td{background:#fafbff}.data-table a{transition:color .15s ease}.video-stage{background:radial-gradient(circle at 50% 28%,#38445d 0,#1b2434 38%,#0d1420 78%)}.digital-human{background:radial-gradient(circle at 50% 35%,#f0c9ad 0 9%,#c18f76 10% 16%,transparent 17%),radial-gradient(ellipse at 50% 72%,#28374d 0 25%,transparent 26%),linear-gradient(145deg,#202d41,#0e1522)}
+:root {
+  --background: #f5f7fb;
+  --surface: #fff;
+  --surface-subtle: #f8fafc;
+  --foreground: #111827;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #4f46e5;
+  --accent-foreground: #fff;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+  --radius: 12px;
+}
 
-/* The Persian font is bundled from /font through next/font/local, never fetched from a CDN. */
-html[dir="rtl"] body{
-  font-family:var(--font-b-traffic),Tahoma,Arial,sans-serif;
-  font-size:16px;
-  line-height:1.65;
-  font-synthesis:none;
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--background);
+  color: var(--foreground);
 }
-html[dir="rtl"] button,
-html[dir="rtl"] input,
-html[dir="rtl"] textarea,
-html[dir="rtl"] select{font-family:inherit;line-height:1.45}
-/* The candidate experience has its own locale; do not impose Persian typography on its English pages. */
-html[dir="rtl"] [lang="en"][dir="ltr"]{
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:14px;
-  line-height:normal;
-  font-synthesis:auto;
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
-/* Legacy dense UI used 9–11px labels. Normalize them for B Traffic in the internal workspaces. */
-.persian-ui .text-\[8px\]{font-size:11px}
-.persian-ui .text-\[9px\]{font-size:12px}
-.persian-ui .text-\[10px\]{font-size:13px}
-.persian-ui .text-\[11px\]{font-size:14px}
-.persian-ui .text-\[12px\]{font-size:15px}
-.persian-ui .text-\[13px\]{font-size:16px}
-.persian-ui .text-\[14px\]{font-size:17px}
-.persian-ui .data-table th{height:auto;min-height:44px;padding:11px 16px;font-size:13px;line-height:1.6;letter-spacing:normal}
-.persian-ui .data-table td{height:auto;min-height:58px;padding:10px 16px;font-size:14px;line-height:1.6}
-.persian-ui .data-table a,.persian-ui .data-table button{white-space:normal}
-.persian-ui [dir="ltr"],.persian-ui input[type="email"],.persian-ui input[type="url"]{unicode-bidi:isolate}
-@media (max-width:639px){
-  .persian-ui .data-table th,.persian-ui .data-table td{padding:9px 12px}
-  /* Avoid iOS focus zoom on dense form inputs without changing checkboxes. */
-  .persian-ui :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),textarea,select){
-    min-height:44px;
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; }
+:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
+::selection { background: #c7d2fe; color: #312e81; }
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+.data-table th {
+  height: 42px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 0 16px;
+  text-align: start;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+}
+.data-table td {
+  height: 58px;
+  border-bottom: 1px solid #eef2f7;
+  padding: 0 16px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #334155;
+}
+.data-table tr:last-child td { border-bottom: 0; }
+.data-table tbody tr { transition: background-color .15s ease; }
+.data-table tbody tr:hover td { background: #fafbff; }
+.data-table a { transition: color .15s ease; }
+
+.video-stage {
+  background: radial-gradient(circle at 50% 28%,#38445d 0,#1b2434 38%,#0d1420 78%);
+}
+.digital-human {
+  background: radial-gradient(circle at 50% 35%,#f0c9ad 0 9%,#c18f76 10% 16%,transparent 17%),
+    radial-gradient(ellipse at 50% 72%,#28374d 0 25%,transparent 26%),
+    linear-gradient(145deg,#202d41,#0e1522);
+}
+
+/*
+ * B Traffic's classic letterforms and very large vertical metrics do not work
+ * for dense 9–12px product controls. Use a reliably readable Persian UI stack
+ * for navigation, cards and forms; keep the bundled B Traffic for opt-in
+ * decorative display text only. No remote font dependency is introduced.
+ */
+html[dir="rtl"] body { font-family: Tahoma, "Segoe UI", Arial, sans-serif; }
+.persian-ui {
+  font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.persian-ui :is(h1, h2, h3),
+.persian-ui [class*="tracking-"] {
+  letter-spacing: normal;
+}
+.persian-ui .font-b-traffic-display {
+  font-family: var(--font-b-traffic), Tahoma, Arial, sans-serif;
+  font-weight: 400;
+  line-height: 1.8;
+  letter-spacing: normal;
+}
+/* Only rescue illegibly small legacy labels; do not inflate every font size. */
+.persian-ui .text-\\[8px\\],
+.persian-ui .text-\\[9px\\] { font-size: 11px; }
+.persian-ui .text-\\[10px\\] { font-size: 12px; }
+.persian-ui .text-\\[11px\\] { font-size: 13px; }
+.persian-ui .text-\\[12px\\] { font-size: 14px; }
+.persian-ui .text-\\[13px\\],
+.persian-ui .text-\\[14px\\] { font-size: 15px; }
+.persian-ui .text-xs { font-size: 13px; }
+.persian-ui .text-sm { font-size: 14px; }
+.persian-ui .data-table th {
+  height: auto;
+  min-height: 42px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  letter-spacing: normal;
+}
+.persian-ui .data-table td {
+  height: auto;
+  min-height: 56px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.persian-ui .data-table a,
+.persian-ui .data-table button { white-space: normal; }
+
+/* Mixed-language identifiers must retain an understandable LTR reading order. */
+html[dir="rtl"] :is(input[type="email"], input[type="url"], input[type="tel"]) {
+  direction: ltr;
+  text-align: left;
+  font-family: Arial, Tahoma, sans-serif;
+}
+.persian-ui :is(code, pre) {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.persian-ui [dir="ltr"] { unicode-bidi: isolate; }
+
+/* Candidate-facing English remains independent of the internal Persian UI. */
+html[dir="rtl"] [lang="en"][dir="ltr"] {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: normal;
+}
+@media (max-width: 639px) {
+  .persian-ui .data-table th,
+  .persian-ui .data-table td { padding: 9px 12px; }
+  .persian-ui :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), textarea, select) {
+    min-height: 44px;
   }
-  /* Override tiny utility sizes on form fields while preserving intentionally
-     large controls (for example, the candidate's one-time-code input). */
-  .persian-ui :is(input,textarea,select):is(
-    [class~="text-xs"],
-    [class~="text-sm"],
-    [class~="text-[8px]"],
-    [class~="text-[9px]"],
-    [class~="text-[10px]"],
-    [class~="text-[11px]"],
-    [class~="text-[12px]"],
-    [class~="text-[13px]"]
-  ){font-size:16px}
+  .persian-ui :is(input, textarea, select):is(
+    [class~="text-xs"], [class~="text-sm"],
+    [class~="text-[8px]"], [class~="text-[9px]"],
+    [class~="text-[10px]"], [class~="text-[11px]"],
+    [class~="text-[12px]"], [class~="text-[13px]"]
+  ) { font-size: 16px; }
 }
-
-/* Keep Latin identifiers and communication fields readable inside right-to-left forms. */
-html[dir="rtl"] input[type="email"],
-html[dir="rtl"] input[type="url"],
-html[dir="rtl"] input[type="tel"]{
-  direction:ltr;
-  text-align:left;
-  font-family:Arial,Tahoma,sans-serif;
-}
-.persian-ui :where(code,pre){
-  direction:ltr;
-  unicode-bidi:isolate;
-  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
-}
-.persian-ui .text-xs{font-size:14px}
-.persian-ui .text-sm{font-size:16px}
