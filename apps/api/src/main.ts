@@ -6,6 +6,8 @@ import { AppModule } from "./app.module";
 import { assertProductionCorsPolicy, buildCorsOrigin } from "./common/http/cors";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { JsonLogger } from "./common/logging/json.logger";
+import { installInstrumentedFetch } from "./common/observability/instrumented-fetch";
+import { getObservabilityConfig, logFilePath, writeStructuredLog } from "./common/observability/structured-log";
 import { assertProductionSecretPolicy } from "./common/security/secrets";
 import { getEnv } from "./config/env";
 import { buildOpenApiDocument } from "./openapi";
@@ -13,6 +15,7 @@ import { buildOpenApiDocument } from "./openapi";
 async function bootstrap(): Promise<void> {
   const env = getEnv();
   assertProductionSecretPolicy(process.env);
+  installInstrumentedFetch();
   const logger = new JsonLogger();
   const app = await NestFactory.create(AppModule, { logger });
   const corsOrigin = buildCorsOrigin(env.CORS_ORIGIN);
@@ -28,9 +31,13 @@ async function bootstrap(): Promise<void> {
       "x-organization-id",
       "x-user-id",
       "x-request-id",
+      "x-trace-id",
+      "traceparent",
     ],
     exposedHeaders: [
       "x-request-id",
+      "x-trace-id",
+      "traceparent",
       "retry-after",
       "x-ratelimit-limit",
       "x-ratelimit-remaining",
@@ -48,10 +55,18 @@ async function bootstrap(): Promise<void> {
   SwaggerModule.setup("docs", app, document, { jsonDocumentUrl: "openapi.json" });
 
   await app.listen(env.API_PORT, env.API_HOST);
+  const observability = getObservabilityConfig();
+  writeStructuredLog("info", "application.started", {
+    host: env.API_HOST,
+    port: env.API_PORT,
+    corsOrigin: corsOrigin === "*" ? "*" : corsOrigin,
+    logFile: logFilePath(),
+    logLevel: observability.level,
+    logBodyMode: observability.bodyMode,
+    outboundHttpLogging: observability.outboundEnabled,
+  });
   logger.log(
-    `API listening on http://${env.API_HOST}:${env.API_PORT} · CORS_ORIGIN=${
-      corsOrigin === "*" ? "*" : corsOrigin.join(",")
-    }`,
+    `API listening on http://${env.API_HOST}:${env.API_PORT} · logs=${logFilePath()}`,
     "Bootstrap",
   );
 }
