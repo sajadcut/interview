@@ -7,6 +7,38 @@ export class AssignInterviewerDto {
   @ApiPropertyOptional() @IsOptional() @IsISO8601() scheduledFor?: string;
 }
 
+export class ScheduleTechnicalInterviewDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  applicationId!: string;
+
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  interviewerUserId!: string;
+
+  @ApiProperty({ format: "date-time" })
+  @IsISO8601()
+  scheduledFor!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  durationMinutes?: number;
+}
+
+export class ScheduledTechnicalInterviewDto {
+  @ApiProperty({ format: "uuid" }) sessionId!: string;
+  @ApiProperty({ format: "uuid" }) applicationId!: string;
+  @ApiProperty({ format: "uuid" }) interviewerUserId!: string;
+  @ApiProperty({ format: "date-time" }) scheduledFor!: string;
+  @ApiProperty() durationMinutes!: number;
+  @ApiProperty() pipelineStage!: string;
+}
+
 export class InterviewerNoteInputDto {
   @ApiProperty({ minLength: 1, maxLength: 10000 })
   @IsString()
