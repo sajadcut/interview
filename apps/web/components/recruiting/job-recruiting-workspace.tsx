@@ -32,6 +32,7 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
   const [message, setMessage] = useState<string>();
   const [scheduleTarget, setScheduleTarget] = useState<{ applicationId: string; candidateName: string }>();
   const [invitation, setInvitation] = useState<{ candidateName: string; token?: string; otp?: string }>();
+  const [publishingJob, setPublishingJob] = useState(false);
 
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
@@ -81,6 +82,30 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
     const payload = (result.data ?? result.error ?? {}) as { message?: string; version?: number };
     setMessage(result.error ? messageFrom(payload, "انتشار ناموفق بود") : `نسخه ${formatFaDigits(String(payload.version ?? ""))} چارچوب ارزیابی منتشر شد.`);
     if (!result.error) await load(identity);
+  }
+
+  async function publishJob() {
+    if (!identity || publishingJob) return;
+    setPublishingJob(true);
+    setMessage(undefined);
+    try {
+      const result = await api.POST("/v1/jobs/{jobId}/publish", {
+        params: { path: { jobId } },
+        headers: tenantHeaders(identity),
+      });
+      const payload = (result.data ?? result.error ?? {}) as { message?: string; rubricVersion?: number };
+      if (result.error) {
+        setMessage(messageFrom(payload, "انتشار موقعیت شغلی ناموفق بود"));
+        return;
+      }
+      const rubricSuffix = payload.rubricVersion !== undefined
+        ? ` چارچوب ارزیابی نسخه ${formatFaNumber(payload.rubricVersion)} نیز فعال است.`
+        : "";
+      setMessage(`موقعیت شغلی منتشر شد و اکنون برای جذب باز است.${rubricSuffix}`);
+      await load(identity);
+    } finally {
+      setPublishingJob(false);
+    }
   }
 
   async function moveStage(applicationId: string, stage: string) {
@@ -145,8 +170,23 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
           <div className="mt-2 flex items-center gap-2"><h1 className="text-[24px] font-semibold tracking-tight">{job.title}</h1><Pill tone={job.status === "open" ? "green" : "slate"}>{faDomainLabel(job.status)}</Pill></div>
           <p className="mt-1 text-[11px] text-slate-500">{[job.department, job.location, job.seniority].filter(Boolean).join(" · ")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {access.can("job.edit") ? (
+            <Link href={`/app/jobs/${jobId}/edit`} className="inline-flex h-10 items-center rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+              ویرایش موقعیت
+            </Link>
+          ) : null}
+          {access.can("job.edit") && ["draft", "paused"].includes(job.status) ? (
+            <button
+              type="button"
+              onClick={() => void publishJob()}
+              disabled={publishingJob}
+              className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {publishingJob ? "در حال انتشار…" : job.status === "paused" ? "بازگشایی موقعیت" : "انتشار موقعیت"}
+            </button>
+          ) : null}
+          {access.can("job.edit") && job.status === "open" ? (
             job.rubricStatus === "published" ? (
               <div className="inline-flex h-10 items-center rounded-[10px] border border-emerald-100 bg-emerald-50 px-4 text-[11px] font-semibold text-emerald-700">
                 چارچوب ارزیابی منتشر شده
