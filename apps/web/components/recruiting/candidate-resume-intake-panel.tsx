@@ -55,6 +55,9 @@ type AiMatch = {
 type AnalysisStatus = {
   analysisJobId: string;
   status: string;
+  attemptCount: number;
+  maxAttempts: number;
+  updatedAt: string;
   matches?: AiMatch[];
   errorMessage?: string;
 };
@@ -83,11 +86,15 @@ function ResumeProcessingStatus({
   resultReady,
   analysisJobId,
   analysisStatus,
+  attemptCount,
+  maxAttempts,
 }: {
   uploading: boolean;
   resultReady: boolean;
   analysisJobId?: string;
   analysisStatus?: string;
+  attemptCount?: number;
+  maxAttempts?: number;
 }) {
   const aiPending = Boolean(analysisJobId) && (!analysisStatus || ACTIVE_AI_STATUSES.has(analysisStatus));
   const aiSucceeded = analysisStatus === "succeeded";
@@ -143,7 +150,7 @@ function ResumeProcessingStatus({
             {uploading
               ? "فایل استخراج می‌شود و شواهد رزومه برای تطبیق با موقعیت‌ها آماده می‌شوند."
               : aiPending
-                ? "تطبیق اولیه آماده است؛ برای توضیح نقاط قوت و شکاف‌ها منتظر پاسخ AI بمانید. این وضعیت خودکار به‌روزرسانی می‌شود."
+                ? `تطبیق اولیه آماده است؛ برای توضیح نقاط قوت و شکاف‌ها منتظر پاسخ AI بمانید. این وضعیت خودکار به‌روزرسانی می‌شود.${attemptCount ? ` تلاش ${formatFaNumber(attemptCount)} از ${formatFaNumber(maxAttempts ?? 1)}.` : ""}`
                 : aiFailed
                   ? "امتیاز تطبیق اولیه همچنان معتبر و قابل بررسی است؛ فقط توضیح تکمیلی AI در دسترس نیست."
                   : "تحلیل تکمیلی آماده شد و در کارت موقعیت‌ها نمایش داده می‌شود."}
@@ -390,6 +397,8 @@ export function CandidateResumeIntakePanel({
             resultReady={Boolean(result)}
             analysisJobId={result?.analysisJobId}
             analysisStatus={analysis?.status}
+            attemptCount={analysis?.attemptCount}
+            maxAttempts={analysis?.maxAttempts}
           />
         </div>
 
@@ -413,7 +422,10 @@ export function CandidateResumeIntakePanel({
               </div>
               {result.analysisJobId ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-[9px] text-slate-600">
-                  <span>تحلیل AI</span>
+                  <span>
+                    تحلیل AI
+                    {analysis?.attemptCount ? ` · تلاش ${formatFaNumber(analysis.attemptCount)} از ${formatFaNumber(analysis.maxAttempts)}` : ""}
+                  </span>
                   <strong className={`${analysis?.status === "succeeded" ? "text-emerald-700" : analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? "text-amber-700" : "text-indigo-700"}`}>
                     {analysis?.status === "succeeded"
                       ? "آماده"
