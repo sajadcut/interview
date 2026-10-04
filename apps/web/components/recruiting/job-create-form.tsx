@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
@@ -19,6 +19,18 @@ interface DraftCriterion {
   weight: number;
   required: boolean;
   displayOrder: number;
+}
+
+interface HiringRequestSource {
+  id: string;
+  title: string;
+  department?: string;
+  location?: string;
+  seniority?: string;
+  businessReason: string;
+  requirements: string[];
+  status: string;
+  linkedJobId?: string;
 }
 
 function lines(value: string): string[] {
@@ -43,7 +55,7 @@ function errorMessage(value: unknown, fallback: string): string {
   return fallback;
 }
 
-export function JobCreateForm() {
+export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [department, setDepartment] = useState("");
@@ -54,6 +66,8 @@ export function JobCreateForm() {
   const [niceToHave, setNiceToHave] = useState("");
   const [criteriaText, setCriteriaText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingSource, setLoadingSource] = useState(Boolean(hiringRequestId));
+  const [sourceRequest, setSourceRequest] = useState<HiringRequestSource>();
   const [error, setError] = useState<string>();
 
   const requirements = useMemo<DraftRequirement[]>(
@@ -75,6 +89,58 @@ export function JobCreateForm() {
     [criteriaText],
   );
 
+  useEffect(() => {
+    if (!hiringRequestId) {
+      setLoadingSource(false);
+      return;
+    }
+
+    let active = true;
+    void (async () => {
+      setLoadingSource(true);
+      setError(undefined);
+      try {
+        const identity = await resolveTenantIdentity();
+        const result = await api.GET("/v1/hiring-requests", {
+          headers: tenantHeaders(identity),
+        });
+        if (result.error || !result.data) {
+          throw new Error(errorMessage(result.error, "درخواست جذب نیرو بارگذاری نشد"));
+        }
+
+        const request = (result.data as HiringRequestSource[]).find((item) => item.id === hiringRequestId);
+        if (!request) throw new Error("درخواست جذب نیروی انتخاب‌شده پیدا نشد.");
+        if (request.linkedJobId) throw new Error("این درخواست جذب نیرو قبلاً به یک موقعیت شغلی متصل شده است.");
+        if (request.status !== "approved") {
+          throw new Error("فقط درخواست جذب نیروی تأییدشده می‌تواند به موقعیت شغلی تبدیل شود.");
+        }
+        if (!active) return;
+
+        setSourceRequest(request);
+        setTitle(request.title);
+        setDepartment(request.department ?? "");
+        setLocation(request.location ?? "");
+        setSeniority(request.seniority ?? "");
+        setSummary(request.businessReason);
+        setMustHave(request.requirements.join("\n"));
+        setNiceToHave("");
+        setCriteriaText(
+          request.requirements.length
+            ? request.requirements.join("\n")
+            : `تناسب فنی با نقش ${request.title}`,
+        );
+      } catch (caught) {
+        if (active) setError(caught instanceof Error ? caught.message : "درخواست جذب نیرو بارگذاری نشد");
+      } finally {
+        if (active) setLoadingSource(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [hiringRequestId]);
+
   async function submit() {
     if (!title.trim()) {
       setError("عنوان موقعیت الزامی است.");
@@ -91,6 +157,7 @@ export function JobCreateForm() {
       const result = await api.POST("/v1/jobs", {
         headers: tenantHeaders(identity),
         body: {
+          ...(hiringRequestId ? { hiringRequestId } : {}),
           title: title.trim(),
           ...(department.trim() ? { department: department.trim() } : {}),
           ...(location.trim() ? { location: location.trim() } : {}),
@@ -123,6 +190,12 @@ export function JobCreateForm() {
           این فرم موقعیت شغلی، الزامات و نسخه اول چارچوب ارزیابی را مستقیماً در پایگاه داده ایجاد می‌کند. انتشار چارچوب ارزیابی یک اقدام جداگانه و قابل حسابرسی است.
         </p>
       </div>
+
+      {sourceRequest ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-[10px] leading-5 text-emerald-800">
+          این پیش‌نویس از درخواست جذب «{sourceRequest.title}» ساخته می‌شود. پس از ثبت موفق، موقعیت شغلی و درخواست جذب در همان تراکنش به هم متصل می‌شوند و وضعیت درخواست به «در حال جذب» تغییر می‌کند.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <Panel className="space-y-4 p-5">
@@ -166,8 +239,8 @@ export function JobCreateForm() {
             امتیاز نهایی فقط از چارچوب ارزیابی نسخه‌دار و ارزیابی مبتنی بر شواهد محاسبه می‌شود. ایجاد موقعیت شغلی هیچ امتیاز استخدامی ساختگی تولید نمی‌کند.
           </div>
           {error ? <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[10px] text-rose-700">{error}</div> : null}
-          <button type="button" onClick={() => void submit()} disabled={submitting} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
-            {submitting ? "در حال ایجاد…" : "ایجاد پیش‌نویس موقعیت"}
+          <button type="button" onClick={() => void submit()} disabled={submitting || loadingSource} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+            {loadingSource ? "در حال بارگذاری درخواست…" : submitting ? "در حال ایجاد…" : hiringRequestId ? "ایجاد و اتصال موقعیت شغلی" : "ایجاد پیش‌نویس موقعیت"}
           </button>
         </Panel>
       </div>
