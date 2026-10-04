@@ -5877,6 +5877,77 @@
         ]
       }
     },
+    "/v1/interview-operations/technical-interviews": {
+      "post": {
+        "operationId": "InterviewAssignmentAdminController_scheduleTechnicalInterview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleTechnicalInterviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledTechnicalInterviewDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interview-operations"
+        ]
+      }
+    },
     "/v1/interviewer/assignments": {
       "post": {
         "operationId": "InterviewerController_assign",
@@ -8495,6 +8566,12 @@
           },
           "status": {
             "type": "string"
+          },
+          "rubricStatus": {
+            "type": "string"
+          },
+          "rubricVersion": {
+            "type": "number"
           },
           "department": {
             "type": "string"
@@ -12133,6 +12210,72 @@
         "required": [
           "sessions",
           "interviewers"
+        ]
+      },
+      "ScheduleTechnicalInterviewDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "interviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "language": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 180,
+            "default": 60
+          }
+        },
+        "required": [
+          "applicationId",
+          "interviewerUserId",
+          "scheduledFor"
+        ]
+      },
+      "ScheduledTechnicalInterviewDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "interviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scheduledFor": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMinutes": {
+            "type": "number"
+          },
+          "pipelineStage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "applicationId",
+          "interviewerUserId",
+          "scheduledFor",
+          "durationMinutes",
+          "pipelineStage"
         ]
       },
       "AssignInterviewerDto": {

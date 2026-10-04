@@ -1796,6 +1796,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interview-operations/technical-interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["InterviewAssignmentAdminController_scheduleTechnicalInterview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviewer/assignments": {
         parameters: {
             query?: never;
@@ -2611,6 +2627,8 @@ export interface components {
             id: string;
             title: string;
             status: string;
+            rubricStatus?: string;
+            rubricVersion?: number;
             department?: string;
             location?: string;
             seniority?: string;
@@ -3551,6 +3569,29 @@ export interface components {
         InterviewAssignmentOptionsDto: {
             sessions: components["schemas"]["InterviewAssignmentSessionOptionDto"][];
             interviewers: components["schemas"]["InterviewerOptionDto"][];
+        };
+        ScheduleTechnicalInterviewDto: {
+            /** Format: uuid */
+            applicationId: string;
+            /** Format: uuid */
+            interviewerUserId: string;
+            /** Format: date-time */
+            scheduledFor: string;
+            language?: string;
+            /** @default 60 */
+            durationMinutes: number;
+        };
+        ScheduledTechnicalInterviewDto: {
+            /** Format: uuid */
+            sessionId: string;
+            /** Format: uuid */
+            applicationId: string;
+            /** Format: uuid */
+            interviewerUserId: string;
+            /** Format: date-time */
+            scheduledFor: string;
+            durationMinutes: number;
+            pipelineStage: string;
         };
         AssignInterviewerDto: {
             sessionId: string;
@@ -8329,6 +8370,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InterviewAssignmentOptionsDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewAssignmentAdminController_scheduleTechnicalInterview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleTechnicalInterviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledTechnicalInterviewDto"];
                 };
             };
             400: {
