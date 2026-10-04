@@ -9,6 +9,8 @@ import { formatFaDigits, formatFaNumber, formatFaPercent } from "../../lib/fa-nu
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
+import { JobCandidateIntake } from "./job-candidate-intake";
+import { TechnicalInterviewScheduler } from "./technical-interview-scheduler";
 
 type JobWorkspace = components["schemas"]["JobWorkspaceDto"];
 type CandidateSummary = components["schemas"]["CandidateSummaryDto"];
@@ -28,6 +30,8 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string>();
+  const [scheduleTarget, setScheduleTarget] = useState<{ applicationId: string; candidateName: string }>();
+  const [invitation, setInvitation] = useState<{ candidateName: string; token?: string; otp?: string }>();
 
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
@@ -92,6 +96,30 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
     if (!result.error) await load(identity);
   }
 
+  async function inviteCandidate(candidate: CandidateSummary) {
+    if (!identity || !candidate.applicationId) return;
+    setMessage(undefined);
+    const result = await api.POST("/v1/candidate-auth/invitations", {
+      headers: tenantHeaders(identity),
+      body: { applicationId: candidate.applicationId },
+    });
+    const payload = (result.data ?? result.error ?? {}) as {
+      message?: string;
+      developmentToken?: string;
+      developmentOtp?: string;
+    };
+    if (result.error) {
+      setMessage(messageFrom(payload, "دعوت کاندید ناموفق بود"));
+      return;
+    }
+    setInvitation({
+      candidateName: candidate.displayName,
+      ...(payload.developmentToken ? { token: payload.developmentToken } : {}),
+      ...(payload.developmentOtp ? { otp: payload.developmentOtp } : {}),
+    });
+    setMessage("دعوت کاندید ایجاد شد.");
+  }
+
   async function saveShortlist() {
     if (!identity || selected.size === 0) return;
     const entries = candidates
@@ -125,6 +153,34 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
 
       {message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{message}</div> : null}
 
+      {invitation ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-[10px] text-emerald-800">
+          <div className="font-semibold">دعوت برای {invitation.candidateName} ایجاد شد.</div>
+          {invitation.token ? (
+            <div className="mt-2 space-y-1 font-mono text-[9px]">
+              <div>Token: {invitation.token}</div>
+              {invitation.otp ? <div>OTP: {invitation.otp}</div> : null}
+              <Link
+                className="inline-flex font-sans font-semibold text-indigo-600"
+                href={`/candidate/invitation?token=${encodeURIComponent(invitation.token)}`}
+                target="_blank"
+              >
+                باز کردن مسیر کاندید در تب جدید
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-1">ارسال دعوت به ارائه‌دهنده ارتباطی واگذار شد.</div>
+          )}
+        </div>
+      ) : null}
+
+      <JobCandidateIntake
+        jobId={jobId}
+        rubricStatus={job.rubricStatus}
+        attachedCandidateIds={new Set(candidates.map((candidate) => candidate.id))}
+        onChanged={() => load(identity)}
+      />
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-4">
           <Panel className="p-5">
@@ -134,7 +190,56 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
 
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">کاندیداها و مسیر جذب</h2>
-            <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[720px] text-start text-[10px]"><thead className="text-slate-400"><tr><th className="pb-2">فهرست نهایی</th><th className="pb-2">کاندیدا</th><th className="pb-2">مرحله</th><th className="pb-2">سیگنال تطبیق</th><th className="pb-2">اقدامات</th></tr></thead><tbody className="divide-y divide-slate-100">{candidates.map((candidate) => <tr key={candidate.id}><td className="py-3"><input type="checkbox" disabled={!candidate.applicationId || !access.can("decision.submit")} checked={Boolean(candidate.applicationId && selected.has(candidate.applicationId))} onChange={() => { if (!candidate.applicationId) return; setSelected((current) => { const next = new Set(current); if (next.has(candidate.applicationId!)) next.delete(candidate.applicationId!); else next.add(candidate.applicationId!); return next; }); }} /></td><td className="py-3"><Link href={`/app/candidates/${candidate.id}`} className="font-semibold text-slate-800 hover:text-indigo-600">{candidate.displayName}</Link><div className="mt-0.5 text-[9px] text-slate-400">{candidate.currentRole || candidate.currentCompany || "کاندیدا"}</div></td><td className="py-3"><Pill>{faDomainLabel(candidate.pipelineStage)}</Pill></td><td className="py-3">{candidate.preInterviewMatchScore !== undefined ? formatFaPercent(candidate.preInterviewMatchScore) : "امتیازدهی نشده"}</td><td className="py-3"><div className="flex gap-1">{access.can("candidate.move_stage") && candidate.applicationId ? ["screening", "interview", "review"].map((stage) => <button key={stage} type="button" onClick={() => void moveStage(candidate.applicationId!, stage)} className="rounded-md border border-slate-200 px-2 py-1 text-[9px] hover:bg-slate-50">{faDomainLabel(stage)}</button>) : null}</div></td></tr>)}</tbody></table></div>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[820px] text-start text-[10px]">
+                <thead className="text-slate-400"><tr><th className="pb-2">فهرست نهایی</th><th className="pb-2">کاندیدا</th><th className="pb-2">مرحله</th><th className="pb-2">سیگنال تطبیق</th><th className="pb-2">اقدامات</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {candidates.map((candidate) => (
+                    <tr key={candidate.id}>
+                      <td className="py-3"><input type="checkbox" disabled={!candidate.applicationId || !access.can("decision.submit")} checked={Boolean(candidate.applicationId && selected.has(candidate.applicationId))} onChange={() => { if (!candidate.applicationId) return; setSelected((current) => { const next = new Set(current); if (next.has(candidate.applicationId!)) next.delete(candidate.applicationId!); else next.add(candidate.applicationId!); return next; }); }} /></td>
+                      <td className="py-3"><Link href={`/app/candidates/${candidate.id}`} className="font-semibold text-slate-800 hover:text-indigo-600">{candidate.displayName}</Link><div className="mt-0.5 text-[9px] text-slate-400">{candidate.currentRole || candidate.currentCompany || "کاندیدا"}</div></td>
+                      <td className="py-3"><Pill>{faDomainLabel(candidate.pipelineStage)}</Pill></td>
+                      <td className="py-3">{candidate.preInterviewMatchScore !== undefined ? formatFaPercent(candidate.preInterviewMatchScore) : "امتیازدهی نشده"}</td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {access.can("candidate.move_stage") && candidate.applicationId && candidate.pipelineStage !== "screening" ? (
+                            <button type="button" onClick={() => void moveStage(candidate.applicationId!, "screening")} className="rounded-md border border-slate-200 px-2 py-1 text-[9px] hover:bg-slate-50">ارسال به غربالگری</button>
+                          ) : null}
+                          {access.can("interview.assign") && candidate.applicationId ? (
+                            <button
+                              type="button"
+                              onClick={() => setScheduleTarget({ applicationId: candidate.applicationId!, candidateName: candidate.displayName })}
+                              className="rounded-md border border-indigo-200 px-2 py-1 text-[9px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                            >
+                              برنامه‌ریزی مصاحبه فنی
+                            </button>
+                          ) : null}
+                          {access.can("candidate.contact") && candidate.applicationId ? (
+                            <button type="button" onClick={() => void inviteCandidate(candidate)} className="rounded-md border border-emerald-200 px-2 py-1 text-[9px] font-semibold text-emerald-700 hover:bg-emerald-50">ایجاد دعوت کاندید</button>
+                          ) : null}
+                          {access.can("candidate.move_stage") && candidate.applicationId && candidate.pipelineStage !== "review" ? (
+                            <button type="button" onClick={() => void moveStage(candidate.applicationId!, "review")} className="rounded-md border border-slate-200 px-2 py-1 text-[9px] hover:bg-slate-50">ارسال به بررسی</button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {scheduleTarget ? (
+              <div className="mt-4">
+                <TechnicalInterviewScheduler
+                  applicationId={scheduleTarget.applicationId}
+                  candidateName={scheduleTarget.candidateName}
+                  onClose={() => setScheduleTarget(undefined)}
+                  onScheduled={async () => {
+                    await load(identity);
+                    setMessage("مصاحبه فنی زمان‌بندی شد. از منوی «مصاحبه‌ها» می‌توانید آن را مدیریت کنید.");
+                  }}
+                />
+              </div>
+            ) : null}
           </Panel>
         </div>
 
