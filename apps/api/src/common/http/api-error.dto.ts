@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
+// Error responses carry correlation ids so UI/support can jump directly to structured logs.
 export class ApiErrorDto {
   @ApiProperty({ example: "Request could not be processed" })
   message!: string;
