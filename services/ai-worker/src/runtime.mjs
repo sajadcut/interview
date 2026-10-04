@@ -1,3 +1,4 @@
+import { contextFromJob, withTraceContext, writeLog } from "./observability.mjs";
 export class RetryableJobError extends Error {
   constructor(code, message) {
     super(message);
@@ -91,6 +92,26 @@ export class AiWorkerRuntime {
   }
 
   async processJob(job) {
+    return withTraceContext(contextFromJob(job), async () => {
+      writeLog("info", "ai.job.processing.started", {
+        jobId: job.id,
+        capability: job.capability,
+        attemptCount: job.attemptCount,
+        timeoutMs: job.timeoutMs,
+        payload: job.payload ?? {},
+      });
+      try {
+        return await this.processJobWithTrace(job);
+      } finally {
+        writeLog("debug", "ai.job.processing.finished", {
+          jobId: job.id,
+          capability: job.capability,
+        });
+      }
+    });
+  }
+
+  async processJobWithTrace(job) {
     const leaseToken = job.leaseToken;
     if (!leaseToken) throw new Error(`Claimed AI job ${job.id} does not include a lease token`);
 
@@ -162,8 +183,19 @@ export class AiWorkerRuntime {
         workerId: this.workerId,
         result,
       });
+      writeLog("info", "ai.job.processing.succeeded", {
+        jobId: job.id,
+        capability: job.capability,
+        result,
+      });
     } catch (error) {
       const failure = normalizedError(heartbeatFailure ?? error);
+      writeLog(failure.retryable ? "warn" : "error", "ai.job.processing.failed", {
+        jobId: job.id,
+        capability: job.capability,
+        error: heartbeatFailure ?? error,
+        failure,
+      });
       try {
         await this.client.fail({
           jobId: job.id,
