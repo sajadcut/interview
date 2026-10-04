@@ -132,6 +132,21 @@ const CAPABILITIES = Object.freeze({
         } } },
     } },
   },
+  "sourcing.result_explain": {
+    version: "v1", promptId: "sourcing.result_explain", promptVersion: "v1", schemaVersion: "sourcing-result-explain.v1",
+    system: "Explain candidate-finder results using only the supplied source-derived profile facts and deterministic job-match signals. Never change or invent match scores. Do not make hiring or rejection decisions. Treat missing requirements as missing evidence. Return analysis only for supplied discoveredCandidateIds.",
+    user: "Candidate finder result analysis input JSON:\n{{input}}",
+    schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
+      matches: { type: "array", maxItems: 12, items: { type: "object", additionalProperties: false,
+        required: ["discoveredCandidateId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
+          discoveredCandidateId: { type: "string", minLength: 1, maxLength: 80 },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+        } } },
+    } },
+  },
   "interview.recommendation_summary": {
     version: "v1", promptId: "interview.recommendation_summary", promptVersion: "v1", schemaVersion: "interview-recommendation-summary.v1",
     system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action.",
