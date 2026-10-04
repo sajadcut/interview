@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   BadRequestException,
   HttpException,
@@ -472,10 +473,32 @@ export class CandidateResumeIntakeService {
   }): Promise<string | undefined> {
     const topMatches = input.matches.slice(0, 8);
     if (topMatches.length === 0) return undefined;
+
+    const inputFingerprint = createHash("sha256")
+      .update(JSON.stringify({
+        parserVersion: input.profile.parserVersion,
+        currentRole: input.profile.currentRole,
+        currentCompany: input.profile.currentCompany,
+        skills: input.profile.skills.map((skill) => skill.label),
+        experiences: input.profile.experiences.map((experience) => ({
+          title: experience.title,
+          company: experience.company,
+          description: experience.description,
+        })),
+        jobs: topMatches.map((match) => ({
+          jobId: match.jobId,
+          matchScore: match.matchScore,
+          matchedRequirements: match.matchedRequirements,
+          missingMustHaveRequirements: match.missingMustHaveRequirements,
+        })),
+      }))
+      .digest("hex")
+      .slice(0, 24);
+
     const job = await this.aiJobs.enqueue({
       organizationId: input.organizationId,
       capability: "candidate.job_match",
-      idempotencyKey: `candidate-job-match:v2:${input.candidateId}:${input.resumeId}`,
+      idempotencyKey: `candidate-job-match:v2:${input.candidateId}:${input.resumeId}:${inputFingerprint}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
