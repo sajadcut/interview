@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Put } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
@@ -12,6 +12,7 @@ import {
   CreateEvidenceDto,
   CreateJobDto,
   MoveApplicationStageDto,
+  PublishJobResponseDto,
   SaveRubricDraftDto,
   SubmitHiringDecisionDto,
   UpdateJobDto,
@@ -52,6 +53,14 @@ export class RecruitingOperationsController {
   @AuditedAction("job.update", "job")
   updateJob(@Param("jobId") jobId: string, @Body() body: UpdateJobDto) {
     return this.operations.updateJob(jobId, body);
+  }
+
+  @Post("jobs/:jobId/publish")
+  @RequirePermissions(Permissions.JobEdit)
+  @AuditedAction("job.publish", "job")
+  @ApiOkResponse({ type: PublishJobResponseDto })
+  publishJob(@Param("jobId") jobId: string) {
+    return this.operations.publishJob(jobId);
   }
 
   @Put("jobs/:jobId/rubric/draft")
