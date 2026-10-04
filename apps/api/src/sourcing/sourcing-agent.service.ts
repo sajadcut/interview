@@ -234,7 +234,13 @@ export class SourcingAgentService {
       if (run) {
         await this.scoreDiscoveredRun(run.id, jobId);
         const refreshed = await this.sourcing.getRun(run.id);
-        if (refreshed) runs.push({ ...refreshed, idempotentReplay: false, providerKey: call.providerKey });
+        if (refreshed) {
+          runs.push({
+            ...refreshed,
+            idempotentReplay: run.idempotentReplay ?? false,
+            ...(call.providerKey ? { providerKey: call.providerKey } : {}),
+          });
+        }
       }
     }
 
