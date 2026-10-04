@@ -54,6 +54,8 @@ export class JobWorkspaceDto {
   @ApiProperty() id!: string;
   @ApiProperty() title!: string;
   @ApiProperty() status!: string;
+  @ApiPropertyOptional() rubricStatus?: string;
+  @ApiPropertyOptional() rubricVersion?: number;
   @ApiPropertyOptional() department?: string;
   @ApiPropertyOptional() location?: string;
   @ApiPropertyOptional() seniority?: string;
