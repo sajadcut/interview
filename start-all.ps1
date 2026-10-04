@@ -141,8 +141,8 @@ if (Test-Path -LiteralPath $stateFile) {
     }
 }
 
-# Start realtime dependencies before the Web/API process so local candidate interviews
-# can connect immediately when the application becomes available.
+# Start background/realtime dependencies before the Web/API process so AI jobs and
+# local candidate interviews can run immediately when the application becomes available.
 $services = @(
     [pscustomobject]@{
         Name       = "livekit"
@@ -172,6 +172,13 @@ $services = @(
         NpmScript = "tts-worker:dev"
         Title     = "Interview - Piper TTS"
         Display   = "npm run tts-worker:dev"
+    },
+    [pscustomobject]@{
+        Name      = "ai-worker"
+        Kind      = "npm"
+        NpmScript = "ai-worker:dev"
+        Title     = "Interview - AI Worker"
+        Display   = "npm run ai-worker:dev"
     },
     [pscustomobject]@{
         Name      = "ai-interviewer"
@@ -248,7 +255,8 @@ if ($liveKitDevMode) {
 else {
     Write-Host "LiveKit: managed with custom arguments; application connection settings come from the configured environment."
 }
-Write-Host "LLM:     $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
+Write-Host "AI Worker:      npm run ai-worker:dev"
+Write-Host "LLM Interviewer: $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
 Write-Host "Web:     http://localhost:3000"
 Write-Host "Stop the complete tracked stack with: .\stop-all.ps1"
 Write-Host ""
