@@ -102,6 +102,36 @@ const CAPABILITIES = Object.freeze({
         } } },
     } },
   },
+  "job.talent_match_explain": {
+    version: "v1", promptId: "job.talent_match_explain", promptVersion: "v1", schemaVersion: "job-talent-match-explain.v1",
+    system: "Explain why the supplied internal talent candidates may fit the supplied job using only deterministic match signals and supplied candidate facts. Never change or invent match scores. Missing requirements are missing evidence, not negative traits. Do not make a hire or reject decision.",
+    user: "Job-to-internal-talent analysis input JSON:\n{{input}}",
+    schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
+      matches: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
+        required: ["candidateId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
+          candidateId: { type: "string", minLength: 1, maxLength: 80 },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+        } } },
+    } },
+  },
+  "sourcing.plan": {
+    version: "v1", promptId: "sourcing.plan", promptVersion: "v1", schemaVersion: "sourcing-plan.v1",
+    system: "Create a bounded candidate-sourcing tool-call plan for the supplied job. Use only sourceType/providerKey pairs explicitly listed as available. Do not invent providers, do not request scraping, and do not make hiring decisions. Prefer precise queries grounded in job title, must-have skills, seniority and location. Return no tool call when no approved configured source exists.",
+    user: "Candidate sourcing planning input JSON:\n{{input}}",
+    schema: { type: "object", additionalProperties: false, required: ["rationale", "toolCalls"], properties: {
+      rationale: { type: "string", minLength: 1, maxLength: 3000 },
+      toolCalls: { type: "array", maxItems: 4, items: { type: "object", additionalProperties: false,
+        required: ["sourceType", "providerKey", "query", "limit"], properties: {
+          sourceType: { type: "string", enum: ["ats", "approved_job_board", "approved_external"] },
+          providerKey: { type: "string", minLength: 1, maxLength: 80 },
+          query: { type: "string", minLength: 1, maxLength: 1000 },
+          limit: { type: "integer", minimum: 1, maximum: 25 },
+        } } },
+    } },
+  },
   "interview.recommendation_summary": {
     version: "v1", promptId: "interview.recommendation_summary", promptVersion: "v1", schemaVersion: "interview-recommendation-summary.v1",
     system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action.",
