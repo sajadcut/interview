@@ -1,3 +1,4 @@
+// Job mutation surface: edit metadata/requirements, manage rubric drafts, and publish jobs with readiness checks.
 import { Body, Controller, Get, Param, Patch, Post, Put } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
