@@ -101,6 +101,14 @@ export class CandidateResumeIntakeService {
     });
 
     const resume = await this.resumes.ingest(resolved.candidateId, upload);
+    const existingResumeSourced = await this.database.sql`
+      SELECT 1
+      FROM talent_pool_entries
+      WHERE organization_id = ${organizationId}::uuid
+        AND candidate_id = ${resolved.candidateId}::uuid
+        AND tags @> ARRAY['resume_intake']::text[]
+      LIMIT 1
+    `;
     await this.database.sql`
       INSERT INTO talent_pool_entries (organization_id, candidate_id, status, tags)
       VALUES (
@@ -111,6 +119,19 @@ export class CandidateResumeIntakeService {
       )
       ON CONFLICT (organization_id, candidate_id) DO NOTHING
     `;
+    if (!resolved.reusedExistingCandidate || existingResumeSourced[0]) {
+      await this.database.sql`
+        UPDATE candidates
+        SET "current_role" = COALESCE(${resume.structuredProfile.currentRole}, "current_role"),
+            current_company = COALESCE(${resume.structuredProfile.currentCompany}, current_company),
+            location = COALESCE(${resume.structuredProfile.location}, location),
+            primary_phone = COALESCE(${resume.structuredProfile.phone}, primary_phone),
+            preferred_language = COALESCE(${resume.structuredProfile.preferredLanguage}, preferred_language),
+            updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${resolved.candidateId}::uuid
+      `;
+    }
     const matches = await this.matchJobs(resolved.candidateId);
     const analysisJobId = await this.enqueueAnalysis({
       organizationId,
