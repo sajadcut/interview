@@ -149,7 +149,7 @@ export function JobCandidateSourcingPanel({
       });
       if (!active) return;
       if (result.error || !result.data) {
-        setMessage(apiErrorMessage(result, "تحلیل AI پیشنهادهای داخلی دریافت نشد"));
+        setMessage(apiErrorMessage(result, "تحلیل هوش مصنوعی پیشنهادهای داخلی دریافت نشد"));
         return;
       }
       setAnalysis(result.data);
@@ -345,7 +345,7 @@ export function JobCandidateSourcingPanel({
   const tabs: Array<{ key: Tab; label: string; hint: string }> = [
     { key: "suggestions", label: "پیشنهادهای موجود", hint: `${formatFaNumber(matches.length)} کاندید` },
     { key: "resume", label: "افزودن رزومه", hint: "PDF / DOCX" },
-    { key: "finder", label: "کاندیدیاب", hint: "AI Tool Call" },
+    { key: "finder", label: "کاندیدیاب", hint: "فراخوان ابزار هوش مصنوعی" },
   ];
 
   return (
@@ -361,7 +361,7 @@ export function JobCandidateSourcingPanel({
           </div>
           {analysisJobId ? (
             <Pill tone={analysis?.status === "succeeded" ? "green" : "blue"}>
-              تحلیل AI: {analysis?.status === "succeeded" ? "آماده" : analysis?.status === "dead_letter" ? "ناموفق" : "در حال پردازش"}
+              تحلیل هوش مصنوعی: {analysis?.status === "succeeded" ? "آماده" : analysis?.status === "dead_letter" ? "ناموفق" : "در حال پردازش"}
             </Pill>
           ) : null}
         </div>
