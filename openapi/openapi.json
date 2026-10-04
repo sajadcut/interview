@@ -8465,6 +8465,14 @@
           "error": {
             "type": "string",
             "example": "Bad Request"
+          },
+          "traceId": {
+            "type": "string",
+            "example": "0123456789abcdef0123456789abcdef"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "request-12345678"
           }
         },
         "required": [

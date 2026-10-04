@@ -2642,6 +2642,10 @@ export interface components {
             statusCode?: number;
             /** @example Bad Request */
             error?: string;
+            /** @example 0123456789abcdef0123456789abcdef */
+            traceId?: string;
+            /** @example request-12345678 */
+            requestId?: string;
         };
         ValidateCandidateMagicLinkDto: {
             token: string;
