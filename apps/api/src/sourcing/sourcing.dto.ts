@@ -182,9 +182,26 @@ export class CandidateFinderExecuteDto {
   approvalConfirmed?: boolean;
 }
 
+export class CandidateFinderResultExplanationDto {
+  @ApiProperty({ format: "uuid" }) discoveredCandidateId!: string;
+  @ApiProperty() fitSummary!: string;
+  @ApiProperty({ type: [String] }) strengths!: string[];
+  @ApiProperty({ type: [String] }) gaps!: string[];
+  @ApiProperty({ minimum: 0, maximum: 1 }) confidence!: number;
+}
+
+export class CandidateFinderResultAnalysisStatusDto {
+  @ApiProperty({ format: "uuid" }) analysisJobId!: string;
+  @ApiProperty() status!: string;
+  @ApiPropertyOptional({ type: [CandidateFinderResultExplanationDto] })
+  matches?: CandidateFinderResultExplanationDto[];
+  @ApiPropertyOptional() errorMessage?: string;
+}
+
 export class CandidateFinderExecutionDto {
   @ApiProperty({ format: "uuid" }) planJobId!: string;
   @ApiProperty({ type: [SourcingRunExecutionDto] }) runs!: SourcingRunExecutionDto[];
+  @ApiPropertyOptional({ format: "uuid" }) analysisJobId?: string;
 }
 
 export class AcceptedDiscoveredCandidateDto {
