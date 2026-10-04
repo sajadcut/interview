@@ -35,7 +35,7 @@ export class ResumeTextExtractor {
       // Multer supplies Node Buffer, which is a Uint8Array subclass but pdf.js
       // intentionally rejects Buffer instances. Copy into a plain Uint8Array at
       // the PDF-library boundary so browser-style binary APIs receive the exact type.
-      const pdfBytes = Uint8Array.from(input.data);
+      const pdfBytes = toPdfUint8Array(input.data);
       const pdf = await getDocumentProxy(pdfBytes);
       const result = await extractText(pdf, { mergePages: true });
       text = result.text;
@@ -73,4 +73,11 @@ function normalizeExtractedText(value: string): string {
     .replace(/[ \u00a0]+\n/g, "\n")
     .replace(/\n{4,}/g, "\n\n\n")
     .trim();
+}
+
+
+export function toPdfUint8Array(data: Uint8Array): Uint8Array {
+  // Always return a plain Uint8Array copy. Node Buffer extends Uint8Array, but
+  // pdf.js rejects Buffer instances even though they satisfy the TS type.
+  return Uint8Array.from(data);
 }
