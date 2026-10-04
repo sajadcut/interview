@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { Panel, Pill, ToolbarButton } from "../../../components/product/recruiting-ui";
+import { useInternalAccess } from "../../../components/product/internal-access";
 import { api } from "../../../lib/api";
 import { formatFaNumber } from "../../../lib/fa-numbers";
 import { faDomainLabel, formatFaDateTime } from "../../../lib/i18n";
@@ -17,6 +18,7 @@ function formatUpdatedAt(value: string): string {
 }
 
 export default function JobsPage() {
+  const access = useInternalAccess();
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -83,16 +85,16 @@ export default function JobsPage() {
           <table className="data-table min-w-[920px]">
             <thead>
               <tr>
-                {["موقعیت", "واحد", "محل", "کاندیداها", "مصاحبه‌ها", "وضعیت", "آخرین به‌روزرسانی"].map((heading) => (
+                {["موقعیت", "واحد", "محل", "کاندیداها", "مصاحبه‌ها", "وضعیت", "آخرین به‌روزرسانی", "عملیات"].map((heading) => (
                   <th key={heading}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">در حال بارگذاری موقعیت‌های شغلی…</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-slate-400">در حال بارگذاری موقعیت‌های شغلی…</td></tr>
               ) : filteredJobs.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-slate-400">{jobs.length ? "موقعیتی با این جست‌وجو پیدا نشد." : "هنوز موقعیت شغلی برای این سازمان ایجاد نشده است."}</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-slate-400">{jobs.length ? "موقعیتی با این جست‌وجو پیدا نشد." : "هنوز موقعیت شغلی برای این سازمان ایجاد نشده است."}</td></tr>
               ) : filteredJobs.map((job) => (
                 <tr key={job.id}>
                   <td>
@@ -107,6 +109,14 @@ export default function JobsPage() {
                   <td className="font-semibold text-slate-700">{formatFaNumber(job.interviewCount)}</td>
                   <td><Pill tone={job.status.toLowerCase() === "open" ? "green" : "amber"}>{faDomainLabel(job.status)}</Pill></td>
                   <td className="whitespace-nowrap">{formatUpdatedAt(job.updatedAt)}</td>
+                  <td className="whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/app/jobs/${job.id}`} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700">مدیریت</Link>
+                      {access.can("job.edit") ? (
+                        <Link href={`/app/jobs/${job.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
+                      ) : null}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
