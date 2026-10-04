@@ -109,7 +109,7 @@ export function JobCandidateIntake({
   }
 
   async function createAndIntroduce() {
-    if (!identity || !form.displayName.trim()) return;
+    if (!identity || !form.displayName.trim() || !form.primaryEmail.trim()) return;
     setBusy("new");
     setMessage(undefined);
     try {
@@ -204,7 +204,7 @@ export function JobCandidateIntake({
             <div className="text-[10px] font-semibold text-slate-700">کاندید جدید</div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <input required className={fieldClass} placeholder="نام و نام خانوادگی *" value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} />
-              <input className={fieldClass} type="email" placeholder="ایمیل" value={form.primaryEmail} onChange={(e) => setForm({ ...form, primaryEmail: e.target.value })} />
+              <input required className={fieldClass} type="email" placeholder="ایمیل *" value={form.primaryEmail} onChange={(e) => setForm({ ...form, primaryEmail: e.target.value })} />
               <input className={fieldClass} placeholder="موبایل" value={form.primaryPhone} onChange={(e) => setForm({ ...form, primaryPhone: e.target.value })} />
               <input className={fieldClass} placeholder="نقش فعلی" value={form.currentRole} onChange={(e) => setForm({ ...form, currentRole: e.target.value })} />
               <input className={fieldClass} placeholder="شرکت فعلی" value={form.currentCompany} onChange={(e) => setForm({ ...form, currentCompany: e.target.value })} />
@@ -213,7 +213,7 @@ export function JobCandidateIntake({
             <button
               type="button"
               onClick={() => void createAndIntroduce()}
-              disabled={!published || !form.displayName.trim() || busy !== undefined}
+              disabled={!published || !form.displayName.trim() || !form.primaryEmail.trim() || busy !== undefined}
               className="mt-3 h-9 w-full rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white disabled:opacity-40"
             >
               {busy === "new" ? "در حال ساخت پرونده…" : "ایجاد کاندید و معرفی به موقعیت"}
