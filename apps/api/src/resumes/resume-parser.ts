@@ -39,6 +39,8 @@ const SKILL_ALIASES: Array<[RegExp, string, string]> = [
   [/\bnext(?:\.js|js)?\b/i, "next-js", "Next.js"],
   [/\bnest(?:\.js|js)?\b/i, "nest-js", "NestJS"],
   [/\bpostgres(?:ql)?\b/i, "postgresql", "PostgreSQL"],
+  [/\bsql\s+server\b/i, "sql-server", "SQL Server"],
+  [/\bsql\b/i, "sql", "SQL"],
   [/\bmysql\b/i, "mysql", "MySQL"],
   [/\bredis\b/i, "redis", "Redis"],
   [/\bdocker\b/i, "docker", "Docker"],
@@ -47,8 +49,14 @@ const SKILL_ALIASES: Array<[RegExp, string, string]> = [
   [/\bpython\b/i, "python", "Python"],
   [/\bjava\b/i, "java", "Java"],
   [/\bgo(?:lang)?\b/i, "go", "Go"],
+  [/\basp\.net\s+core\b/i, "aspnet-core", "ASP.NET Core"],
+  [/\bentity\s+framework\s+core\b|\bef\s+core\b/i, "ef-core", "Entity Framework Core"],
   [/\b\.net\b|\bdotnet\b/i, "dotnet", ".NET"],
-  [/\bc#\b/i, "c-sharp", "C#"],
+  [/(?:^|[^A-Za-z0-9_])c#(?=$|[^A-Za-z0-9_])/i, "c-sharp", "C#"],
+  [/\bdapper\b/i, "dapper", "Dapper"],
+  [/\bgrpc\b/i, "grpc", "gRPC"],
+  [/\brabbitmq\b/i, "rabbitmq", "RabbitMQ"],
+  [/\bopentelemetry\b/i, "opentelemetry", "OpenTelemetry"],
   [/\bgit\b/i, "git", "Git"],
   [/\bgraphql\b/i, "graphql", "GraphQL"],
   [/\brest(?:ful)?\b/i, "rest", "REST"],
@@ -59,7 +67,11 @@ const SKILL_ALIASES: Array<[RegExp, string, string]> = [
 const SKILL_HEADERS = /^(skills?|technical skills?|technologies|tech stack|مهارت(?:‌| )?ها|مهارت‌های فنی|تکنولوژی(?:‌| )?ها)\s*:?‌?$/i;
 const EXPERIENCE_HEADERS = /^(experience|work experience|professional experience|employment|work history|سوابق کاری|تجربه کاری|تجربیات کاری)\s*:?‌?$/i;
 const SECTION_HEADER = /^(education|certifications?|projects?|languages?|summary|profile|about|تحصیلات|گواهی|پروژه(?:‌| )?ها|زبان(?:‌| )?ها|خلاصه|درباره)\s*:?‌?$/i;
-const DATE_RANGE = /((?:19|20)\d{2})(?:[-/.]\d{1,2})?\s*(?:-|–|—|to|تا)\s*((?:19|20)\d{2}(?:[-/.]\d{1,2})?|present|current|اکنون|حال)/i;
+const MONTH_NAME = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const DATE_RANGE = new RegExp(
+  \`(?:\${MONTH_NAME}\\\\s+)?((?:19|20)\\\\d{2})(?:[-/.]\\\\d{1,2})?\\\\s*(?:-|–|—|to|تا)\\\\s*(?:\${MONTH_NAME}\\\\s+)?((?:19|20)\\\\d{2}(?:[-/.]\\\\d{1,2})?|present|current|اکنون|حال)\`,
+  "i",
+);
 
 @Injectable()
 export class ResumeParser {
@@ -116,6 +128,7 @@ export class ResumeParser {
   private parseExperiences(lines: string[]): ParsedResumeExperience[] {
     const rows: ParsedResumeExperience[] = [];
     let inExperience = false;
+
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index]!;
       if (EXPERIENCE_HEADERS.test(line)) {
@@ -124,26 +137,102 @@ export class ResumeParser {
       }
       if (!inExperience) continue;
       if (SECTION_HEADER.test(line) || SKILL_HEADERS.test(line)) break;
+
       const date = line.match(DATE_RANGE);
       if (!date) continue;
-      const heading = line.replace(date[0], "").trim().replace(/[|,؛;]+$/g, "").trim();
-      const parts = heading.split(/\s+(?:at|@|—|–|-|\|)\s+/i).map((part) => part.trim()).filter(Boolean);
-      if (parts.length < 2) continue;
-      const [title, company] = parts;
-      if (!title || !company || title.length > 240 || company.length > 240) continue;
-      const startedOn = `${date[1]}-01-01`;
+
+      const sameLineHeading = cleanExperienceHeading(line.replace(date[0], ""));
+      const previousLine = index > 0 ? lines[index - 1]! : "";
+      const previousHeading = cleanExperienceHeading(previousLine);
+      const sameLineParts = splitExperienceHeading(sameLineHeading);
+      const heading = sameLineParts ?? splitExperienceHeading(previousHeading);
+      if (!heading) continue;
+
+      const startedOn = \`\${date[1]}-01-01\`;
       const endedRaw = date[2]!.toLowerCase();
-      const endedOn = /present|current|اکنون|حال/.test(endedRaw) ? null : `${endedRaw.slice(0, 4)}-12-31`;
-      const description = lines[index + 1] && !DATE_RANGE.test(lines[index + 1]!) && !SECTION_HEADER.test(lines[index + 1]!)
-        ? lines[index + 1]!.slice(0, 2000)
+      const endedOn = /present|current|اکنون|حال/.test(endedRaw)
+        ? null
+        : \`\${endedRaw.slice(0, 4)}-12-31\`;
+
+      const descriptionLines: string[] = [];
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const candidate = lines[cursor]!;
+        if (
+          EXPERIENCE_HEADERS.test(candidate) ||
+          SECTION_HEADER.test(candidate) ||
+          SKILL_HEADERS.test(candidate) ||
+          DATE_RANGE.test(candidate)
+        ) {
+          break;
+        }
+        if (descriptionLines.length >= 8) break;
+        descriptionLines.push(candidate);
+      }
+      const description = descriptionLines.length
+        ? descriptionLines.join(" ").slice(0, 4000)
         : null;
+
       const fingerprint = createHash("sha256")
-        .update([title.toLowerCase(), company.toLowerCase(), startedOn, endedOn ?? "present"].join("|"))
+        .update([
+          heading.title.toLowerCase(),
+          heading.company.toLowerCase(),
+          startedOn,
+          endedOn ?? "present",
+        ].join("|"))
         .digest("hex");
-      rows.push({ company, title, startedOn, endedOn, description, fingerprint, confidence: 0.88 });
+
+      rows.push({
+        company: heading.company,
+        title: heading.title,
+        startedOn,
+        endedOn,
+        description,
+        fingerprint,
+        confidence: sameLineParts ? 0.9 : 0.86,
+      });
     }
+
     return rows.slice(0, 30);
   }
+}
+
+function cleanExperienceHeading(value: string): string {
+  return value
+    .replace(/^[-–—|,;:\s]+|[-–—|,;:\s]+$/g, "")
+    .trim();
+}
+
+function splitExperienceHeading(value: string): { title: string; company: string } | null {
+  if (!value || value.length > 500) return null;
+  const parts = value
+    .split(/\s+(?:at|@|—|–|-|\|)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const title = parts[0]!;
+  const company = parts.slice(1).join(" - ");
+  if (
+    !title ||
+    !company ||
+    title.length > 240 ||
+    company.length > 240 ||
+    looksLikeLocation(title) ||
+    looksLikeDateFragment(company)
+  ) {
+    return null;
+  }
+  return { title, company };
+}
+
+function looksLikeLocation(value: string): boolean {
+  return /\b(iran|tehran|remote|hybrid|onsite|on-site)\b/i.test(value) ||
+    /^(?:تهران|ایران|دورکار|ترکیبی)(?:\s|,|$)/.test(value);
+}
+
+function looksLikeDateFragment(value: string): boolean {
+  const normalized = value.trim();
+  return /^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|(?:19|20)\d{2}|present|current|اکنون|حال)$/i.test(normalized);
 }
 
 function findLabeledValue(lines: string[], pattern: RegExp): string | null {
