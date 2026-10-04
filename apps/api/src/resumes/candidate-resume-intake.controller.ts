@@ -1,3 +1,4 @@
+// Resume-first candidate intake: upload -> profile/evidence -> job matches -> human-approved application.
 import {
   BadRequestException,
   Controller,
