@@ -60,14 +60,14 @@ test("next-turn result stores reconstructable prompt/provider/attempt/usage prov
 test("malformed structured output retries and succeeds without bypassing schema validation", async () => {
   const llm = scriptedLayer([
     { output: "not-json" },
-    { output: JSON.stringify({ summary: "Grounded summary", strengthEvidence: [], gapEvidence: [], limitations: [] }) },
+    { output: JSON.stringify({ summary: "خلاصه مستند بر اساس شواهد ارائه‌شده", strengthEvidence: [], gapEvidence: [], limitations: [] }) },
   ]);
   const result = await createCapabilityProcessors({ llm }).get("candidate.summary")({
     job,
     payload: { input: { candidateId: "c1" }, inputReferences: { candidateId: "c1" } },
     signal: new AbortController().signal,
   });
-  assert.equal(result.output.summary, "Grounded summary");
+  assert.equal(result.output.summary, "خلاصه مستند بر اساس شواهد ارائه‌شده");
   assert.equal(result.provenance.attempts.length, 2);
 });
 
