@@ -8805,6 +8805,10 @@
       "CreateJobDto": {
         "type": "object",
         "properties": {
+          "hiringRequestId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "title": {
             "type": "string"
           },
