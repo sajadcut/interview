@@ -1,3 +1,4 @@
+// Regression coverage for the requisition-backed human technical interview workflow.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
