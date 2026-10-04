@@ -20,6 +20,7 @@ function captureErrorBody(exception: unknown): { status: number; body: unknown }
     switchToHttp() {
       return {
         getResponse: () => response,
+        getRequest: () => ({}),
       };
     },
   } as unknown as ArgumentsHost;
