@@ -1,5 +1,10 @@
 import { JobCreateForm } from "../../../../components/recruiting/job-create-form";
 
-export default function NewJobPage() {
-  return <JobCreateForm />;
+export default async function NewJobPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ hiringRequestId?: string }>;
+}) {
+  const params = await searchParams;
+  return <JobCreateForm hiringRequestId={params.hiringRequestId} />;
 }
