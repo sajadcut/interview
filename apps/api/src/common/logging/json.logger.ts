@@ -1,5 +1,5 @@
 import { type LoggerService } from "@nestjs/common";
-import { redactSensitiveValue } from "../security/redaction";
+import { writeStructuredLog, type LogLevel } from "../observability/structured-log";
 
 export class JsonLogger implements LoggerService {
   log(message: unknown, ...optionalParams: unknown[]): void {
@@ -26,16 +26,10 @@ export class JsonLogger implements LoggerService {
     this.write("fatal", message, optionalParams);
   }
 
-  private write(level: string, message: unknown, optionalParams: unknown[]): void {
-    const safePayload = redactSensitiveValue({
-      level,
-      time: new Date().toISOString(),
+  private write(level: LogLevel, message: unknown, optionalParams: unknown[]): void {
+    writeStructuredLog(level, "application.log", {
       message,
       ...(optionalParams.length ? { params: optionalParams } : {}),
     });
-    const payload = JSON.stringify(safePayload);
-    if (level === "error" || level === "fatal") console.error(payload);
-    else if (level === "warn") console.warn(payload);
-    else console.log(payload);
   }
 }
