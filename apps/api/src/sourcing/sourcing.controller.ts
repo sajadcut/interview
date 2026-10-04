@@ -1,3 +1,4 @@
+// Job-first sourcing: internal talent -> AI tool-call plan -> approved provider execution -> HR acceptance.
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
