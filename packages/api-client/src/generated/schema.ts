@@ -1524,6 +1524,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sourcing/candidate-finder-analysis/{analysisJobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingController_candidateFinderAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sourcing/discovered/{discoveredCandidateId}/accept": {
         parameters: {
             query?: never;
@@ -3568,6 +3584,23 @@ export interface components {
             /** Format: uuid */
             planJobId: string;
             runs: components["schemas"]["SourcingRunExecutionDto"][];
+            /** Format: uuid */
+            analysisJobId?: string;
+        };
+        CandidateFinderResultExplanationDto: {
+            /** Format: uuid */
+            discoveredCandidateId: string;
+            fitSummary: string;
+            strengths: string[];
+            gaps: string[];
+            confidence: number;
+        };
+        CandidateFinderResultAnalysisStatusDto: {
+            /** Format: uuid */
+            analysisJobId: string;
+            status: string;
+            matches?: components["schemas"]["CandidateFinderResultExplanationDto"][];
+            errorMessage?: string;
         };
         AcceptedDiscoveredCandidateDto: {
             /** Format: uuid */
@@ -8226,6 +8259,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateFinderExecutionDto"];
+                };
+            };
+        };
+    };
+    SourcingController_candidateFinderAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysisJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFinderResultAnalysisStatusDto"];
                 };
             };
         };

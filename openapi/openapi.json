@@ -5292,6 +5292,36 @@
         ]
       }
     },
+    "/v1/sourcing/candidate-finder-analysis/{analysisJobId}": {
+      "get": {
+        "operationId": "SourcingController_candidateFinderAnalysis",
+        "parameters": [
+          {
+            "name": "analysisJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFinderResultAnalysisStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
     "/v1/sourcing/discovered/{discoveredCandidateId}/accept": {
       "post": {
         "operationId": "SourcingController_acceptDiscoveredCandidate",
@@ -12116,11 +12146,76 @@
             "items": {
               "$ref": "#/components/schemas/SourcingRunExecutionDto"
             }
+          },
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
           "planJobId",
           "runs"
+        ]
+      },
+      "CandidateFinderResultExplanationDto": {
+        "type": "object",
+        "properties": {
+          "discoveredCandidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fitSummary": {
+            "type": "string"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "discoveredCandidateId",
+          "fitSummary",
+          "strengths",
+          "gaps",
+          "confidence"
+        ]
+      },
+      "CandidateFinderResultAnalysisStatusDto": {
+        "type": "object",
+        "properties": {
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateFinderResultExplanationDto"
+            }
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysisJobId",
+          "status"
         ]
       },
       "AcceptedDiscoveredCandidateDto": {
