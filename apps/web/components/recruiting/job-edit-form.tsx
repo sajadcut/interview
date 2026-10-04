@@ -13,7 +13,6 @@ import { Panel, Pill } from "../product/recruiting-ui";
 
 type JobWorkspace = components["schemas"]["JobWorkspaceDto"];
 type Requirement = components["schemas"]["RequirementDto"];
-type Criterion = components["schemas"]["RubricCriterionDto"];
 
 function lines(value: string): string[] {
   return value.split("\n").map((line) => line.trim()).filter(Boolean);
