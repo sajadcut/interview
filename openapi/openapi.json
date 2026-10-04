@@ -11355,6 +11355,9 @@
           "algorithmVersion": {
             "type": "string"
           },
+          "requirementsConfigured": {
+            "type": "boolean"
+          },
           "matchedRequirements": {
             "type": "array",
             "items": {
@@ -11381,6 +11384,7 @@
           "jobStatus",
           "matchScore",
           "algorithmVersion",
+          "requirementsConfigured",
           "matchedRequirements",
           "missingMustHaveRequirements",
           "rubricPublished"

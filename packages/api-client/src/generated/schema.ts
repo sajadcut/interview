@@ -3377,6 +3377,7 @@ export interface components {
             seniority?: string;
             matchScore: number;
             algorithmVersion: string;
+            requirementsConfigured: boolean;
             matchedRequirements: string[];
             missingMustHaveRequirements: string[];
             rubricPublished: boolean;
