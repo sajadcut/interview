@@ -51,7 +51,7 @@ const SKILL_ALIASES: Array<[RegExp, string, string]> = [
   [/\bgo(?:lang)?\b/i, "go", "Go"],
   [/\basp\.net\s+core\b/i, "aspnet-core", "ASP.NET Core"],
   [/\bentity\s+framework\s+core\b|\bef\s+core\b/i, "ef-core", "Entity Framework Core"],
-  [/\b\.net\b|\bdotnet\b/i, "dotnet", ".NET"],
+  [/(?:^|[^A-Za-z0-9_])\.net(?=$|[^A-Za-z0-9_])|\bdotnet\b/i, "dotnet", ".NET"],
   [/(?:^|[^A-Za-z0-9_])c#(?=$|[^A-Za-z0-9_])/i, "c-sharp", "C#"],
   [/\bdapper\b/i, "dapper", "Dapper"],
   [/\bgrpc\b/i, "grpc", "gRPC"],
@@ -64,9 +64,9 @@ const SKILL_ALIASES: Array<[RegExp, string, string]> = [
   [/\bci\/?cd\b/i, "ci-cd", "CI/CD"],
 ];
 
-const SKILL_HEADERS = /^(skills?|technical skills?|technologies|tech stack|مهارت(?:‌| )?ها|مهارت‌های فنی|تکنولوژی(?:‌| )?ها)\s*:?‌?$/i;
+const SKILL_HEADERS = /^(skills?|core skills?|technical skills?|technologies|tech stack|مهارت(?:‌| )?ها|مهارت‌های فنی|تکنولوژی(?:‌| )?ها)\s*:?‌?$/i;
 const EXPERIENCE_HEADERS = /^(experience|work experience|professional experience|employment|work history|سوابق کاری|تجربه کاری|تجربیات کاری)\s*:?‌?$/i;
-const SECTION_HEADER = /^(education|certifications?|projects?|languages?|summary|profile|about|تحصیلات|گواهی|پروژه(?:‌| )?ها|زبان(?:‌| )?ها|خلاصه|درباره)\s*:?‌?$/i;
+const SECTION_HEADER = /^(education|certifications?|projects?|selected project highlights?|languages?|summary|professional summary|profile|about|additional|تحصیلات|گواهی|پروژه(?:‌| )?ها|زبان(?:‌| )?ها|خلاصه|درباره)\s*:?‌?$/i;
 const MONTH_NAME = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 const DATE_RANGE = new RegExp(
   `(?:${MONTH_NAME}\\s+)?((?:19|20)\\d{2})(?:[-/.]\\d{1,2})?\\s*(?:-|–|—|to|تا)\\s*(?:${MONTH_NAME}\\s+)?((?:19|20)\\d{2}(?:[-/.]\\d{1,2})?|present|current|اکنون|حال)`,
@@ -161,7 +161,8 @@ export class ResumeParser {
           EXPERIENCE_HEADERS.test(candidate) ||
           SECTION_HEADER.test(candidate) ||
           SKILL_HEADERS.test(candidate) ||
-          DATE_RANGE.test(candidate)
+          DATE_RANGE.test(candidate) ||
+          Boolean(splitExperienceHeading(cleanExperienceHeading(candidate)))
         ) {
           break;
         }
