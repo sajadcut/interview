@@ -205,7 +205,7 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
                           {access.can("candidate.move_stage") && candidate.applicationId && candidate.pipelineStage !== "screening" ? (
                             <button type="button" onClick={() => void moveStage(candidate.applicationId!, "screening")} className="rounded-md border border-slate-200 px-2 py-1 text-[9px] hover:bg-slate-50">ارسال به غربالگری</button>
                           ) : null}
-                          {access.can("interview.assign") && candidate.applicationId ? (
+                          {access.can("interview.assign") && candidate.applicationId && ["screening", "interview"].includes(candidate.pipelineStage ?? "") ? (
                             <button
                               type="button"
                               onClick={() => setScheduleTarget({ applicationId: candidate.applicationId!, candidateName: candidate.displayName })}
