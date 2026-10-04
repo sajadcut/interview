@@ -1268,6 +1268,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidate-intake/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CandidateResumeIntakeController_ingest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidate-intake/candidates/{candidateId}/job-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CandidateResumeIntakeController_matches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidate-intake/analyses/{analysisJobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["CandidateResumeIntakeController_analysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidate-intake/candidates/{candidateId}/job-matches/{jobId}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CandidateResumeIntakeController_acceptMatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/talent": {
         parameters: {
             query?: never;
@@ -3170,6 +3234,58 @@ export interface components {
         };
         ResumeReadReferenceDto: {
             url: string;
+        };
+        CandidateJobMatchDto: {
+            /** Format: uuid */
+            jobId: string;
+            jobTitle: string;
+            jobStatus: string;
+            department?: string;
+            location?: string;
+            seniority?: string;
+            matchScore: number;
+            algorithmVersion: string;
+            matchedRequirements: string[];
+            missingMustHaveRequirements: string[];
+            rubricPublished: boolean;
+            /** Format: uuid */
+            applicationId?: string;
+        };
+        CandidateResumeIntakeDto: {
+            /** Format: uuid */
+            candidateId: string;
+            candidateDisplayName: string;
+            reusedExistingCandidate: boolean;
+            resume: components["schemas"]["ResumeDto"];
+            matches: components["schemas"]["CandidateJobMatchDto"][];
+            /** Format: uuid */
+            analysisJobId?: string;
+        };
+        CandidateJobMatchAnalysisDto: {
+            /** Format: uuid */
+            jobId: string;
+            fitSummary: string;
+            strengths: string[];
+            gaps: string[];
+            confidence: number;
+        };
+        CandidateJobMatchAnalysisStatusDto: {
+            /** Format: uuid */
+            analysisJobId: string;
+            status: string;
+            matches?: components["schemas"]["CandidateJobMatchAnalysisDto"][];
+            errorMessage?: string;
+        };
+        CandidateMatchApplicationDto: {
+            /** Format: uuid */
+            applicationId: string;
+            /** Format: uuid */
+            candidateId: string;
+            /** Format: uuid */
+            jobId: string;
+            preInterviewMatchScore: number;
+            pipelineStage: string;
+            alreadyExisted: boolean;
         };
         TalentCandidateDto: {
             candidateId: string;
@@ -7383,6 +7499,224 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResumeReadReferenceDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    CandidateResumeIntakeController_ingest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateResumeIntakeDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    CandidateResumeIntakeController_matches: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateJobMatchDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    CandidateResumeIntakeController_analysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysisJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateJobMatchAnalysisStatusDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    CandidateResumeIntakeController_acceptMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateMatchApplicationDto"];
                 };
             };
             400: {

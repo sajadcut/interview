@@ -4534,6 +4534,307 @@
         ]
       }
     },
+    "/v1/candidate-intake/resumes": {
+      "post": {
+        "operationId": "CandidateResumeIntakeController_ingest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateResumeIntakeDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "candidate-intake"
+        ]
+      }
+    },
+    "/v1/candidate-intake/candidates/{candidateId}/job-matches": {
+      "get": {
+        "operationId": "CandidateResumeIntakeController_matches",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CandidateJobMatchDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "candidate-intake"
+        ]
+      }
+    },
+    "/v1/candidate-intake/analyses/{analysisJobId}": {
+      "get": {
+        "operationId": "CandidateResumeIntakeController_analysis",
+        "parameters": [
+          {
+            "name": "analysisJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateJobMatchAnalysisStatusDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "candidate-intake"
+        ]
+      }
+    },
+    "/v1/candidate-intake/candidates/{candidateId}/job-matches/{jobId}/apply": {
+      "post": {
+        "operationId": "CandidateResumeIntakeController_acceptMatch",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateMatchApplicationDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "candidate-intake"
+        ]
+      }
+    },
     "/v1/talent": {
       "get": {
         "operationId": "SourcingController_listTalent",
@@ -10736,6 +11037,199 @@
         },
         "required": [
           "url"
+        ]
+      },
+      "CandidateJobMatchDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobTitle": {
+            "type": "string"
+          },
+          "jobStatus": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "seniority": {
+            "type": "string"
+          },
+          "matchScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "algorithmVersion": {
+            "type": "string"
+          },
+          "matchedRequirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missingMustHaveRequirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rubricPublished": {
+            "type": "boolean"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "jobId",
+          "jobTitle",
+          "jobStatus",
+          "matchScore",
+          "algorithmVersion",
+          "matchedRequirements",
+          "missingMustHaveRequirements",
+          "rubricPublished"
+        ]
+      },
+      "CandidateResumeIntakeDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateDisplayName": {
+            "type": "string"
+          },
+          "reusedExistingCandidate": {
+            "type": "boolean"
+          },
+          "resume": {
+            "$ref": "#/components/schemas/ResumeDto"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateJobMatchDto"
+            }
+          },
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "candidateId",
+          "candidateDisplayName",
+          "reusedExistingCandidate",
+          "resume",
+          "matches"
+        ]
+      },
+      "CandidateJobMatchAnalysisDto": {
+        "type": "object",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fitSummary": {
+            "type": "string"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "jobId",
+          "fitSummary",
+          "strengths",
+          "gaps",
+          "confidence"
+        ]
+      },
+      "CandidateJobMatchAnalysisStatusDto": {
+        "type": "object",
+        "properties": {
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateJobMatchAnalysisDto"
+            }
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysisJobId",
+          "status"
+        ]
+      },
+      "CandidateMatchApplicationDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "preInterviewMatchScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "pipelineStage": {
+            "type": "string"
+          },
+          "alreadyExisted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "applicationId",
+          "candidateId",
+          "jobId",
+          "preInterviewMatchScore",
+          "pipelineStage",
+          "alreadyExisted"
         ]
       },
       "TalentCandidateDto": {
