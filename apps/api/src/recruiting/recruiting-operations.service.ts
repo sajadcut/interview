@@ -332,20 +332,162 @@ export class RecruitingOperationsService {
 
   async updateJob(jobId: string, input: UpdateJobDto) {
     const organizationId = this.tenantContext.require().organizationId;
-    const rows = await this.database.sql`
-      UPDATE jobs
-      SET title = COALESCE(${input.title?.trim() || null}, title),
-          status = COALESCE(${input.status ?? null}, status),
-          department = COALESCE(${input.department?.trim() || null}, department),
-          location = COALESCE(${input.location?.trim() || null}, location),
-          seniority = COALESCE(${input.seniority?.trim() || null}, seniority),
-          summary = COALESCE(${input.summary?.trim() || null}, summary),
-          updated_at = now()
-      WHERE organization_id = ${organizationId}::uuid AND id = ${jobId}::uuid
-      RETURNING id::text, title, status, department, location, seniority, summary, updated_at
-    `;
-    if (!rows[0]) throw new NotFoundException("Job not found");
-    return rows[0];
+    if (input.status === "open") {
+      throw new BadRequestException("Use the job publish action to open a job");
+    }
+
+    return this.database.sql.begin(async (tx) => {
+      const rows = await tx`
+        UPDATE jobs
+        SET title = COALESCE(${input.title?.trim() || null}, title),
+            status = COALESCE(${input.status ?? null}, status),
+            department = COALESCE(${input.department?.trim() || null}, department),
+            location = COALESCE(${input.location?.trim() || null}, location),
+            seniority = COALESCE(${input.seniority?.trim() || null}, seniority),
+            summary = COALESCE(${input.summary?.trim() || null}, summary),
+            updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid AND id = ${jobId}::uuid
+        RETURNING id::text, title, status, department, location, seniority, summary, updated_at
+      `;
+      if (!rows[0]) throw new NotFoundException("Job not found");
+
+      if (input.requirements !== undefined) {
+        await tx`
+          DELETE FROM job_requirements
+          WHERE organization_id = ${organizationId}::uuid
+            AND job_id = ${jobId}::uuid
+        `;
+
+        for (const requirement of input.requirements) {
+          await tx`
+            INSERT INTO job_requirements (
+              organization_id, job_id, requirement_type, name, description, weight, minimum_years
+            ) VALUES (
+              ${organizationId}::uuid,
+              ${jobId}::uuid,
+              ${requirement.requirementType},
+              ${requirement.name.trim()},
+              ${requirement.description?.trim() || null},
+              ${requirement.weight},
+              ${requirement.minimumYears ?? null}
+            )
+          `;
+        }
+      }
+
+      return rows[0];
+    });
+  }
+
+  async publishJob(jobId: string) {
+    const organizationId = this.tenantContext.require().organizationId;
+
+    return this.database.sql.begin(async (tx) => {
+      const jobs = await tx`
+        SELECT id::text, title, status
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${jobId}::uuid
+        LIMIT 1
+        FOR UPDATE
+      `;
+      const job = jobs[0];
+      if (!job) throw new NotFoundException("Job not found");
+
+      const currentStatus = String(job.status);
+      if (["closed", "archived"].includes(currentStatus)) {
+        throw new BadRequestException("Closed or archived jobs cannot be published");
+      }
+
+      const requirementCount = await tx`
+        SELECT count(*)::int AS count
+        FROM job_requirements
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${jobId}::uuid
+      `;
+      if (Number(requirementCount[0]?.count ?? 0) === 0) {
+        throw new BadRequestException("Define at least one job requirement before publication");
+      }
+
+      const drafts = await tx`
+        SELECT rv.id::text, rv.version, r.id::text AS rubric_id
+        FROM rubrics r
+        JOIN rubric_versions rv
+          ON rv.organization_id = r.organization_id
+         AND rv.rubric_id = r.id
+        WHERE r.organization_id = ${organizationId}::uuid
+          AND r.job_id = ${jobId}::uuid
+          AND rv.status = 'draft'
+        ORDER BY rv.version DESC
+        LIMIT 1
+        FOR UPDATE OF rv
+      `;
+
+      let rubricVersion: number | undefined;
+      let rubricPublished = false;
+      const draft = drafts[0];
+
+      if (draft?.id) {
+        const criterionCount = await tx`
+          SELECT count(*)::int AS count
+          FROM rubric_criteria
+          WHERE organization_id = ${organizationId}::uuid
+            AND rubric_version_id = ${String(draft.id)}::uuid
+        `;
+        if (Number(criterionCount[0]?.count ?? 0) === 0) {
+          throw new BadRequestException("Define at least one evaluation criterion before publication");
+        }
+
+        await tx`
+          UPDATE rubric_versions
+          SET status = 'published', published_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${String(draft.id)}::uuid
+        `;
+        await tx`
+          UPDATE rubrics
+          SET status = 'published', updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${String(draft.rubric_id)}::uuid
+        `;
+        rubricVersion = Number(draft.version);
+        rubricPublished = true;
+      } else {
+        const published = await tx`
+          SELECT rv.version
+          FROM rubrics r
+          JOIN rubric_versions rv
+            ON rv.organization_id = r.organization_id
+           AND rv.rubric_id = r.id
+          WHERE r.organization_id = ${organizationId}::uuid
+            AND r.job_id = ${jobId}::uuid
+            AND rv.status = 'published'
+          ORDER BY rv.version DESC
+          LIMIT 1
+        `;
+        if (!published[0]) {
+          throw new BadRequestException("Publish an evaluation framework before publishing the job");
+        }
+        rubricVersion = Number(published[0].version);
+        rubricPublished = true;
+      }
+
+      const opened = await tx`
+        UPDATE jobs
+        SET status = 'open', updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${jobId}::uuid
+        RETURNING id::text, title, status
+      `;
+
+      return {
+        id: String(opened[0]?.id),
+        title: String(opened[0]?.title),
+        status: "open" as const,
+        ...(rubricVersion !== undefined ? { rubricVersion } : {}),
+        rubricPublished,
+      };
+    });
   }
 
   async saveRubricDraft(jobId: string, input: SaveRubricDraftDto) {
