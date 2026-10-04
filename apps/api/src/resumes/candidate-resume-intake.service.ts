@@ -369,7 +369,7 @@ export class CandidateResumeIntakeService {
   async getAnalysis(analysisJobId: string): Promise<CandidateJobMatchAnalysisStatusDto> {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
-      SELECT id::text, status, result, last_error_message
+      SELECT id::text, status, attempt_count, max_attempts, updated_at, result, last_error_message
       FROM ai_jobs
       WHERE organization_id = ${organizationId}::uuid
         AND id = ${analysisJobId}::uuid
@@ -388,6 +388,9 @@ export class CandidateResumeIntakeService {
     return {
       analysisJobId,
       status: String(row.status),
+      attemptCount: Number(row.attempt_count ?? 0),
+      maxAttempts: Number(row.max_attempts ?? 1),
+      updatedAt: new Date(String(row.updated_at)).toISOString(),
       ...(matches ? { matches: matches as CandidateJobMatchAnalysisDto[] } : {}),
       ...(row.last_error_message ? { errorMessage: String(row.last_error_message) } : {}),
     };
