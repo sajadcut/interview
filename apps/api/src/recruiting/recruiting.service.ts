@@ -60,6 +60,18 @@ export class RecruitingService {
     `;
     if (!jobs.length) throw new NotFoundException("Job not found");
 
+    const rubricState = await this.database.sql`
+      SELECT rv.status, rv.version
+      FROM rubrics r
+      JOIN rubric_versions rv
+        ON rv.organization_id = r.organization_id
+       AND rv.rubric_id = r.id
+      WHERE r.organization_id = ${organizationId}::uuid
+        AND r.job_id = ${jobId}::uuid
+      ORDER BY CASE WHEN rv.status = 'published' THEN 0 ELSE 1 END, rv.version DESC
+      LIMIT 1
+    `;
+
     const requirements = await this.database.sql`
       SELECT id, requirement_type, name, description, weight, minimum_years
       FROM job_requirements
@@ -99,6 +111,8 @@ export class RecruitingService {
       id: String(job?.id),
       title: String(job?.title),
       status: String(job?.status),
+      ...(rubricState[0]?.status ? { rubricStatus: String(rubricState[0].status) } : {}),
+      ...(rubricState[0]?.version !== undefined ? { rubricVersion: Number(rubricState[0].version) } : {}),
       ...(job?.department ? { department: String(job.department) } : {}),
       ...(job?.location ? { location: String(job.location) } : {}),
       ...(job?.seniority ? { seniority: String(job.seniority) } : {}),
