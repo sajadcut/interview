@@ -291,3 +291,180 @@ test(
     }
   },
 );
+
+
+test(
+  "requisition-backed hire fills the request and closes the linked job",
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const database = createIntegrationDatabase();
+    const tenantContext = new TenantContextService();
+    const authContext = new AuthContextService();
+    const operations = new RecruitingOperationsService(database, tenantContext, authContext);
+    const organizationId = randomUUID();
+    const userId = randomUUID();
+    const jobId = randomUUID();
+    const rubricId = randomUUID();
+    const rubricVersionId = randomUUID();
+    const candidateId = randomUUID();
+    const applicationId = randomUUID();
+    const hiringRequestId = randomUUID();
+    const suffix = randomUUID();
+
+    try {
+      await database.sql`
+        INSERT INTO organizations (id, name, slug)
+        VALUES (
+          ${organizationId}::uuid,
+          'Hiring Closure Integration',
+          ${`hiring-closure-${suffix}`}
+        )
+      `;
+      await database.sql`
+        INSERT INTO users (id, email, display_name)
+        VALUES (
+          ${userId}::uuid,
+          ${`hiring-closure-${suffix}@example.invalid`},
+          'Hiring Closure Reviewer'
+        )
+      `;
+      await database.sql`
+        INSERT INTO jobs (id, organization_id, title, status)
+        VALUES (
+          ${jobId}::uuid,
+          ${organizationId}::uuid,
+          'Senior .NET Developer',
+          'open'
+        )
+      `;
+      await database.sql`
+        INSERT INTO rubrics (id, organization_id, job_id, name, status)
+        VALUES (
+          ${rubricId}::uuid,
+          ${organizationId}::uuid,
+          ${jobId}::uuid,
+          '.NET Hiring Rubric',
+          'published'
+        )
+      `;
+      await database.sql`
+        INSERT INTO rubric_versions (id, organization_id, rubric_id, version, status, published_at)
+        VALUES (
+          ${rubricVersionId}::uuid,
+          ${organizationId}::uuid,
+          ${rubricId}::uuid,
+          1,
+          'published',
+          now()
+        )
+      `;
+      await database.sql`
+        INSERT INTO rubric_criteria (
+          organization_id, rubric_version_id, criterion_key, label, weight, required, display_order
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${rubricVersionId}::uuid,
+          'dotnet_depth',
+          '.NET depth',
+          1,
+          true,
+          0
+        )
+      `;
+      await database.sql`
+        INSERT INTO candidates (id, organization_id, display_name, primary_email)
+        VALUES (
+          ${candidateId}::uuid,
+          ${organizationId}::uuid,
+          'Hire Candidate',
+          ${`hire-candidate-${suffix}@example.invalid`}
+        )
+      `;
+      await database.sql`
+        INSERT INTO applications (
+          id, organization_id, job_id, candidate_id, rubric_version_id, status, pipeline_stage, source
+        ) VALUES (
+          ${applicationId}::uuid,
+          ${organizationId}::uuid,
+          ${jobId}::uuid,
+          ${candidateId}::uuid,
+          ${rubricVersionId}::uuid,
+          'active',
+          'review',
+          'integration-test'
+        )
+      `;
+      await database.sql`
+        INSERT INTO hiring_requests (
+          id, organization_id, title, hiring_team, headcount, business_reason, requirements,
+          status, requester_user_id, hr_owner_user_id, linked_job_id, submitted_at, reviewed_at
+        ) VALUES (
+          ${hiringRequestId}::uuid,
+          ${organizationId}::uuid,
+          'Senior .NET Developer',
+          '.NET Platform',
+          1,
+          'Backfill senior backend role',
+          '["C#", "ASP.NET Core"]'::jsonb,
+          'recruiting',
+          ${userId}::uuid,
+          ${userId}::uuid,
+          ${jobId}::uuid,
+          now(),
+          now()
+        )
+      `;
+      await database.sql`
+        INSERT INTO application_technical_approvals (
+          organization_id, hiring_request_id, application_id, approver_user_id, decision, feedback
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${hiringRequestId}::uuid,
+          ${applicationId}::uuid,
+          ${userId}::uuid,
+          'approve',
+          'Technical interview approved for hire'
+        )
+      `;
+
+      const decision = await tenantContext.run(organizationId, () =>
+        authContext.run({ userId, source: "development-header" }, () =>
+          operations.submitHiringDecision(applicationId, {
+            decision: "hire",
+            reason: "Approved after technical interview and human review",
+          }),
+        ),
+      );
+      assert.equal(decision.decision, "hire");
+
+      const application = await database.sql`
+        SELECT status, pipeline_stage
+        FROM applications
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${applicationId}::uuid
+      `;
+      assert.equal(String(application[0]?.status), "closed");
+      assert.equal(String(application[0]?.pipeline_stage), "hired");
+
+      const request = await database.sql`
+        SELECT status
+        FROM hiring_requests
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${hiringRequestId}::uuid
+      `;
+      assert.equal(String(request[0]?.status), "filled");
+
+      const job = await database.sql`
+        SELECT status
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${jobId}::uuid
+      `;
+      assert.equal(String(job[0]?.status), "closed");
+    } finally {
+      await database.sql`DELETE FROM organizations WHERE id = ${organizationId}::uuid`;
+      await database.sql`DELETE FROM users WHERE id = ${userId}::uuid`;
+      await database.onModuleDestroy();
+    }
+  },
+);
