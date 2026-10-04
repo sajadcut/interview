@@ -10,6 +10,8 @@ const FORWARDED_REQUEST_HEADERS = [
   "origin",
   "user-agent",
   "x-request-id",
+  "x-trace-id",
+  "traceparent",
 ] as const;
 
 function getApiTarget(): URL {
@@ -57,7 +59,7 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       ...(hasBody ? { body: await request.arrayBuffer() } : {}),
     });
     const responseHeaders = new Headers();
-    for (const name of ["content-type", "cache-control", "content-disposition", "x-request-id"] as const) {
+    for (const name of ["content-type", "cache-control", "content-disposition", "x-request-id", "x-trace-id", "traceparent"] as const) {
       const value = response.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
