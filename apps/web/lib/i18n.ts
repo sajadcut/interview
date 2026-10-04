@@ -89,6 +89,7 @@ const faDomainLabels: Record<string, string> = {
   email: "ایمیل",
   sms: "پیامک",
   technical: "فنی",
+  human_technical: "مصاحبه فنی انسانی",
   behavioral: "رفتاری",
   email_exact: "تطبیق دقیق ایمیل",
   phone_exact: "تطبیق دقیق تلفن",
