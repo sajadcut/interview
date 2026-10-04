@@ -281,17 +281,19 @@ foreach ($service in $services) {
         -WorkingDirectory $repoRoot `
         -PassThru
 
+    try {
+        $startedAt = (Get-Process -Id $process.Id -ErrorAction Stop).StartTime.ToUniversalTime().ToString("o")
+    }
+    catch {
+        $startedAt = (Get-Date).ToUniversalTime().ToString("o")
+    }
+
     $nextState += [pscustomobject]@{
         Name       = $service.Name
         Kind       = $service.Kind
         Command    = $service.Display
         ProcessId  = $process.Id
-        StartedAt  = try {
-            (Get-Process -Id $process.Id -ErrorAction Stop).StartTime.ToUniversalTime().ToString("o")
-        }
-        catch {
-            (Get-Date).ToUniversalTime().ToString("o")
-        }
+        StartedAt  = $startedAt
     }
 
     $startedCount++
