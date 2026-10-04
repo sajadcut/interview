@@ -15,6 +15,7 @@ type TalentMatch = components["schemas"]["JobTalentMatchDto"];
 type TalentAnalysis = components["schemas"]["JobTalentAnalysisStatusDto"];
 type SourceCapability = components["schemas"]["SourcingSourceCapabilityDto"];
 type FinderPlan = components["schemas"]["CandidateFinderPlanStatusDto"];
+type FinderResultAnalysis = components["schemas"]["CandidateFinderResultAnalysisStatusDto"];
 type SourcingRun = components["schemas"]["SourcingRunExecutionDto"];
 
 type Tab = "suggestions" | "resume" | "finder";
@@ -56,6 +57,8 @@ export function JobCandidateSourcingPanel({
   const [planJobId, setPlanJobId] = useState<string>();
   const [plan, setPlan] = useState<FinderPlan>();
   const [runs, setRuns] = useState<SourcingRun[]>([]);
+  const [finderAnalysisJobId, setFinderAnalysisJobId] = useState<string>();
+  const [finderAnalysis, setFinderAnalysis] = useState<FinderResultAnalysis>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string>();
   const [message, setMessage] = useState<string>();
@@ -68,6 +71,11 @@ export function JobCandidateSourcingPanel({
   const analysisByCandidate = useMemo(
     () => new Map((analysis?.matches ?? []).map((item) => [item.candidateId, item])),
     [analysis?.matches],
+  );
+
+  const finderAnalysisByDiscovered = useMemo(
+    () => new Map((finderAnalysis?.matches ?? []).map((item) => [item.discoveredCandidateId, item])),
+    [finderAnalysis?.matches],
   );
 
   const discoveredResults = useMemo(
@@ -182,6 +190,32 @@ export function JobCandidateSourcingPanel({
     };
   }, [identity, jobId, planJobId]);
 
+  useEffect(() => {
+    if (!identity || !finderAnalysisJobId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      const result = await api.GET("/v1/sourcing/candidate-finder-analysis/{analysisJobId}", {
+        params: { path: { analysisJobId: finderAnalysisJobId } },
+        headers: tenantHeaders(identity),
+      });
+      if (!active) return;
+      if (result.error || !result.data) {
+        setMessage(apiErrorMessage(result, "تحلیل نتایج کاندیدیاب دریافت نشد"));
+        return;
+      }
+      setFinderAnalysis(result.data);
+      if (!terminalAiStatuses.has(result.data.status)) {
+        timer = setTimeout(() => void poll(), 1800);
+      }
+    };
+    void poll();
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [finderAnalysisJobId, identity]);
+
   async function addInternalCandidate(match: TalentMatch) {
     if (!identity || match.applicationId || !rubricPublished) return;
     setBusy(`internal:${match.candidateId}`);
@@ -197,9 +231,10 @@ export function JobCandidateSourcingPanel({
       if (result.error || !result.data) {
         throw new Error(apiErrorMessage(result, "افزودن کاندید به این موقعیت ناموفق بود"));
       }
+      const application = result.data;
       setMatches((current) => current.map((item) =>
         item.candidateId === match.candidateId
-          ? { ...item, applicationId: result.data.applicationId }
+          ? { ...item, applicationId: application.applicationId }
           : item,
       ));
       setMessage(`${match.displayName} به فرآیند استخدام این موقعیت اضافه شد.`);
@@ -221,6 +256,8 @@ export function JobCandidateSourcingPanel({
     setMessage(undefined);
     setRuns([]);
     setPlan(undefined);
+    setFinderAnalysis(undefined);
+    setFinderAnalysisJobId(undefined);
     try {
       const result = await api.POST("/v1/jobs/{jobId}/candidate-finder", {
         params: { path: { jobId } },
@@ -260,8 +297,10 @@ export function JobCandidateSourcingPanel({
       if (result.error || !result.data) {
         throw new Error(apiErrorMessage(result, "اجرای ابزارهای کاندیدیاب ناموفق بود"));
       }
-      setRuns(result.data.runs ?? []);
-      setMessage(`کاندیدیاب اجرا شد و ${formatFaNumber((result.data.runs ?? []).reduce((sum, run) => sum + (run.resultCount ?? 0), 0))} نتیجه بازیابی شد.`);
+      const execution = result.data;
+      setRuns(execution.runs ?? []);
+      if (execution.analysisJobId) setFinderAnalysisJobId(execution.analysisJobId);
+      setMessage(`کاندیدیاب اجرا شد و ${formatFaNumber((execution.runs ?? []).reduce((sum, run) => sum + (run.resultCount ?? 0), 0))} نتیجه بازیابی شد.`);
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "اجرای کاندیدیاب ناموفق بود");
     } finally {
@@ -281,11 +320,12 @@ export function JobCandidateSourcingPanel({
       if (result.error || !result.data) {
         throw new Error(apiErrorMessage(result, "ورود کاندید کشف‌شده به فرآیند ناموفق بود"));
       }
+      const accepted = result.data;
       setRuns((current) => current.map((run) => ({
         ...run,
         results: (run.results ?? []).map((candidate) =>
           candidate.id === discoveredCandidateId
-            ? { ...candidate, candidateId: result.data.candidateId, reviewState: "accepted", preInterviewMatchScore: result.data.preInterviewMatchScore }
+            ? { ...candidate, candidateId: accepted.candidateId, reviewState: "accepted", preInterviewMatchScore: accepted.preInterviewMatchScore }
             : candidate,
         ),
       })));
@@ -528,6 +568,7 @@ export function JobCandidateSourcingPanel({
                   const currentCompany = typeof profile.currentCompany === "string" ? profile.currentCompany : undefined;
                   const sourceUrl = typeof provenance.sourceUrl === "string" ? provenance.sourceUrl : undefined;
                   const provider = typeof provenance.providerKey === "string" ? provenance.providerKey : candidate.providerKey;
+                  const ai = finderAnalysisByDiscovered.get(candidate.id);
                   return (
                     <div key={candidate.id} className="rounded-2xl border border-slate-100 p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -537,6 +578,24 @@ export function JobCandidateSourcingPanel({
                         </div>
                         <Pill tone="blue">{providerLabel(provider)}</Pill>
                       </div>
+                      {ai ? (
+                        <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3">
+                          <div className="text-[8px] font-semibold text-violet-700">
+                            تحلیل LLM · اطمینان {formatFaPercent(ai.confidence * 100)}
+                          </div>
+                          <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
+                          {ai.strengths.length ? (
+                            <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {ai.strengths.join(" · ")}</div>
+                          ) : null}
+                          {ai.gaps.length ? (
+                            <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {ai.gaps.join(" · ")}</div>
+                          ) : null}
+                        </div>
+                      ) : finderAnalysisJobId ? (
+                        <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[8px] text-slate-500">
+                          تحلیل LLM این نتیجه در حال آماده‌سازی است…
+                        </div>
+                      ) : null}
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="text-[8px] text-slate-500">
                           سیگنال retrieval: {candidate.retrievalScore !== undefined ? formatFaPercent(candidate.retrievalScore * 100) : "—"}
