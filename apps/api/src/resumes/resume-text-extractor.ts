@@ -32,7 +32,11 @@ export class ResumeTextExtractor {
       if (new TextDecoder().decode(input.data.slice(0, 5)) !== "%PDF-") {
         throw new BadRequestException("Uploaded file does not contain a valid PDF header");
       }
-      const pdf = await getDocumentProxy(input.data);
+      // Multer supplies Node Buffer, which is a Uint8Array subclass but pdf.js
+      // intentionally rejects Buffer instances. Copy into a plain Uint8Array at
+      // the PDF-library boundary so browser-style binary APIs receive the exact type.
+      const pdfBytes = Uint8Array.from(input.data);
+      const pdf = await getDocumentProxy(pdfBytes);
       const result = await extractText(pdf, { mergePages: true });
       text = result.text;
       pageCount = result.totalPages;
