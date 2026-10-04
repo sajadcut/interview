@@ -177,6 +177,16 @@ function validateSchemaDefinition(schema, depth = 0) {
     if (schema.additionalProperties !== undefined && typeof schema.additionalProperties !== "boolean") throw fail("INVALID_REQUEST");
     for (const child of Object.values(schema.properties ?? {})) validateSchemaDefinition(child, depth + 1);
   }
+  if (types.includes("string") && schema.pattern !== undefined) {
+    if (typeof schema.pattern !== "string" || schema.pattern.length === 0 || schema.pattern.length > 500) {
+      throw fail("INVALID_REQUEST");
+    }
+    try {
+      new RegExp(schema.pattern, "u");
+    } catch {
+      throw fail("INVALID_REQUEST");
+    }
+  }
   if (types.includes("array")) {
     if (!schema.items) throw fail("INVALID_REQUEST");
     validateSchemaDefinition(schema.items, depth + 1);
@@ -218,6 +228,7 @@ function validateValue(value, schema, depth = 0) {
     case "string":
       if (schema.minLength !== undefined && value.length < schema.minLength) schemaError();
       if (schema.maxLength !== undefined && value.length > schema.maxLength) schemaError();
+      if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(value)) schemaError();
       return;
     case "number":
       if (schema.minimum !== undefined && value < schema.minimum) schemaError();
