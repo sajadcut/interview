@@ -220,6 +220,13 @@ export function IntegrationsWorkspace() {
       setMessage("برای کاندیدیاب فعلاً مرجع باید به شکل env://PREFIX باشد؛ مثال: env://PEOPLE_DATA_LABS");
       return;
     }
+    const usageApproved = window.confirm(
+      "تأیید می‌کنید استفاده از این منبع برای Recruiting و پردازش داده کاندید طبق سیاست حریم خصوصی سازمان مجاز است؟",
+    );
+    if (!usageApproved) {
+      setMessage("اتصال کاندیدیاب ثبت نشد؛ تأیید صریح استفاده Recruiting/Privacy الزامی است.");
+      return;
+    }
     const existingCandidateSources = rows.filter(
       (row) =>
         row.connection_type === "candidate_source" &&
