@@ -15,7 +15,7 @@ import { buildOpenApiDocument } from "./openapi";
 async function bootstrap(): Promise<void> {
   const env = getEnv();
   assertProductionSecretPolicy(process.env);
-  // Install once so every server-side fetch (LLM/RAG/sourcing/media/internal HTTP) is trace-logged.
+  // Install once so every server-side fetch (LLM/RAG/sourcing/media/internal HTTP) is trace-logged and trace-propagated.
   installInstrumentedFetch();
   const logger = new JsonLogger();
   const app = await NestFactory.create(AppModule, { logger });
