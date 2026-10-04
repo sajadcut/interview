@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import postgres from "postgres";
 import { AuthContextService } from "../auth/auth-context.service";
 import type { DatabaseService } from "../database/database.service";
@@ -140,6 +140,153 @@ test(
       await database.sql`
         DELETE FROM organizations
         WHERE id IN (${organizationA}::uuid, ${organizationB}::uuid)
+      `;
+      await database.onModuleDestroy();
+    }
+  },
+);
+
+
+test(
+  "approved hiring request creates and links a job atomically",
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const database = createIntegrationDatabase();
+    const tenantContext = new TenantContextService();
+    const authContext = new AuthContextService();
+    const operations = new RecruitingOperationsService(database, tenantContext, authContext);
+    const organizationId = randomUUID();
+    const userId = randomUUID();
+    const hiringRequestId = randomUUID();
+    const suffix = randomUUID();
+
+    try {
+      await database.sql`
+        INSERT INTO organizations (id, name, slug)
+        VALUES (
+          ${organizationId}::uuid,
+          'Hiring Request Job Integration',
+          ${`hiring-request-job-${suffix}`}
+        )
+      `;
+      await database.sql`
+        INSERT INTO users (id, email, display_name)
+        VALUES (
+          ${userId}::uuid,
+          ${`hiring-request-job-${suffix}@example.invalid`},
+          'HR Owner'
+        )
+      `;
+      await database.sql`
+        INSERT INTO hiring_requests (
+          id, organization_id, title, hiring_team, headcount, business_reason, requirements,
+          status, requester_user_id, hr_owner_user_id, submitted_at, reviewed_at
+        ) VALUES (
+          ${hiringRequestId}::uuid,
+          ${organizationId}::uuid,
+          'Senior .NET Developer',
+          '.NET Platform',
+          1,
+          'Expand the backend platform team',
+          ${database.sql.json(["C#", "ASP.NET Core", "SQL"] as never)},
+          'approved',
+          ${userId}::uuid,
+          ${userId}::uuid,
+          now(),
+          now()
+        )
+      `;
+
+      const created = await tenantContext.run(organizationId, () =>
+        authContext.run({ userId, source: "development-header" }, () =>
+          operations.createJob({
+            hiringRequestId,
+            title: "Senior .NET Developer",
+            department: "Engineering",
+            seniority: "Senior",
+            summary: "Expand the backend platform team",
+            requirements: [
+              { name: "C#", requirementType: "must_have", weight: 1 },
+              { name: "ASP.NET Core", requirementType: "must_have", weight: 1 },
+              { name: "SQL", requirementType: "must_have", weight: 1 },
+            ],
+            rubricName: "Senior .NET Developer rubric",
+            rubricCriteria: [
+              {
+                criterionKey: "dotnet_depth",
+                label: ".NET technical depth",
+                weight: 1,
+                required: true,
+                displayOrder: 0,
+              },
+            ],
+          }),
+        ),
+      );
+
+      assert.equal(created.hiringRequestId, hiringRequestId);
+      assert.equal(created.hiringRequestStatus, "recruiting");
+
+      const linked = await database.sql`
+        SELECT status, linked_job_id::text
+        FROM hiring_requests
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${hiringRequestId}::uuid
+        LIMIT 1
+      `;
+      assert.equal(String(linked[0]?.status), "recruiting");
+      assert.equal(String(linked[0]?.linked_job_id), created.id);
+
+      const job = await database.sql`
+        SELECT title, status, department, seniority, summary
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${created.id}::uuid
+        LIMIT 1
+      `;
+      assert.equal(String(job[0]?.title), "Senior .NET Developer");
+      assert.equal(String(job[0]?.status), "draft");
+      assert.equal(String(job[0]?.department), "Engineering");
+      assert.equal(String(job[0]?.seniority), "Senior");
+
+      await assert.rejects(
+        tenantContext.run(organizationId, () =>
+          authContext.run({ userId, source: "development-header" }, () =>
+            operations.createJob({
+              hiringRequestId,
+              title: "Should Not Be Created",
+              requirements: [],
+              rubricName: "Blocked rubric",
+              rubricCriteria: [
+                {
+                  criterionKey: "blocked",
+                  label: "Blocked",
+                  weight: 1,
+                  required: true,
+                  displayOrder: 0,
+                },
+              ],
+            }),
+          ),
+        ),
+        (error: unknown) => error instanceof BadRequestException,
+      );
+
+      const duplicateJobs = await database.sql`
+        SELECT count(*)::int AS count
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND title = 'Should Not Be Created'
+      `;
+      assert.equal(Number(duplicateJobs[0]?.count ?? 0), 0);
+    } finally {
+      await database.sql`
+        DELETE FROM organizations
+        WHERE id = ${organizationId}::uuid
+      `;
+      await database.sql`
+        DELETE FROM users
+        WHERE id = ${userId}::uuid
       `;
       await database.onModuleDestroy();
     }
