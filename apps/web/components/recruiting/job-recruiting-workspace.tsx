@@ -162,6 +162,12 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
   if (loading) return <div className="py-16 text-center text-sm text-slate-500">در حال بارگذاری فضای کاری موقعیت…</div>;
   if (!job) return <div className="rounded-xl border border-rose-100 bg-rose-50 p-5 text-sm text-rose-700">{message || "موقعیت شغلی پیدا نشد"}</div>;
 
+  const publishReadiness = {
+    hasRequirements: job.requirements.length > 0,
+    hasCriteria: job.rubricCriteria.length > 0,
+  };
+  const canPublishJob = publishReadiness.hasRequirements && publishReadiness.hasCriteria;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -180,8 +186,8 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
             <button
               type="button"
               onClick={() => void publishJob()}
-              disabled={publishingJob}
-              className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              disabled={publishingJob || !canPublishJob}
+              className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {publishingJob ? "در حال انتشار…" : job.status === "paused" ? "بازگشایی موقعیت" : "انتشار موقعیت"}
             </button>
@@ -202,6 +208,14 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
       </div>
 
       {message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{message}</div> : null}
+
+      {["draft", "paused"].includes(job.status) && !canPublishJob ? (
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-[10px] leading-5 text-amber-800">
+          برای انتشار موقعیت، حداقل یک نیازمندی شغلی و یک معیار ارزیابی لازم است.
+          {!publishReadiness.hasRequirements ? " نیازمندی‌های شغلی را در «ویرایش موقعیت» تکمیل کنید." : ""}
+          {!publishReadiness.hasCriteria ? " معیارهای ارزیابی را در «ویرایش موقعیت» تکمیل کنید." : ""}
+        </div>
+      ) : null}
 
       {invitation ? (
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-[10px] text-emerald-800">
