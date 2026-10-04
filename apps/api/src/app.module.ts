@@ -1,4 +1,5 @@
 import { MiddlewareConsumer, Module, type NestModule } from "@nestjs/common";
+import { APP_INTERCEPTOR } from "@nestjs/core";
 import { AiModule } from "./ai/ai.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { AppController } from "./app.controller";
@@ -8,6 +9,7 @@ import { AuthorizationModule } from "./auth/authorization.module";
 import { correlationIdMiddleware } from "./common/http/correlation-id.middleware";
 import { csrfProtectionMiddleware } from "./common/http/csrf.middleware";
 import { securityHeadersMiddleware } from "./common/http/security-headers.middleware";
+import { HttpTrafficInterceptor } from "./common/observability/http-traffic.interceptor";
 import { DatabaseModule } from "./database/database.module";
 import { EngagementModule } from "./engagement/engagement.module";
 import { HealthController } from "./health/health.controller";
@@ -49,7 +51,12 @@ import { TenantModule } from "./tenant/tenant.module";
     MaintenanceModule,
   ],
   controllers: [AppController, HealthController, MetricsController],
-  providers: [MetricsService, OperationalMetricsService, MetricsMiddleware],
+  providers: [
+    MetricsService,
+    OperationalMetricsService,
+    MetricsMiddleware,
+    { provide: APP_INTERCEPTOR, useClass: HttpTrafficInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
