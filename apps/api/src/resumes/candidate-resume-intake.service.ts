@@ -240,7 +240,10 @@ export class CandidateResumeIntakeService {
           .filter((requirement) => result.missingMustHaveRequirementIds.includes(requirement.id))
           .map((requirement) => requirement.name);
         const matchedRequirements = (requirementsByJob.get(jobId) ?? [])
-          .filter((requirement) => byId.get(requirement.id)?.evidenceBacked)
+          .filter((requirement) => {
+            const component = byId.get(requirement.id);
+            return Boolean(component?.evidenceBacked && component.coverage >= 0.5);
+          })
           .map((requirement) => requirement.name);
 
         return {
