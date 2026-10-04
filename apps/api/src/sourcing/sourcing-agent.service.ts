@@ -514,7 +514,7 @@ export class SourcingAgentService {
 
   private async enqueueFinderResultAnalysis(
     jobId: string,
-    runs: Array<Record<string, any>>,
+    runs: Array<{ results?: Array<Record<string, unknown>> }>,
   ): Promise<string | undefined> {
     const organizationId = this.tenantContext.require().organizationId;
     const context = await this.jobContext(jobId);
