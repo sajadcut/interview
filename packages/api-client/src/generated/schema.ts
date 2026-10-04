@@ -2689,6 +2689,8 @@ export interface components {
             displayOrder: number;
         };
         CreateJobDto: {
+            /** Format: uuid */
+            hiringRequestId?: string;
             title: string;
             department?: string;
             location?: string;
