@@ -68,12 +68,12 @@ export class SourcingAgentService {
     const job = await this.aiJobs.enqueue({
       organizationId,
       capability: "job.talent_match_explain",
-      idempotencyKey: `job-talent-match:v2:${jobId}:${fingerprint}`,
+      idempotencyKey: `job-talent-match:v3:${jobId}:${fingerprint}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
         promptId: "job.talent_match_explain",
-        promptVersion: "v2",
+        promptVersion: "v3",
         structuredOutputSchemaVersion: "job-talent-match-explain.v1",
         inputReferences: { jobId, candidateIds: candidates.map((candidate) => candidate.candidateId) },
         input: {
@@ -560,12 +560,12 @@ export class SourcingAgentService {
     const job = await this.aiJobs.enqueue({
       organizationId,
       capability: "sourcing.result_explain",
-      idempotencyKey: `candidate-finder-results:${jobId}:${fingerprint}`,
+      idempotencyKey: `candidate-finder-results:v2:${jobId}:${fingerprint}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
         promptId: "sourcing.result_explain",
-        promptVersion: "v1",
+        promptVersion: "v2",
         structuredOutputSchemaVersion: "sourcing-result-explain.v1",
         inputReferences: {
           jobId,
