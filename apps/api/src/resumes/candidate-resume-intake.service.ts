@@ -7,6 +7,7 @@ import {
 } from "../sourcing/evidence-match-engine";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import type {
+  CandidateJobMatchAnalysisDto,
   CandidateJobMatchAnalysisStatusDto,
   CandidateJobMatchDto,
   CandidateMatchApplicationDto,
@@ -331,7 +332,7 @@ export class CandidateResumeIntakeService {
     return {
       analysisJobId,
       status: String(row.status),
-      ...(matches ? { matches: matches as CandidateJobMatchAnalysisStatusDto["matches"] } : {}),
+      ...(matches ? { matches: matches as CandidateJobMatchAnalysisDto[] } : {}),
       ...(row.last_error_message ? { errorMessage: String(row.last_error_message) } : {}),
     };
   }
