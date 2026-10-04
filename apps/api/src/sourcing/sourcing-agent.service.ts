@@ -131,10 +131,11 @@ export class SourcingAgentService {
         requiresApproval: capability.requiresApproval,
       }));
     const fingerprint = stableFingerprint({ context, availableSources });
+    const freshnessBucket = Math.floor(Date.now() / (5 * 60 * 1000));
     const job = await this.aiJobs.enqueue({
       organizationId,
       capability: "sourcing.plan",
-      idempotencyKey: `candidate-finder-plan:${jobId}:${fingerprint}`,
+      idempotencyKey: `candidate-finder-plan:${jobId}:${fingerprint}:${freshnessBucket}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
