@@ -90,8 +90,12 @@ test(
         )
       `;
       await database.sql`
-        INSERT INTO membership_roles (membership_id, role_id)
-        VALUES (${interviewerMembershipId}::uuid, ${interviewerRoleId}::uuid)
+        INSERT INTO membership_roles (organization_id, membership_id, role_id)
+        VALUES (
+          ${organizationId}::uuid,
+          ${interviewerMembershipId}::uuid,
+          ${interviewerRoleId}::uuid
+        )
       `;
       await database.sql`
         INSERT INTO jobs (id, organization_id, title, status)
