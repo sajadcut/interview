@@ -36,6 +36,9 @@ export class CandidateJobMatchAnalysisDto {
 export class CandidateJobMatchAnalysisStatusDto {
   @ApiProperty({ format: "uuid" }) analysisJobId!: string;
   @ApiProperty() status!: string;
+  @ApiProperty({ minimum: 0 }) attemptCount!: number;
+  @ApiProperty({ minimum: 1 }) maxAttempts!: number;
+  @ApiProperty({ format: "date-time" }) updatedAt!: string;
   @ApiPropertyOptional({ type: [CandidateJobMatchAnalysisDto] }) matches?: CandidateJobMatchAnalysisDto[];
   @ApiPropertyOptional() errorMessage?: string;
 }
