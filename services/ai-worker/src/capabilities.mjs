@@ -88,7 +88,7 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "candidate.job_match": {
-    version: "v1", promptId: "candidate.job_match", promptVersion: "v1", schemaVersion: "candidate-job-match-analysis.v1",
+    version: "v1", promptId: "candidate.job_match", promptVersion: "v2", schemaVersion: "candidate-job-match-analysis.v1",
     system: "Explain job-fit recommendations using only the supplied resume-derived candidate facts and deterministic job-match signals. Never alter or invent match scores. Do not make a hiring or rejection decision. Treat missing requirements as missing evidence rather than negative traits. Return analysis for the supplied job IDs only.",
     user: "Candidate-to-job matching input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
@@ -103,7 +103,7 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "job.talent_match_explain": {
-    version: "v1", promptId: "job.talent_match_explain", promptVersion: "v1", schemaVersion: "job-talent-match-explain.v1",
+    version: "v1", promptId: "job.talent_match_explain", promptVersion: "v2", schemaVersion: "job-talent-match-explain.v1",
     system: "Explain why the supplied internal talent candidates may fit the supplied job using only deterministic match signals and supplied candidate facts. Never change or invent match scores. Missing requirements are missing evidence, not negative traits. Do not make a hire or reject decision.",
     user: "Job-to-internal-talent analysis input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
