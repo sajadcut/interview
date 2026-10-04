@@ -135,12 +135,12 @@ export class SourcingAgentService {
     const job = await this.aiJobs.enqueue({
       organizationId,
       capability: "sourcing.plan",
-      idempotencyKey: `candidate-finder-plan:${jobId}:${fingerprint}:${freshnessBucket}`,
+      idempotencyKey: `candidate-finder-plan:v2:${jobId}:${fingerprint}:${freshnessBucket}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
         promptId: "sourcing.plan",
-        promptVersion: "v1",
+        promptVersion: "v2",
         structuredOutputSchemaVersion: "sourcing-plan.v1",
         inputReferences: { jobId },
         input: {
