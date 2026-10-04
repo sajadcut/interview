@@ -4,11 +4,13 @@ import { AiJobQueueService } from "../ai/ai-job-queue.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ApprovedSourceTypes, type ApprovedSourceType } from "./candidate-source.adapter";
+import { calculateEvidenceConceptMatch, type MatchRequirement } from "./evidence-match-engine";
 import { CandidateSourceRegistry } from "./candidate-source.registry";
 import { SourcingService } from "./sourcing.service";
 import { TalentOperationsService } from "./talent-operations.service";
 import type {
   CandidateFinderExecuteDto,
+  CandidateFinderResultExplanationDto,
   CandidateFinderToolCallDto,
   JobTalentMatchExplanationDto,
 } from "./sourcing.dto";
@@ -228,9 +230,42 @@ export class SourcingAgentService {
         approvalConfirmed: true,
         idempotencyKey: `candidate-finder:${planJobId}:${index}`,
       });
-      if (run) runs.push(run);
+      if (run) {
+        await this.scoreDiscoveredRun(run.id, jobId);
+        const refreshed = await this.sourcing.getRun(run.id);
+        if (refreshed) runs.push({ ...refreshed, idempotentReplay: false, providerKey: call.providerKey });
+      }
     }
-    return { planJobId, runs };
+
+    const analysisJobId = await this.enqueueFinderResultAnalysis(jobId, runs);
+    return { planJobId, runs, ...(analysisJobId ? { analysisJobId } : {}) };
+  }
+
+  async getFinderResultAnalysis(analysisJobId: string) {
+    const job = await this.requireAiJob(analysisJobId, "sourcing.result_explain");
+    const output = record(record(job.result).output);
+    const matches = Array.isArray(output.matches)
+      ? output.matches.flatMap((item) => {
+          const row = record(item);
+          const discoveredCandidateId =
+            typeof row.discoveredCandidateId === "string" ? row.discoveredCandidateId : "";
+          const fitSummary = typeof row.fitSummary === "string" ? row.fitSummary : "";
+          if (!discoveredCandidateId || !fitSummary) return [];
+          return [{
+            discoveredCandidateId,
+            fitSummary,
+            strengths: stringArray(row.strengths),
+            gaps: stringArray(row.gaps),
+            confidence: typeof row.confidence === "number" ? row.confidence : 0,
+          } satisfies CandidateFinderResultExplanationDto];
+        })
+      : undefined;
+    return {
+      analysisJobId,
+      status: job.status,
+      ...(matches ? { matches } : {}),
+      ...(job.lastErrorMessage ? { errorMessage: job.lastErrorMessage } : {}),
+    };
   }
 
   async acceptDiscoveredCandidate(discoveredCandidateId: string) {
@@ -421,6 +456,126 @@ export class SourcingAgentService {
       importedCandidate: result.importedCandidate,
       applicationAlreadyExisted: result.applicationAlreadyExisted,
     };
+  }
+
+  private async scoreDiscoveredRun(runId: string, jobId: string) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const requirements = await this.database.sql`
+      SELECT id::text, name, description, weight, requirement_type
+      FROM job_requirements
+      WHERE organization_id = ${organizationId}::uuid
+        AND job_id = ${jobId}::uuid
+    `;
+    const normalizedRequirements: MatchRequirement[] = requirements.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      ...(row.description ? { description: String(row.description) } : {}),
+      weight: Number(row.weight),
+      requirementType: String(row.requirement_type) as "must_have" | "nice_to_have",
+    }));
+    const candidates = await this.database.sql`
+      SELECT id::text, profile_snapshot
+      FROM discovered_candidates
+      WHERE organization_id = ${organizationId}::uuid
+        AND sourcing_run_id = ${runId}::uuid
+    `;
+    for (const candidate of candidates) {
+      const profile = record(candidate.profile_snapshot);
+      const skills = stringArray(profile.skills).map((label) => ({
+        label,
+        verificationState: "unverified",
+        sourceReference: `discovered_candidate:${String(candidate.id)}`,
+      }));
+      const currentRole =
+        typeof profile.currentRole === "string" && profile.currentRole.trim()
+          ? profile.currentRole.trim()
+          : undefined;
+      const result = calculateEvidenceConceptMatch({
+        requirements: normalizedRequirements,
+        skills,
+        experiences: currentRole
+          ? [{
+              title: currentRole,
+              description: typeof profile.currentCompany === "string"
+                ? `Current company: ${profile.currentCompany}`
+                : undefined,
+              sourceReference: `discovered_candidate:${String(candidate.id)}`,
+            }]
+          : [],
+      });
+      await this.database.sql`
+        UPDATE discovered_candidates
+        SET pre_interview_match_score = ${result.score}
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${String(candidate.id)}::uuid
+      `;
+    }
+  }
+
+  private async enqueueFinderResultAnalysis(
+    jobId: string,
+    runs: Array<Record<string, any>>,
+  ): Promise<string | undefined> {
+    const organizationId = this.tenantContext.require().organizationId;
+    const context = await this.jobContext(jobId);
+    const candidates = runs
+      .flatMap((run) => Array.isArray(run.results) ? run.results : [])
+      .sort((left, right) =>
+        Number(right.preInterviewMatchScore ?? -1) - Number(left.preInterviewMatchScore ?? -1),
+      )
+      .slice(0, 12)
+      .map((candidate) => {
+        const profile = record(candidate.profileSnapshot);
+        const provenance = record(candidate.sourceProvenance);
+        return {
+          discoveredCandidateId: String(candidate.id),
+          displayName: typeof profile.displayName === "string" ? profile.displayName : "Unknown candidate",
+          currentRole: typeof profile.currentRole === "string" ? profile.currentRole : null,
+          currentCompany: typeof profile.currentCompany === "string" ? profile.currentCompany : null,
+          skills: stringArray(profile.skills),
+          deterministicMatchScore:
+            typeof candidate.preInterviewMatchScore === "number"
+              ? candidate.preInterviewMatchScore
+              : null,
+          providerKey: typeof provenance.providerKey === "string" ? provenance.providerKey : null,
+          evidenceSummary: stringArray(profile.evidenceSummary),
+        };
+      });
+    if (!candidates.length) return undefined;
+
+    const fingerprint = stableFingerprint({
+      job: context,
+      candidates: candidates.map((candidate) => ({
+        discoveredCandidateId: candidate.discoveredCandidateId,
+        score: candidate.deterministicMatchScore,
+      })),
+    });
+    const job = await this.aiJobs.enqueue({
+      organizationId,
+      capability: "sourcing.result_explain",
+      idempotencyKey: `candidate-finder-results:${jobId}:${fingerprint}`,
+      timeoutMs: 45_000,
+      payload: {
+        capabilityVersion: "v1",
+        promptId: "sourcing.result_explain",
+        promptVersion: "v1",
+        structuredOutputSchemaVersion: "sourcing-result-explain.v1",
+        inputReferences: {
+          jobId,
+          discoveredCandidateIds: candidates.map((candidate) => candidate.discoveredCandidateId),
+        },
+        input: {
+          job: context,
+          candidates,
+          boundaries: {
+            deterministicScoreIsAuthoritative: true,
+            llmMustNotChangeScore: true,
+            recommendationIsDecisionSupportOnly: true,
+          },
+        },
+      },
+    });
+    return job.id;
   }
 
   private async jobContext(jobId: string) {
