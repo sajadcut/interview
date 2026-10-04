@@ -1,4 +1,4 @@
-import { contextFromJob, withTraceContext, writeLog } from "./observability.mjs";
+import { contextFromJob, loggableBody, withTraceContext, writeLog } from "./observability.mjs";
 export class RetryableJobError extends Error {
   constructor(code, message) {
     super(message);
@@ -98,7 +98,7 @@ export class AiWorkerRuntime {
         capability: job.capability,
         attemptCount: job.attemptCount,
         timeoutMs: job.timeoutMs,
-        payload: job.payload ?? {},
+        payload: loggableBody(job.payload ?? {}, "application/json"),
       });
       try {
         return await this.processJobWithTrace(job);
@@ -181,7 +181,7 @@ export class AiWorkerRuntime {
         jobId: job.id,
         leaseToken,
         workerId: this.workerId,
-        result,
+        result: loggableBody(result, "application/json"),
       });
       writeLog("info", "ai.job.processing.succeeded", {
         jobId: job.id,
