@@ -1,5 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 import { AiJobQueueService } from "../ai/ai-job-queue.service";
+import { writeStructuredLog } from "../common/observability/structured-log";
 import { DatabaseService } from "../database/database.service";
 import {
   calculateEvidenceConceptMatch,
@@ -65,8 +72,23 @@ export class CandidateResumeIntakeService {
       throw new BadRequestException("Resume must be between 1 byte and 10 MB");
     }
 
-    const extracted = await this.extractor.extract(upload);
-    const profile = this.parser.parse(extracted.text);
+    let extracted;
+    let profile;
+    try {
+      extracted = await this.extractor.extract(upload);
+      profile = this.parser.parse(extracted.text);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      writeStructuredLog("error", "resume.intake.processing.error", {
+        originalName: upload.originalName,
+        mimeType: upload.mimeType,
+        byteSize: upload.data.byteLength,
+        error,
+      });
+      throw new UnprocessableEntityException(
+        "Resume could not be processed. Use a text-based PDF or DOCX file.",
+      );
+    }
     const displayName = inferDisplayName(extracted.text, upload.originalName);
     const resolved = await this.resolveCandidate(organizationId, {
       displayName,
