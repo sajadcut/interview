@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 
-export const RESUME_PARSER_VERSION = "resume-structure-v1";
+export const RESUME_PARSER_VERSION = "resume-structure-v2";
 
 export interface ParsedResumeSkill {
   key: string;
