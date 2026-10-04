@@ -45,16 +45,20 @@ function abortableDelay(ms, signal) {
       reject(signal.reason ?? new Error("Aborted"));
       return;
     }
-    const timer = setTimeout(resolve, ms);
-    timer.unref?.();
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        reject(signal.reason ?? new Error("Aborted"));
-      },
-      { once: true },
-    );
+
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(signal?.reason ?? new Error("Aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    // This polling delay must stay referenced. If it is unref'ed and the queue is
+    // temporarily empty, Node can exit before a later job is enqueued.
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
