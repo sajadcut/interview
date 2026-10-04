@@ -118,3 +118,80 @@ export class SourcingSourceCapabilityDto {
   @ApiProperty() requiresApproval!: boolean;
   @ApiPropertyOptional() providerKey?: string;
 }
+
+
+export class JobTalentMatchDto {
+  @ApiProperty({ format: "uuid" }) candidateId!: string;
+  @ApiProperty() displayName!: string;
+  @ApiPropertyOptional() currentRole?: string;
+  @ApiPropertyOptional() currentCompany?: string;
+  @ApiProperty({ type: [String] }) skills!: string[];
+  @ApiProperty({ minimum: 0, maximum: 100 }) matchScore!: number;
+  @ApiProperty() algorithmVersion!: string;
+  @ApiProperty({ type: [String] }) matchedRequirements!: string[];
+  @ApiProperty({ type: [String] }) missingMustHaveRequirements!: string[];
+  @ApiPropertyOptional({ format: "uuid" }) applicationId?: string;
+}
+
+export class JobTalentMatchExplanationDto {
+  @ApiProperty({ format: "uuid" }) candidateId!: string;
+  @ApiProperty() fitSummary!: string;
+  @ApiProperty({ type: [String] }) strengths!: string[];
+  @ApiProperty({ type: [String] }) gaps!: string[];
+  @ApiProperty({ minimum: 0, maximum: 1 }) confidence!: number;
+}
+
+export class JobTalentAnalysisStartDto {
+  @ApiProperty({ format: "uuid" }) analysisJobId!: string;
+  @ApiProperty() status!: string;
+}
+
+export class JobTalentAnalysisStatusDto {
+  @ApiProperty({ format: "uuid" }) analysisJobId!: string;
+  @ApiProperty() status!: string;
+  @ApiPropertyOptional({ type: [JobTalentMatchExplanationDto] }) matches?: JobTalentMatchExplanationDto[];
+  @ApiPropertyOptional() errorMessage?: string;
+}
+
+export class CandidateFinderStartDto {
+  @ApiProperty({ format: "uuid" }) planJobId!: string;
+  @ApiProperty() status!: string;
+}
+
+export class CandidateFinderToolCallDto {
+  @ApiProperty({ enum: sourceTypes }) sourceType!: ApprovedSourceType;
+  @ApiPropertyOptional() providerKey?: string;
+  @ApiProperty() query!: string;
+  @ApiProperty({ minimum: 1, maximum: 100 }) limit!: number;
+}
+
+export class CandidateFinderPlanStatusDto {
+  @ApiProperty({ format: "uuid" }) planJobId!: string;
+  @ApiProperty() status!: string;
+  @ApiPropertyOptional() rationale?: string;
+  @ApiPropertyOptional({ type: [CandidateFinderToolCallDto] }) toolCalls?: CandidateFinderToolCallDto[];
+  @ApiPropertyOptional() errorMessage?: string;
+}
+
+export class CandidateFinderExecuteDto {
+  @ApiPropertyOptional({
+    description: "Required when the generated plan uses ATS or external providers.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  approvalConfirmed?: boolean;
+}
+
+export class CandidateFinderExecutionDto {
+  @ApiProperty({ format: "uuid" }) planJobId!: string;
+  @ApiProperty({ type: [SourcingRunExecutionDto] }) runs!: SourcingRunExecutionDto[];
+}
+
+export class AcceptedDiscoveredCandidateDto {
+  @ApiProperty({ format: "uuid" }) discoveredCandidateId!: string;
+  @ApiProperty({ format: "uuid" }) candidateId!: string;
+  @ApiProperty({ format: "uuid" }) applicationId!: string;
+  @ApiProperty({ minimum: 0, maximum: 100 }) preInterviewMatchScore!: number;
+  @ApiProperty() importedCandidate!: boolean;
+  @ApiProperty() applicationAlreadyExisted!: boolean;
+}
