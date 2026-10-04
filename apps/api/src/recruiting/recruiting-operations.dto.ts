@@ -221,6 +221,30 @@ export class UpdateJobDto {
   @IsOptional()
   @IsString()
   summary?: string;
+
+  @ApiPropertyOptional({ type: [CreateJobRequirementDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateJobRequirementDto)
+  requirements?: CreateJobRequirementDto[];
+}
+
+export class PublishJobResponseDto {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ enum: ["open"] })
+  status!: "open";
+
+  @ApiPropertyOptional()
+  rubricVersion?: number;
+
+  @ApiProperty()
+  rubricPublished!: boolean;
 }
 
 export class SaveRubricDraftDto {
