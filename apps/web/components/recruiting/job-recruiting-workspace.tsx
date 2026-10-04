@@ -9,7 +9,6 @@ import { formatFaDigits, formatFaNumber, formatFaPercent } from "../../lib/fa-nu
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
-import { JobCandidateIntake } from "./job-candidate-intake";
 import { TechnicalInterviewScheduler } from "./technical-interview-scheduler";
 
 type JobWorkspace = components["schemas"]["JobWorkspaceDto"];
@@ -184,12 +183,19 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
         </div>
       ) : null}
 
-      <JobCandidateIntake
-        jobId={jobId}
-        rubricStatus={job.rubricStatus}
-        attachedCandidateIds={new Set(candidates.map((candidate) => candidate.id))}
-        onChanged={() => load(identity)}
-      />
+      <Panel className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[13px] font-semibold text-slate-900">ورود کاندید از رزومه</h2>
+            <p className="mt-1 text-[9px] leading-4 text-slate-500">
+              کاندید جدید از داخل موقعیت شغلی به‌صورت دستی ساخته نمی‌شود. رزومه را در صفحه کاندیداها بارگذاری کنید تا پروفایل، شواهد و تطبیق با موقعیت‌های فعال استخراج شود.
+            </p>
+          </div>
+          <Link href="/app/candidates" className="inline-flex h-9 items-center rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white">
+            بارگذاری و تحلیل رزومه
+          </Link>
+        </div>
+      </Panel>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-4">
