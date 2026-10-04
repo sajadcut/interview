@@ -12,7 +12,7 @@ import { StorageService } from "../storage/storage.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker, type ResumeChunk } from "./resume-chunker";
 import { RESUME_EMBEDDING_PROVIDER, type ResumeEmbeddingBatch, type ResumeEmbeddingProvider } from "./resume-embedding-provider";
-import { ResumeParser, type ParsedResumeProfile } from "./resume-parser";
+import { RESUME_PARSER_VERSION, ResumeParser, type ParsedResumeProfile } from "./resume-parser";
 import { MAX_RESUME_BYTES, ResumeTextExtractor } from "./resume-text-extractor";
 import type { ResumeDto } from "./resume-ingestion.dto";
 
@@ -64,38 +64,53 @@ export class ResumeIngestionService {
 
     const sha256 = createHash("sha256").update(upload.data).digest("hex");
     const existing = await this.findByHash(organizationId, candidateId, sha256);
-    if (existing) return this.getResume(candidateId, existing.id);
+    let resumeId: string;
+    let replaceExistingArtifacts = false;
 
-    const saved = await this.storage.save({
-      originalName: upload.originalName,
-      mimeType: upload.mimeType,
-      data: upload.data,
-    });
+    if (existing) {
+      if (existing.status === "completed" && existing.parserVersion === RESUME_PARSER_VERSION) {
+        return this.getResume(candidateId, existing.id);
+      }
+      resumeId = existing.id;
+      replaceExistingArtifacts = true;
+    } else {
+      const saved = await this.storage.save({
+        originalName: upload.originalName,
+        mimeType: upload.mimeType,
+        data: upload.data,
+      });
 
-    const inserted = await this.database.sql`
-      INSERT INTO resumes (
-        organization_id, candidate_id, application_id, file_id, status,
-        original_filename, content_type, byte_size, sha256
-      ) VALUES (
-        ${organizationId}::uuid,
-        ${candidateId}::uuid,
-        ${applicationId ?? null}::uuid,
-        ${saved.id}::uuid,
-        'uploaded',
-        ${upload.originalName},
-        ${upload.mimeType},
-        ${upload.data.byteLength},
-        ${sha256}
-      )
-      ON CONFLICT (organization_id, candidate_id, sha256) DO NOTHING
-      RETURNING id
-    `;
-    const resumeId = (inserted[0] as { id?: string } | undefined)?.id;
-    if (!resumeId) {
-      await this.storage.deleteById(saved.id);
-      const raced = await this.findByHash(organizationId, candidateId, sha256);
-      if (!raced) throw new Error("Resume idempotency conflict could not be resolved");
-      return this.getResume(candidateId, raced.id);
+      const inserted = await this.database.sql`
+        INSERT INTO resumes (
+          organization_id, candidate_id, application_id, file_id, status,
+          original_filename, content_type, byte_size, sha256
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${candidateId}::uuid,
+          ${applicationId ?? null}::uuid,
+          ${saved.id}::uuid,
+          'uploaded',
+          ${upload.originalName},
+          ${upload.mimeType},
+          ${upload.data.byteLength},
+          ${sha256}
+        )
+        ON CONFLICT (organization_id, candidate_id, sha256) DO NOTHING
+        RETURNING id
+      `;
+      const insertedResumeId = (inserted[0] as { id?: string } | undefined)?.id;
+      if (insertedResumeId) {
+        resumeId = insertedResumeId;
+      } else {
+        await this.storage.deleteById(saved.id);
+        const raced = await this.findByHash(organizationId, candidateId, sha256);
+        if (!raced) throw new Error("Resume idempotency conflict could not be resolved");
+        if (raced.status === "completed" && raced.parserVersion === RESUME_PARSER_VERSION) {
+          return this.getResume(candidateId, raced.id);
+        }
+        resumeId = raced.id;
+        replaceExistingArtifacts = true;
+      }
     }
 
     try {
@@ -129,6 +144,7 @@ export class ResumeIngestionService {
         profile,
         chunks,
         embeddingBatch,
+        replaceExistingArtifacts,
       });
       return this.getResume(candidateId, resumeId);
     } catch (error) {
@@ -192,13 +208,17 @@ export class ResumeIngestionService {
 
   private async findByHash(organizationId: string, candidateId: string, sha256: string) {
     const rows = await this.database.sql`
-      SELECT id, status FROM resumes
+      SELECT id, status, parser_version
+      FROM resumes
       WHERE organization_id = ${organizationId}::uuid
         AND candidate_id = ${candidateId}::uuid
         AND sha256 = ${sha256}
       LIMIT 1
     `;
-    return rows[0] as { id: string; status: string } | undefined;
+    const row = rows[0] as { id: string; status: string; parser_version: string | null } | undefined;
+    return row
+      ? { id: row.id, status: row.status, parserVersion: row.parser_version }
+      : undefined;
   }
 
   private async persistProcessedResume(input: {
@@ -212,9 +232,49 @@ export class ResumeIngestionService {
     profile: ParsedResumeProfile;
     chunks: ResumeChunk[];
     embeddingBatch: ResumeEmbeddingBatch | null;
+    replaceExistingArtifacts: boolean;
   }): Promise<void> {
     const textSha = createHash("sha256").update(input.extractedText).digest("hex");
     await this.database.sql.begin(async (tx) => {
+      if (input.replaceExistingArtifacts) {
+        const resumeSourcePrefix = `resume:${input.resumeId}#%`;
+        await tx`
+          DELETE FROM evidence
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND candidate_id = ${input.candidateId}::uuid
+            AND source_type = 'resume'
+            AND source_reference LIKE ${resumeSourcePrefix}
+        `;
+        await tx`
+          DELETE FROM candidate_experiences
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND candidate_id = ${input.candidateId}::uuid
+            AND source_reference LIKE ${resumeSourcePrefix}
+        `;
+        await tx`
+          DELETE FROM candidate_skills
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND candidate_id = ${input.candidateId}::uuid
+            AND verification_state = 'unverified'
+            AND source_reference LIKE ${resumeSourcePrefix}
+        `;
+        await tx`
+          DELETE FROM resume_chunk_embeddings
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND resume_id = ${input.resumeId}::uuid
+        `;
+        await tx`
+          DELETE FROM resume_chunks
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND resume_id = ${input.resumeId}::uuid
+        `;
+        await tx`
+          DELETE FROM resume_documents
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND resume_id = ${input.resumeId}::uuid
+        `;
+      }
+
       await tx`
         INSERT INTO resume_documents (
           organization_id, resume_id, text_content, text_sha256, page_count, extractor_version
