@@ -146,7 +146,17 @@ export function JobRecruitingWorkspace({ jobId }: { jobId: string }) {
           <p className="mt-1 text-[11px] text-slate-500">{[job.department, job.location, job.seniority].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="flex gap-2">
-          {access.can("job.edit") ? <button type="button" onClick={() => void publishRubric()} className="h-10 rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">انتشار آخرین چارچوب ارزیابی</button> : null}
+          {access.can("job.edit") ? (
+            job.rubricStatus === "published" ? (
+              <div className="inline-flex h-10 items-center rounded-[10px] border border-emerald-100 bg-emerald-50 px-4 text-[11px] font-semibold text-emerald-700">
+                چارچوب ارزیابی منتشر شده
+              </div>
+            ) : (
+              <button type="button" onClick={() => void publishRubric()} className="h-10 rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+                انتشار آخرین چارچوب ارزیابی
+              </button>
+            )
+          ) : null}
           {access.can("decision.submit") && selected.size > 0 ? <button type="button" onClick={() => void saveShortlist()} className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white">ذخیره فهرست نهایی ({selected.size})</button> : null}
         </div>
       </div>
