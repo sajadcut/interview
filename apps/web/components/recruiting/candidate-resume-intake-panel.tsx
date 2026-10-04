@@ -66,7 +66,15 @@ const ACCEPTED = new Set([
   "text/plain",
 ]);
 
-export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateReady?: () => void | Promise<void> }) {
+export function CandidateResumeIntakePanel({
+  onCandidateReady,
+  targetJobId,
+  targetJobTitle,
+}: {
+  onCandidateReady?: () => void | Promise<void>;
+  targetJobId?: string;
+  targetJobTitle?: string;
+}) {
   const access = useInternalAccess();
   const inputRef = useRef<HTMLInputElement>(null);
   const [identity, setIdentity] = useState<TenantIdentity>();
@@ -125,6 +133,13 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
   const aiByJob = useMemo(
     () => new Map((analysis?.matches ?? []).map((item) => [item.jobId, item])),
     [analysis?.matches],
+  );
+
+  const displayedMatches = useMemo(
+    () => targetJobId
+      ? (result?.matches ?? []).filter((match) => match.jobId === targetJobId)
+      : (result?.matches ?? []),
+    [result?.matches, targetJobId],
   );
 
   async function upload(file: File) {
@@ -208,7 +223,9 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
         <div>
           <div className="text-[10px] font-semibold text-indigo-600">ورود رزومه‌محور کاندیدا</div>
           <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-slate-950">
-            رزومه را بارگذاری کنید؛ سیستم کاندیدا و موقعیت مناسب را پیدا می‌کند
+            {targetJobTitle
+              ? `رزومه را بارگذاری کنید؛ تطبیق با «${targetJobTitle}» بررسی می‌شود`
+              : "رزومه را بارگذاری کنید؛ سیستم کاندیدا و موقعیت مناسب را پیدا می‌کند"}
           </h2>
           <p className="mt-2 max-w-2xl text-[10px] leading-5 text-slate-500">
             PDF یا Word استخراج می‌شود، مهارت‌ها و سوابق به شواهد قابل ردیابی تبدیل می‌شوند، سپس همه موقعیت‌های فعال با رزومه تطبیق داده می‌شوند. هوش مصنوعی دلیل تطبیق و شکاف‌ها را توضیح می‌دهد؛ تصمیم افزودن کاندید به موقعیت با منابع انسانی است.
@@ -251,7 +268,7 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg bg-white p-2"><div className="text-[8px] text-slate-400">مهارت</div><strong className="text-[12px]">{formatFaNumber(result.resume.structuredProfile.skills.length)}</strong></div>
                 <div className="rounded-lg bg-white p-2"><div className="text-[8px] text-slate-400">شاهد</div><strong className="text-[12px]">{formatFaNumber(result.resume.evidenceCount)}</strong></div>
-                <div className="rounded-lg bg-white p-2"><div className="text-[8px] text-slate-400">موقعیت</div><strong className="text-[12px]">{formatFaNumber(result.matches.length)}</strong></div>
+                <div className="rounded-lg bg-white p-2"><div className="text-[8px] text-slate-400">موقعیت</div><strong className="text-[12px]">{formatFaNumber(displayedMatches.length)}</strong></div>
               </div>
               {result.analysisJobId ? (
                 <div className="rounded-lg bg-white px-3 py-2 text-[9px] text-slate-600">
@@ -274,11 +291,11 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
               <h3 className="text-[13px] font-semibold text-slate-900">پیشنهاد موقعیت‌های شغلی</h3>
               <p className="mt-1 text-[9px] text-slate-500">امتیاز از شواهد رزومه و Requirementهای موقعیت محاسبه می‌شود؛ LLM فقط توضیح قابل‌بررسی ارائه می‌کند.</p>
             </div>
-            <Pill tone="blue">{formatFaNumber(result.matches.length)} موقعیت بررسی‌شده</Pill>
+            <Pill tone="blue">{targetJobTitle ? `تطبیق با ${targetJobTitle}` : `${formatFaNumber(displayedMatches.length)} موقعیت بررسی‌شده`}</Pill>
           </div>
 
           <div className="mt-4 grid gap-3 xl:grid-cols-2">
-            {result.matches.slice(0, 8).map((match) => {
+            {displayedMatches.slice(0, 8).map((match) => {
               const ai = aiByJob.get(match.jobId);
               return (
                 <div key={match.jobId} className="rounded-2xl border border-slate-100 p-4">
@@ -335,7 +352,7 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
             })}
           </div>
 
-          {result.matches.length === 0 ? (
+          {displayedMatches.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-slate-200 p-5 text-center text-[10px] text-slate-400">موقعیت فعال برای تطبیق وجود ندارد.</div>
           ) : null}
         </div>
