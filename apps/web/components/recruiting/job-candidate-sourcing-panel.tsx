@@ -267,7 +267,7 @@ export function JobCandidateSourcingPanel({
         throw new Error(apiErrorMessage(result, "ساخت برنامه کاندیدیاب ناموفق بود"));
       }
       setPlanJobId(result.data.planJobId);
-      setMessage("LLM در حال ساخت query و tool-callهای کاندیدیاب است.");
+      setMessage("هوش مصنوعی در حال ساخت query و tool-callهای کاندیدیاب است.");
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "راه‌اندازی کاندیدیاب ناموفق بود");
     } finally {
@@ -396,7 +396,7 @@ export function JobCandidateSourcingPanel({
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold text-slate-800">بهترین تطبیق‌های Talent Pool</div>
-              <div className="mt-1 text-[8px] text-slate-400">امتیاز deterministic است؛ LLM فقط دلیل و شکاف‌های قابل بررسی را توضیح می‌دهد.</div>
+              <div className="mt-1 text-[8px] text-slate-400">امتیاز deterministic است؛ هوش مصنوعی فقط دلیل و شکاف‌های قابل بررسی را توضیح می‌دهد.</div>
             </div>
             <Link href="/app/talent" className="text-[9px] font-semibold text-indigo-600">مشاهده بانک استعدادها</Link>
           </div>
@@ -432,7 +432,7 @@ export function JobCandidateSourcingPanel({
 
                   {ai ? (
                     <div className="mt-3 rounded-xl bg-violet-50 p-3">
-                      <div className="text-[8px] font-semibold text-violet-700">تحلیل LLM · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
+                      <div className="text-[8px] font-semibold text-violet-700">تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
                       <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
                     </div>
                   ) : null}
@@ -484,7 +484,7 @@ export function JobCandidateSourcingPanel({
             <div>
               <div className="text-[11px] font-semibold text-slate-800">کاندیدیاب هوشمند</div>
               <p className="mt-1 text-[9px] leading-5 text-slate-500">
-                LLM بر اساس Job و Requirementها query می‌سازد و فقط Adapterهای تأییدشده و متصل سازمان را به‌صورت tool call پیشنهاد می‌کند. scraping پنهان انجام نمی‌شود.
+                هوش مصنوعی بر اساس Job و Requirementها query می‌سازد و فقط Adapterهای تأییدشده و متصل سازمان را به‌صورت tool call پیشنهاد می‌کند. scraping پنهان انجام نمی‌شود.
               </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -517,7 +517,7 @@ export function JobCandidateSourcingPanel({
               {plan ? (
                 <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[9px] font-semibold text-violet-700">برنامه LLM</div>
+                    <div className="text-[9px] font-semibold text-violet-700">برنامه هوش مصنوعی</div>
                     <Pill tone={plan.status === "succeeded" ? "green" : "blue"}>{faDomainLabel(plan.status)}</Pill>
                   </div>
                   {plan.rationale ? <p className="mt-2 text-[9px] leading-5 text-slate-700">{plan.rationale}</p> : null}
@@ -581,7 +581,7 @@ export function JobCandidateSourcingPanel({
                       {ai ? (
                         <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3">
                           <div className="text-[8px] font-semibold text-violet-700">
-                            تحلیل LLM · اطمینان {formatFaPercent(ai.confidence * 100)}
+                            تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}
                           </div>
                           <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
                           {ai.strengths.length ? (
@@ -593,7 +593,7 @@ export function JobCandidateSourcingPanel({
                         </div>
                       ) : finderAnalysisJobId ? (
                         <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[8px] text-slate-500">
-                          تحلیل LLM این نتیجه در حال آماده‌سازی است…
+                          تحلیل هوش مصنوعی این نتیجه در حال آماده‌سازی است…
                         </div>
                       ) : null}
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
