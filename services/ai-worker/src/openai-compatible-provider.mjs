@@ -57,6 +57,16 @@ function reasoningEffort(value) {
   return allowed.has(normalized) ? normalized : "medium";
 }
 
+function structuredOutputInstruction(schema) {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return "";
+  return [
+    "Return ONLY one JSON object that matches the following JSON Schema exactly.",
+    "Do not rename fields, add wrapper objects, add commentary, or omit required fields.",
+    "Use empty arrays when there is no evidence for an array field.",
+    `JSON Schema: ${JSON.stringify(schema)}`,
+  ].join("\n");
+}
+
 export function createOpenAiCompatibleProvider(env = process.env) {
   const providerName = String(env.LLM_PROVIDER_NAME ?? "openai-compatible").trim() || "openai-compatible";
   const includeDotinMetadata = String(env.LLM_DOTIN_METADATA ?? "false").trim().toLowerCase() === "true";
@@ -87,8 +97,9 @@ export function createOpenAiCompatibleProvider(env = process.env) {
       if (!response.ok) return providerReadinessFailure(response.status);
       return { reachable: true, ready: true };
     },
-    async generate({ prompt, maxOutputTokens, signal, metadata = {} }) {
+    async generate({ prompt, schema, maxOutputTokens, signal, metadata = {} }) {
       let response;
+      const schemaInstruction = structuredOutputInstruction(schema);
       try {
         response = await fetch(`${baseUrl}/chat/completions`, {
           method: "POST",
@@ -101,7 +112,12 @@ export function createOpenAiCompatibleProvider(env = process.env) {
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: prompt.system },
+              {
+                role: "system",
+                content: schemaInstruction
+                  ? `${prompt.system}\n\n${schemaInstruction}`
+                  : prompt.system,
+              },
               { role: "user", content: prompt.user },
             ],
             temperature: 0.2,
