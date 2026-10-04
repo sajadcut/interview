@@ -68,12 +68,12 @@ export class SourcingAgentService {
     const job = await this.aiJobs.enqueue({
       organizationId,
       capability: "job.talent_match_explain",
-      idempotencyKey: `job-talent-match:${jobId}:${fingerprint}`,
+      idempotencyKey: `job-talent-match:v2:${jobId}:${fingerprint}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
         promptId: "job.talent_match_explain",
-        promptVersion: "v1",
+        promptVersion: "v2",
         structuredOutputSchemaVersion: "job-talent-match-explain.v1",
         inputReferences: { jobId, candidateIds: candidates.map((candidate) => candidate.candidateId) },
         input: {
