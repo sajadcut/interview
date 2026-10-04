@@ -3,7 +3,9 @@ param(
     [string]$LiveKitCommand = "livekit-server",
     [string[]]$LiveKitArgs = @("--dev"),
     [string]$LiveKitUrl = "ws://127.0.0.1:7880",
-    [string]$LiveKitHealthUrl = "http://127.0.0.1:7880"
+    [string]$LiveKitHealthUrl = "http://127.0.0.1:7880",
+    [string]$ApiReadyUrl = "http://127.0.0.1:4100/health/ready",
+    [int]$ApiReadyTimeoutSeconds = 90
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,7 +47,7 @@ function Import-RootEnvironment {
     # source of truth for every child process. Overwrite stale machine/user variables here
     # before starting workers and Turbo; otherwise a directly spawned Python worker can
     # inherit a different shared secret/provider URL than the API process.
-    foreach ($rawLine in Get-Content -LiteralPath $Path) {
+    foreach ($rawLine in Get-Content -LiteralPath $Path -Encoding UTF8) {
         $line = $rawLine.Trim()
         if (-not $line -or $line.StartsWith("#") -or -not $line.Contains("=")) {
             continue
@@ -91,6 +93,9 @@ if ([string]::IsNullOrWhiteSpace($env:AI_INTERVIEWER_HOST)) {
 if ([string]::IsNullOrWhiteSpace($env:AI_INTERVIEWER_PORT)) {
     $env:AI_INTERVIEWER_PORT = "9040"
 }
+if ([string]::IsNullOrWhiteSpace($env:AI_WORKER_API_BASE_URL)) {
+    $env:AI_WORKER_API_BASE_URL = "http://127.0.0.1:4100"
+}
 
 # livekit-server --dev binds locally and uses the documented development credentials.
 # Override only the LiveKit development values after importing .env so the server, API and
@@ -117,6 +122,46 @@ function Test-ProcessIsRunning {
     catch {
         return $false
     }
+}
+
+function Wait-HttpReady {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [int]$TimeoutSeconds = 90
+    )
+
+    $deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
+    $lastError = $null
+
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest `
+                -Uri $Url `
+                -UseBasicParsing `
+                -TimeoutSec 3 `
+                -ErrorAction Stop
+
+            if ([int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -lt 300) {
+                return $true
+            }
+        }
+        catch {
+            $lastError = $_.Exception.Message
+        }
+
+        Start-Sleep -Milliseconds 500
+    }
+
+    if ($lastError) {
+        Write-Warning "API readiness did not succeed at $Url within $TimeoutSeconds seconds. Last error: $lastError"
+    }
+    else {
+        Write-Warning "API readiness did not succeed at $Url within $TimeoutSeconds seconds."
+    }
+
+    return $false
 }
 
 function ConvertTo-SingleQuotedPowerShellArgument {
@@ -174,13 +219,6 @@ $services = @(
         Display   = "npm run tts-worker:dev"
     },
     [pscustomobject]@{
-        Name      = "ai-worker"
-        Kind      = "npm"
-        NpmScript = "ai-worker:dev"
-        Title     = "Interview - AI Worker"
-        Display   = "npm run ai-worker:dev"
-    },
-    [pscustomobject]@{
         Name      = "ai-interviewer"
         Kind      = "npm"
         NpmScript = "ai-interviewer:dev"
@@ -193,6 +231,13 @@ $services = @(
         NpmScript = "dev"
         Title     = "Interview - Web + API"
         Display   = "npm run dev"
+    },
+    [pscustomobject]@{
+        Name      = "ai-worker"
+        Kind      = "npm"
+        NpmScript = "ai-worker:dev"
+        Title     = "Interview - AI Worker"
+        Display   = "npm run ai-worker:dev"
     }
 )
 
@@ -205,6 +250,15 @@ foreach ($service in $services) {
         $existing = $tracked | Where-Object { $_.Name -eq $service.Name } | Select-Object -First 1
         Write-Host "[running] $($service.Name) (PID $($existing.ProcessId))"
         continue
+    }
+
+    if ($service.Name -eq "ai-worker") {
+        Write-Host "[waiting] API readiness: $ApiReadyUrl"
+        if (-not (Wait-HttpReady -Url $ApiReadyUrl -TimeoutSeconds $ApiReadyTimeoutSeconds)) {
+            Write-Warning "AI Worker was not started because the API is not ready. Fix the API and re-run .\start-all.ps1."
+            continue
+        }
+        Write-Host "[ready] API is ready; starting AI Worker."
     }
 
     $escapedRoot = $repoRoot.Replace("'", "''")
@@ -232,11 +286,21 @@ foreach ($service in $services) {
         Kind       = $service.Kind
         Command    = $service.Display
         ProcessId  = $process.Id
-        StartedAt  = (Get-Date).ToString("o")
+        StartedAt  = try {
+            (Get-Process -Id $process.Id -ErrorAction Stop).StartTime.ToUniversalTime().ToString("o")
+        }
+        catch {
+            (Get-Date).ToUniversalTime().ToString("o")
+        }
     }
 
     $startedCount++
     Write-Host "[started] $($service.Name) -> $($service.Display) (PID $($process.Id))"
+
+    @($nextState) |
+        ConvertTo-Json -Depth 4 |
+        Set-Content -LiteralPath $stateFile -Encoding UTF8
+
     Start-Sleep -Milliseconds 300
 }
 
@@ -255,7 +319,7 @@ if ($liveKitDevMode) {
 else {
     Write-Host "LiveKit: managed with custom arguments; application connection settings come from the configured environment."
 }
-Write-Host "AI Worker:      npm run ai-worker:dev"
+Write-Host "AI Worker:      $env:AI_WORKER_API_BASE_URL (starts only after API readiness)"
 Write-Host "LLM Interviewer: $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
 Write-Host "Web:     http://localhost:3000"
 Write-Host "Stop the complete tracked stack with: .\stop-all.ps1"
