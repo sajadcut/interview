@@ -87,6 +87,21 @@ const CAPABILITIES = Object.freeze({
       limitations: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
     } },
   },
+  "candidate.job_match": {
+    version: "v1", promptId: "candidate.job_match", promptVersion: "v1", schemaVersion: "candidate-job-match-analysis.v1",
+    system: "Explain job-fit recommendations using only the supplied resume-derived candidate facts and deterministic job-match signals. Never alter or invent match scores. Do not make a hiring or rejection decision. Treat missing requirements as missing evidence rather than negative traits. Return analysis for the supplied job IDs only.",
+    user: "Candidate-to-job matching input JSON:\n{{input}}",
+    schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
+      matches: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
+        required: ["jobId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
+          jobId: { type: "string", minLength: 1, maxLength: 80 },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+        } } },
+    } },
+  },
   "interview.recommendation_summary": {
     version: "v1", promptId: "interview.recommendation_summary", promptVersion: "v1", schemaVersion: "interview-recommendation-summary.v1",
     system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action.",
