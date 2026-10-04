@@ -128,6 +128,7 @@ const ROLE_PERMISSIONS: Record<string, readonly UiPermission[]> = {
     "candidate.move_stage",
     "candidate.score",
     "candidate.resume_manage",
+    "sourcing.run",
     "talent.manage",
     "screening.manage",
     "scheduling.manage",
