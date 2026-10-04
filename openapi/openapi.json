@@ -5074,6 +5074,254 @@
         ]
       }
     },
+    "/v1/jobs/{jobId}/talent-matches": {
+      "get": {
+        "operationId": "SourcingController_jobTalentMatches",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 25,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobTalentMatchDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/talent-matches/analysis": {
+      "post": {
+        "operationId": "SourcingController_startTalentAnalysis",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobTalentAnalysisStartDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/talent-analysis/{analysisJobId}": {
+      "get": {
+        "operationId": "SourcingController_talentAnalysis",
+        "parameters": [
+          {
+            "name": "analysisJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobTalentAnalysisStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/candidate-finder": {
+      "post": {
+        "operationId": "SourcingController_startCandidateFinder",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFinderStartDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/candidate-finder/{planJobId}": {
+      "get": {
+        "operationId": "SourcingController_candidateFinderPlan",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFinderPlanStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/jobs/{jobId}/candidate-finder/{planJobId}/execute": {
+      "post": {
+        "operationId": "SourcingController_executeCandidateFinder",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "planJobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateFinderExecuteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateFinderExecutionDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
+    "/v1/sourcing/discovered/{discoveredCandidateId}/accept": {
+      "post": {
+        "operationId": "SourcingController_acceptDiscoveredCandidate",
+        "parameters": [
+          {
+            "name": "discoveredCandidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedDiscoveredCandidateDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "sourcing"
+        ]
+      }
+    },
     "/v1/jobs/{jobId}/sourcing/imports": {
       "post": {
         "operationId": "SourcingImportExportController_importCandidates",
@@ -11638,6 +11886,278 @@
             "description": "Required again when retrying an approval-gated external source."
           }
         }
+      },
+      "JobTalentMatchDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "currentRole": {
+            "type": "string"
+          },
+          "currentCompany": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "matchScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "algorithmVersion": {
+            "type": "string"
+          },
+          "matchedRequirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missingMustHaveRequirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "candidateId",
+          "displayName",
+          "skills",
+          "matchScore",
+          "algorithmVersion",
+          "matchedRequirements",
+          "missingMustHaveRequirements"
+        ]
+      },
+      "JobTalentAnalysisStartDto": {
+        "type": "object",
+        "properties": {
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysisJobId",
+          "status"
+        ]
+      },
+      "JobTalentMatchExplanationDto": {
+        "type": "object",
+        "properties": {
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fitSummary": {
+            "type": "string"
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "candidateId",
+          "fitSummary",
+          "strengths",
+          "gaps",
+          "confidence"
+        ]
+      },
+      "JobTalentAnalysisStatusDto": {
+        "type": "object",
+        "properties": {
+          "analysisJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobTalentMatchExplanationDto"
+            }
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysisJobId",
+          "status"
+        ]
+      },
+      "CandidateFinderStartDto": {
+        "type": "object",
+        "properties": {
+          "planJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planJobId",
+          "status"
+        ]
+      },
+      "CandidateFinderToolCallDto": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "internal_talent_pool",
+              "ats",
+              "approved_job_board",
+              "approved_external"
+            ]
+          },
+          "providerKey": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "sourceType",
+          "query",
+          "limit"
+        ]
+      },
+      "CandidateFinderPlanStatusDto": {
+        "type": "object",
+        "properties": {
+          "planJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateFinderToolCallDto"
+            }
+          },
+          "errorMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planJobId",
+          "status"
+        ]
+      },
+      "CandidateFinderExecuteDto": {
+        "type": "object",
+        "properties": {
+          "approvalConfirmed": {
+            "type": "boolean",
+            "description": "Required when the generated plan uses ATS or external providers."
+          }
+        }
+      },
+      "CandidateFinderExecutionDto": {
+        "type": "object",
+        "properties": {
+          "planJobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourcingRunExecutionDto"
+            }
+          }
+        },
+        "required": [
+          "planJobId",
+          "runs"
+        ]
+      },
+      "AcceptedDiscoveredCandidateDto": {
+        "type": "object",
+        "properties": {
+          "discoveredCandidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "preInterviewMatchScore": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "importedCandidate": {
+            "type": "boolean"
+          },
+          "applicationAlreadyExisted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "discoveredCandidateId",
+          "candidateId",
+          "applicationId",
+          "preInterviewMatchScore",
+          "importedCandidate",
+          "applicationAlreadyExisted"
+        ]
       },
       "SourcingImportCandidateDto": {
         "type": "object",

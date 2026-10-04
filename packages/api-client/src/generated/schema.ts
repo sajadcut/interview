@@ -1428,6 +1428,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/jobs/{jobId}/talent-matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingController_jobTalentMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/talent-matches/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcingController_startTalentAnalysis"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/talent-analysis/{analysisJobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingController_talentAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/candidate-finder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcingController_startCandidateFinder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/candidate-finder/{planJobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SourcingController_candidateFinderPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/{jobId}/candidate-finder/{planJobId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcingController_executeCandidateFinder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sourcing/discovered/{discoveredCandidateId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SourcingController_acceptDiscoveredCandidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/jobs/{jobId}/sourcing/imports": {
         parameters: {
             query?: never;
@@ -3393,6 +3505,80 @@ export interface components {
         SourcingRetryRequestDto: {
             /** @description Required again when retrying an approval-gated external source. */
             approvalConfirmed?: boolean;
+        };
+        JobTalentMatchDto: {
+            /** Format: uuid */
+            candidateId: string;
+            displayName: string;
+            currentRole?: string;
+            currentCompany?: string;
+            skills: string[];
+            matchScore: number;
+            algorithmVersion: string;
+            matchedRequirements: string[];
+            missingMustHaveRequirements: string[];
+            /** Format: uuid */
+            applicationId?: string;
+        };
+        JobTalentAnalysisStartDto: {
+            /** Format: uuid */
+            analysisJobId: string;
+            status: string;
+        };
+        JobTalentMatchExplanationDto: {
+            /** Format: uuid */
+            candidateId: string;
+            fitSummary: string;
+            strengths: string[];
+            gaps: string[];
+            confidence: number;
+        };
+        JobTalentAnalysisStatusDto: {
+            /** Format: uuid */
+            analysisJobId: string;
+            status: string;
+            matches?: components["schemas"]["JobTalentMatchExplanationDto"][];
+            errorMessage?: string;
+        };
+        CandidateFinderStartDto: {
+            /** Format: uuid */
+            planJobId: string;
+            status: string;
+        };
+        CandidateFinderToolCallDto: {
+            /** @enum {string} */
+            sourceType: "internal_talent_pool" | "ats" | "approved_job_board" | "approved_external";
+            providerKey?: string;
+            query: string;
+            limit: number;
+        };
+        CandidateFinderPlanStatusDto: {
+            /** Format: uuid */
+            planJobId: string;
+            status: string;
+            rationale?: string;
+            toolCalls?: components["schemas"]["CandidateFinderToolCallDto"][];
+            errorMessage?: string;
+        };
+        CandidateFinderExecuteDto: {
+            /** @description Required when the generated plan uses ATS or external providers. */
+            approvalConfirmed?: boolean;
+        };
+        CandidateFinderExecutionDto: {
+            /** Format: uuid */
+            planJobId: string;
+            runs: components["schemas"]["SourcingRunExecutionDto"][];
+        };
+        AcceptedDiscoveredCandidateDto: {
+            /** Format: uuid */
+            discoveredCandidateId: string;
+            /** Format: uuid */
+            candidateId: string;
+            /** Format: uuid */
+            applicationId: string;
+            preInterviewMatchScore: number;
+            importedCandidate: boolean;
+            applicationAlreadyExisted: boolean;
         };
         SourcingImportCandidateDto: {
             /** Format: uuid */
@@ -7906,6 +8092,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourcingRunExecutionDto"];
+                };
+            };
+        };
+    };
+    SourcingController_jobTalentMatches: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTalentMatchDto"][];
+                };
+            };
+        };
+    };
+    SourcingController_startTalentAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTalentAnalysisStartDto"];
+                };
+            };
+        };
+    };
+    SourcingController_talentAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysisJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTalentAnalysisStatusDto"];
+                };
+            };
+        };
+    };
+    SourcingController_startCandidateFinder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFinderStartDto"];
+                };
+            };
+        };
+    };
+    SourcingController_candidateFinderPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                planJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFinderPlanStatusDto"];
+                };
+            };
+        };
+    };
+    SourcingController_executeCandidateFinder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                planJobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CandidateFinderExecuteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateFinderExecutionDto"];
+                };
+            };
+        };
+    };
+    SourcingController_acceptDiscoveredCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                discoveredCandidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedDiscoveredCandidateDto"];
                 };
             };
         };
