@@ -451,7 +451,7 @@ export function CandidateResumeIntakePanel({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h3 className="text-[13px] font-semibold text-slate-900">پیشنهاد موقعیت‌های شغلی</h3>
-              <p className="mt-1 text-[9px] text-slate-500">امتیاز از شواهد رزومه و Requirementهای موقعیت محاسبه می‌شود؛ LLM فقط توضیح قابل‌بررسی ارائه می‌کند.</p>
+              <p className="mt-1 text-[9px] text-slate-500">امتیاز از شواهد رزومه و Requirementهای موقعیت محاسبه می‌شود؛ هوش مصنوعی فقط توضیح قابل‌بررسی ارائه می‌کند.</p>
             </div>
             <Pill tone="blue">{targetJobTitle ? `تطبیق با ${targetJobTitle}` : `${formatFaNumber(displayedMatches.length)} موقعیت بررسی‌شده`}</Pill>
           </div>
@@ -485,7 +485,7 @@ export function CandidateResumeIntakePanel({
 
                   {ai ? (
                     <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3">
-                      <div className="text-[8px] font-semibold text-violet-700">تحلیل LLM · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
+                      <div className="text-[8px] font-semibold text-violet-700">تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
                       <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
                       {ai.strengths.length ? <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {ai.strengths.join(" · ")}</div> : null}
                       {ai.gaps.length ? <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {ai.gaps.join(" · ")}</div> : null}
