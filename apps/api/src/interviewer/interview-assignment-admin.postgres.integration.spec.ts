@@ -1,4 +1,5 @@
 // Regression coverage for the requisition-backed human technical interview workflow.
+// The same contract is exercised from the Job workspace scheduling UI.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
