@@ -2,7 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { CandidateResumeIntakePanel } from "../../../components/recruiting/candidate-resume-intake-panel";
 import { Panel, PersonAvatar, Pill } from "../../../components/product/recruiting-ui";
@@ -23,12 +23,12 @@ export default function CandidatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
-  async function refreshCandidates() {
+  const refreshCandidates = useCallback(async () => {
     const identity = await resolveTenantIdentity();
     const result = await api.GET("/v1/candidates", { headers: tenantHeaders(identity) });
     if (result.error || !result.data) throw new Error("کاندیداها از سرویس جذب بارگذاری نشدند");
     setCandidates(result.data);
-  }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -42,7 +42,7 @@ export default function CandidatesPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [refreshCandidates]);
 
   const filteredCandidates = useMemo(() => {
     const normalized = query.trim().toLowerCase();
