@@ -66,6 +66,132 @@ const ACCEPTED = new Set([
   "text/plain",
 ]);
 
+const ACTIVE_AI_STATUSES = new Set(["queued", "running", "retry_scheduled"]);
+const FAILED_AI_STATUSES = new Set(["failed", "dead_letter", "cancelled"]);
+
+function aiStatusLabel(status?: string): string {
+  if (!status || status === "queued") return "در صف تحلیل هوش مصنوعی";
+  if (status === "running") return "هوش مصنوعی در حال تحلیل تطبیق‌هاست";
+  if (status === "retry_scheduled") return "تحلیل نیاز به تلاش مجدد دارد؛ سیستم خودکار ادامه می‌دهد";
+  if (status === "succeeded") return "تحلیل هوش مصنوعی آماده است";
+  if (FAILED_AI_STATUSES.has(status)) return "تحلیل توضیحی هوش مصنوعی تکمیل نشد";
+  return "در حال بررسی وضعیت تحلیل هوش مصنوعی";
+}
+
+function ResumeProcessingStatus({
+  uploading,
+  resultReady,
+  analysisJobId,
+  analysisStatus,
+}: {
+  uploading: boolean;
+  resultReady: boolean;
+  analysisJobId?: string;
+  analysisStatus?: string;
+}) {
+  const aiPending = Boolean(analysisJobId) && (!analysisStatus || ACTIVE_AI_STATUSES.has(analysisStatus));
+  const aiSucceeded = analysisStatus === "succeeded";
+  const aiFailed = Boolean(analysisStatus && FAILED_AI_STATUSES.has(analysisStatus));
+  if (!uploading && !analysisJobId) return null;
+
+  const steps = [
+    {
+      label: "دریافت و استخراج رزومه",
+      done: resultReady,
+      active: uploading,
+      failed: false,
+    },
+    {
+      label: "ساخت شواهد و تطبیق اولیه",
+      done: resultReady,
+      active: !uploading && !resultReady,
+      failed: false,
+    },
+    {
+      label: "تحلیل توضیحی با هوش مصنوعی",
+      done: aiSucceeded,
+      active: aiPending,
+      failed: aiFailed,
+    },
+  ];
+
+  return (
+    <div
+      className={`mt-4 rounded-2xl border p-4 ${
+        aiFailed
+          ? "border-amber-200 bg-amber-50/70"
+          : aiSucceeded
+            ? "border-emerald-200 bg-emerald-50/70"
+            : "border-indigo-200 bg-indigo-50/70"
+      }`}
+      aria-live="polite"
+      aria-busy={uploading || aiPending}
+    >
+      <div className="flex items-center gap-3">
+        {uploading || aiPending ? (
+          <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
+        ) : aiSucceeded ? (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white" aria-hidden="true">✓</span>
+        ) : (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white" aria-hidden="true">!</span>
+        )}
+        <div>
+          <div className="text-[11px] font-semibold text-slate-900">
+            {uploading ? "رزومه در حال پردازش است" : aiStatusLabel(analysisStatus)}
+          </div>
+          <div className="mt-0.5 text-[9px] leading-4 text-slate-500">
+            {uploading
+              ? "فایل استخراج می‌شود و شواهد رزومه برای تطبیق با موقعیت‌ها آماده می‌شوند."
+              : aiPending
+                ? "تطبیق اولیه آماده است؛ برای توضیح نقاط قوت و شکاف‌ها منتظر پاسخ AI بمانید. این وضعیت خودکار به‌روزرسانی می‌شود."
+                : aiFailed
+                  ? "امتیاز تطبیق اولیه همچنان معتبر و قابل بررسی است؛ فقط توضیح تکمیلی AI در دسترس نیست."
+                  : "تحلیل تکمیلی آماده شد و در کارت موقعیت‌ها نمایش داده می‌شود."}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {steps.map((step, index) => (
+          <div
+            key={step.label}
+            className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${
+              step.failed
+                ? "border-amber-200 bg-white text-amber-800"
+                : step.done
+                  ? "border-emerald-100 bg-white text-emerald-700"
+                  : step.active
+                    ? "border-indigo-200 bg-white text-indigo-700"
+                    : "border-slate-100 bg-white/70 text-slate-400"
+            }`}
+          >
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[8px] font-bold ${
+                step.failed
+                  ? "bg-amber-100 text-amber-700"
+                  : step.done
+                    ? "bg-emerald-100 text-emerald-700"
+                    : step.active
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "bg-slate-100 text-slate-400"
+              }`}
+            >
+              {step.done ? "✓" : step.failed ? "!" : formatFaNumber(index + 1)}
+            </span>
+            <span className="text-[9px] font-semibold">{step.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {(uploading || aiPending) ? (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-indigo-500" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function CandidateResumeIntakePanel({
   onCandidateReady,
   targetJobId,
@@ -115,8 +241,12 @@ export function CandidateResumeIntakePanel({
         if (!active) return;
         const next = analysisResult.data as AnalysisStatus;
         setAnalysis(next);
-        if (["queued", "running", "retry_scheduled"].includes(next.status)) {
+        if (ACTIVE_AI_STATUSES.has(next.status)) {
           timer = setTimeout(() => void poll(), 2000);
+        } else if (next.status === "succeeded") {
+          setMessage("تحلیل هوش مصنوعی آماده شد؛ توضیح نقاط قوت و شکاف‌ها به پیشنهادهای موقعیت اضافه شد.");
+        } else if (FAILED_AI_STATUSES.has(next.status)) {
+          setMessage("تطبیق اولیه آماده است، اما تحلیل توضیحی هوش مصنوعی تکمیل نشد. می‌توانید بر اساس شواهد رزومه ادامه دهید.");
         }
       } catch (cause) {
         if (active) setMessage(cause instanceof Error ? cause.message : "تحلیل هوش مصنوعی دریافت نشد");
@@ -171,9 +301,13 @@ export function CandidateResumeIntakePanel({
       const next = intakeResult.data as IntakeResult;
       setResult(next);
       setMessage(
-        next.reusedExistingCandidate
-          ? "رزومه به پروفایل موجود متصل شد و تطبیق موقعیت‌ها دوباره محاسبه شد."
-          : "کاندیدا از روی رزومه ساخته شد و موقعیت‌های مناسب محاسبه شدند.",
+        next.analysisJobId
+          ? next.reusedExistingCandidate
+            ? "رزومه به پروفایل موجود متصل شد؛ تطبیق اولیه آماده است و تحلیل هوش مصنوعی ادامه دارد."
+            : "رزومه پردازش شد؛ تطبیق اولیه آماده است و تحلیل هوش مصنوعی ادامه دارد."
+          : next.reusedExistingCandidate
+            ? "رزومه به پروفایل موجود متصل شد و تطبیق موقعیت‌ها دوباره محاسبه شد."
+            : "کاندیدا از روی رزومه ساخته شد و موقعیت‌های مناسب محاسبه شدند.",
       );
       if (inputRef.current) inputRef.current.value = "";
       await onCandidateReady?.();
@@ -250,6 +384,13 @@ export function CandidateResumeIntakePanel({
               }}
             />
           </label>
+
+          <ResumeProcessingStatus
+            uploading={uploading}
+            resultReady={Boolean(result)}
+            analysisJobId={result?.analysisJobId}
+            analysisStatus={analysis?.status}
+          />
         </div>
 
         {result ? (
@@ -271,8 +412,19 @@ export function CandidateResumeIntakePanel({
                 <div className="rounded-lg bg-white p-2"><div className="text-[8px] text-slate-400">موقعیت</div><strong className="text-[12px]">{formatFaNumber(displayedMatches.length)}</strong></div>
               </div>
               {result.analysisJobId ? (
-                <div className="rounded-lg bg-white px-3 py-2 text-[9px] text-slate-600">
-                  تحلیل LLM: <strong>{analysis?.status === "succeeded" ? "آماده" : analysis?.status === "dead_letter" ? "ناموفق" : "در حال پردازش"}</strong>
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-[9px] text-slate-600">
+                  <span>تحلیل AI</span>
+                  <strong className={`${analysis?.status === "succeeded" ? "text-emerald-700" : analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? "text-amber-700" : "text-indigo-700"}`}>
+                    {analysis?.status === "succeeded"
+                      ? "آماده"
+                      : analysis?.status && FAILED_AI_STATUSES.has(analysis.status)
+                        ? "تکمیل نشد"
+                        : analysis?.status === "retry_scheduled"
+                          ? "تلاش مجدد"
+                          : analysis?.status === "running"
+                            ? "در حال تحلیل"
+                            : "در صف"}
+                  </strong>
                 </div>
               ) : null}
             </div>
@@ -326,8 +478,26 @@ export function CandidateResumeIntakePanel({
                       {ai.strengths.length ? <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {ai.strengths.join(" · ")}</div> : null}
                       {ai.gaps.length ? <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {ai.gaps.join(" · ")}</div> : null}
                     </div>
-                  ) : result.analysisJobId ? (
-                    <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[8px] text-slate-500">تحلیل توضیحی LLM در حال آماده‌سازی است…</div>
+                  ) : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status)) ? (
+                    <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
+                      <div className="flex items-center gap-2 text-[8px] font-semibold text-indigo-700">
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
+                        {analysis?.status === "retry_scheduled"
+                          ? "AI در حال تلاش مجدد برای ساخت توضیح این تطبیق است…"
+                          : analysis?.status === "running"
+                            ? "AI در حال تحلیل نقاط قوت و شکاف‌های این تطبیق است…"
+                            : "تحلیل AI در صف پردازش است…"}
+                      </div>
+                      <div className="mt-3 space-y-2" aria-hidden="true">
+                        <div className="h-2.5 w-full animate-pulse rounded bg-indigo-100" />
+                        <div className="h-2.5 w-5/6 animate-pulse rounded bg-indigo-100" />
+                        <div className="h-2.5 w-2/3 animate-pulse rounded bg-indigo-100" />
+                      </div>
+                    </div>
+                  ) : result.analysisJobId && analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? (
+                    <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[8px] leading-4 text-amber-800">
+                      توضیح AI برای این تطبیق آماده نشد. امتیاز و شواهد تطبیق اولیه همچنان قابل استفاده‌اند.
+                    </div>
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -337,11 +507,19 @@ export function CandidateResumeIntakePanel({
                     ) : (
                       <button
                         type="button"
-                        disabled={!match.rubricPublished || busyJobId === match.jobId}
+                        disabled={
+                          !match.rubricPublished ||
+                          busyJobId === match.jobId ||
+                          Boolean(result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status)))
+                        }
                         onClick={() => void acceptMatch(match)}
                         className="rounded-lg bg-slate-950 px-3 py-2 text-[9px] font-semibold text-white disabled:opacity-40"
                       >
-                        {busyJobId === match.jobId ? "در حال افزودن…" : "افزودن به این موقعیت"}
+                        {busyJobId === match.jobId
+                          ? "در حال افزودن…"
+                          : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status))
+                            ? "منتظر تحلیل AI…"
+                            : "افزودن به این موقعیت"}
                       </button>
                     )}
                   </div>
