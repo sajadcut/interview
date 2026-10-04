@@ -1,13 +1,283 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
+import type { ScheduleTechnicalInterviewDto } from "./interviewer.dto";
 
 @Injectable()
 export class InterviewAssignmentAdminService {
   constructor(
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
+    private readonly authContext: AuthContextService,
   ) {}
+
+  async scheduleTechnicalInterview(input: ScheduleTechnicalInterviewDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const actorUserId = this.authContext.getOptional()?.userId;
+    if (!actorUserId) throw new BadRequestException("Authenticated user context is required");
+
+    const scheduledFor = new Date(input.scheduledFor);
+    if (Number.isNaN(scheduledFor.getTime())) {
+      throw new BadRequestException("scheduledFor must be a valid ISO date-time");
+    }
+    const durationMinutes = input.durationMinutes ?? 60;
+    const language = input.language?.trim() || "fa";
+
+    return this.database.sql.begin(async (tx) => {
+      const applications = await tx`
+        SELECT
+          a.id::text,
+          a.job_id::text,
+          a.rubric_version_id::text,
+          a.pipeline_stage,
+          a.status,
+          j.title AS job_title
+        FROM applications a
+        JOIN jobs j
+          ON j.organization_id = a.organization_id
+         AND j.id = a.job_id
+        WHERE a.organization_id = ${organizationId}::uuid
+          AND a.id = ${input.applicationId}::uuid
+        LIMIT 1
+        FOR UPDATE OF a
+      `;
+      const application = applications[0];
+      if (!application) throw new NotFoundException("Application not found");
+      if (["closed", "withdrawn"].includes(String(application.status))) {
+        throw new BadRequestException("A closed application cannot be scheduled for interview");
+      }
+
+      const interviewers = await tx`
+        SELECT m.id::text
+        FROM memberships m
+        JOIN membership_roles mr
+          ON mr.membership_id = m.id
+         AND mr.organization_id = m.organization_id
+        JOIN roles r
+          ON r.id = mr.role_id
+         AND r.organization_id = m.organization_id
+        WHERE m.organization_id = ${organizationId}::uuid
+          AND m.user_id = ${input.interviewerUserId}::uuid
+          AND m.status = 'active'
+          AND r.key = 'INTERVIEWER'
+        LIMIT 1
+      `;
+      if (!interviewers[0]) {
+        throw new BadRequestException("Assigned user must be an active INTERVIEWER in this organization");
+      }
+
+      let planRows = await tx`
+        SELECT id::text
+        FROM interview_plans
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${String(application.job_id)}::uuid
+          AND rubric_version_id = ${String(application.rubric_version_id)}::uuid
+          AND interview_type = 'human_technical'
+          AND status = 'published'
+        ORDER BY version DESC
+        LIMIT 1
+      `;
+
+      let planId = planRows[0]?.id ? String(planRows[0].id) : undefined;
+      if (!planId) {
+        const releaseRows = await tx`
+          INSERT INTO interview_release_units (
+            organization_id,
+            job_family,
+            language,
+            interview_type,
+            rubric_version_family,
+            interviewer_policy_version,
+            speech_avatar_stack_version,
+            evaluator_version,
+            lifecycle_stage
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${String(application.job_title)},
+            ${language},
+            'human_technical',
+            ${`rubric:${String(application.rubric_version_id)}`},
+            'human-technical-v1',
+            'not-applicable',
+            'human-evaluator-v1',
+            'DEV_ONLY'
+          )
+          ON CONFLICT (
+            organization_id, job_family, language, interview_type, rubric_version_family,
+            interviewer_policy_version, speech_avatar_stack_version, evaluator_version
+          )
+          DO UPDATE SET updated_at = now()
+          RETURNING id::text
+        `;
+        const releaseUnitId = String(releaseRows[0]?.id);
+        const versionRows = await tx`
+          SELECT COALESCE(max(version), 0)::int + 1 AS next_version
+          FROM interview_plans
+          WHERE organization_id = ${organizationId}::uuid
+            AND job_id = ${String(application.job_id)}::uuid
+        `;
+        const version = Number(versionRows[0]?.next_version ?? 1);
+        planRows = await tx`
+          INSERT INTO interview_plans (
+            organization_id,
+            job_id,
+            rubric_version_id,
+            release_unit_id,
+            version,
+            status,
+            language,
+            interview_type,
+            time_budget_minutes,
+            question_strategy,
+            forbidden_topics,
+            recovery_policy
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${String(application.job_id)}::uuid,
+            ${String(application.rubric_version_id)}::uuid,
+            ${releaseUnitId}::uuid,
+            ${version},
+            'published',
+            ${language},
+            'human_technical',
+            ${durationMinutes},
+            ${this.database.sql.json({
+              mode: "human",
+              evidenceFirst: true,
+              decisionAuthority: "human",
+            } as never)},
+            '[]'::jsonb,
+            ${this.database.sql.json({ resumeFromCheckpoint: false } as never)}
+          )
+          RETURNING id::text
+        `;
+        planId = String(planRows[0]?.id);
+      }
+
+      const existingSessions = await tx`
+        SELECT s.id::text
+        FROM interview_sessions s
+        JOIN interview_plans p
+          ON p.organization_id = s.organization_id
+         AND p.id = s.interview_plan_id
+        WHERE s.organization_id = ${organizationId}::uuid
+          AND s.application_id = ${input.applicationId}::uuid
+          AND p.interview_type = 'human_technical'
+          AND s.status NOT IN ('completed', 'cancelled')
+        ORDER BY s.created_at DESC
+        LIMIT 1
+        FOR UPDATE OF s
+      `;
+
+      let sessionId = existingSessions[0]?.id ? String(existingSessions[0].id) : undefined;
+      if (!sessionId) {
+        const sessions = await tx`
+          INSERT INTO interview_sessions (
+            organization_id,
+            application_id,
+            interview_plan_id,
+            status,
+            remaining_seconds,
+            checkpoint
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${input.applicationId}::uuid,
+            ${planId}::uuid,
+            'invited',
+            ${durationMinutes * 60},
+            ${this.database.sql.json({
+              interviewMode: "human_technical",
+              scheduledFor: scheduledFor.toISOString(),
+            } as never)}
+          )
+          RETURNING id::text
+        `;
+        sessionId = String(sessions[0]?.id);
+      } else {
+        await tx`
+          UPDATE interview_sessions
+          SET remaining_seconds = ${durationMinutes * 60},
+              checkpoint = checkpoint || ${this.database.sql.json({
+                interviewMode: "human_technical",
+                scheduledFor: scheduledFor.toISOString(),
+              } as never)}::jsonb,
+              updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${sessionId}::uuid
+        `;
+      }
+
+      await tx`
+        UPDATE interview_assignments
+        SET status = 'cancelled', updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND interview_session_id = ${sessionId}::uuid
+          AND interviewer_user_id <> ${input.interviewerUserId}::uuid
+          AND status <> 'cancelled'
+      `;
+
+      await tx`
+        INSERT INTO interview_assignments (
+          organization_id,
+          interview_session_id,
+          interviewer_user_id,
+          assigned_by_user_id,
+          status,
+          scheduled_for
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${sessionId}::uuid,
+          ${input.interviewerUserId}::uuid,
+          ${actorUserId}::uuid,
+          'assigned',
+          ${scheduledFor}
+        )
+        ON CONFLICT (organization_id, interview_session_id, interviewer_user_id)
+        DO UPDATE SET
+          assigned_by_user_id = EXCLUDED.assigned_by_user_id,
+          status = 'assigned',
+          scheduled_for = EXCLUDED.scheduled_for,
+          updated_at = now()
+      `;
+
+      const fromStage = String(application.pipeline_stage);
+      if (fromStage !== "interview") {
+        await tx`
+          INSERT INTO application_stage_transitions (
+            organization_id,
+            application_id,
+            from_stage,
+            to_stage,
+            reason,
+            actor_user_id
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${input.applicationId}::uuid,
+            ${fromStage},
+            'interview',
+            'Technical interview scheduled',
+            ${actorUserId}::uuid
+          )
+        `;
+        await tx`
+          UPDATE applications
+          SET pipeline_stage = 'interview', updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${input.applicationId}::uuid
+        `;
+      }
+
+      return {
+        sessionId,
+        applicationId: input.applicationId,
+        interviewerUserId: input.interviewerUserId,
+        scheduledFor: scheduledFor.toISOString(),
+        durationMinutes,
+        pipelineStage: "interview",
+      };
+    });
+  }
 
   async getOptions() {
     const organizationId = this.tenantContext.require().organizationId;
