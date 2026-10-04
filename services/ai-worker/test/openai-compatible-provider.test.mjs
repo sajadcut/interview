@@ -81,6 +81,8 @@ test("openai-compatible generation matches the Dotin OpenAI-compatible contract"
     assert.equal(body.enable_thinking, false);
     assert.equal(body.reasoning_effort, "medium");
     assert.equal(body.messages[1].content, "hello");
+    assert.match(body.messages[0].content, /Return ONLY one JSON object/);
+    assert.match(body.messages[0].content, /"required":\["ok"\]/);
     return new Response(JSON.stringify({
       id: "chatcmpl-test",
       object: "chat.completion",
@@ -95,6 +97,12 @@ test("openai-compatible generation matches the Dotin OpenAI-compatible contract"
     const result = await provider().generate({
       prompt: { system: "system", user: "hello" },
       maxOutputTokens: 20,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["ok"],
+        properties: { ok: { type: "boolean" } },
+      },
       metadata: {
         executionId: "execution-123",
         inputReferences: { sessionId: "session-456" },
