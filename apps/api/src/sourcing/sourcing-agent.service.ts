@@ -497,9 +497,9 @@ export class SourcingAgentService {
         experiences: currentRole
           ? [{
               title: currentRole,
-              description: typeof profile.currentCompany === "string"
-                ? `Current company: ${profile.currentCompany}`
-                : undefined,
+              ...(typeof profile.currentCompany === "string"
+                ? { description: `Current company: ${profile.currentCompany}` }
+                : {}),
               sourceReference: `discovered_candidate:${String(candidate.id)}`,
             }]
           : [],
