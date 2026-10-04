@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { getEnv } from "../config/env";
 import { DisabledResumeEmbeddingProvider } from "./disabled-resume-embedding.provider";
 import { OpenAiCompatibleResumeEmbeddingProvider } from "./openai-compatible-resume-embedding.provider";
+import { CandidateResumeIntakeController } from "./candidate-resume-intake.controller";
+import { CandidateResumeIntakeService } from "./candidate-resume-intake.service";
 import { ResumeChunker } from "./resume-chunker";
 import { RESUME_EMBEDDING_PROVIDER } from "./resume-embedding-provider";
 import { ResumeIngestionController } from "./resume-ingestion.controller";
@@ -10,9 +12,10 @@ import { ResumeParser } from "./resume-parser";
 import { ResumeTextExtractor } from "./resume-text-extractor";
 
 @Module({
-  controllers: [ResumeIngestionController],
+  controllers: [ResumeIngestionController, CandidateResumeIntakeController],
   providers: [
     ResumeIngestionService,
+    CandidateResumeIntakeService,
     ResumeTextExtractor,
     ResumeParser,
     ResumeChunker,
@@ -27,6 +30,6 @@ import { ResumeTextExtractor } from "./resume-text-extractor";
       ) => getEnv().EMBEDDING_PROVIDER === "openai-compatible" ? openAiCompatible : disabled,
     },
   ],
-  exports: [ResumeIngestionService],
+  exports: [ResumeIngestionService, CandidateResumeIntakeService],
 })
 export class ResumeIngestionModule {}
