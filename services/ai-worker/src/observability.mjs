@@ -167,6 +167,24 @@ export function withTraceContext(context, callback) {
   return storage.run(context, callback);
 }
 
+export function contextFromHeaders(headers = {}) {
+  const rawTraceId = Array.isArray(headers["x-trace-id"]) ? headers["x-trace-id"][0] : headers["x-trace-id"];
+  const rawRequestId = Array.isArray(headers["x-request-id"]) ? headers["x-request-id"][0] : headers["x-request-id"];
+  const traceparent = Array.isArray(headers.traceparent) ? headers.traceparent[0] : headers.traceparent;
+  const traceMatch = /^00-([a-f0-9]{32})-([a-f0-9]{16})-[a-f0-9]{2}$/i.exec(String(traceparent ?? "").trim());
+  return newTraceContext({
+    traceId: traceMatch?.[1]
+      ? traceMatch[1].toLowerCase()
+      : /^[a-f0-9]{32}$/i.test(String(rawTraceId ?? ""))
+        ? String(rawTraceId).toLowerCase()
+        : undefined,
+    requestId: typeof rawRequestId === "string" && rawRequestId.trim()
+      ? rawRequestId.trim().slice(0, 128)
+      : undefined,
+    parentSpanId: traceMatch?.[2]?.toLowerCase(),
+  });
+}
+
 export function contextFromJob(job) {
   const observability =
     job?.payload?.observability && typeof job.payload.observability === "object"
