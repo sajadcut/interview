@@ -101,16 +101,18 @@ For larger LLM/RAG payloads, `LOG_MAX_BODY_BYTES` may be increased up to 1048576
 
 ## Windows PowerShell
 
+> Windows PowerShell 5.1 may decode UTF-8 JSONL as the active ANSI code page when `-Encoding UTF8` is omitted. That produces mojibake such as `ØªÙ...` even when the log file itself is valid UTF-8.
+
 Follow API logs:
 
 ```powershell
-Get-Content .\.local-data\logs\interview-api.log -Wait
+Get-Content .\.local-data\logs\interview-api.log -Encoding UTF8 -Wait
 ```
 
 Follow AI worker logs:
 
 ```powershell
-Get-Content .\.local-data\logs\interview-ai-worker.log -Wait
+Get-Content .\.local-data\logs\interview-ai-worker.log -Encoding UTF8 -Wait
 ```
 
 Find one end-to-end trace:
@@ -123,7 +125,7 @@ Select-String -Path .\.local-data\logs\*.log* -Pattern $trace
 Parse recent API JSON lines:
 
 ```powershell
-Get-Content .\.local-data\logs\interview-api.log -Tail 100 |
+Get-Content .\.local-data\logs\interview-api.log -Encoding UTF8 -Tail 100 |
   ForEach-Object { $_ | ConvertFrom-Json } |
   Select-Object time, level, event, traceId, requestId, statusCode, durationMs, url
 ```
