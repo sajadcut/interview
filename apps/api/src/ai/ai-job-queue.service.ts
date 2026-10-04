@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ConflictException, Injectable } from "@nestjs/common";
+import { currentTraceContext } from "../common/observability/trace-context";
+import { loggableBody, writeStructuredLog } from "../common/observability/structured-log";
 import { DatabaseService } from "../database/database.service";
 
 const MIN_LEASE_MS = 5_000;
@@ -152,6 +154,27 @@ export class AiJobQueueService {
     );
     const idempotencyKey = input.idempotencyKey?.trim() || null;
     const availableAt = input.availableAt ?? new Date();
+    const trace = currentTraceContext();
+    const payload = {
+      ...(input.payload ?? {}),
+      ...(trace
+        ? {
+            observability: {
+              traceId: trace.traceId,
+              requestId: trace.requestId,
+              parentSpanId: trace.spanId,
+            },
+          }
+        : {}),
+    };
+
+    writeStructuredLog("info", "ai.job.enqueue.request", {
+      capability,
+      organizationId: input.organizationId,
+      idempotencyKey,
+      timeoutMs,
+      payload: loggableBody(payload, "application/json"),
+    });
 
     let inserted = true;
     let rows = await this.database.sql`
@@ -164,7 +187,7 @@ export class AiJobQueueService {
         ${input.organizationId}::uuid,
         ${input.executionId ?? null}::uuid,
         ${capability},
-        ${this.database.sql.json((input.payload ?? {}) as never)},
+        ${this.database.sql.json(payload as never)},
         ${priority},
         ${maxAttempts},
         ${timeoutMs},
@@ -199,7 +222,15 @@ export class AiJobQueueService {
       });
     }
 
-    return toJob(row);
+    const job = toJob(row);
+    writeStructuredLog("info", "ai.job.enqueue.response", {
+      jobId: job.id,
+      capability: job.capability,
+      status: job.status,
+      idempotentReplay: !inserted,
+      payload: loggableBody(job.payload, "application/json"),
+    });
+    return job;
   }
 
   async claim(workerId: string, requestedLeaseMs?: number): Promise<AiJob | null> {
