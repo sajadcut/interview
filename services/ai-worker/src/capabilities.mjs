@@ -52,8 +52,8 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "interview.evaluate": {
-    version: "v1", promptId: "interview.evaluate", promptVersion: "v1", schemaVersion: "interview-evaluator-draft-v1",
-    system: "Produce an evidence-bound evaluation draft. Every score must cite supplied evidence IDs for the same criterion. Recommendation is decision support only and never a hiring action. Do not invent provenance fields. Return only criterion results and an optional recommendation.",
+    version: "v1", promptId: "interview.evaluate", promptVersion: "v2", schemaVersion: "interview-evaluator-draft-v1",
+    system: "Produce an evidence-bound evaluation draft. Every score must cite supplied evidence IDs for the same criterion. Recommendation is decision support only and never a hiring action. Do not invent provenance fields. Return only criterion results and an optional recommendation. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Evaluator input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["criterionResults"], properties: {
       criterionResults: { type: "array", minItems: 1, maxItems: 200, items: { type: "object", additionalProperties: false,
@@ -77,8 +77,8 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "candidate.summary": {
-    version: "v1", promptId: "candidate.summary", promptVersion: "v1", schemaVersion: "candidate-summary.v1",
-    system: "Summarize only supplied candidate evidence for recruiter review. Separate missing evidence from negative evidence. Do not make a final employment decision.",
+    version: "v1", promptId: "candidate.summary", promptVersion: "v2", schemaVersion: "candidate-summary.v1",
+    system: "Summarize only supplied candidate evidence for recruiter review. Separate missing evidence from negative evidence. Do not make a final employment decision. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Candidate summary input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["summary", "strengthEvidence", "gapEvidence", "limitations"], properties: {
       summary: { type: "string", minLength: 1, maxLength: 6000 },
@@ -88,31 +88,31 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "candidate.job_match": {
-    version: "v1", promptId: "candidate.job_match", promptVersion: "v2", schemaVersion: "candidate-job-match-analysis.v1",
-    system: "Explain job-fit recommendations using only the supplied resume-derived candidate facts and deterministic job-match signals. Never alter or invent match scores. Do not make a hiring or rejection decision. Treat missing requirements as missing evidence rather than negative traits. Return analysis for the supplied job IDs only.",
+    version: "v1", promptId: "candidate.job_match", promptVersion: "v3", schemaVersion: "candidate-job-match-analysis.v1",
+    system: "Explain job-fit recommendations using only the supplied resume-derived candidate facts and deterministic job-match signals. Never alter or invent match scores. Do not make a hiring or rejection decision. Treat missing requirements as missing evidence rather than negative traits. Return analysis for the supplied job IDs only. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Candidate-to-job matching input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
       matches: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
         required: ["jobId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
           jobId: { type: "string", minLength: 1, maxLength: 80 },
-          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
-          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
-          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500, pattern: "[\\u0600-\\u06FF]" },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
           confidence: { type: "number", minimum: 0, maximum: 1 },
         } } },
     } },
   },
   "job.talent_match_explain": {
-    version: "v1", promptId: "job.talent_match_explain", promptVersion: "v2", schemaVersion: "job-talent-match-explain.v1",
-    system: "Explain why the supplied internal talent candidates may fit the supplied job using only deterministic match signals and supplied candidate facts. Never change or invent match scores. Missing requirements are missing evidence, not negative traits. Do not make a hire or reject decision.",
+    version: "v1", promptId: "job.talent_match_explain", promptVersion: "v3", schemaVersion: "job-talent-match-explain.v1",
+    system: "Explain why the supplied internal talent candidates may fit the supplied job using only deterministic match signals and supplied candidate facts. Never change or invent match scores. Missing requirements are missing evidence, not negative traits. Do not make a hire or reject decision. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Job-to-internal-talent analysis input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
       matches: { type: "array", maxItems: 8, items: { type: "object", additionalProperties: false,
         required: ["candidateId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
           candidateId: { type: "string", minLength: 1, maxLength: 80 },
-          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
-          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
-          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500, pattern: "[\\u0600-\\u06FF]" },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
           confidence: { type: "number", minimum: 0, maximum: 1 },
         } } },
     } },
@@ -133,23 +133,23 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "sourcing.result_explain": {
-    version: "v1", promptId: "sourcing.result_explain", promptVersion: "v1", schemaVersion: "sourcing-result-explain.v1",
-    system: "Explain candidate-finder results using only the supplied source-derived profile facts and deterministic job-match signals. Never change or invent match scores. Do not make hiring or rejection decisions. Treat missing requirements as missing evidence. Return analysis only for supplied discoveredCandidateIds.",
+    version: "v1", promptId: "sourcing.result_explain", promptVersion: "v2", schemaVersion: "sourcing-result-explain.v1",
+    system: "Explain candidate-finder results using only the supplied source-derived profile facts and deterministic job-match signals. Never change or invent match scores. Do not make hiring or rejection decisions. Treat missing requirements as missing evidence. Return analysis only for supplied discoveredCandidateIds. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Candidate finder result analysis input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["matches"], properties: {
       matches: { type: "array", maxItems: 12, items: { type: "object", additionalProperties: false,
         required: ["discoveredCandidateId", "fitSummary", "strengths", "gaps", "confidence"], properties: {
           discoveredCandidateId: { type: "string", minLength: 1, maxLength: 80 },
-          fitSummary: { type: "string", minLength: 1, maxLength: 2500 },
-          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
-          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800 } },
+          fitSummary: { type: "string", minLength: 1, maxLength: 2500, pattern: "[\\u0600-\\u06FF]" },
+          strengths: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
+          gaps: { type: "array", maxItems: 20, items: { type: "string", minLength: 1, maxLength: 800, pattern: "[\\u0600-\\u06FF]" } },
           confidence: { type: "number", minimum: 0, maximum: 1 },
         } } },
     } },
   },
   "interview.recommendation_summary": {
-    version: "v1", promptId: "interview.recommendation_summary", promptVersion: "v1", schemaVersion: "interview-recommendation-summary.v1",
-    system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action.",
+    version: "v1", promptId: "interview.recommendation_summary", promptVersion: "v2", schemaVersion: "interview-recommendation-summary.v1",
+    system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Validated evaluation input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["summary", "reviewReasons", "limitations"], properties: {
       summary: { type: "string", minLength: 1, maxLength: 6000 },
