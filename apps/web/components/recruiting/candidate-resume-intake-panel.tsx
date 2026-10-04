@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api, apiErrorMessage } from "../../lib/api";
 import { formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
@@ -65,19 +66,6 @@ const ACCEPTED = new Set([
   "text/plain",
 ]);
 
-async function readPayload(response: Response): Promise<unknown> {
-  return response.status === 204 ? null : response.json().catch(() => null);
-}
-
-function messageFrom(payload: unknown, fallback: string): string {
-  if (payload && typeof payload === "object" && "message" in payload) {
-    const value = (payload as { message?: unknown }).message;
-    if (typeof value === "string") return value;
-    if (Array.isArray(value)) return value.map(String).join("؛ ");
-  }
-  return fallback;
-}
-
 export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateReady?: () => void | Promise<void> }) {
   const access = useInternalAccess();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,18 +97,15 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
 
     const poll = async () => {
       try {
-        const response = await fetch(
-          `/api/backend/v1/candidate-intake/analyses/${encodeURIComponent(result.analysisJobId!)}`,
-          {
-            credentials: "same-origin",
-            cache: "no-store",
-            headers: tenantHeaders(identity),
-          },
-        );
-        const payload = await readPayload(response);
-        if (!response.ok) throw new Error(messageFrom(payload, "وضعیت تحلیل هوش مصنوعی دریافت نشد"));
+        const analysisResult = await api.GET("/v1/candidate-intake/analyses/{analysisJobId}", {
+          params: { path: { analysisJobId: result.analysisJobId! } },
+          headers: tenantHeaders(identity),
+        });
+        if (analysisResult.error || !analysisResult.data) {
+          throw new Error(apiErrorMessage(analysisResult, "وضعیت تحلیل هوش مصنوعی دریافت نشد"));
+        }
         if (!active) return;
-        const next = payload as AnalysisStatus;
+        const next = analysisResult.data as AnalysisStatus;
         setAnalysis(next);
         if (["queued", "running", "retry_scheduled"].includes(next.status)) {
           timer = setTimeout(() => void poll(), 2000);
@@ -160,15 +145,15 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
     try {
       const form = new FormData();
       form.append("file", file, file.name);
-      const response = await fetch("/api/backend/v1/candidate-intake/resumes", {
-        method: "POST",
-        credentials: "same-origin",
+      const intakeResult = await api.POST("/v1/candidate-intake/resumes", {
         headers: tenantHeaders(identity),
-        body: form,
+        body: { file: file.name },
+        bodySerializer: () => form,
       });
-      const payload = await readPayload(response);
-      if (!response.ok) throw new Error(messageFrom(payload, "پردازش رزومه ناموفق بود"));
-      const next = payload as IntakeResult;
+      if (intakeResult.error || !intakeResult.data) {
+        throw new Error(apiErrorMessage(intakeResult, "پردازش رزومه ناموفق بود"));
+      }
+      const next = intakeResult.data as IntakeResult;
       setResult(next);
       setMessage(
         next.reusedExistingCandidate
@@ -189,17 +174,17 @@ export function CandidateResumeIntakePanel({ onCandidateReady }: { onCandidateRe
     setBusyJobId(match.jobId);
     setMessage(undefined);
     try {
-      const response = await fetch(
-        `/api/backend/v1/candidate-intake/candidates/${encodeURIComponent(result.candidateId)}/job-matches/${encodeURIComponent(match.jobId)}/apply`,
+      const applicationResult = await api.POST(
+        "/v1/candidate-intake/candidates/{candidateId}/job-matches/{jobId}/apply",
         {
-          method: "POST",
-          credentials: "same-origin",
+          params: { path: { candidateId: result.candidateId, jobId: match.jobId } },
           headers: tenantHeaders(identity),
         },
       );
-      const payload = await readPayload(response);
-      if (!response.ok) throw new Error(messageFrom(payload, "افزودن کاندید به موقعیت ناموفق بود"));
-      const application = payload as { applicationId: string };
+      if (applicationResult.error || !applicationResult.data) {
+        throw new Error(apiErrorMessage(applicationResult, "افزودن کاندید به موقعیت ناموفق بود"));
+      }
+      const application = applicationResult.data as { applicationId: string };
       setResult((current) => current ? {
         ...current,
         matches: current.matches.map((item) =>
