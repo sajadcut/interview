@@ -12,6 +12,7 @@ import {
 import { GreenhouseAtsProvider } from "./greenhouse-ats.provider";
 import { InternalTalentPoolAdapter } from "./internal-talent-pool.adapter";
 import { LeverAtsProvider } from "./lever-ats.provider";
+import { SourcingAgentService } from "./sourcing-agent.service";
 import { SourcingController } from "./sourcing.controller";
 import { SourcingImportExportController } from "./sourcing-import-export.controller";
 import { SourcingImportExportService } from "./sourcing-import-export.service";
@@ -38,11 +39,13 @@ import { TalentOperationsService } from "./talent-operations.service";
     CandidateSourceRegistry,
     AtsIntegrationService,
     SourcingService,
+    SourcingAgentService,
     SourcingImportExportService,
     TalentOperationsService,
   ],
   exports: [
     SourcingService,
+    SourcingAgentService,
     AtsIntegrationService,
     SourcingImportExportService,
     TalentOperationsService,
