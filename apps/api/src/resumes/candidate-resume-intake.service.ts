@@ -79,6 +79,16 @@ export class CandidateResumeIntakeService {
     });
 
     const resume = await this.resumes.ingest(resolved.candidateId, upload);
+    await this.database.sql`
+      INSERT INTO talent_pool_entries (organization_id, candidate_id, status, tags)
+      VALUES (
+        ${organizationId}::uuid,
+        ${resolved.candidateId}::uuid,
+        'active',
+        ARRAY['resume_intake']::text[]
+      )
+      ON CONFLICT (organization_id, candidate_id) DO NOTHING
+    `;
     const matches = await this.matchJobs(resolved.candidateId);
     const analysisJobId = await this.enqueueAnalysis({
       organizationId,
