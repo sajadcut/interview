@@ -304,7 +304,10 @@ export class TalentOperationsService {
           matchScore: result.score,
           algorithmVersion: result.algorithmVersion,
           matchedRequirements: normalizedRequirements
-            .filter((requirement) => componentByRequirement.get(requirement.id)?.evidenceBacked)
+            .filter((requirement) => {
+              const component = componentByRequirement.get(requirement.id);
+              return Boolean(component?.evidenceBacked && component.coverage >= 0.5);
+            })
             .map((requirement) => requirement.name),
           missingMustHaveRequirements: normalizedRequirements
             .filter((requirement) =>
