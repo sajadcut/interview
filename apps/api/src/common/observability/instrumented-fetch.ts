@@ -18,7 +18,9 @@ function isTextualContentType(contentType: string): boolean {
   );
 }
 
-function requestBodyForLog(body: BodyInit | null | undefined, contentType: string): unknown {
+type FetchInput = Parameters<typeof fetch>[0];
+
+function requestBodyForLog(body: RequestInit["body"] | null | undefined, contentType: string): unknown {
   if (body === null || body === undefined) return undefined;
   if (typeof body === "string") return loggableBody(body, contentType);
   if (body instanceof URLSearchParams) return loggableBody(body.toString(), contentType);
@@ -113,7 +115,7 @@ async function responseBodyForLog(response: Response): Promise<unknown> {
   }
 }
 
-function mergeHeaders(input: RequestInfo | URL, init?: RequestInit): Headers {
+function mergeHeaders(input: FetchInput, init?: RequestInit): Headers {
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   const supplied = new Headers(init?.headers);
   supplied.forEach((value, key) => headers.set(key, value));
@@ -125,7 +127,7 @@ export function installInstrumentedFetch(): void {
   installed = true;
   const nativeFetch = globalThis.fetch.bind(globalThis);
 
-  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  globalThis.fetch = async (input: FetchInput, init?: RequestInit): Promise<Response> => {
     const config = getObservabilityConfig();
     if (!config.outboundEnabled) return nativeFetch(input, init);
 
