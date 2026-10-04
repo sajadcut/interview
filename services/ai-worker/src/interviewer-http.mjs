@@ -4,6 +4,7 @@ import { LLMProviderError } from "./llm-provider.mjs";
 import {
   contextFromHeaders,
   currentTraceContext,
+  loggableBody,
   withTraceContext,
   writeLog,
 } from "./observability.mjs";
@@ -38,7 +39,7 @@ function writeJson(response, status, payload, meta = {}) {
   response.end(body);
   writeLog(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "interviewer.http.response", {
     statusCode: status,
-    payload,
+    payload: loggableBody(payload, "application/json"),
     ...meta,
   });
 }
@@ -206,7 +207,7 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, p
         writeLog("info", "interviewer.http.request.body", {
           method: request.method,
           path,
-          body: rawEnvelope,
+          body: loggableBody(rawEnvelope, "application/json"),
         });
         const envelope = validateEnvelope(rawEnvelope);
         const executionId = randomUUID();
