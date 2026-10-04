@@ -45,6 +45,28 @@ export class RecruitingOperationsService {
     assertUniqueCriterionKeys(input.rubricCriteria);
 
     return this.database.sql.begin(async (tx) => {
+      if (input.hiringRequestId) {
+        const requests = await tx`
+          SELECT id::text, status, linked_job_id::text, hr_owner_user_id::text
+          FROM hiring_requests
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${input.hiringRequestId}::uuid
+          LIMIT 1
+          FOR UPDATE
+        `;
+        const hiringRequest = requests[0];
+        if (!hiringRequest) throw new NotFoundException("Hiring request not found");
+        if (hiringRequest.linked_job_id) {
+          throw new BadRequestException("Hiring request is already linked to a job");
+        }
+        if (String(hiringRequest.status) !== "approved") {
+          throw new BadRequestException("Hiring request must be approved before creating a linked job");
+        }
+        if (String(hiringRequest.hr_owner_user_id ?? "") !== userId) {
+          throw new BadRequestException("Only the HR owner who approved the hiring request can create its linked job");
+        }
+      }
+
       const jobs = await tx`
         INSERT INTO jobs (
           organization_id, title, status, department, location, seniority, summary, created_by_user_id
@@ -112,12 +134,32 @@ export class RecruitingOperationsService {
         `;
       }
 
+      if (input.hiringRequestId) {
+        const linked = await tx`
+          UPDATE hiring_requests
+          SET linked_job_id = ${jobId}::uuid,
+              status = 'recruiting',
+              updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${input.hiringRequestId}::uuid
+            AND status = 'approved'
+            AND linked_job_id IS NULL
+          RETURNING id::text, status
+        `;
+        if (!linked[0]) {
+          throw new BadRequestException("Hiring request could not be linked to the new job");
+        }
+      }
+
       return {
         id: jobId,
         title: String(job.title),
         status: String(job.status),
         rubricId,
         rubricVersionId,
+        ...(input.hiringRequestId
+          ? { hiringRequestId: input.hiringRequestId, hiringRequestStatus: "recruiting" }
+          : {}),
       };
     });
   }
