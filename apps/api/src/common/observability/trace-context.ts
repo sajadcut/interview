@@ -49,14 +49,18 @@ export function runWithTraceContext<T>(context: TraceContext, callback: () => T)
 
 export function childTraceContext(overrides: Partial<TraceContext> = {}): TraceContext {
   const current = currentTraceContext();
-  return {
+  const context: TraceContext = {
     traceId: overrides.traceId ?? current?.traceId ?? createTraceId(),
     requestId: overrides.requestId ?? current?.requestId ?? createRequestId(),
     spanId: overrides.spanId ?? createSpanId(),
-    ...(overrides.parentSpanId ?? current?.spanId ? { parentSpanId: overrides.parentSpanId ?? current?.spanId } : {}),
-    ...(overrides.jobId ?? current?.jobId ? { jobId: overrides.jobId ?? current?.jobId } : {}),
-    ...(overrides.capability ?? current?.capability ? { capability: overrides.capability ?? current?.capability } : {}),
   };
+  const parentSpanId = overrides.parentSpanId ?? current?.spanId;
+  const jobId = overrides.jobId ?? current?.jobId;
+  const capability = overrides.capability ?? current?.capability;
+  if (parentSpanId) context.parentSpanId = parentSpanId;
+  if (jobId) context.jobId = jobId;
+  if (capability) context.capability = capability;
+  return context;
 }
 
 export function traceParentHeader(context = currentTraceContext()): string | undefined {
