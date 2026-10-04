@@ -1,4 +1,5 @@
 // Resume-first candidate intake: upload -> profile/evidence -> job matches -> human-approved application.
+// PDF uploads are normalized to plain Uint8Array before pdf.js/unpdf processing.
 import {
   BadRequestException,
   Controller,
