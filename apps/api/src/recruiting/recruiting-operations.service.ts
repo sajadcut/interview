@@ -857,6 +857,17 @@ export class RecruitingOperationsService {
             WHERE hr.organization_id = ${organizationId}::uuid
               AND hr.id = ${String(application.hiring_request_id)}::uuid
           `;
+
+          await tx`
+            UPDATE jobs j
+            SET status = 'closed', updated_at = now()
+            FROM hiring_requests hr
+            WHERE hr.organization_id = ${organizationId}::uuid
+              AND hr.id = ${String(application.hiring_request_id)}::uuid
+              AND hr.status = 'filled'
+              AND j.organization_id = hr.organization_id
+              AND j.id = hr.linked_job_id
+          `;
         }
       }
 
