@@ -90,4 +90,6 @@ jobs:
           node --check services/ai-worker/src/interviewer-http.mjs
           node --check services/ai-worker/src/interviewer-main.mjs
       - name: Test staging runtime evidence gates
-        run: node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs scripts/realtime-benchmark-evidence.test.mjs
+        run: |
+          node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs scripts/realtime-benchmark-evidence.test.mjs
+          node --test services/ai-worker/test/observability.test.mjs
