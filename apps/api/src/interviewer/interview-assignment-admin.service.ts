@@ -47,6 +47,9 @@ export class InterviewAssignmentAdminService {
       if (["closed", "withdrawn"].includes(String(application.status))) {
         throw new BadRequestException("A closed application cannot be scheduled for interview");
       }
+      if (!["screening", "interview"].includes(String(application.pipeline_stage))) {
+        throw new BadRequestException("Application must be in screening before a technical interview can be scheduled");
+      }
 
       const interviewers = await tx`
         SELECT m.id::text
