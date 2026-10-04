@@ -8,7 +8,7 @@ import type { Request, Response } from "express";
 import { catchError, Observable, tap, throwError } from "rxjs";
 import { getObservabilityConfig, loggableBody, writeStructuredLog } from "./structured-log";
 
-function headersObject(headers: Request["headers"] | Response["getHeaders"] extends () => infer T ? T : never) {
+function headersObject(headers: unknown): unknown {
   return headers;
 }
 
