@@ -75,7 +75,7 @@ export class CreateRubricCriterionDto {
 }
 
 export class CreateJobDto {
-  @ApiPropertyOptional({ format: "uuid", description: "Approved hiring request to atomically link to the new job." })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   hiringRequestId?: string;
