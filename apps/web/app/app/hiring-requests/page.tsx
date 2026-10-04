@@ -238,7 +238,14 @@ export default function HiringRequestsPage() {
                       <button disabled={Boolean(busy)} className="text-[10px] font-semibold text-rose-600" onClick={() => void reviewRequest(item.id, "reject")}>رد</button>
                     </> : null}
                     {item.status === "approved" && canManage ? (
-                      <div className="flex min-w-[280px] flex-col gap-2">
+                      <div className="flex min-w-[300px] flex-col gap-2">
+                        <Link
+                          href={`/app/jobs/new?hiringRequestId=${item.id}`}
+                          className="inline-flex h-8 items-center justify-center rounded-lg bg-indigo-600 px-3 text-[10px] font-semibold text-white hover:bg-indigo-700"
+                        >
+                          ایجاد موقعیت از این درخواست
+                        </Link>
+                        <div className="text-[9px] text-slate-400">یا این درخواست را به یک موقعیت شغلی موجود متصل کنید:</div>
                         <div className="flex items-center gap-2">
                           <select
                             aria-label={`انتخاب موقعیت شغلی برای ${item.title}`}
@@ -265,7 +272,7 @@ export default function HiringRequestsPage() {
                           <span className="text-slate-400">
                             {jobs.length ? `${formatFaNumber(jobs.length)} موقعیت قابل انتخاب` : "هنوز موقعیتی برای انتخاب وجود ندارد"}
                           </span>
-                          <Link href="/app/jobs/new" className="font-semibold text-indigo-600">ایجاد موقعیت جدید</Link>
+                          <Link href="/app/jobs/new" className="font-semibold text-slate-500 hover:text-indigo-600">ایجاد موقعیت مستقل</Link>
                         </div>
                       </div>
                     ) : null}
