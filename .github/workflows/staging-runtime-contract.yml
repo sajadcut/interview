@@ -14,6 +14,10 @@ on:
       - services/vad-worker/**
       - services/tts-worker/**
       - services/ai-worker/src/interviewer-*.mjs
+      - services/ai-worker/src/observability.mjs
+      - services/ai-worker/src/runtime.mjs
+      - services/ai-worker/src/main.mjs
+      - services/ai-worker/src/api-client.mjs
       - ops/livekit/**
       - ops/staging/**
       - infra/realtime/**
@@ -40,6 +44,10 @@ on:
       - services/vad-worker/**
       - services/tts-worker/**
       - services/ai-worker/src/interviewer-*.mjs
+      - services/ai-worker/src/observability.mjs
+      - services/ai-worker/src/runtime.mjs
+      - services/ai-worker/src/main.mjs
+      - services/ai-worker/src/api-client.mjs
       - ops/livekit/**
       - ops/staging/**
       - infra/realtime/**
@@ -75,5 +83,11 @@ jobs:
           node --check scripts/staging-runtime-smoke.mjs
           node --check scripts/realtime-benchmark-evidence.mjs
           node --check scripts/check-staging-runtime-bundle.mjs
+          node --check services/ai-worker/src/observability.mjs
+          node --check services/ai-worker/src/runtime.mjs
+          node --check services/ai-worker/src/api-client.mjs
+          node --check services/ai-worker/src/main.mjs
+          node --check services/ai-worker/src/interviewer-http.mjs
+          node --check services/ai-worker/src/interviewer-main.mjs
       - name: Test staging runtime evidence gates
         run: node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs scripts/realtime-benchmark-evidence.test.mjs
