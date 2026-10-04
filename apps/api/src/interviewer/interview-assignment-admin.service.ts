@@ -166,7 +166,7 @@ export class InterviewAssignmentAdminService {
         WHERE s.organization_id = ${organizationId}::uuid
           AND s.application_id = ${input.applicationId}::uuid
           AND p.interview_type = 'human_technical'
-          AND s.status NOT IN ('completed', 'cancelled')
+          AND s.status IN ('invited', 'in_progress', 'paused', 'disconnected')
         ORDER BY s.created_at DESC
         LIMIT 1
         FOR UPDATE OF s
