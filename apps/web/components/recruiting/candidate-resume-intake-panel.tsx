@@ -150,9 +150,9 @@ function ResumeProcessingStatus({
             {uploading
               ? "فایل استخراج می‌شود و شواهد رزومه برای تطبیق با موقعیت‌ها آماده می‌شوند."
               : aiPending
-                ? `تطبیق اولیه آماده است؛ برای توضیح نقاط قوت و شکاف‌ها منتظر پاسخ AI بمانید. این وضعیت خودکار به‌روزرسانی می‌شود.${attemptCount ? ` تلاش ${formatFaNumber(attemptCount)} از ${formatFaNumber(maxAttempts ?? 1)}.` : ""}`
+                ? `تطبیق اولیه آماده است؛ برای توضیح نقاط قوت و شکاف‌ها منتظر پاسخ هوش مصنوعی بمانید. این وضعیت خودکار به‌روزرسانی می‌شود.${attemptCount ? ` تلاش ${formatFaNumber(attemptCount)} از ${formatFaNumber(maxAttempts ?? 1)}.` : ""}`
                 : aiFailed
-                  ? "امتیاز تطبیق اولیه همچنان معتبر و قابل بررسی است؛ فقط توضیح تکمیلی AI در دسترس نیست."
+                  ? "امتیاز تطبیق اولیه همچنان معتبر و قابل بررسی است؛ فقط توضیح تکمیلی هوش مصنوعی در دسترس نیست."
                   : "تحلیل تکمیلی آماده شد و در کارت موقعیت‌ها نمایش داده می‌شود."}
           </div>
         </div>
@@ -423,7 +423,7 @@ export function CandidateResumeIntakePanel({
               {result.analysisJobId ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-[9px] text-slate-600">
                   <span>
-                    تحلیل AI
+                    تحلیل هوش مصنوعی
                     {analysis?.attemptCount ? ` · تلاش ${formatFaNumber(analysis.attemptCount)} از ${formatFaNumber(analysis.maxAttempts)}` : ""}
                   </span>
                   <strong className={`${analysis?.status === "succeeded" ? "text-emerald-700" : analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? "text-amber-700" : "text-indigo-700"}`}>
@@ -495,10 +495,10 @@ export function CandidateResumeIntakePanel({
                       <div className="flex items-center gap-2 text-[8px] font-semibold text-indigo-700">
                         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
                         {analysis?.status === "retry_scheduled"
-                          ? "AI در حال تلاش مجدد برای ساخت توضیح این تطبیق است…"
+                          ? "هوش مصنوعی در حال تلاش مجدد برای ساخت توضیح این تطبیق است…"
                           : analysis?.status === "running"
-                            ? "AI در حال تحلیل نقاط قوت و شکاف‌های این تطبیق است…"
-                            : "تحلیل AI در صف پردازش است…"}
+                            ? "هوش مصنوعی در حال تحلیل نقاط قوت و شکاف‌های این تطبیق است…"
+                            : "تحلیل هوش مصنوعی در صف پردازش است…"}
                       </div>
                       <div className="mt-3 space-y-2" aria-hidden="true">
                         <div className="h-2.5 w-full animate-pulse rounded bg-indigo-100" />
@@ -508,7 +508,7 @@ export function CandidateResumeIntakePanel({
                     </div>
                   ) : result.analysisJobId && analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? (
                     <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[8px] leading-4 text-amber-800">
-                      توضیح AI برای این تطبیق آماده نشد. امتیاز و شواهد تطبیق اولیه همچنان قابل استفاده‌اند.
+                      توضیح هوش مصنوعی برای این تطبیق آماده نشد. امتیاز و شواهد تطبیق اولیه همچنان قابل استفاده‌اند.
                     </div>
                   ) : null}
 
@@ -530,7 +530,7 @@ export function CandidateResumeIntakePanel({
                         {busyJobId === match.jobId
                           ? "در حال افزودن…"
                           : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status))
-                            ? "منتظر تحلیل AI…"
+                            ? "منتظر تحلیل هوش مصنوعی…"
                             : "افزودن به این موقعیت"}
                       </button>
                     )}
