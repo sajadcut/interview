@@ -74,6 +74,8 @@ export class InterviewAssignmentAdminService {
           AND job_id = ${String(application.job_id)}::uuid
           AND rubric_version_id = ${String(application.rubric_version_id)}::uuid
           AND interview_type = 'human_technical'
+          AND language = ${language}
+          AND time_budget_minutes = ${durationMinutes}
           AND status = 'published'
         ORDER BY version DESC
         LIMIT 1
