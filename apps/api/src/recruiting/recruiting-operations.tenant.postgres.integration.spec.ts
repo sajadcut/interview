@@ -468,3 +468,120 @@ test(
     }
   },
 );
+
+
+test(
+  "draft job can be edited and published with its draft rubric",
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const database = createIntegrationDatabase();
+    const tenantContext = new TenantContextService();
+    const authContext = new AuthContextService();
+    const operations = new RecruitingOperationsService(database, tenantContext, authContext);
+    const organizationId = randomUUID();
+    const userId = randomUUID();
+    const suffix = randomUUID();
+
+    try {
+      await database.sql`
+        INSERT INTO organizations (id, name, slug)
+        VALUES (
+          ${organizationId}::uuid,
+          'Job Editing Integration',
+          ${`job-editing-${suffix}`}
+        )
+      `;
+      await database.sql`
+        INSERT INTO users (id, email, display_name)
+        VALUES (
+          ${userId}::uuid,
+          ${`job-editing-${suffix}@example.invalid`},
+          'Job Editing Reviewer'
+        )
+      `;
+
+      const created = await tenantContext.run(organizationId, () =>
+        authContext.run({ userId, source: "development-header" }, () =>
+          operations.createJob({
+            title: "Draft Backend Engineer",
+            department: "Engineering",
+            requirements: [
+              { name: "C#", requirementType: "must_have", weight: 1 },
+            ],
+            rubricName: "Backend rubric",
+            rubricCriteria: [
+              {
+                criterionKey: "backend_depth",
+                label: "Backend technical depth",
+                weight: 1,
+                required: true,
+                displayOrder: 0,
+              },
+            ],
+          }),
+        ),
+      );
+
+      const updated = await tenantContext.run(organizationId, () =>
+        operations.updateJob(created.id, {
+          title: "Senior Backend Engineer",
+          requirements: [
+            { name: "C#", requirementType: "must_have", weight: 1 },
+            { name: "SQL", requirementType: "must_have", weight: 1 },
+          ],
+        }),
+      );
+      assert.equal(String(updated.title), "Senior Backend Engineer");
+
+      const published = await tenantContext.run(organizationId, () =>
+        operations.publishJob(created.id),
+      );
+      assert.equal(published.status, "open");
+      assert.equal(published.rubricPublished, true);
+      assert.equal(published.rubricVersion, 1);
+
+      const jobs = await database.sql`
+        SELECT status, title
+        FROM jobs
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${created.id}::uuid
+        LIMIT 1
+      `;
+      assert.equal(String(jobs[0]?.status), "open");
+      assert.equal(String(jobs[0]?.title), "Senior Backend Engineer");
+
+      const requirements = await database.sql`
+        SELECT name
+        FROM job_requirements
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${created.id}::uuid
+        ORDER BY name
+      `;
+      assert.deepEqual(requirements.map((row) => String(row.name)), ["C#", "SQL"]);
+
+      const rubrics = await database.sql`
+        SELECT rv.status, rv.version
+        FROM rubrics r
+        JOIN rubric_versions rv
+          ON rv.organization_id = r.organization_id
+         AND rv.rubric_id = r.id
+        WHERE r.organization_id = ${organizationId}::uuid
+          AND r.job_id = ${created.id}::uuid
+        ORDER BY rv.version DESC
+        LIMIT 1
+      `;
+      assert.equal(String(rubrics[0]?.status), "published");
+      assert.equal(Number(rubrics[0]?.version), 1);
+    } finally {
+      await database.sql`
+        DELETE FROM organizations
+        WHERE id = ${organizationId}::uuid
+      `;
+      await database.sql`
+        DELETE FROM users
+        WHERE id = ${userId}::uuid
+      `;
+      await database.onModuleDestroy();
+    }
+  },
+);
