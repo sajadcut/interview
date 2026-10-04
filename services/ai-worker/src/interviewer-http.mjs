@@ -2,6 +2,12 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { LLMProviderError } from "./llm-provider.mjs";
 import {
+  contextFromHeaders,
+  currentTraceContext,
+  withTraceContext,
+  writeLog,
+} from "./observability.mjs";
+import {
   LLM_INTERVIEWER_CAPABILITY,
   LLM_INTERVIEWER_CAPABILITY_VERSION,
   LLM_INTERVIEWER_CONTRACT_VERSION,
@@ -15,15 +21,26 @@ const MAX_REQUEST_BYTES = 96 * 1024;
 const PROVIDER_READINESS_TIMEOUT_MS = 2_000;
 const PROVIDER_READINESS_CACHE_MS = 30_000;
 
-function writeJson(response, status, payload) {
+function writeJson(response, status, payload, meta = {}) {
   const body = Buffer.from(JSON.stringify(payload), "utf8");
+  const trace = currentTraceContext();
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "content-length": String(body.length),
     "cache-control": "no-store",
     "x-llm-interviewer-contract-version": LLM_INTERVIEWER_CONTRACT_VERSION,
+    ...(trace ? {
+      "x-trace-id": trace.traceId,
+      "x-request-id": trace.requestId,
+      traceparent: `00-${trace.traceId}-${trace.spanId}-01`,
+    } : {}),
   });
   response.end(body);
+  writeLog(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "interviewer.http.response", {
+    statusCode: status,
+    payload,
+    ...meta,
+  });
 }
 
 function authorized(supplied, expected) {
@@ -136,59 +153,85 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, p
     }
   }
 
-  return createServer(async (request, response) => {
-    try {
+  return createServer((request, response) =>
+    withTraceContext(contextFromHeaders(request.headers), async () => {
+      const startedAt = process.hrtime.bigint();
       const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
-      if (request.method === "GET" && path === "/health") {
-        const providerState = await getProviderReadiness();
-        writeJson(response, 200, {
-          service: "llm-interviewer",
-          contractVersion: LLM_INTERVIEWER_CONTRACT_VERSION,
-          enabled: info.enabled,
-          configured: info.configured,
-          reachable: providerState.reachable,
-          ready: info.enabled && info.configured && providerState.ready,
-          provider: info.provider,
-          ...(info.model ? { model: info.model } : {}),
-          promptId: LLM_INTERVIEWER_PROMPT_ID,
-          promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
-          fallbackAvailable: true,
-          ...(providerState.reason ? { reason: providerState.reason } : {}),
+      const reply = (status, payload) => {
+        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+        writeJson(response, status, payload, {
+          method: request.method,
+          path,
+          durationMs: Number(durationMs.toFixed(3)),
         });
-        return;
-      }
+      };
 
-      if (request.method !== "POST" || path !== "/v1/interview/next-turn") {
-        writeJson(response, 404, { error: { code: "NOT_FOUND", message: "Not Found" } });
-        return;
-      }
-      if (!authorized(request.headers["x-ai-worker-secret"], sharedSecret)) {
-        writeJson(response, 401, { error: { code: "UNAUTHORIZED", message: "Realtime interviewer authentication failed" } });
-        return;
-      }
+      writeLog("info", "interviewer.http.request", {
+        method: request.method,
+        path,
+        headers: request.headers,
+        remoteAddress: request.socket?.remoteAddress,
+      });
 
-      const envelope = validateEnvelope(await readJsonBody(request));
-      const executionId = randomUUID();
-      const generated = await generateConversationalInterviewTurn({
-        llm,
-        input: envelope.input,
-        metadata: {
+      try {
+        if (request.method === "GET" && path === "/health") {
+          const providerState = await getProviderReadiness();
+          reply(200, {
+            service: "llm-interviewer",
+            contractVersion: LLM_INTERVIEWER_CONTRACT_VERSION,
+            enabled: info.enabled,
+            configured: info.configured,
+            reachable: providerState.reachable,
+            ready: info.enabled && info.configured && providerState.ready,
+            provider: info.provider,
+            ...(info.model ? { model: info.model } : {}),
+            promptId: LLM_INTERVIEWER_PROMPT_ID,
+            promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
+            fallbackAvailable: true,
+            ...(providerState.reason ? { reason: providerState.reason } : {}),
+          });
+          return;
+        }
+
+        if (request.method !== "POST" || path !== "/v1/interview/next-turn") {
+          reply(404, { error: { code: "NOT_FOUND", message: "Not Found" } });
+          return;
+        }
+        if (!authorized(request.headers["x-ai-worker-secret"], sharedSecret)) {
+          reply(401, { error: { code: "UNAUTHORIZED", message: "Realtime interviewer authentication failed" } });
+          return;
+        }
+
+        const rawEnvelope = await readJsonBody(request);
+        writeLog("info", "interviewer.http.request.body", {
+          method: request.method,
+          path,
+          body: rawEnvelope,
+        });
+        const envelope = validateEnvelope(rawEnvelope);
+        const executionId = randomUUID();
+        const generated = await generateConversationalInterviewTurn({
+          llm,
+          input: envelope.input,
+          metadata: {
+            executionId,
+            inputReferences:
+              envelope.inputReferences && typeof envelope.inputReferences === "object" && !Array.isArray(envelope.inputReferences)
+                ? envelope.inputReferences
+                : {},
+          },
+        });
+        reply(200, {
+          contractVersion: LLM_INTERVIEWER_CONTRACT_VERSION,
           executionId,
-          inputReferences:
-            envelope.inputReferences && typeof envelope.inputReferences === "object" && !Array.isArray(envelope.inputReferences)
-              ? envelope.inputReferences
-              : {},
-        },
-      });
-      writeJson(response, 200, {
-        contractVersion: LLM_INTERVIEWER_CONTRACT_VERSION,
-        executionId,
-        output: generated.output,
-        provenance: generated.provenance,
-      });
-    } catch (error) {
-      const safe = safeError(error);
-      writeJson(response, statusFor(error), { error: safe });
-    }
-  });
+          output: generated.output,
+          provenance: generated.provenance,
+        });
+      } catch (error) {
+        const safe = safeError(error);
+        writeLog("error", "interviewer.http.error", { error: safe, cause: error });
+        reply(statusFor(error), { error: safe });
+      }
+    }),
+  );
 }
