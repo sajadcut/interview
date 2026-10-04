@@ -1,7 +1,7 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.40.0
+> **Version:** 0.41.0
 > **Date:** 2026-10-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
@@ -56,6 +56,27 @@ human gate                                HR explicitly confirms «add to this p
 application provenance                    source=resume_match_review + pinned published rubric + persisted pre_interview_match_score
 Job workspace                             manual new-candidate creation removed from the primary Job flow; links recruiters to resume intake
 validation                                API compile/OpenAPI contract sync succeeded; same-HEAD quality gate remains constrained by the existing production dependency audit blocker
+```
+
+## End-to-end Structured Observability Logging
+
+```text
+implementation                            pushed on main
+trace model                               x-trace-id (32 hex) + x-request-id + W3C traceparent
+API inbound traffic                       request / response / error structured JSON events
+API outbound HTTP                         global fetch instrumentation with trace propagation
+covered provider families                 LLM, embeddings/RAG HTTP, sourcing tools, ATS/external sources, STT/TTS/VAD and internal worker HTTP
+AI job handoff                            originating trace persisted in ai_jobs payload and restored by AI worker
+AI worker traffic                         internal lease/report calls + LLM provider calls + realtime interviewer request/response
+body logging                              off | metadata | full; JSON/text bounded by LOG_MAX_BODY_BYTES
+secret handling                           authorization/cookies/passwords/OTP/API keys/tokens/secrets always redacted
+binary handling                           binary payloads logged as content-type/size metadata, never raw audio/PDF bytes
+file output                               configurable LOG_DIR / per-service basename
+rotation                                  size-based LOG_ROTATE_MAX_BYTES + retained LOG_ROTATE_MAX_FILES
+error support                             API error body and response headers include trace/request ids
+web proxy                                 x-trace-id / x-request-id / traceparent forwarded to and from backend
+runbook                                   docs/operations/structured-observability-logging.md
+validation                                API TypeScript/OpenAPI compile succeeded; AI worker syntax staging contract succeeded; full quality gate still blocked before lint/typecheck/test/build by existing dependency audit gate
 ```
 
 
