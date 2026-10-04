@@ -25,6 +25,7 @@ export function InterviewOperations() {
   const [identity, setIdentity] = useState<TenantIdentity | null>(null);
   const [options, setOptions] = useState<Options>({ sessions: [], interviewers: [] });
   const [selected, setSelected] = useState<Record<string, string>>({});
+  const [scheduledFor, setScheduledFor] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busySession, setBusySession] = useState<string | null>(null);
@@ -48,6 +49,17 @@ export function InterviewOperations() {
       const next = { ...previous };
       for (const session of data.sessions) {
         if (!next[session.sessionId] && session.interviewerUserId) next[session.sessionId] = session.interviewerUserId;
+      }
+      return next;
+    });
+    setScheduledFor((previous) => {
+      const next = { ...previous };
+      for (const session of data.sessions) {
+        if (!next[session.sessionId] && session.scheduledFor) {
+          const value = new Date(session.scheduledFor);
+          const offset = value.getTimezoneOffset() * 60_000;
+          next[session.sessionId] = new Date(value.getTime() - offset).toISOString().slice(0, 16);
+        }
       }
       return next;
     });
@@ -79,7 +91,13 @@ export function InterviewOperations() {
     try {
       const result = await api.POST("/v1/interviewer/assignments", {
         headers: tenantHeaders(current),
-        body: { sessionId, interviewerUserId },
+        body: {
+          sessionId,
+          interviewerUserId,
+          ...(scheduledFor[sessionId]
+            ? { scheduledFor: new Date(scheduledFor[sessionId]).toISOString() }
+            : {}),
+        },
       });
       if (!result.response.ok) {
         throw new Error(apiErrorMessage(result, "تخصیص مصاحبه‌گر ناموفق بود"));
@@ -111,7 +129,18 @@ export function InterviewOperations() {
                   <td className="px-5 py-4 font-semibold text-slate-800">{session.candidateName}</td>
                   <td className="px-3 py-4 text-slate-600">{session.jobTitle}</td>
                   <td className="px-3 py-4"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-600">{faDomainLabel(session.sessionStatus)}</span></td>
-                  <td className="px-3 py-4 text-slate-500">{session.scheduledFor ? formatFaDateTime(session.scheduledFor) : "زمان‌بندی نشده"}</td>
+                  <td className="px-3 py-4 text-slate-500">
+                    <div className="space-y-1.5">
+                      <div>{session.scheduledFor ? formatFaDateTime(session.scheduledFor) : "زمان‌بندی نشده"}</div>
+                      <input
+                        aria-label={`زمان مصاحبه برای ${session.candidateName}`}
+                        type="datetime-local"
+                        value={scheduledFor[session.sessionId] ?? ""}
+                        onChange={(event) => setScheduledFor((state) => ({ ...state, [session.sessionId]: event.target.value }))}
+                        className="h-8 w-full min-w-44 rounded-lg border border-slate-200 bg-white px-2 text-[10px]"
+                      />
+                    </div>
+                  </td>
                   <td className="px-3 py-4">
                     <label className="sr-only" htmlFor={`interviewer-${session.sessionId}`}>مصاحبه‌گر برای {session.candidateName}</label>
                     <select id={`interviewer-${session.sessionId}`} value={selected[session.sessionId] ?? ""} onChange={(event) => setSelected((state) => ({ ...state, [session.sessionId]: event.target.value }))} className="w-full min-w-48 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px]">
