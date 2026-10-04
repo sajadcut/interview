@@ -146,7 +146,6 @@ test(
   },
 );
 
-
 test(
   "approved hiring request creates and links a job atomically",
   { skip: !integrationDatabaseUrl },
