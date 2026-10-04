@@ -17,6 +17,7 @@ type JobMatch = {
   seniority?: string;
   matchScore: number;
   algorithmVersion: string;
+  requirementsConfigured: boolean;
   matchedRequirements: string[];
   missingMustHaveRequirements: string[];
   rubricPublished: boolean;
@@ -468,29 +469,35 @@ export function CandidateResumeIntakePanel({
                     </div>
                     <div className="rounded-xl bg-indigo-50 px-3 py-2 text-center">
                       <div className="text-[8px] text-indigo-500">تطبیق</div>
-                      <div className="text-[14px] font-semibold text-indigo-700">{formatFaPercent(match.matchScore)}</div>
+                      <div className="text-[14px] font-semibold text-indigo-700">{match.requirementsConfigured ? formatFaPercent(match.matchScore) : "—"}</div>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg bg-emerald-50 p-2.5">
-                      <div className="text-[8px] font-semibold text-emerald-700">شواهد منطبق</div>
-                      <div className="mt-1 text-[9px] leading-4 text-emerald-800">{match.matchedRequirements.length ? match.matchedRequirements.join("، ") : "مورد صریحی پیدا نشد"}</div>
+                  {match.requirementsConfigured ? (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-lg bg-emerald-50 p-2.5">
+                        <div className="text-[8px] font-semibold text-emerald-700">شواهد منطبق</div>
+                        <div className="mt-1 text-[9px] leading-4 text-emerald-800">{match.matchedRequirements.length ? match.matchedRequirements.join("، ") : "مورد صریحی پیدا نشد"}</div>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 p-2.5">
+                        <div className="text-[8px] font-semibold text-amber-700">الزامات ضروری بدون شاهد کافی</div>
+                        <div className="mt-1 text-[9px] leading-4 text-amber-800">{match.missingMustHaveRequirements.length ? match.missingMustHaveRequirements.join("، ") : "موردی نیست"}</div>
+                      </div>
                     </div>
-                    <div className="rounded-lg bg-amber-50 p-2.5">
-                      <div className="text-[8px] font-semibold text-amber-700">الزامات ضروری بدون شاهد کافی</div>
-                      <div className="mt-1 text-[9px] leading-4 text-amber-800">{match.missingMustHaveRequirements.length ? match.missingMustHaveRequirements.join("، ") : "موردی نیست"}</div>
+                  ) : (
+                    <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[9px] leading-5 text-amber-800">
+                      برای این موقعیت هنوز نیازمندی‌های شغلی تعریف نشده است؛ بنابراین امتیاز تطبیق و تحلیل هوش مصنوعی قابل محاسبه نیست.
                     </div>
-                  </div>
+                  )}
 
-                  {ai ? (
+                  {match.requirementsConfigured && ai ? (
                     <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3">
                       <div className="text-[8px] font-semibold text-violet-700">تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
                       <p className="mt-1 text-[9px] leading-5 text-slate-700">{formatFaDigits(ai.fitSummary)}</p>
                       {ai.strengths.length ? <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {formatFaDigits(ai.strengths.join(" · "))}</div> : null}
                       {ai.gaps.length ? <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {formatFaDigits(ai.gaps.join(" · "))}</div> : null}
                     </div>
-                  ) : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status)) ? (
+                  ) : match.requirementsConfigured && result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status)) ? (
                     <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3">
                       <div className="flex items-center gap-2 text-[8px] font-semibold text-indigo-700">
                         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
@@ -506,20 +513,21 @@ export function CandidateResumeIntakePanel({
                         <div className="h-2.5 w-2/3 animate-pulse rounded bg-indigo-100" />
                       </div>
                     </div>
-                  ) : result.analysisJobId && analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? (
+                  ) : match.requirementsConfigured && result.analysisJobId && analysis?.status && FAILED_AI_STATUSES.has(analysis.status) ? (
                     <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[8px] leading-4 text-amber-800">
                       توضیح هوش مصنوعی برای این تطبیق آماده نشد. امتیاز و شواهد تطبیق اولیه همچنان قابل استفاده‌اند.
                     </div>
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    {!match.rubricPublished ? <span className="text-[8px] text-amber-700">برای ساخت پرونده ابتدا معیارهای ارزیابی این موقعیت را منتشر کنید.</span> : <span className="text-[8px] text-slate-400">تصمیم افزودن به موقعیت توسط منابع انسانی ثبت می‌شود.</span>}
+                    {!match.requirementsConfigured ? <span className="text-[8px] text-amber-700">ابتدا نیازمندی‌های شغلی این موقعیت را تعریف کنید.</span> : !match.rubricPublished ? <span className="text-[8px] text-amber-700">برای ساخت پرونده ابتدا معیارهای ارزیابی این موقعیت را منتشر کنید.</span> : <span className="text-[8px] text-slate-400">تصمیم افزودن به موقعیت توسط منابع انسانی ثبت می‌شود.</span>}
                     {match.applicationId ? (
                       <Link href={`/app/candidates/${result.candidateId}`} className="rounded-lg bg-emerald-50 px-3 py-2 text-[9px] font-semibold text-emerald-700">پرونده ساخته شده</Link>
                     ) : (
                       <button
                         type="button"
                         disabled={
+                          !match.requirementsConfigured ||
                           !match.rubricPublished ||
                           busyJobId === match.jobId ||
                           Boolean(result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status)))
