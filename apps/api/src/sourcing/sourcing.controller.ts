@@ -1,4 +1,5 @@
 // Job-first sourcing: internal talent -> AI tool-call plan -> approved provider execution -> result analysis -> HR acceptance.
+// Generated contracts must expose both the sourcing plan and result-analysis status.
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
