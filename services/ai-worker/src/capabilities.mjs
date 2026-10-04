@@ -73,7 +73,7 @@ const CAPABILITIES = Object.freeze({
     user: "Resume enrichment input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["facts", "warnings"], properties: {
       facts: { type: "array", maxItems: 200, items: { type: "object", additionalProperties: true } },
-      warnings: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
+      warnings: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
     } },
   },
   "candidate.summary": {
@@ -81,10 +81,10 @@ const CAPABILITIES = Object.freeze({
     system: "Summarize only supplied candidate evidence for recruiter review. Separate missing evidence from negative evidence. Do not make a final employment decision. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Candidate summary input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["summary", "strengthEvidence", "gapEvidence", "limitations"], properties: {
-      summary: { type: "string", minLength: 1, maxLength: 6000 },
-      strengthEvidence: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
-      gapEvidence: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
-      limitations: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
+      summary: { type: "string", minLength: 1, maxLength: 6000, pattern: "[\\u0600-\\u06FF]" },
+      strengthEvidence: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
+      gapEvidence: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
+      limitations: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
     } },
   },
   "candidate.job_match": {
@@ -118,11 +118,11 @@ const CAPABILITIES = Object.freeze({
     } },
   },
   "sourcing.plan": {
-    version: "v1", promptId: "sourcing.plan", promptVersion: "v1", schemaVersion: "sourcing-plan.v1",
-    system: "Create a bounded candidate-sourcing tool-call plan for the supplied job. Use only sourceType/providerKey pairs explicitly listed as available. Do not invent providers, do not request scraping, and do not make hiring decisions. Prefer precise queries grounded in job title, must-have skills, seniority and location. Return no tool call when no approved configured source exists.",
+    version: "v1", promptId: "sourcing.plan", promptVersion: "v2", schemaVersion: "sourcing-plan.v1",
+    system: "Create a bounded candidate-sourcing tool-call plan for the supplied job. Use only sourceType/providerKey pairs explicitly listed as available. Do not invent providers, do not request scraping, and do not make hiring decisions. Prefer precise queries grounded in job title, must-have skills, seniority and location. Return no tool call when no approved configured source exists. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations. The tool-call query itself may remain in the language that best serves the approved provider; the rationale shown to the recruiter must be Persian.",
     user: "Candidate sourcing planning input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["rationale", "toolCalls"], properties: {
-      rationale: { type: "string", minLength: 1, maxLength: 3000 },
+      rationale: { type: "string", minLength: 1, maxLength: 3000, pattern: "[\\u0600-\\u06FF]" },
       toolCalls: { type: "array", maxItems: 4, items: { type: "object", additionalProperties: false,
         required: ["sourceType", "providerKey", "query", "limit"], properties: {
           sourceType: { type: "string", enum: ["ats", "approved_job_board", "approved_external"] },
@@ -152,9 +152,9 @@ const CAPABILITIES = Object.freeze({
     system: "Summarize a validated evaluation as human decision support. Do not convert the recommendation into a final hiring, rejection, compensation, or employment action. All human-readable analytical prose MUST be written in Persian (fa-IR), even when the input resume, job, or provider data is in English. Keep IDs, URLs, code, provider names, and technical terms such as .NET, C#, SQL, ASP.NET Core, REST, Docker and Kubernetes unchanged when translating them would reduce precision. Do not return English sentences for summaries, strengths, gaps, rationales, review reasons, or limitations.",
     user: "Validated evaluation input JSON:\n{{input}}",
     schema: { type: "object", additionalProperties: false, required: ["summary", "reviewReasons", "limitations"], properties: {
-      summary: { type: "string", minLength: 1, maxLength: 6000 },
-      reviewReasons: { type: "array", minItems: 1, maxItems: 100, items: { type: "string", maxLength: 1000 } },
-      limitations: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000 } },
+      summary: { type: "string", minLength: 1, maxLength: 6000, pattern: "[\\u0600-\\u06FF]" },
+      reviewReasons: { type: "array", minItems: 1, maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
+      limitations: { type: "array", maxItems: 100, items: { type: "string", maxLength: 1000, pattern: "[\\u0600-\\u06FF]" } },
     } },
   },
 });
