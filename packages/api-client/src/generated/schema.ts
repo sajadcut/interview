@@ -3405,6 +3405,10 @@ export interface components {
             /** Format: uuid */
             analysisJobId: string;
             status: string;
+            attemptCount: number;
+            maxAttempts: number;
+            /** Format: date-time */
+            updatedAt: string;
             matches?: components["schemas"]["CandidateJobMatchAnalysisDto"][];
             errorMessage?: string;
         };

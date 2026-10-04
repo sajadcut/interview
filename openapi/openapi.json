@@ -11467,6 +11467,18 @@
           "status": {
             "type": "string"
           },
+          "attemptCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxAttempts": {
+            "type": "number",
+            "minimum": 1
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "matches": {
             "type": "array",
             "items": {
@@ -11479,7 +11491,10 @@
         },
         "required": [
           "analysisJobId",
-          "status"
+          "status",
+          "attemptCount",
+          "maxAttempts",
+          "updatedAt"
         ]
       },
       "CandidateMatchApplicationDto": {
