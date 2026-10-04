@@ -18,6 +18,12 @@ on:
       - services/ai-worker/src/runtime.mjs
       - services/ai-worker/src/main.mjs
       - services/ai-worker/src/api-client.mjs
+      - services/ai-worker/src/llm-provider.mjs
+      - services/ai-worker/src/openai-compatible-provider.mjs
+      - services/ai-worker/src/capabilities.mjs
+      - services/ai-worker/test/llm-provider.test.mjs
+      - services/ai-worker/test/openai-compatible-provider.test.mjs
+      - services/ai-worker/test/capabilities.test.mjs
       - ops/livekit/**
       - ops/staging/**
       - infra/realtime/**
@@ -48,6 +54,12 @@ on:
       - services/ai-worker/src/runtime.mjs
       - services/ai-worker/src/main.mjs
       - services/ai-worker/src/api-client.mjs
+      - services/ai-worker/src/llm-provider.mjs
+      - services/ai-worker/src/openai-compatible-provider.mjs
+      - services/ai-worker/src/capabilities.mjs
+      - services/ai-worker/test/llm-provider.test.mjs
+      - services/ai-worker/test/openai-compatible-provider.test.mjs
+      - services/ai-worker/test/capabilities.test.mjs
       - ops/livekit/**
       - ops/staging/**
       - infra/realtime/**
@@ -86,10 +98,13 @@ jobs:
           node --check services/ai-worker/src/observability.mjs
           node --check services/ai-worker/src/runtime.mjs
           node --check services/ai-worker/src/api-client.mjs
+          node --check services/ai-worker/src/llm-provider.mjs
+          node --check services/ai-worker/src/openai-compatible-provider.mjs
+          node --check services/ai-worker/src/capabilities.mjs
           node --check services/ai-worker/src/main.mjs
           node --check services/ai-worker/src/interviewer-http.mjs
           node --check services/ai-worker/src/interviewer-main.mjs
       - name: Test staging runtime evidence gates
         run: |
           node --test scripts/staging-runtime-preflight.test.mjs scripts/staging-runtime-smoke.test.mjs scripts/realtime-benchmark-evidence.test.mjs
-          node --test services/ai-worker/test/observability.test.mjs
+          node --test services/ai-worker/test/observability.test.mjs services/ai-worker/test/llm-provider.test.mjs services/ai-worker/test/openai-compatible-provider.test.mjs services/ai-worker/test/capabilities.test.mjs
