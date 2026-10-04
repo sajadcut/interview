@@ -498,12 +498,12 @@ export class CandidateResumeIntakeService {
     const job = await this.aiJobs.enqueue({
       organizationId: input.organizationId,
       capability: "candidate.job_match",
-      idempotencyKey: `candidate-job-match:v3:${input.candidateId}:${input.resumeId}:${inputFingerprint}`,
+      idempotencyKey: `candidate-job-match:v4:${input.candidateId}:${input.resumeId}:${inputFingerprint}`,
       timeoutMs: 45_000,
       payload: {
         capabilityVersion: "v1",
         promptId: "candidate.job_match",
-        promptVersion: "v3",
+        promptVersion: "v4",
         structuredOutputSchemaVersion: "candidate-job-match-analysis.v1",
         inputReferences: {
           candidateId: input.candidateId,
