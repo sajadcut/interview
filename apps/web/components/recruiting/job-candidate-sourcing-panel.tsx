@@ -4,7 +4,7 @@ import type { components } from "@interview/api-client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
-import { formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
+import { formatFaDigits, formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
 import { faDomainLabel } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { useInternalAccess } from "../product/internal-access";
@@ -396,7 +396,7 @@ export function JobCandidateSourcingPanel({
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold text-slate-800">بهترین تطبیق‌های Talent Pool</div>
-              <div className="mt-1 text-[8px] text-slate-400">امتیاز deterministic است؛ هوش مصنوعی فقط دلیل و شکاف‌های قابل بررسی را توضیح می‌دهد.</div>
+              <div className="mt-1 text-[8px] text-slate-400">امتیاز از محاسبه قطعی و شواهد به‌دست می‌آید؛ هوش مصنوعی فقط دلیل و شکاف‌های قابل بررسی را توضیح می‌دهد.</div>
             </div>
             <Link href="/app/talent" className="text-[9px] font-semibold text-indigo-600">مشاهده بانک استعدادها</Link>
           </div>
@@ -433,7 +433,7 @@ export function JobCandidateSourcingPanel({
                   {ai ? (
                     <div className="mt-3 rounded-xl bg-violet-50 p-3">
                       <div className="text-[8px] font-semibold text-violet-700">تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}</div>
-                      <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
+                      <p className="mt-1 text-[9px] leading-5 text-slate-700">{formatFaDigits(ai.fitSummary)}</p>
                     </div>
                   ) : null}
 
@@ -525,7 +525,7 @@ export function JobCandidateSourcingPanel({
                     {(plan.toolCalls ?? []).map((call, index) => (
                       <div key={`${call.providerKey}:${index}`} className="rounded-lg bg-white p-3">
                         <div className="text-[8px] font-semibold text-slate-700">
-                          Tool {formatFaNumber(index + 1)} · {providerLabel(call.providerKey)} · {formatFaNumber(call.limit)} نتیجه
+                          ابزار {formatFaNumber(index + 1)} · {providerLabel(call.providerKey)} · {formatFaNumber(call.limit)} نتیجه
                         </div>
                         <div className="mt-1 text-[8px] leading-4 text-slate-500">{call.query}</div>
                       </div>
@@ -583,12 +583,12 @@ export function JobCandidateSourcingPanel({
                           <div className="text-[8px] font-semibold text-violet-700">
                             تحلیل هوش مصنوعی · اطمینان {formatFaPercent(ai.confidence * 100)}
                           </div>
-                          <p className="mt-1 text-[9px] leading-5 text-slate-700">{ai.fitSummary}</p>
+                          <p className="mt-1 text-[9px] leading-5 text-slate-700">{formatFaDigits(ai.fitSummary)}</p>
                           {ai.strengths.length ? (
-                            <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {ai.strengths.join(" · ")}</div>
+                            <div className="mt-2 text-[8px] text-emerald-700">نقاط قوت: {formatFaDigits(ai.strengths.join(" · "))}</div>
                           ) : null}
                           {ai.gaps.length ? (
-                            <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {ai.gaps.join(" · ")}</div>
+                            <div className="mt-1 text-[8px] text-amber-700">شکاف‌ها: {formatFaDigits(ai.gaps.join(" · "))}</div>
                           ) : null}
                         </div>
                       ) : finderAnalysisJobId ? (
@@ -598,7 +598,7 @@ export function JobCandidateSourcingPanel({
                       ) : null}
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="text-[8px] text-slate-500">
-                          سیگنال retrieval: {candidate.retrievalScore !== undefined ? formatFaPercent(candidate.retrievalScore * 100) : "—"}
+                          سیگنال بازیابی: {candidate.retrievalScore !== undefined ? formatFaPercent(candidate.retrievalScore * 100) : "—"}
                           {candidate.preInterviewMatchScore !== undefined ? ` · تطبیق شواهد: ${formatFaPercent(candidate.preInterviewMatchScore)}` : ""}
                         </div>
                         <div className="flex gap-2">
