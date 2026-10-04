@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 
-export const RESUME_PARSER_VERSION = "resume-structure-v2";
+export const RESUME_PARSER_VERSION = "resume-structure-v3";
 
 export interface ParsedResumeSkill {
   key: string;
@@ -79,7 +79,7 @@ export class ResumeParser {
     const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
     const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase() ?? null;
     const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.replace(/\s+/g, " ") ?? null;
-    const location = findLabeledValue(lines, /^(?:location|city|محل سکونت|شهر)\s*[:：-]\s*(.+)$/i);
+    const location = findLabeledValue(lines, /^(?:location|city|محل سکونت|شهر)\s*[:：-]\s*(.+)$/i) ?? inferExperienceLocation(lines);
     const preferredLanguage = detectLanguage(text);
     const skills = this.parseSkills(lines, text);
     const experiences = this.parseExperiences(lines);
@@ -240,6 +240,33 @@ function findLabeledValue(lines: string[], pattern: RegExp): string | null {
   for (const line of lines.slice(0, 40)) {
     const match = line.match(pattern);
     if (match?.[1]) return match[1].trim().slice(0, 240);
+  }
+  return null;
+}
+
+function inferExperienceLocation(lines: string[]): string | null {
+  let inExperience = false;
+  for (const line of lines) {
+    if (EXPERIENCE_HEADERS.test(line)) {
+      inExperience = true;
+      continue;
+    }
+    if (!inExperience) continue;
+    if (SECTION_HEADER.test(line) || SKILL_HEADERS.test(line)) break;
+
+    const date = line.match(DATE_RANGE);
+    if (!date) continue;
+
+    const candidate = cleanExperienceHeading(line.replace(date[0], ""));
+    if (
+      candidate.length >= 2 &&
+      candidate.length <= 120 &&
+      /[A-Za-z\u0600-\u06FF]/.test(candidate) &&
+      !splitExperienceHeading(candidate) &&
+      !looksLikeDateFragment(candidate)
+    ) {
+      return candidate;
+    }
   }
   return null;
 }
