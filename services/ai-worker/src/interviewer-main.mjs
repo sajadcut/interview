@@ -5,8 +5,10 @@ import { interviewerPromptDefinition } from "./interviewer-capability.mjs";
 import { createInterviewerHttpServer } from "./interviewer-http.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider, providerInfoFromEnvironment } from "./provider-factory.mjs";
+import { installInstrumentedFetch, logPath, writeLog } from "./observability.mjs";
 
 configureWorkerTls();
+installInstrumentedFetch();
 
 function integerEnv(name, fallback, minimum, maximum) {
   const value = Number(process.env[name] ?? fallback);
@@ -48,8 +50,14 @@ await new Promise((resolve, reject) => {
   server.once("error", reject);
   server.listen(port, host, () => {
     server.off("error", reject);
-    console.log(`Realtime LLM interviewer listening on http://${host}:${port}`);
-    console.log(`Provider: ${selected.info.provider}; configured=${selected.info.configured}`);
+    writeLog("info", "interviewer.started", {
+      host,
+      port,
+      provider: selected.info.provider,
+      model: selected.info.model,
+      configured: selected.info.configured,
+      logFile: logPath(),
+    });
     resolve();
   });
 });
