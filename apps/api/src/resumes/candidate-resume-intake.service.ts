@@ -72,8 +72,8 @@ export class CandidateResumeIntakeService {
       throw new BadRequestException("Resume must be between 1 byte and 10 MB");
     }
 
-    let extracted;
-    let profile;
+    let extracted: Awaited<ReturnType<ResumeTextExtractor["extract"]>>;
+    let profile: ReturnType<ResumeParser["parse"]>;
     try {
       extracted = await this.extractor.extract(upload);
       profile = this.parser.parse(extracted.text);
