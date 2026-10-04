@@ -71,6 +71,46 @@ test("malformed structured output retries and succeeds without bypassing schema 
   assert.equal(result.provenance.attempts.length, 2);
 });
 
+test("recruiter-facing job-match analysis rejects English prose and accepts Persian prose", async () => {
+  const llm = scriptedLayer([
+    {
+      output: JSON.stringify({
+        matches: [{
+          jobId: "job-1",
+          fitSummary: "Strong fit for the backend role.",
+          strengths: ["Strong .NET experience"],
+          gaps: ["Missing direct SQL evidence"],
+          confidence: 0.8,
+        }],
+      }),
+    },
+    {
+      output: JSON.stringify({
+        matches: [{
+          jobId: "job-1",
+          fitSummary: "این کاندید برای نقش بک‌اند تطبیق مناسبی دارد و شواهد فنی مرتبط ارائه شده است.",
+          strengths: ["تجربه قوی در .NET و ASP.NET Core"],
+          gaps: ["شاهد مستقیم کافی برای عمق تجربه SQL موجود نیست."],
+          confidence: 0.8,
+        }],
+      }),
+    },
+  ]);
+
+  const result = await createCapabilityProcessors({ llm }).get("candidate.job_match")({
+    job,
+    payload: {
+      input: { candidate: {}, jobs: [{ jobId: "job-1" }] },
+      inputReferences: { candidateId: "candidate-1", jobIds: ["job-1"] },
+    },
+    signal: new AbortController().signal,
+  });
+
+  assert.match(result.output.matches[0].fitSummary, /[\u0600-\u06FF]/u);
+  assert.equal(result.provenance.promptVersion, "v3");
+  assert.equal(result.provenance.attempts.length, 2);
+});
+
 test("provider retry exhaustion remains retryable for durable queue dead-letter policy", async () => {
   const llm = scriptedLayer([new LLMProviderError("PROVIDER_UNAVAILABLE", { provider: "scripted-ci" })]);
   await assert.rejects(
