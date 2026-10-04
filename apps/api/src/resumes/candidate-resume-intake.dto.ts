@@ -10,6 +10,7 @@ export class CandidateJobMatchDto {
   @ApiPropertyOptional() seniority?: string;
   @ApiProperty({ minimum: 0, maximum: 100 }) matchScore!: number;
   @ApiProperty() algorithmVersion!: string;
+  @ApiProperty() requirementsConfigured!: boolean;
   @ApiProperty({ type: [String] }) matchedRequirements!: string[];
   @ApiProperty({ type: [String] }) missingMustHaveRequirements!: string[];
   @ApiProperty() rubricPublished!: boolean;
