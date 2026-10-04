@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsArray, IsISO8601, IsIn, IsOptional, IsString, IsUUID, Length } from "class-validator";
+import { IsArray, IsISO8601, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from "class-validator";
 
 export class AssignInterviewerDto {
   @ApiProperty() @IsUUID() sessionId!: string;
@@ -25,8 +25,11 @@ export class ScheduleTechnicalInterviewDto {
   @IsString()
   language?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ minimum: 15, maximum: 180, default: 60 })
   @IsOptional()
+  @IsInt()
+  @Min(15)
+  @Max(180)
   durationMinutes?: number;
 }
 
