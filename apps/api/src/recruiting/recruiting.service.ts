@@ -68,7 +68,7 @@ export class RecruitingService {
        AND rv.rubric_id = r.id
       WHERE r.organization_id = ${organizationId}::uuid
         AND r.job_id = ${jobId}::uuid
-      ORDER BY CASE WHEN rv.status = 'published' THEN 0 ELSE 1 END, rv.version DESC
+      ORDER BY rv.version DESC
       LIMIT 1
     `;
 
@@ -92,7 +92,7 @@ export class RecruitingService {
           SELECT rv2.id
           FROM rubric_versions rv2
           WHERE rv2.organization_id = r.organization_id AND rv2.rubric_id = r.id
-          ORDER BY CASE WHEN rv2.status = 'published' THEN 0 ELSE 1 END, rv2.version DESC
+          ORDER BY rv2.version DESC
           LIMIT 1
         )
       ORDER BY rc.display_order, rc.label
