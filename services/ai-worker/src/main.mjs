@@ -6,8 +6,10 @@ import { capabilityPromptDefinitions, createCapabilityProcessors } from "./capab
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider } from "./provider-factory.mjs";
 import { AiWorkerRuntime } from "./runtime.mjs";
+import { installInstrumentedFetch, logger, logPath, writeLog } from "./observability.mjs";
 
 configureWorkerTls();
+installInstrumentedFetch();
 
 function integerEnv(name, fallback) {
   const value = Number(process.env[name] ?? fallback);
@@ -47,6 +49,15 @@ const runtime = new AiWorkerRuntime({
   pollIntervalMs: integerEnv("AI_WORKER_POLL_INTERVAL_MS", 1_000),
   leaseDurationMs: integerEnv("AI_WORKER_LEASE_DURATION_MS", 120_000),
   heartbeatIntervalMs: integerEnv("AI_WORKER_HEARTBEAT_INTERVAL_MS", 15_000),
+  logger,
+});
+
+writeLog("info", "worker.started", {
+  workerId: process.env.AI_WORKER_ID ?? `ai-worker-${process.pid}`,
+  apiBaseUrl: process.env.AI_WORKER_API_BASE_URL ?? "http://127.0.0.1:4000",
+  logFile: logPath(),
+  llmProvider: process.env.LLM_PROVIDER ?? "disabled",
+  llmModel: process.env.LLM_MODEL ?? null,
 });
 
 const controller = new AbortController();
