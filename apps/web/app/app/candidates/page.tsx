@@ -4,6 +4,7 @@ import type { components } from "@interview/api-client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
+import { CandidateResumeIntakePanel } from "../../../components/recruiting/candidate-resume-intake-panel";
 import { Panel, PersonAvatar, Pill } from "../../../components/product/recruiting-ui";
 import { api } from "../../../lib/api";
 import { formatFaNumber } from "../../../lib/fa-numbers";
@@ -22,20 +23,22 @@ export default function CandidatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
+  async function refreshCandidates() {
+    const identity = await resolveTenantIdentity();
+    const result = await api.GET("/v1/candidates", { headers: tenantHeaders(identity) });
+    if (result.error || !result.data) throw new Error("کاندیداها از سرویس جذب بارگذاری نشدند");
+    setCandidates(result.data);
+  }
+
   useEffect(() => {
     let active = true;
-    void (async () => {
-      try {
-        const identity = await resolveTenantIdentity();
-        const result = await api.GET("/v1/candidates", { headers: tenantHeaders(identity) });
-        if (result.error || !result.data) throw new Error("کاندیداها از سرویس جذب بارگذاری نشدند");
-        if (active) setCandidates(result.data);
-      } catch (cause) {
+    void refreshCandidates()
+      .catch((cause) => {
         if (active) setError(cause instanceof Error ? cause.message : "کاندیداها بارگذاری نشدند");
-      } finally {
+      })
+      .finally(() => {
         if (active) setLoading(false);
-      }
-    })();
+      });
     return () => {
       active = false;
     };
@@ -60,6 +63,17 @@ export default function CandidatesPage() {
       </div>
 
       {error ? <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-xs text-rose-700">{error}</div> : null}
+
+      <CandidateResumeIntakePanel
+        onCandidateReady={async () => {
+          try {
+            await refreshCandidates();
+            setError(undefined);
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "کاندیداها دوباره بارگذاری نشدند");
+          }
+        }}
+      />
 
       <Panel>
         <div className="border-b border-slate-200 p-4">
