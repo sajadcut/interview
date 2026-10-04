@@ -252,16 +252,18 @@ export class CandidateResumeIntakeService {
     return jobs
       .map((job) => {
         const jobId = String(job.id);
+        const jobRequirements = requirementsByJob.get(jobId) ?? [];
+        const requirementsConfigured = jobRequirements.length > 0;
         const result = calculateEvidenceConceptMatch({
-          requirements: requirementsByJob.get(jobId) ?? [],
+          requirements: jobRequirements,
           skills: candidateSkills,
           experiences: candidateExperiences,
         });
         const byId = new Map(result.components.map((component) => [component.requirementId, component]));
-        const missingMustHaveRequirements = (requirementsByJob.get(jobId) ?? [])
+        const missingMustHaveRequirements = jobRequirements
           .filter((requirement) => result.missingMustHaveRequirementIds.includes(requirement.id))
           .map((requirement) => requirement.name);
-        const matchedRequirements = (requirementsByJob.get(jobId) ?? [])
+        const matchedRequirements = jobRequirements
           .filter((requirement) => {
             const component = byId.get(requirement.id);
             return Boolean(component?.evidenceBacked && component.coverage >= 0.5);
@@ -277,6 +279,7 @@ export class CandidateResumeIntakeService {
           ...(job.seniority ? { seniority: String(job.seniority) } : {}),
           matchScore: result.score,
           algorithmVersion: result.algorithmVersion,
+          requirementsConfigured,
           matchedRequirements,
           missingMustHaveRequirements,
           rubricPublished: Boolean(job.published_rubric_version_id),
@@ -290,6 +293,9 @@ export class CandidateResumeIntakeService {
     const organizationId = this.tenantContext.require().organizationId;
     const match = (await this.matchJobs(candidateId)).find((item) => item.jobId === jobId);
     if (!match) throw new NotFoundException("Matching job was not found");
+    if (!match.requirementsConfigured) {
+      throw new BadRequestException("Define job requirements before adding a candidate from resume matching");
+    }
     if (!match.rubricPublished) {
       throw new BadRequestException("Publish the job rubric before adding this candidate");
     }
@@ -471,7 +477,7 @@ export class CandidateResumeIntakeService {
     profile: CandidateResumeIntakeDto["resume"]["structuredProfile"];
     matches: CandidateJobMatchDto[];
   }): Promise<string | undefined> {
-    const topMatches = input.matches.slice(0, 8);
+    const topMatches = input.matches.filter((match) => match.requirementsConfigured).slice(0, 8);
     if (topMatches.length === 0) return undefined;
 
     const inputFingerprint = createHash("sha256")
