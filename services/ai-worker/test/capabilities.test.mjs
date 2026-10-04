@@ -31,6 +31,7 @@ for (const capability of [
   "interview.evaluate",
   "candidate.resume_enrich",
   "candidate.summary",
+  "candidate.job_match",
   "interview.recommendation_summary",
 ]) {
   test(`${capability} is registered as a real worker capability`, () => {
