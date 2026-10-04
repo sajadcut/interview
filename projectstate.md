@@ -1,8 +1,8 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.39.0
-> **Date:** 2026-09-29
+> **Version:** 0.40.0
+> **Date:** 2026-10-04
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
@@ -40,6 +40,22 @@ permissions                               hiring_request.read/create/manage + te
 database                                  append-only migration 0059_hiring_request_workflow.sql
 UI                                        /app/hiring-requests + candidate technical-approval control
 production-safety boundary                consequential hire remains human-controlled
+```
+
+## Resume-first Candidate Intake → Job Matching
+
+```text
+implementation                            pushed; public API contracts synchronized
+primary entrypoint                        /app/candidates resume upload instead of manual candidate creation inside a Job
+supported files                           PDF / DOCX (existing ingestion also supports UTF-8 text internally)
+candidate identity                        organization-global Candidate resolved/reused by resume email when available
+resume processing                         extraction → structured profile → skills/experience → chunks → evidence
+job matching                              deterministic evidence-concept-v1 score across non-closed/non-archived Jobs
+LLM role                                  candidate.job_match explains strengths/gaps for top matches; it cannot alter deterministic score or make hire/reject decisions
+human gate                                HR explicitly confirms «add to this position» before Application creation
+application provenance                    source=resume_match_review + pinned published rubric + persisted pre_interview_match_score
+Job workspace                             manual new-candidate creation removed from the primary Job flow; links recruiters to resume intake
+validation                                API compile/OpenAPI contract sync succeeded; same-HEAD quality gate remains constrained by the existing production dependency audit blocker
 ```
 
 
