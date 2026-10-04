@@ -500,6 +500,22 @@ export interface paths {
         patch: operations["RecruitingOperationsController_updateJob"];
         trace?: never;
     };
+    "/v1/jobs/{jobId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RecruitingOperationsController_publishJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/jobs/{jobId}/rubric/draft": {
         parameters: {
             query?: never;
@@ -2937,6 +2953,16 @@ export interface components {
             location?: string;
             seniority?: string;
             summary?: string;
+            requirements?: components["schemas"]["CreateJobRequirementDto"][];
+        };
+        PublishJobResponseDto: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @enum {string} */
+            status: "open";
+            rubricVersion?: number;
+            rubricPublished: boolean;
         };
         SaveRubricDraftDto: {
             name: string;
@@ -5685,6 +5711,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_publishJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishJobResponseDto"];
+                };
             };
             400: {
                 headers: {
