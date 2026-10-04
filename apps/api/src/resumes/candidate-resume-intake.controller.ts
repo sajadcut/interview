@@ -1,6 +1,7 @@
 // Resume-first candidate intake: upload -> profile/evidence -> job matches -> human-approved application.
 // PDF uploads are normalized to plain Uint8Array before pdf.js/unpdf processing.
 // Resume match analysis uses schema-constrained v2 LLM prompts.
+// Analysis status exposes queue attempts for a truthful staged UI.
 import {
   BadRequestException,
   Controller,
