@@ -10,6 +10,7 @@ import {
   CandidateFinderExecuteDto,
   CandidateFinderExecutionDto,
   CandidateFinderPlanStatusDto,
+  CandidateFinderResultAnalysisStatusDto,
   CandidateFinderStartDto,
   JobTalentAnalysisStartDto,
   JobTalentAnalysisStatusDto,
@@ -142,6 +143,13 @@ export class SourcingController {
     @Body() body: CandidateFinderExecuteDto,
   ) {
     return this.agent.executeCandidateFinder(jobId, planJobId, body);
+  }
+
+  @Get("sourcing/candidate-finder-analysis/:analysisJobId")
+  @RequirePermissions(Permissions.CandidateRead)
+  @ApiOkResponse({ type: CandidateFinderResultAnalysisStatusDto })
+  candidateFinderAnalysis(@Param("analysisJobId") analysisJobId: string) {
+    return this.agent.getFinderResultAnalysis(analysisJobId);
   }
 
   @Post("sourcing/discovered/:discoveredCandidateId/accept")
