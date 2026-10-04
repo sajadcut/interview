@@ -69,7 +69,7 @@ const EXPERIENCE_HEADERS = /^(experience|work experience|professional experience
 const SECTION_HEADER = /^(education|certifications?|projects?|languages?|summary|profile|about|تحصیلات|گواهی|پروژه(?:‌| )?ها|زبان(?:‌| )?ها|خلاصه|درباره)\s*:?‌?$/i;
 const MONTH_NAME = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
 const DATE_RANGE = new RegExp(
-  \`(?:\${MONTH_NAME}\\\\s+)?((?:19|20)\\\\d{2})(?:[-/.]\\\\d{1,2})?\\\\s*(?:-|–|—|to|تا)\\\\s*(?:\${MONTH_NAME}\\\\s+)?((?:19|20)\\\\d{2}(?:[-/.]\\\\d{1,2})?|present|current|اکنون|حال)\`,
+  `(?:${MONTH_NAME}\\s+)?((?:19|20)\\d{2})(?:[-/.]\\d{1,2})?\\s*(?:-|–|—|to|تا)\\s*(?:${MONTH_NAME}\\s+)?((?:19|20)\\d{2}(?:[-/.]\\d{1,2})?|present|current|اکنون|حال)`,
   "i",
 );
 
@@ -148,11 +148,11 @@ export class ResumeParser {
       const heading = sameLineParts ?? splitExperienceHeading(previousHeading);
       if (!heading) continue;
 
-      const startedOn = \`\${date[1]}-01-01\`;
+      const startedOn = `${date[1]}-01-01`;
       const endedRaw = date[2]!.toLowerCase();
       const endedOn = /present|current|اکنون|حال/.test(endedRaw)
         ? null
-        : \`\${endedRaw.slice(0, 4)}-12-31\`;
+        : `${endedRaw.slice(0, 4)}-12-31`;
 
       const descriptionLines: string[] = [];
       for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
