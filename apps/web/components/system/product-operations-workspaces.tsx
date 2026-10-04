@@ -206,6 +206,52 @@ export function IntegrationsWorkspace() {
     await load(identity);
   }
 
+  async function configureCandidateSource(
+    providerKey: "people_data_labs" | "coresignal",
+    suggestedReference: string,
+  ) {
+    if (!identity) return;
+    const credentialReference = window.prompt(
+      "مرجع متغیر محیطی API Key را وارد کنید؛ خود API Key را اینجا وارد نکنید.",
+      suggestedReference,
+    )?.trim();
+    if (!credentialReference) return;
+    if (!/^env:\/\/[A-Z][A-Z0-9_]{2,100}$/.test(credentialReference)) {
+      setMessage("برای کاندیدیاب فعلاً مرجع باید به شکل env://PREFIX باشد؛ مثال: env://PEOPLE_DATA_LABS");
+      return;
+    }
+    const existingCandidateSources = rows.filter(
+      (row) =>
+        row.connection_type === "candidate_source" &&
+        row.status !== "disabled" &&
+        ["people_data_labs", "coresignal"].includes(row.provider_key),
+    );
+    const defaultForSourcing = existingCandidateSources.length === 0;
+    const result = await api.POST("/v1/integrations", {
+      headers: tenantHeaders(identity, true),
+      body: {
+        providerKey,
+        connectionType: "candidate_source",
+        credentialReference,
+        config: {
+          approvedForRecruitingUse: true,
+          privacyUseApproved: true,
+          defaultForSourcing,
+        },
+      },
+    });
+    if (!result.response.ok) {
+      setMessage(apiErrorMessage(result, "پیکربندی منبع کاندیدیاب ناموفق بود"));
+      return;
+    }
+    setMessage(
+      defaultForSourcing
+        ? "منبع کاندیدیاب با تأیید استفاده استخدامی/حریم خصوصی ثبت و به‌عنوان منبع پیش‌فرض فعال شد."
+        : "منبع کاندیدیاب ثبت شد. چون منبع دیگری از قبل فعال است، این اتصال به‌صورت پیش‌فرض انتخاب نشد.",
+    );
+    await load(identity);
+  }
+
   async function setStatus(row: IntegrationRow, status: "configured" | "disabled") {
     if (!identity) return;
     const result = await api.PATCH("/v1/integrations/{integrationId}", {
@@ -220,7 +266,79 @@ export function IntegrationsWorkspace() {
     await load(identity);
   }
 
-  return <div className="space-y-5"><div className="flex flex-wrap items-end justify-between gap-4"><div><div className="text-[10px] font-medium text-indigo-600">مرز سازمانی مستقل از ارائه‌دهنده</div><h1 className="mt-2 text-[26px] font-semibold">یکپارچه‌سازی‌ها</h1><p className="mt-1 text-[11px] text-slate-500">ATS، تقویم، ایمیل و منابع خارجی مجاز با مرجع امن، وضعیت سلامت و حسابرسی مدیریت می‌شوند.</p></div><button onClick={() => void configure()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white">پیکربندی</button></div>{error || message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{error || message}</div> : null}<Panel className="overflow-hidden"><div className="divide-y divide-slate-100">{loading ? <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری یکپارچه‌سازی‌ها…</div> : rows.length ? rows.map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><div className="text-[10px] font-semibold">{row.provider_key} · {faDomainLabel(row.connection_type)}</div><div className="mt-1 text-[9px] text-slate-500">مرجع امن: {row.credential_reference || "پیکربندی نشده"}{row.last_error ? ` · ${row.last_error}` : ""}</div></div><div className="flex items-center gap-2"><Pill tone={row.status === "verified" ? "green" : row.status === "degraded" ? "amber" : "slate"}>{faDomainLabel(row.status)}</Pill><button onClick={() => void setStatus(row, row.status === "disabled" ? "configured" : "disabled")} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">{row.status === "disabled" ? "فعال‌کردن" : "غیرفعال‌کردن"}</button></div></div>) : <div className="p-5 text-[10px] text-slate-500">هیچ یکپارچه‌سازی‌ای پیکربندی نشده است.</div>}</div></Panel><Panel className="p-4 text-[10px] leading-5 text-slate-600">اتصالی که فقط پیکربندی شده باشد تا زمان تأیید توسط مبدل واقعی ارائه‌دهنده، «تأییدشده» محسوب نمی‌شود. توکن و رمز خام طبق سیاست API پذیرفته نمی‌شوند.</Panel></div>;
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[10px] font-medium text-indigo-600">مرز سازمانی مستقل از ارائه‌دهنده</div>
+          <h1 className="mt-2 text-[26px] font-semibold">یکپارچه‌سازی‌ها</h1>
+          <p className="mt-1 text-[11px] text-slate-500">ATS، تقویم، ایمیل و منابع خارجی مجاز با مرجع امن، وضعیت سلامت و حسابرسی مدیریت می‌شوند.</p>
+        </div>
+        <button onClick={() => void configure()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white">پیکربندی عمومی</button>
+      </div>
+
+      {error || message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{error || message}</div> : null}
+
+      <Panel className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-[11px] font-semibold text-slate-900">منابع کاندیدیاب</div>
+            <p className="mt-1 max-w-2xl text-[9px] leading-5 text-slate-500">
+              برای جستجوی بیرونی، فقط مرجع متغیر محیطی API Key ثبت می‌شود. خود کلید در دیتابیس یا UI ذخیره نمی‌شود و استفاده Recruiting/Privacy صریحاً تأیید می‌گردد.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void configureCandidateSource("people_data_labs", "env://PEOPLE_DATA_LABS")}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              اتصال People Data Labs
+            </button>
+            <button
+              type="button"
+              onClick={() => void configureCandidateSource("coresignal", "env://CORESIGNAL")}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              اتصال Coresignal
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[8px] leading-4 text-amber-800">
+          قبل از اجرای API، متغیر محیطی متناظر را روی API process تنظیم کنید؛ مثلاً PEOPLE_DATA_LABS_API_KEY یا CORESIGNAL_API_KEY. جستجوی مستقیم/پنهان LinkedIn انجام نمی‌شود.
+        </div>
+      </Panel>
+
+      <Panel className="overflow-hidden">
+        <div className="divide-y divide-slate-100">
+          {loading ? (
+            <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری یکپارچه‌سازی‌ها…</div>
+          ) : rows.length ? rows.map((row) => (
+            <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+              <div>
+                <div className="text-[10px] font-semibold">{row.provider_key} · {faDomainLabel(row.connection_type)}</div>
+                <div className="mt-1 text-[9px] text-slate-500">
+                  مرجع امن: {row.credential_reference || "پیکربندی نشده"}
+                  {row.last_error ? ` · ${row.last_error}` : ""}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Pill tone={row.status === "verified" ? "green" : row.status === "degraded" ? "amber" : "slate"}>{faDomainLabel(row.status)}</Pill>
+                <button onClick={() => void setStatus(row, row.status === "disabled" ? "configured" : "disabled")} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">
+                  {row.status === "disabled" ? "فعال‌کردن" : "غیرفعال‌کردن"}
+                </button>
+              </div>
+            </div>
+          )) : (
+            <div className="p-5 text-[10px] text-slate-500">هیچ یکپارچه‌سازی‌ای پیکربندی نشده است.</div>
+          )}
+        </div>
+      </Panel>
+      <Panel className="p-4 text-[10px] leading-5 text-slate-600">
+        اتصالی که فقط پیکربندی شده باشد تا زمان تأیید توسط مبدل واقعی ارائه‌دهنده، «تأییدشده» محسوب نمی‌شود. توکن و رمز خام طبق سیاست API پذیرفته نمی‌شوند.
+      </Panel>
+    </div>
+  );
 }
 
 export function SettingsWorkspace() {
