@@ -59,6 +59,21 @@ const envSchema = z
     API_HOST: z.string().trim().min(1).default("127.0.0.1"),
     API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     CORS_ORIGIN: z.string().trim().min(1).default("http://localhost:3000"),
+
+    LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
+    LOG_SERVICE_NAME: z.string().trim().min(1).default("interview-api"),
+    LOG_CONSOLE_ENABLED: trueBooleanFlag,
+    LOG_FILE_ENABLED: trueBooleanFlag,
+    LOG_DIR: z.string().trim().min(1).default(".local-data/logs"),
+    LOG_FILE_BASENAME: z.string().trim().min(1).default("interview-api"),
+    LOG_ROTATE_MAX_BYTES: z.coerce.number().int().min(1_048_576).max(1_073_741_824).default(104_857_600),
+    LOG_ROTATE_MAX_FILES: z.coerce.number().int().min(1).max(100).default(10),
+    LOG_BODY_MODE: z.enum(["off", "metadata", "full"]).default("metadata"),
+    LOG_MAX_BODY_BYTES: z.coerce.number().int().min(1_024).max(10_485_760).default(524_288),
+    LOG_HTTP_ENABLED: trueBooleanFlag,
+    LOG_OUTBOUND_HTTP_ENABLED: trueBooleanFlag,
+    TRACE_PROPAGATION_ENABLED: trueBooleanFlag,
+
     SUPERVISED_PILOT_ENABLED: booleanFlag,
     DATABASE_URL: z
       .string()
