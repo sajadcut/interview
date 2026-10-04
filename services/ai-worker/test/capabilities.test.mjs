@@ -107,7 +107,7 @@ test("recruiter-facing job-match analysis rejects English prose and accepts Pers
   });
 
   assert.match(result.output.matches[0].fitSummary, /[\u0600-\u06FF]/u);
-  assert.equal(result.provenance.promptVersion, "v3");
+  assert.equal(result.provenance.promptVersion, "v4");
   assert.equal(result.provenance.attempts.length, 2);
 });
 
