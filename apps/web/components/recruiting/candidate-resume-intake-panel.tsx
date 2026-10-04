@@ -537,9 +537,11 @@ export function CandidateResumeIntakePanel({
                       >
                         {busyJobId === match.jobId
                           ? "در حال افزودن…"
-                          : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status))
-                            ? "منتظر تحلیل هوش مصنوعی…"
-                            : "افزودن به این موقعیت"}
+                          : !match.requirementsConfigured
+                            ? "نیازمندی‌ها تعریف نشده"
+                            : result.analysisJobId && (!analysis?.status || ACTIVE_AI_STATUSES.has(analysis.status))
+                              ? "منتظر تحلیل هوش مصنوعی…"
+                              : "افزودن به این موقعیت"}
                       </button>
                     )}
                   </div>
