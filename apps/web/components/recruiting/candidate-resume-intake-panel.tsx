@@ -219,7 +219,7 @@ export function CandidateResumeIntakePanel({
 
   return (
     <Panel className="overflow-hidden">
-      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className={`grid gap-5 p-5 ${result ? "lg:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
         <div>
           <div className="text-[10px] font-semibold text-indigo-600">ورود رزومه‌محور کاندیدا</div>
           <h2 className="mt-1 text-[18px] font-semibold tracking-tight text-slate-950">
@@ -252,9 +252,9 @@ export function CandidateResumeIntakePanel({
           </label>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <div className="text-[10px] font-semibold text-slate-700">خروجی پردازش</div>
-          {result ? (
+        {result ? (
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <div className="text-[10px] font-semibold text-slate-700">خلاصه رزومه</div>
             <div className="mt-3 space-y-3">
               <div>
                 <Link href={`/app/candidates/${result.candidateId}`} className="text-[13px] font-semibold text-slate-900 hover:text-indigo-600">
@@ -276,10 +276,8 @@ export function CandidateResumeIntakePanel({
                 </div>
               ) : null}
             </div>
-          ) : (
-            <div className="mt-3 text-[9px] leading-5 text-slate-400">پس از بارگذاری، خلاصه پروفایل و پیشنهاد موقعیت‌های مناسب اینجا نمایش داده می‌شود.</div>
-          )}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {message ? <div className="mx-5 mb-5 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-[10px] text-indigo-800">{message}</div> : null}
