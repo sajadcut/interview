@@ -5,7 +5,8 @@ import {
   HttpStatus,
   type ExceptionFilter,
 } from "@nestjs/common";
-import type { Response } from "express";
+import type { Request, Response } from "express";
+import type { RequestWithContext } from "./correlation-id.middleware";
 
 interface RateLimitResponseShape {
   retryAfterSeconds?: unknown;
@@ -19,6 +20,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const response = context.getResponse<Response>();
+    const request = context.getRequest<Request & RequestWithContext>();
 
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
@@ -42,6 +44,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       statusCode: status,
       error: this.codeFor(status),
+      ...(request.traceId ? { traceId: request.traceId } : {}),
+      ...(request.requestId ? { requestId: request.requestId } : {}),
       ...(rateLimit
         ? {
             retryAfterSeconds: rateLimit.retryAfterSeconds,
