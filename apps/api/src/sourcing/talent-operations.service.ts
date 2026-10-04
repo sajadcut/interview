@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
-import { calculateEvidenceConceptMatch } from "./evidence-match-engine";
+import { calculateEvidenceConceptMatch, type MatchRequirement } from "./evidence-match-engine";
 import type {
   CandidateMatchRequestDto,
   ResolveDuplicateReviewDto,
@@ -187,6 +187,135 @@ export class TalentOperationsService {
         mergeMode: "non_destructive_alias",
       };
     });
+  }
+
+  async listJobTalentMatches(jobId: string, limit = 25) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const boundedLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+
+    const jobs = await this.database.sql`
+      SELECT id::text
+      FROM jobs
+      WHERE organization_id = ${organizationId}::uuid
+        AND id = ${jobId}::uuid
+      LIMIT 1
+    `;
+    if (!jobs[0]) throw new NotFoundException("Job not found");
+
+    const [requirements, candidates, skills, experiences] = await Promise.all([
+      this.database.sql`
+        SELECT id::text, name, description, weight, requirement_type
+        FROM job_requirements
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${jobId}::uuid
+        ORDER BY CASE requirement_type WHEN 'must_have' THEN 0 ELSE 1 END, weight DESC
+      `,
+      this.database.sql`
+        SELECT
+          c.id::text,
+          c.display_name,
+          c."current_role",
+          c.current_company,
+          c.updated_at,
+          a.id::text AS application_id
+        FROM talent_pool_entries t
+        JOIN candidates c
+          ON c.organization_id = t.organization_id
+         AND c.id = t.candidate_id
+        LEFT JOIN applications a
+          ON a.organization_id = c.organization_id
+         AND a.candidate_id = c.id
+         AND a.job_id = ${jobId}::uuid
+        WHERE t.organization_id = ${organizationId}::uuid
+          AND t.status = 'active'
+        ORDER BY c.updated_at DESC
+        LIMIT 250
+      `,
+      this.database.sql`
+        SELECT candidate_id::text, skill_label, verification_state, source_reference
+        FROM candidate_skills
+        WHERE organization_id = ${organizationId}::uuid
+      `,
+      this.database.sql`
+        SELECT candidate_id::text, title, description, source_reference
+        FROM candidate_experiences
+        WHERE organization_id = ${organizationId}::uuid
+      `,
+    ]);
+
+    const normalizedRequirements: MatchRequirement[] = requirements.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      ...(row.description ? { description: String(row.description) } : {}),
+      weight: Number(row.weight),
+      requirementType: String(row.requirement_type) as "must_have" | "nice_to_have",
+    }));
+
+    const skillsByCandidate = new Map<string, Array<{
+      label: string;
+      verificationState?: string;
+      sourceReference?: string;
+    }>>();
+    for (const row of skills) {
+      const candidateId = String(row.candidate_id);
+      const list = skillsByCandidate.get(candidateId) ?? [];
+      list.push({
+        label: String(row.skill_label),
+        ...(row.verification_state ? { verificationState: String(row.verification_state) } : {}),
+        ...(row.source_reference ? { sourceReference: String(row.source_reference) } : {}),
+      });
+      skillsByCandidate.set(candidateId, list);
+    }
+
+    const experiencesByCandidate = new Map<string, Array<{
+      title: string;
+      description?: string;
+      sourceReference?: string;
+    }>>();
+    for (const row of experiences) {
+      const candidateId = String(row.candidate_id);
+      const list = experiencesByCandidate.get(candidateId) ?? [];
+      list.push({
+        title: String(row.title),
+        ...(row.description ? { description: String(row.description) } : {}),
+        ...(row.source_reference ? { sourceReference: String(row.source_reference) } : {}),
+      });
+      experiencesByCandidate.set(candidateId, list);
+    }
+
+    return candidates
+      .map((candidate) => {
+        const candidateId = String(candidate.id);
+        const candidateSkills = skillsByCandidate.get(candidateId) ?? [];
+        const result = calculateEvidenceConceptMatch({
+          requirements: normalizedRequirements,
+          skills: candidateSkills,
+          experiences: experiencesByCandidate.get(candidateId) ?? [],
+        });
+        const componentByRequirement = new Map(
+          result.components.map((component) => [component.requirementId, component]),
+        );
+        return {
+          candidateId,
+          displayName: String(candidate.display_name),
+          ...(candidate.current_role ? { currentRole: String(candidate.current_role) } : {}),
+          ...(candidate.current_company ? { currentCompany: String(candidate.current_company) } : {}),
+          skills: candidateSkills.map((skill) => skill.label),
+          matchScore: result.score,
+          algorithmVersion: result.algorithmVersion,
+          matchedRequirements: normalizedRequirements
+            .filter((requirement) => componentByRequirement.get(requirement.id)?.evidenceBacked)
+            .map((requirement) => requirement.name),
+          missingMustHaveRequirements: normalizedRequirements
+            .filter((requirement) =>
+              result.missingMustHaveRequirementIds.includes(requirement.id),
+            )
+            .map((requirement) => requirement.name),
+          ...(candidate.application_id ? { applicationId: String(candidate.application_id) } : {}),
+        };
+      })
+      .sort((left, right) => right.matchScore - left.matchScore || left.displayName.localeCompare(right.displayName))
+      .slice(0, boundedLimit);
   }
 
   async calculateMatch(jobId: string, input: CandidateMatchRequestDto) {
