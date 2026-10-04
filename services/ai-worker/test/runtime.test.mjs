@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawn } from "node:child_process";
 import { AiWorkerRuntime, RetryableJobError } from "../src/runtime.mjs";
 
 function job(overrides = {}) {
@@ -123,4 +124,35 @@ test("processor timeout is reported as retryable and aborts the processor signal
   assert.equal(aborted, true);
   assert.equal(failure.retryable, true);
   assert.equal(failure.errorCode, "JOB_TIMEOUT");
+});
+
+
+test("runForever keeps the worker process alive while the queue is empty", async () => {
+  const runtimeUrl = new URL("../src/runtime.mjs", import.meta.url).href;
+  const script = `
+    import { AiWorkerRuntime } from ${JSON.stringify(runtimeUrl)};
+    const runtime = new AiWorkerRuntime({
+      client: { async claim() { return null; } },
+      processors: new Map(),
+      workerId: "worker-liveness",
+      pollIntervalMs: 100,
+    });
+    await runtime.runForever();
+  `;
+
+  const child = spawn(process.execPath, ["--input-type=module", "-e", script], {
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  assert.equal(child.exitCode, null, `worker exited while idle: ${stderr}`);
+
+  child.kill();
+  await new Promise((resolve) => child.once("exit", resolve));
 });
