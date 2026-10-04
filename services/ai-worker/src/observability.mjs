@@ -230,7 +230,7 @@ export const logger = {
   error: (message, fields = {}) => writeLog("error", "worker.log", { message, ...fields }),
 };
 
-function bodyForLog(value, contentType = "") {
+export function loggableBody(value, contentType = "") {
   const cfg = config();
   if (cfg.bodyMode === "off") return undefined;
   if (value === undefined || value === null) return value;
@@ -268,7 +268,7 @@ async function responseBody(response) {
   if (cfg.bodyMode === "metadata") return { kind: contentType.includes("json") ? "json" : "text", bytes: Number(response.headers.get("content-length")) || undefined };
   try {
     const text = await response.clone().text();
-    return bodyForLog(text, contentType);
+    return loggableBody(text, contentType);
   } catch (error) {
     return { kind: "unavailable", error: error instanceof Error ? error.message : String(error) };
   }
@@ -300,7 +300,7 @@ export function installInstrumentedFetch() {
       method,
       url,
       headers: Object.fromEntries(headers.entries()),
-      body: bodyForLog(init.body, headers.get("content-type") ?? ""),
+      body: loggableBody(init.body, headers.get("content-type") ?? ""),
     });
     try {
       const response = await nativeFetch(input, { ...init, headers });
