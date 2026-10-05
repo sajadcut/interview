@@ -262,7 +262,12 @@ export class TtsHttpClient implements TextToSpeechAdapter {
       ) {
         return { reachable: true, ready: false, reason: "invalid_response" };
       }
-      return { reachable: true, ready: true, contractVersion: TTS_CONTRACT_VERSION };
+      return {
+        reachable: true,
+        ready: true,
+        contractVersion: TTS_CONTRACT_VERSION,
+        provider: row.provider,
+      };
     } catch (cause) {
       return { reachable: false, ready: false, reason: isTimeoutError(cause) ? "client_timeout" : "network_error" };
     }
