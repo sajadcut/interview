@@ -30,8 +30,16 @@ function getApiTarget(): URL {
 
 function buildTargetUrl(request: Request, path: string[]): URL {
   const target = getApiTarget();
-  const basePath = target.pathname.replace(/\/$/, "");
-  target.pathname = `${basePath}/v1/candidate-interview/${path.map(encodeURIComponent).join("/")}`;
+  const basePath = target.pathname.replace(/\/+$/, "");
+  const requestedSegments = ["v1", "candidate-interview", ...path].map(encodeURIComponent);
+
+  // API_INTERNAL_URL/NEXT_PUBLIC_API_URL may be configured either at the API origin
+  // (http://127.0.0.1:4100) or at its /v1 base. Avoid generating /v1/v1/... in the latter case.
+  if (basePath.endsWith("/v1") && requestedSegments[0] === "v1") {
+    requestedSegments.shift();
+  }
+
+  target.pathname = `${basePath}/${requestedSegments.join("/")}`;
   target.search = new URL(request.url).search;
   return target;
 }
