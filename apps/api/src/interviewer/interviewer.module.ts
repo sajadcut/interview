@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { OrganizationsModule } from "../organizations/organizations.module";
+import { InterviewsModule } from "../interviews/interviews.module";
 import { InterviewAssignmentAdminController } from "./interview-assignment-admin.controller";
 import { InterviewAssignmentAdminService } from "./interview-assignment-admin.service";
 import { InterviewerController } from "./interviewer.controller";
@@ -8,7 +9,7 @@ import { InterviewerProfileService } from "./interviewer-profile.service";
 import { InterviewerService } from "./interviewer.service";
 
 @Module({
-  imports: [OrganizationsModule],
+  imports: [OrganizationsModule, InterviewsModule],
   controllers: [InterviewAssignmentAdminController, InterviewerController, InterviewerProfileController],
   providers: [InterviewAssignmentAdminService, InterviewerService, InterviewerProfileService],
   exports: [InterviewAssignmentAdminService, InterviewerService, InterviewerProfileService],
