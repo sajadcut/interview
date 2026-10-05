@@ -67,9 +67,6 @@ export default function CandidatesPage() {
   const selectedVisibleCount = filteredCandidates.filter((candidate) => selectedIds.has(candidate.id)).length;
   const allVisibleSelected = filteredCandidates.length > 0 && selectedVisibleCount === filteredCandidates.length;
   const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
-  const selectedDeletableCount = candidates.filter(
-    (candidate) => selectedIds.has(candidate.id) && candidate.applicationCount === 0,
-  ).length;
 
   function toggleCandidate(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -156,10 +153,8 @@ export default function CandidatesPage() {
           <BulkActionBar selectedCount={selectedIds.size} noun="کاندیدا" onClear={() => setSelectedIds(new Set())}>
             <button
               type="button"
-              disabled={selectedDeletableCount === 0}
-              title={selectedDeletableCount === 0 ? "کاندیداهای انتخاب‌شده به پرونده استخدامی متصل‌اند و حذف مستقیم آن‌ها مجاز نیست." : undefined}
               onClick={() => setDeleteIds([...selectedIds])}
-              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700"
             >
               حذف انتخاب‌شده‌ها
             </button>
@@ -250,10 +245,9 @@ export default function CandidatesPage() {
                       {access.can("candidate.resume_manage") ? (
                         <button
                           type="button"
-                          disabled={candidate.applicationCount > 0}
-                          title={candidate.applicationCount > 0 ? "این کاندیدا به پرونده استخدامی متصل است؛ برای حفظ سابقه و شواهد، حذف مستقیم مجاز نیست." : "حذف کاندیدا"}
+                          title={candidate.applicationCount > 0 ? "حذف را امتحان کنید؛ اگر پرونده استخدامی مانع باشد، دلیل دقیق نمایش داده می‌شود." : "حذف کاندیدا"}
                           onClick={() => setDeleteIds([candidate.id])}
-                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700"
                         >
                           حذف
                         </button>
