@@ -65,6 +65,11 @@ export class CandidateInterviewController {
     private readonly brain: InterviewBrainService,
   ) {}
 
+  @Get("preflight")
+  preflight(@Req() request: Request) {
+    return this.candidateInterview.preflight(candidateToken(request));
+  }
+
   @Post("start")
   start(@Req() request: Request, @Body() body: CandidateInterviewStartDto) {
     return this.candidateInterview.start(candidateToken(request), body.developmentPreview === true);
@@ -92,6 +97,34 @@ export class CandidateInterviewController {
       mediaSessionId,
       audio,
       contentType,
+    );
+  }
+
+  @Get("sessions/:sessionId/media/:mediaSessionId/status")
+  sync(
+    @Req() request: Request,
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+  ) {
+    return this.candidateInterview.sync(
+      candidateToken(request),
+      sessionId,
+      mediaSessionId,
+    );
+  }
+
+  @Post("sessions/:sessionId/media/:mediaSessionId/integrity-events")
+  integrity(
+    @Req() request: Request,
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+    @Body() body: unknown,
+  ) {
+    return this.candidateInterview.recordIntegrityEvent(
+      candidateToken(request),
+      sessionId,
+      mediaSessionId,
+      body,
     );
   }
 

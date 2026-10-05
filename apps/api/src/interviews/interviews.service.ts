@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
+import { computeInterviewClock } from "./interview-clock";
 import { CandidateIntents, validateStructuredInterviewTurn, type CandidateIntent, type StructuredInterviewTurn } from "./interview-contracts";
 import { assertInterviewTurnPolicy } from "./interview-policy-firewall";
 import { evaluateInterviewRelease, type InterviewLifecycleStage } from "./interview-release.policy";
@@ -171,17 +172,82 @@ export class InterviewsService {
     const organizationId=this.tenantContext.require().organizationId;
     const sessions=await this.database.sql`
       SELECT s.id,s.status,s.current_criterion_key,s.remaining_seconds,s.reconnect_count,s.started_at,s.completed_at,
-        p.id AS plan_id,p.version AS plan_version,p.language,p.interview_type,p.time_budget_minutes,
+        p.id AS plan_id,p.version AS plan_version,p.language,p.interview_type,p.time_budget_minutes,p.rubric_version_id,
         r.lifecycle_stage,r.interviewer_policy_version,r.speech_avatar_stack_version,r.evaluator_version,a.candidate_id,a.job_id
       FROM interview_sessions s JOIN interview_plans p ON p.organization_id=s.organization_id AND p.id=s.interview_plan_id
       JOIN interview_release_units r ON r.organization_id=p.organization_id AND r.id=p.release_unit_id
       JOIN applications a ON a.organization_id=s.organization_id AND a.id=s.application_id
       WHERE s.organization_id=${organizationId}::uuid AND s.id=${sessionId}::uuid LIMIT 1`;
     if (!sessions.length) return null;
+    const session=sessions[0];
     const transcript=await this.database.sql`SELECT id,speaker,start_ms,end_ms,text,is_final,stt_confidence FROM interview_transcript_segments WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY start_ms`;
     const evidence=await this.database.sql`SELECT id,criterion_id,turn_id,transcript_segment_ids,summary,confidence,source_kind,created_at FROM interview_evidence WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY created_at`;
-    const evaluations=await this.database.sql`SELECT id,rubric_version_id,evaluator_version,status,criterion_results,recommendation,evaluator_trace_reference,human_review_state,created_at FROM interview_evaluations WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY created_at DESC`;
-    return { session:sessions[0],transcript,evidence,evaluations,safetyNotice:"Interview evaluation is decision support. Final hiring/rejection authority remains human-controlled." };
+    const evaluations=await this.database.sql`
+      SELECT id,rubric_version_id,evaluator_version,status,criterion_results,recommendation,
+             evaluator_trace_reference,human_review_state,evidence_complete,overall_confidence,
+             weighted_score,validation_report,requires_human_review,created_at
+      FROM interview_evaluations
+      WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid
+      ORDER BY created_at DESC`;
+    const criteria=await this.database.sql`
+      SELECT id::text,criterion_key,label,description,weight,required,evidence_policy,display_order
+      FROM rubric_criteria
+      WHERE organization_id=${organizationId}::uuid
+        AND rubric_version_id=${String(session.rubric_version_id)}::uuid
+      ORDER BY display_order,criterion_key`;
+    const integrityRows=await this.database.sql`
+      SELECT event_type,count(*)::int AS event_count,COALESCE(sum(duration_ms),0)::bigint AS duration_ms
+      FROM interview_integrity_events
+      WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid
+      GROUP BY event_type ORDER BY event_type`;
+    const integrityEvents=await this.database.sql`
+      SELECT id::text,sequence,event_type,client_occurred_at,duration_ms,metadata,created_at
+      FROM interview_integrity_events
+      WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid
+      ORDER BY sequence`;
+    const evaluationJobs=await this.database.sql`
+      SELECT id::text,status,last_error_code,last_error_message,created_at,completed_at
+      FROM ai_jobs
+      WHERE organization_id=${organizationId}::uuid
+        AND capability='interview.evaluate'
+        AND payload->'input'->>'sessionId'=${sessionId}
+      ORDER BY created_at DESC LIMIT 1`;
+    const humanReviews=await this.database.sql`
+      SELECT id::text,status,reason_codes,priority,human_override,override_rationale,
+             evidence_references,criterion_comparison,created_at,completed_at
+      FROM interview_review_tasks
+      WHERE organization_id=${organizationId}::uuid
+        AND interview_session_id=${sessionId}::uuid
+      ORDER BY created_at DESC LIMIT 1`;
+    const counts = Object.fromEntries(integrityRows.map((row) => [String(row.event_type), Number(row.event_count)]));
+    const hiddenDurationMs = Number(integrityRows.find((row) => String(row.event_type)==="visibility_visible")?.duration_ms ?? 0);
+    const reviewRecommended = Number(counts.large_paste ?? 0) > 0 || hiddenDurationMs > 20_000 || Number(counts.window_blur ?? 0) >= 4;
+    const clock = computeInterviewClock({
+      status: String(session.status),
+      timeBudgetMinutes: Number(session.time_budget_minutes),
+      startedAt: session.started_at ? String(session.started_at) : null,
+      completedAt: session.completed_at ? String(session.completed_at) : null,
+    });
+    return {
+      session,
+      clock,
+      transcript,
+      evidence,
+      evaluations,
+      criteria,
+      evaluationJob:evaluationJobs[0] ?? null,
+      humanReview:humanReviews[0] ?? null,
+      integrity:{
+        interpretation:"observable_signals_only",
+        automaticCheatingDecision:false,
+        automaticScorePenalty:false,
+        status:reviewRecommended ? "review_recommended" : "no_observed_concern",
+        hiddenDurationMs,
+        counts,
+        events:integrityEvents,
+      },
+      safetyNotice:"Interview evaluation and integrity signals are decision support. Final hiring/rejection authority remains human-controlled."
+    };
   }
 
   async preflightRelease(releaseUnitId: string, body: unknown) {

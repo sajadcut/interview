@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
+import { AiJobQueueService } from "../ai/ai-job-queue.service";
 import { CandidateConsentService } from "../auth/candidate-consent.service";
 import {
   CandidateSessionService,
@@ -14,6 +15,8 @@ import { getEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewBrainService } from "./interview-brain.service";
+import { computeInterviewClock } from "./interview-clock";
+import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { InterviewMediaService } from "./interview-media.service";
 import { InterviewSessionStateService } from "./interview-session-state.service";
 import { InterviewSpeechService } from "./interview-speech.service";
@@ -35,12 +38,14 @@ function estimateSpeechDurationMs(text: string): number {
 export class CandidateInterviewService {
   constructor(
     private readonly database: DatabaseService,
+    private readonly aiJobs: AiJobQueueService,
     private readonly candidateSessions: CandidateSessionService,
     private readonly candidateConsent: CandidateConsentService,
     private readonly tenantContext: TenantContextService,
     private readonly interviews: InterviewsService,
     private readonly state: InterviewSessionStateService,
     private readonly brain: InterviewBrainService,
+    private readonly evaluator: InterviewEvaluatorService,
     private readonly media: InterviewMediaService,
     private readonly speech: InterviewSpeechService,
   ) {}
@@ -139,10 +144,13 @@ export class CandidateInterviewService {
   ) {
     const rows = mediaSessionId
       ? await this.database.sql`
-          SELECT s.status, s.remaining_seconds, s.checkpoint, m.id::text AS media_session_id
+          SELECT s.status, s.started_at, s.completed_at, s.checkpoint,
+                 p.time_budget_minutes, m.id::text AS media_session_id
           FROM interview_sessions s
           JOIN applications a
             ON a.organization_id = s.organization_id AND a.id = s.application_id
+          JOIN interview_plans p
+            ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
           JOIN interview_media_sessions m
             ON m.organization_id = s.organization_id AND m.interview_session_id = s.id
           WHERE s.organization_id = ${scope.organizationId}::uuid
@@ -153,10 +161,13 @@ export class CandidateInterviewService {
           LIMIT 1
         `
       : await this.database.sql`
-          SELECT s.status, s.remaining_seconds, s.checkpoint
+          SELECT s.status, s.started_at, s.completed_at, s.checkpoint,
+                 p.time_budget_minutes
           FROM interview_sessions s
           JOIN applications a
             ON a.organization_id = s.organization_id AND a.id = s.application_id
+          JOIN interview_plans p
+            ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
           WHERE s.organization_id = ${scope.organizationId}::uuid
             AND s.id = ${sessionId}::uuid
             AND s.application_id = ${scope.applicationId}::uuid
@@ -164,10 +175,25 @@ export class CandidateInterviewService {
           LIMIT 1
         `;
     if (!rows[0]) throw new NotFoundException("Candidate interview runtime not found");
-    const checkpoint = asRecord(rows[0].checkpoint);
+    const row = rows[0];
+    const checkpoint = asRecord(row.checkpoint);
+    const clock = computeInterviewClock({
+      status: String(row.status),
+      timeBudgetMinutes: Number(row.time_budget_minutes),
+      startedAt: row.started_at ? String(row.started_at) : null,
+      completedAt: row.completed_at ? String(row.completed_at) : null,
+    });
+    await this.database.sql`
+      UPDATE interview_sessions
+      SET remaining_seconds = ${clock.remainingSeconds}
+      WHERE organization_id = ${scope.organizationId}::uuid
+        AND id = ${sessionId}::uuid
+        AND remaining_seconds IS DISTINCT FROM ${clock.remainingSeconds}
+    `;
     return {
-      status: String(rows[0].status),
-      remainingSeconds: Number(rows[0].remaining_seconds ?? 0),
+      status: String(row.status),
+      remainingSeconds: clock.remainingSeconds,
+      clock,
       realCandidate: checkpoint.candidateIsRealCustomerCandidate === true,
       releaseMode: typeof checkpoint.releaseMode === "string" ? checkpoint.releaseMode : "unknown",
     };
@@ -293,6 +319,43 @@ export class CandidateInterviewService {
     };
   }
 
+  async preflight(rawToken: string | undefined) {
+    const scope = await this.scope(rawToken);
+    await this.requireReadyConsent(rawToken);
+    return this.tenantContext.run(scope.organizationId, async () => {
+      const rows = await this.database.sql`
+        SELECT p.time_budget_minutes, p.interview_type, p.language
+        FROM applications a
+        JOIN interview_plans p
+          ON p.organization_id = a.organization_id AND p.job_id = a.job_id
+        WHERE a.organization_id = ${scope.organizationId}::uuid
+          AND a.id = ${scope.applicationId}::uuid
+          AND a.candidate_id = ${scope.candidateId}::uuid
+          AND p.status = 'published'
+          AND p.interview_type <> 'human_technical'
+        ORDER BY p.version DESC
+        LIMIT 1
+      `;
+      const row = rows[0];
+      if (!row) throw new NotFoundException("Published interview plan not found for this application");
+      return {
+        timeBudgetMinutes: Number(row.time_budget_minutes),
+        interviewType: String(row.interview_type),
+        language: String(row.language),
+        clockPolicy: {
+          mode: "server_wall_clock" as const,
+          disconnectPolicy: "clock_continues" as const,
+        },
+        integrityPolicy: {
+          observableSignalsOnly: true,
+          automaticCheatingDecision: false,
+          automaticScorePenalty: false,
+          humanReviewRequiredForConcern: true,
+        },
+      };
+    });
+  }
+
   async start(rawToken: string | undefined, developmentPreview = false) {
     const scope = await this.scope(rawToken);
     if (developmentPreview && getEnv().NODE_ENV !== "development") {
@@ -364,6 +427,7 @@ export class CandidateInterviewService {
         sessionId,
         mediaSessionId: activeMediaSessionId,
         remainingSeconds: runtime.remainingSeconds,
+        clock: runtime.clock,
         developmentPreview,
         releaseMode: runtime.releaseMode,
         interviewer: {
@@ -388,6 +452,103 @@ export class CandidateInterviewService {
     });
   }
 
+  private async currentQuestionContext(sessionId: string) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const rows = await this.database.sql`
+      SELECT t.id::text AS turn_id, t.action, t.criterion_key, rc.id::text AS criterion_id
+      FROM interview_turns t
+      JOIN interview_sessions s
+        ON s.organization_id = t.organization_id AND s.id = t.interview_session_id
+      JOIN interview_plans p
+        ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+      LEFT JOIN rubric_criteria rc
+        ON rc.organization_id = p.organization_id
+       AND rc.rubric_version_id = p.rubric_version_id
+       AND rc.criterion_key = t.criterion_key
+      WHERE t.organization_id = ${organizationId}::uuid
+        AND t.interview_session_id = ${sessionId}::uuid
+        AND t.finalized = true
+      ORDER BY t.sequence DESC
+      LIMIT 1
+    `;
+    const row = rows[0];
+    return row
+      ? {
+          turnId: String(row.turn_id),
+          action: String(row.action),
+          criterionKey: row.criterion_key ? String(row.criterion_key) : null,
+          criterionId: row.criterion_id ? String(row.criterion_id) : null,
+        }
+      : null;
+  }
+
+  private async queueEvaluation(scope: ResolvedCandidateSession, sessionId: string) {
+    const input = await this.evaluator.buildInput(sessionId);
+    const idempotencyKey = `interview-evaluate:${sessionId}:${input.evaluatorVersion}`;
+    const job = await this.aiJobs.enqueue({
+      organizationId: scope.organizationId,
+      capability: "interview.evaluate",
+      idempotencyKey,
+      timeoutMs: 60_000,
+      maxAttempts: 3,
+      payload: {
+        capabilityVersion: "v1",
+        input: {
+          ...input,
+          idempotencyKey,
+        },
+        inputReferences: {
+          interviewSessionId: input.sessionId,
+          applicationId: input.applicationId,
+          rubricVersionId: input.rubricVersionId,
+        },
+      },
+    });
+    await this.database.sql`
+      UPDATE interview_sessions
+      SET checkpoint = checkpoint || ${this.database.sql.json({
+        evaluation: {
+          capability: "interview.evaluate",
+          jobId: job.id,
+          status: job.status,
+          queuedAt: new Date().toISOString(),
+        },
+      } as never)}::jsonb,
+          updated_at = now()
+      WHERE organization_id = ${scope.organizationId}::uuid
+        AND id = ${sessionId}::uuid
+    `;
+    return { id: job.id, status: job.status };
+  }
+
+  private async finishCandidateInterview(
+    scope: ResolvedCandidateSession,
+    sessionId: string,
+    mediaSessionId: string,
+    reason: "brain_close" | "time_budget_expired",
+  ) {
+    const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+    if (!["completed", "failed", "cancelled"].includes(runtime.status)) {
+      await this.state.transition(sessionId, {
+        idempotencyKey: `candidate-finish:${sessionId}`,
+        action: "finish",
+        reason,
+      });
+    }
+    const latestMedia = await this.media.getLatestMediaSession(sessionId);
+    if (latestMedia?.id === mediaSessionId && latestMedia.status !== "ended") {
+      await this.media.appendEvent(sessionId, mediaSessionId, {
+        idempotencyKey: `candidate-ended:${sessionId}`,
+        eventType: "ended",
+        sourceComponent: "api",
+        payload: { reason },
+      });
+    }
+    const evaluationJob = await this.queueEvaluation(scope, sessionId);
+    const finalRuntime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+    return { ...finalRuntime, evaluationJob };
+  }
+
   private async processCandidateText(
     scope: ResolvedCandidateSession,
     sessionId: string,
@@ -399,22 +560,39 @@ export class CandidateInterviewService {
     if (["completed", "cancelled", "failed"].includes(runtime.status)) {
       throw new BadRequestException(`Interview session is ${runtime.status}`);
     }
+    if (runtime.remainingSeconds <= 0) {
+      throw new BadRequestException("Interview time budget is exhausted");
+    }
     const candidateText = text.trim();
     if (!candidateText) throw new BadRequestException("Candidate answer is empty");
 
+    const question = await this.currentQuestionContext(sessionId);
     const startMs = await this.elapsedMs(sessionId);
     const candidateDurationMs = Math.max(250, Math.round(durationSeconds * 1000));
-    await this.interviews.appendTranscriptSegment(sessionId, {
+    const candidateSegment = await this.interviews.appendTranscriptSegment(sessionId, {
       speaker: "candidate",
       startMs,
       endMs: startMs + candidateDurationMs,
       text: candidateText,
       isFinal: true,
     });
+    if (
+      question?.criterionId &&
+      question.criterionKey &&
+      ["ask", "probe", "clarify"].includes(question.action)
+    ) {
+      await this.interviews.recordEvidence(sessionId, {
+        criterionId: question.criterionId,
+        turnId: question.turnId,
+        transcriptSegmentIds: [String(candidateSegment.id)],
+        summary: candidateText.slice(0, 2000),
+      });
+    }
+
     const nextTurn = await this.brain.nextTurn(sessionId, {
       latestCandidateText: candidateText,
       candidateIntent: "ANSWER",
-      elapsedSeconds: Math.max(1, Math.round(durationSeconds)),
+      elapsedSeconds: 0,
     });
     const interviewerStartMs = startMs + candidateDurationMs;
     const interviewerDurationMs = estimateSpeechDurationMs(nextTurn.spokenText);
@@ -435,10 +613,17 @@ export class CandidateInterviewService {
         criterion: nextTurn.criterion,
       },
     });
+
+    const finalRuntime = nextTurn.action === "close"
+      ? await this.finishCandidateInterview(scope, sessionId, mediaSessionId, "brain_close")
+      : await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+
     return {
       candidateText,
-      remainingSeconds: nextTurn.remainingSeconds,
-      completed: nextTurn.action === "close",
+      remainingSeconds: finalRuntime.remainingSeconds,
+      clock: finalRuntime.clock,
+      completed: nextTurn.action === "close" || finalRuntime.status === "completed",
+      ...("evaluationJob" in finalRuntime ? { evaluationJob: finalRuntime.evaluationJob } : {}),
       turn: {
         id: nextTurn.id,
         action: nextTurn.action,
@@ -517,6 +702,134 @@ export class CandidateInterviewService {
         },
         ...turn,
       };
+    });
+  }
+
+  async sync(
+    rawToken: string | undefined,
+    sessionId: string,
+    mediaSessionId: string,
+  ) {
+    const scope = await this.scope(rawToken);
+    await this.requireReadyConsent(rawToken);
+    return this.tenantContext.run(scope.organizationId, async () => {
+      let runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+      let turn = await this.currentOrFirstTurn(sessionId);
+
+      if (
+        runtime.status === "in_progress" &&
+        runtime.remainingSeconds <= 60 &&
+        turn.action !== "close"
+      ) {
+        turn = await this.brain.nextTurn(sessionId, {
+          latestCandidateText: "",
+          candidateIntent: "SILENCE_TIMEOUT",
+          elapsedSeconds: 0,
+        });
+        const startMs = await this.elapsedMs(sessionId);
+        await this.interviews.appendTranscriptSegment(sessionId, {
+          speaker: "interviewer",
+          startMs,
+          endMs: startMs + estimateSpeechDurationMs(turn.spokenText),
+          text: turn.spokenText,
+          isFinal: true,
+        });
+        if (turn.action === "close") {
+          runtime = await this.finishCandidateInterview(
+            scope,
+            sessionId,
+            mediaSessionId,
+            "time_budget_expired",
+          );
+        }
+      }
+
+      return {
+        status: ["completed", "failed", "cancelled"].includes(runtime.status) || turn.action === "close"
+          ? "completed" as const
+          : "active" as const,
+        sessionId,
+        remainingSeconds: runtime.remainingSeconds,
+        clock: runtime.clock,
+        turn: {
+          id: turn.id,
+          action: turn.action,
+          criterion: turn.criterion,
+          spokenText: turn.spokenText,
+        },
+      };
+    });
+  }
+
+  async recordIntegrityEvent(
+    rawToken: string | undefined,
+    sessionId: string,
+    mediaSessionId: string,
+    body: unknown,
+  ) {
+    const scope = await this.scope(rawToken);
+    await this.requireReadyConsent(rawToken);
+    return this.tenantContext.run(scope.organizationId, async () => {
+      await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+      const value = asRecord(body);
+      const eventType = String(value.eventType ?? "");
+      const allowed = new Set([
+        "visibility_hidden",
+        "visibility_visible",
+        "window_blur",
+        "window_focus",
+        "large_paste",
+        "reconnect",
+      ]);
+      if (!allowed.has(eventType)) throw new BadRequestException("Unsupported integrity event");
+      const durationMs = value.durationMs === undefined ? null : Number(value.durationMs);
+      if (durationMs !== null && (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 86_400_000)) {
+        throw new BadRequestException("durationMs is invalid");
+      }
+      const metadataInput = asRecord(value.metadata);
+      const metadata: Record<string, unknown> = {};
+      if (typeof metadataInput.field === "string") metadata.field = metadataInput.field.slice(0, 40);
+      if (typeof metadataInput.characterCount === "number" && Number.isFinite(metadataInput.characterCount)) {
+        metadata.characterCount = Math.max(0, Math.min(100_000, Math.trunc(metadataInput.characterCount)));
+      }
+      const clientOccurredAt = typeof value.clientOccurredAt === "string"
+        ? new Date(value.clientOccurredAt)
+        : null;
+      if (clientOccurredAt && Number.isNaN(clientOccurredAt.valueOf())) {
+        throw new BadRequestException("clientOccurredAt is invalid");
+      }
+      return this.database.sql.begin(async (tx) => {
+        const sequenceRows = await tx`
+          SELECT COALESCE(max(sequence), -1)::int + 1 AS next_sequence
+          FROM interview_integrity_events
+          WHERE organization_id = ${scope.organizationId}::uuid
+            AND interview_session_id = ${sessionId}::uuid
+        `;
+        const sequence = Number(sequenceRows[0]?.next_sequence ?? 0);
+        const rows = await tx`
+          INSERT INTO interview_integrity_events (
+            organization_id, interview_session_id, media_session_id, sequence,
+            event_type, client_occurred_at, duration_ms, metadata
+          ) VALUES (
+            ${scope.organizationId}::uuid,
+            ${sessionId}::uuid,
+            ${mediaSessionId}::uuid,
+            ${sequence},
+            ${eventType},
+            ${clientOccurredAt},
+            ${durationMs},
+            ${tx.json(metadata as never)}
+          )
+          RETURNING id::text, created_at
+        `;
+        return {
+          id: String(rows[0]?.id),
+          sequence,
+          eventType,
+          createdAt: new Date(String(rows[0]?.created_at)).toISOString(),
+          interpretation: "observable_signal_only" as const,
+        };
+      });
     });
   }
 

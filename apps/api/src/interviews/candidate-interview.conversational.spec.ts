@@ -13,6 +13,7 @@ const mediaSessionId = "77777777-7777-4777-8777-777777777777";
 
 function harness(options: { realCandidate?: boolean; transcriptText?: string } = {}) {
   const appended: Array<Record<string, unknown>> = [];
+  const recordedEvidence: Array<Record<string, unknown>> = [];
   const brainCalls: Array<{ sessionId: string; body: Record<string, unknown> }> = [];
   const mediaEvents: Array<Record<string, unknown>> = [];
   const speechCalls: string[] = [];
@@ -23,7 +24,9 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
       if (query.includes("FROM interview_sessions s") && query.includes("JOIN interview_media_sessions")) {
         return [{
           status: "in_progress",
-          remaining_seconds: 1200,
+          started_at: new Date(Date.now() - 60_000).toISOString(),
+          completed_at: null,
+          time_budget_minutes: 20,
           checkpoint: {
             candidateIsRealCustomerCandidate: options.realCandidate === true,
             releaseMode: "development",
@@ -31,7 +34,16 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
           media_session_id: mediaSessionId,
         }];
       }
+      if (query.includes("UPDATE interview_sessions") && query.includes("remaining_seconds")) return [];
       if (query.includes("COALESCE(max(end_ms), 0)")) return [{ elapsed_ms: 1000 }];
+      if (query.includes("FROM interview_turns t") && query.includes("criterion_id")) {
+        return [{
+          turn_id: "99999999-9999-4999-8999-999999999999",
+          action: "probe",
+          criterion_key: "backend_depth",
+          criterion_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        }];
+      }
       throw new Error(`Unexpected candidate interview SQL in unit test: ${query.replace(/\s+/g, " ").trim()}`);
     },
     { json: (value: unknown) => value },
@@ -61,8 +73,13 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
   };
   const interviews = {
     appendTranscriptSegment: async (_sessionId: string, segment: Record<string, unknown>) => {
-      appended.push(segment);
-      return segment;
+      const saved = { id: `segment-${appended.length + 1}`, ...segment };
+      appended.push(saved);
+      return saved;
+    },
+    recordEvidence: async (_sessionId: string, evidence: Record<string, unknown>) => {
+      recordedEvidence.push(evidence);
+      return { id: `evidence-${recordedEvidence.length}`, ...evidence };
     },
   };
   const brain = {
@@ -115,17 +132,19 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
 
   const service = new CandidateInterviewService(
     database,
+    { enqueue: async () => ({ id: "job-1", status: "queued" }) } as never,
     candidateSessions as never,
     candidateConsent as never,
     tenantContext as never,
     interviews as never,
     {} as never,
     brain as never,
+    { buildInput: async () => ({}) } as never,
     media as never,
     speech as never,
   );
 
-  return { service, appended, brainCalls, mediaEvents, speechCalls };
+  return { service, appended, recordedEvidence, brainCalls, mediaEvents, speechCalls };
 }
 
 test("candidate text answers use the shared conversational brain path", async () => {
@@ -143,6 +162,8 @@ test("candidate text answers use the shared conversational brain path", async ()
   assert.equal(appended.length, 2);
   assert.equal(appended[0]?.speaker, "candidate");
   assert.equal(appended[1]?.speaker, "interviewer");
+  assert.equal(recordedEvidence.length, 1);
+  assert.equal(recordedEvidence[0]?.criterionId, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
   assert.equal(result.turn.spokenText, "چرا Redis را انتخاب کردید و قبلش چه گزینه‌ای را بررسی کردید؟");
   assert.equal(mediaEvents.length, 1);
 });

@@ -7,6 +7,7 @@ import {
   type InterviewBrainCriterion,
   type InterviewBrainState,
 } from "./interview-brain";
+import { computeInterviewClock } from "./interview-clock";
 import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
   LlmInterviewerFailure,
@@ -148,6 +149,8 @@ export class InterviewBrainService {
           s.status,
           s.current_criterion_key,
           s.remaining_seconds,
+          s.started_at,
+          s.completed_at,
           s.reconnect_count,
           s.checkpoint,
           p.job_id,
@@ -263,11 +266,17 @@ export class InterviewBrainService {
       const askedQuestionIds = priorTurnRows.map((row) =>
         `${row.criterion_key ? String(row.criterion_key) : "session"}:${String(row.action)}:${Number(row.sequence) + 1}`,
       );
+      const clock = computeInterviewClock({
+        status: String(session?.status),
+        timeBudgetMinutes: Number(session?.time_budget_minutes ?? 0),
+        startedAt: session?.started_at ? String(session.started_at) : null,
+        completedAt: session?.completed_at ? String(session.completed_at) : null,
+      });
       const state: InterviewBrainState = {
         currentCriterion: session?.current_criterion_key ? String(session.current_criterion_key) : null,
         askedQuestionIds,
         evidenceCoverage,
-        remainingSeconds: Math.max(0, Number(session?.remaining_seconds ?? 0)),
+        remainingSeconds: clock.remainingSeconds,
         reconnectCount: Math.max(0, Number(session?.reconnect_count ?? 0)),
       };
 
@@ -276,7 +285,7 @@ export class InterviewBrainService {
         state,
         latestCandidateText,
         candidateIntent,
-        elapsedSeconds,
+        elapsedSeconds: 0,
         language,
       });
       const sequence = priorTurnRows.length
@@ -512,6 +521,17 @@ export class InterviewBrainService {
         ...(trace.fallbackReason ? { brainFallbackReason: trace.fallbackReason } : {}),
         language,
         remainingSeconds: deterministic.nextState.remainingSeconds,
+        clock: {
+          ...clock,
+          remainingSeconds: deterministic.nextState.remainingSeconds,
+          stage: deterministic.nextState.remainingSeconds <= 0
+            ? "expired"
+            : deterministic.nextState.remainingSeconds <= 60
+              ? "final_minute"
+              : deterministic.nextState.remainingSeconds <= 300
+                ? "ending_soon"
+                : clock.stage,
+        },
         evidenceCoverage,
         releaseMode: release.mode,
         policyVersion: finalPolicy.policyVersion,
