@@ -174,10 +174,10 @@ export default function HiringRequestsPage() {
     const body = {
       title: form.title.trim(),
       hiringTeam: form.hiringTeam.trim(),
-      ...(form.department.trim() ? { department: form.department.trim() } : {}),
+      department: form.department.trim() || null,
       headcount: Number(form.headcount),
-      ...(form.seniority.trim() ? { seniority: form.seniority.trim() } : {}),
-      ...(form.location.trim() ? { location: form.location.trim() } : {}),
+      seniority: form.seniority.trim() || null,
+      location: form.location.trim() || null,
       businessReason: form.businessReason.trim(),
       requirements: form.requirements.split("\n").map((value) => value.trim()).filter(Boolean),
     };
