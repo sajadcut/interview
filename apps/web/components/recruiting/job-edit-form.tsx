@@ -146,10 +146,10 @@ export function JobEditForm({ jobId }: { jobId: string }) {
         headers,
         body: {
           title: title.trim(),
-          ...(department.trim() ? { department: department.trim() } : {}),
-          ...(location.trim() ? { location: location.trim() } : {}),
-          ...(seniority.trim() ? { seniority: seniority.trim() } : {}),
-          ...(summary.trim() ? { summary: summary.trim() } : {}),
+          department: department.trim() || null,
+          location: location.trim() || null,
+          seniority: seniority.trim() || null,
+          summary: summary.trim() || null,
           requirements,
         },
       });
