@@ -7,6 +7,7 @@ import postgres from "postgres";
 import { AuthContextService } from "../auth/auth-context.service";
 import type { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
+import { InterviewOrchestrationService } from "../interviews/interview-orchestration.service";
 import { InterviewAssignmentAdminService } from "./interview-assignment-admin.service";
 
 const integrationDatabaseUrl = process.env.AUTH_INTEGRATION_DATABASE_URL;
@@ -35,7 +36,33 @@ test(
     const database = createIntegrationDatabase();
     const tenantContext = new TenantContextService();
     const authContext = new AuthContextService();
-    const service = new InterviewAssignmentAdminService(database, tenantContext, authContext, {} as never, {} as never);
+    const orchestration = new InterviewOrchestrationService(database, tenantContext, authContext);
+    let invitedApplicationId: string | undefined;
+    const candidateAuth = {
+      createInvitation: async ({ applicationId: invitedId }: { applicationId: string }) => {
+        invitedApplicationId = invitedId;
+        return {
+          invitationId: randomUUID(),
+          otpChallengeId: randomUUID(),
+          maskedEmail: "pe***@example.invalid",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          deliveryRequired: true,
+          candidate: {
+            displayName: "Pending Interview Candidate",
+            jobTitle: "Senior .NET Developer",
+          },
+          developmentToken: "dev-token",
+          developmentOtp: "123456",
+        };
+      },
+    } as never;
+    const service = new InterviewAssignmentAdminService(
+      database,
+      tenantContext,
+      authContext,
+      orchestration,
+      candidateAuth,
+    );
 
     const organizationId = randomUUID();
     const actorUserId = randomUUID();
@@ -183,23 +210,28 @@ test(
             'integration-test'
           )
       `;
-      await database.sql`
-        INSERT INTO application_stage_transitions (
-          organization_id,
-          application_id,
-          from_stage,
-          to_stage,
-          reason,
-          actor_user_id
-        ) VALUES (
-          ${organizationId}::uuid,
-          ${pendingApplicationId}::uuid,
-          'screening',
-          'interview',
-          'AI interviewer selected for the interview stage',
-          ${actorUserId}::uuid
-        )
+      const preparedAi = await tenantContext.run(organizationId, () =>
+        authContext.run({ userId: actorUserId, source: "development-header" }, () =>
+          service.prepareAiInterview({
+            applicationId: pendingApplicationId,
+            language: "fa",
+          }),
+        ),
+      );
+      assert.equal(preparedAi.applicationId, pendingApplicationId);
+      assert.equal(preparedAi.pipelineStage, "interview");
+      assert.equal(invitedApplicationId, pendingApplicationId);
+
+      const aiPlans = await database.sql`
+        SELECT id::text, status, interview_type, language
+        FROM interview_plans
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${preparedAi.interviewPlanId}::uuid
+        LIMIT 1
       `;
+      assert.equal(String(aiPlans[0]?.status), "published");
+      assert.notEqual(String(aiPlans[0]?.interview_type), "human_technical");
+      assert.equal(String(aiPlans[0]?.language), "fa");
 
       const scheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const scheduled = await tenantContext.run(organizationId, () =>
