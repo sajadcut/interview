@@ -2,10 +2,12 @@
 
 import type { components } from "@interview/api-client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
+import { BulkActionBar, ConfirmDialog, InlineFeedback, SelectionCheckbox } from "../product/collection-management";
+import { Icon } from "../product/icon";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
 
@@ -43,6 +45,20 @@ export function AutomationsWorkspace() {
   const [runs, setRuns] = useState<AutomationRun[]>([]);
   const [message, setMessage] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [enabledFilter, setEnabledFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [editingId, setEditingId] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    triggerType: "application.stage_changed",
+    actionType: "notification.create",
+    approvalRequired: true,
+  });
 
   async function load(current: TenantIdentity) {
     const result = await api.GET("/v1/automations", { headers: tenantHeaders(current) });
@@ -67,24 +83,87 @@ export function AutomationsWorkspace() {
     };
   }, [identity]);
 
-  async function createRule() {
-    if (!identity) return;
-    const name = window.prompt("نام اتوماسیون")?.trim();
-    if (!name) return;
-    const triggerType = window.prompt("نوع محرک", "application.stage_changed")?.trim();
-    if (!triggerType) return;
-    const actionType = window.prompt("نوع اقدام", "notification.create")?.trim();
-    if (!actionType) return;
-    const result = await api.POST("/v1/automations", {
-      headers: tenantHeaders(identity, true),
-      body: { name, triggerType, actionType, approvalRequired: true },
+  const filteredRules = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return rules.filter((rule) => {
+      if (enabledFilter === "enabled" && !rule.enabled) return false;
+      if (enabledFilter === "disabled" && rule.enabled) return false;
+      if (!normalized) return true;
+      return [rule.name, rule.description, rule.trigger_type, rule.action_type]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalized));
     });
-    if (!result.response.ok) {
-      setMessage(apiErrorMessage(result, "ایجاد ناموفق بود"));
-      return;
+  }, [enabledFilter, query, rules]);
+
+  const deletableRules = useMemo(
+    () => filteredRules.filter((rule) => Number(rule.run_count ?? 0) === 0),
+    [filteredRules],
+  );
+  const selectedVisibleCount = deletableRules.filter((rule) => selectedIds.has(rule.id)).length;
+  const allVisibleSelected = deletableRules.length > 0 && selectedVisibleCount === deletableRules.length;
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+
+  function resetForm() {
+    setEditingId(undefined);
+    setForm({
+      name: "",
+      description: "",
+      triggerType: "application.stage_changed",
+      actionType: "notification.create",
+      approvalRequired: true,
+    });
+  }
+
+  function startEdit(rule: AutomationRule) {
+    setEditingId(rule.id);
+    setForm({
+      name: rule.name,
+      description: rule.description ?? "",
+      triggerType: rule.trigger_type,
+      actionType: rule.action_type,
+      approvalRequired: rule.approval_required,
+    });
+    setMessage(undefined);
+  }
+
+  async function saveRule() {
+    if (!identity || !form.name.trim() || !form.triggerType.trim() || !form.actionType.trim()) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const result = editingId
+        ? await api.PATCH("/v1/automations/{ruleId}", {
+            params: { path: { ruleId: editingId } },
+            headers: tenantHeaders(identity, true),
+            body: {
+              name: form.name.trim(),
+              ...(form.description.trim() ? { description: form.description.trim() } : {}),
+              triggerType: form.triggerType.trim(),
+              actionType: form.actionType.trim(),
+              approvalRequired: form.approvalRequired,
+            },
+          })
+        : await api.POST("/v1/automations", {
+            headers: tenantHeaders(identity, true),
+            body: {
+              name: form.name.trim(),
+              ...(form.description.trim() ? { description: form.description.trim() } : {}),
+              triggerType: form.triggerType.trim(),
+              actionType: form.actionType.trim(),
+              approvalRequired: form.approvalRequired,
+            },
+          });
+
+      if (!result.response.ok) {
+        setMessage(apiErrorMessage(result, editingId ? "ویرایش اتوماسیون ناموفق بود" : "ایجاد اتوماسیون ناموفق بود"));
+        return;
+      }
+      setMessage(editingId ? "تغییرات اتوماسیون ذخیره شد." : "قانون اتوماسیون در حالت غیرفعال ایجاد شد.");
+      resetForm();
+      await load(identity);
+    } finally {
+      setSaving(false);
     }
-    setMessage("قانون اتوماسیون در حالت غیرفعال ایجاد شد و برای اجرا به تأیید انسانی نیاز دارد.");
-    await load(identity);
   }
 
   async function toggle(rule: AutomationRule) {
@@ -134,27 +213,173 @@ export function AutomationsWorkspace() {
     await load(identity);
   }
 
+  function toggleRuleSelection(id: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const rule of deletableRules) {
+        if (checked) next.add(rule.id);
+        else next.delete(rule.id);
+      }
+      return next;
+    });
+  }
+
+  async function confirmDelete() {
+    if (!identity || deleteIds.length === 0 || deleting) return;
+    setDeleting(true);
+    setMessage(undefined);
+    try {
+      const result = await api.POST("/v1/automations/bulk-delete", {
+        headers: tenantHeaders(identity, true),
+        body: { ids: deleteIds },
+      });
+      if (!result.response.ok || !result.data) {
+        setMessage(apiErrorMessage(result, "حذف اتوماسیون‌ها ناموفق بود"));
+        return;
+      }
+      const deletedIds = new Set(result.data.deletedIds);
+      setRules((current) => current.filter((rule) => !deletedIds.has(rule.id)));
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        result.data.deletedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      setMessage(
+        result.data.blockedIds.length
+          ? `${result.data.deletedCount} قانون حذف شد؛ قوانین دارای سابقه اجرا برای حفظ حسابرسی حذف نشدند.`
+          : `${result.data.deletedCount} قانون اتوماسیون حذف شد.`,
+      );
+      setDeleteIds([]);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-[10px] font-medium text-indigo-600">هماهنگ‌سازی کنترل‌شده فرایندها</div>
-          <h1 className="mt-2 text-[26px] font-semibold">اتوماسیون‌ها</h1>
-          <p className="mt-1 text-[11px] text-slate-500">اجرای تکرارپذیر، تأیید صریح و بدون اقدام خارجی پنهان.</p>
-        </div>
-        {access.can("automation.manage") ? <button onClick={() => void createRule()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white">اتوماسیون جدید</button> : null}
+      <div>
+        <div className="text-[10px] font-medium text-indigo-600">هماهنگ‌سازی کنترل‌شده فرایندها</div>
+        <h1 className="mt-2 text-[26px] font-semibold">اتوماسیون‌ها</h1>
+        <p className="mt-1 text-[11px] text-slate-500">قوانین را ایجاد، جست‌وجو، ویرایش و مدیریت کنید؛ اجرای دارای سابقه برای حفظ حسابرسی حذف نمی‌شود.</p>
       </div>
-      {error || message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{error || message}</div> : null}
+
+      {error || message ? <InlineFeedback tone={error ? "error" : "success"}>{error || message}</InlineFeedback> : null}
+
+      {access.can("automation.manage") ? (
+        <Panel className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[13px] font-semibold text-slate-900">{editingId ? "ویرایش قانون اتوماسیون" : "ایجاد قانون اتوماسیون"}</h2>
+              <p className="mt-1 text-[10px] text-slate-500">قانون جدید ابتدا غیرفعال ساخته می‌شود تا قبل از اجرا بازبینی شود.</p>
+            </div>
+            {editingId ? <button type="button" onClick={resetForm} className="text-[10px] font-semibold text-slate-500 hover:text-slate-800">انصراف از ویرایش</button> : null}
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="نام اتوماسیون" className="h-10 rounded-lg border border-slate-200 px-3 text-[11px]" />
+            <input value={form.triggerType} onChange={(event) => setForm({ ...form, triggerType: event.target.value })} placeholder="application.stage_changed" className="h-10 rounded-lg border border-slate-200 px-3 text-[11px]" />
+            <input value={form.actionType} onChange={(event) => setForm({ ...form, actionType: event.target.value })} placeholder="notification.create" className="h-10 rounded-lg border border-slate-200 px-3 text-[11px]" />
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-[10px] text-slate-700">
+              <input type="checkbox" checked={form.approvalRequired} onChange={(event) => setForm({ ...form, approvalRequired: event.target.checked })} />
+              تأیید انسانی الزامی
+            </label>
+            <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="توضیح کاربرد این قانون" className="min-h-20 rounded-lg border border-slate-200 p-3 text-[11px] md:col-span-2 xl:col-span-3" />
+            <div className="flex items-end gap-2">
+              <button type="button" disabled={saving || !form.name.trim() || !form.triggerType.trim() || !form.actionType.trim()} onClick={() => void saveRule()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:opacity-50">
+                {saving ? "در حال ذخیره…" : editingId ? "ذخیره تغییرات" : "ایجاد اتوماسیون"}
+              </button>
+              {editingId ? <button type="button" onClick={resetForm} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-600">انصراف</button> : null}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel className="overflow-hidden">
-        <div className="border-b border-slate-100 p-4 text-[12px] font-semibold">قوانین</div>
+        {selectedIds.size > 0 ? (
+          <BulkActionBar selectedCount={selectedIds.size} noun="قانون" onClear={() => setSelectedIds(new Set())}>
+            <button type="button" onClick={() => setDeleteIds([...selectedIds])} className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700">
+              حذف انتخاب‌شده‌ها
+            </button>
+          </BulkActionBar>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
+            <div className="relative min-w-[260px] flex-1">
+              <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جست‌وجو در نام، محرک یا اقدام..." className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none focus:border-indigo-300 focus:bg-white" />
+            </div>
+            <select value={enabledFilter} onChange={(event) => setEnabledFilter(event.target.value)} aria-label="فیلتر وضعیت اتوماسیون" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[11px]">
+              <option value="all">همه وضعیت‌ها</option>
+              <option value="enabled">فعال</option>
+              <option value="disabled">غیرفعال</option>
+            </select>
+          </div>
+        )}
+
+        <div className="border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-700">
+            {access.can("automation.manage") ? (
+              <SelectionCheckbox label="انتخاب همه قوانین قابل حذف" checked={allVisibleSelected} indeterminate={someVisibleSelected} disabled={deletableRules.length === 0} onChange={toggleAllVisible} />
+            ) : null}
+            قوانین
+          </div>
+        </div>
+
         <div className="divide-y divide-slate-100">
-          {loading ? <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری قوانین اتوماسیون…</div> : rules.length ? rules.map((rule) => <div key={rule.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><div className="text-[10px] font-semibold">{rule.name}</div><div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(rule.trigger_type)} → {faDomainLabel(rule.action_type)} · تأیید انسانی: {rule.approval_required ? "الزامی" : "غیرالزامی"}</div></div><div className="flex items-center gap-2"><Pill tone={rule.enabled ? "green" : "slate"}>{rule.enabled ? "فعال" : "غیرفعال"}</Pill><button onClick={() => void toggle(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">{rule.enabled ? "غیرفعال‌کردن" : "فعال‌کردن"}</button><button disabled={!rule.enabled} onClick={() => void run(rule)} className="rounded-lg bg-indigo-600 px-3 py-2 text-[9px] font-semibold text-white disabled:opacity-40">ایجاد اجرا</button></div></div>) : <div className="p-5 text-[10px] text-slate-500">قانون اتوماسیونی وجود ندارد.</div>}
+          {loading ? <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری قوانین اتوماسیون…</div> : filteredRules.length ? filteredRules.map((rule) => (
+            <div key={rule.id} className="flex flex-wrap items-center gap-3 p-4">
+              {access.can("automation.manage") ? (
+                <SelectionCheckbox
+                  label={`انتخاب ${rule.name}`}
+                  checked={selectedIds.has(rule.id)}
+                  disabled={Number(rule.run_count ?? 0) > 0}
+                  onChange={(checked) => toggleRuleSelection(rule.id, checked)}
+                />
+              ) : null}
+              <div className="min-w-[240px] flex-1">
+                <div className="text-[10px] font-semibold text-slate-900">{rule.name}</div>
+                {rule.description ? <div className="mt-1 text-[9px] text-slate-500">{rule.description}</div> : null}
+                <div className="mt-1 text-[9px] text-slate-500">{faDomainLabel(rule.trigger_type)} → {faDomainLabel(rule.action_type)} · تأیید انسانی: {rule.approval_required ? "الزامی" : "غیرالزامی"} · اجراها: {rule.run_count ?? 0}</div>
+              </div>
+              <Pill tone={rule.enabled ? "green" : "slate"}>{rule.enabled ? "فعال" : "غیرفعال"}</Pill>
+              {access.can("automation.manage") ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => startEdit(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px] font-semibold text-slate-700">ویرایش</button>
+                  <button type="button" onClick={() => void toggle(rule)} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">{rule.enabled ? "غیرفعال‌کردن" : "فعال‌کردن"}</button>
+                  <button type="button" disabled={!rule.enabled} onClick={() => void run(rule)} className="rounded-lg bg-indigo-600 px-3 py-2 text-[9px] font-semibold text-white disabled:opacity-40">ایجاد اجرا</button>
+                  {Number(rule.run_count ?? 0) === 0 ? <button type="button" onClick={() => setDeleteIds([rule.id])} className="rounded-lg px-2 py-2 text-[9px] font-semibold text-rose-600">حذف</button> : null}
+                </div>
+              ) : null}
+            </div>
+          )) : <div className="p-5 text-[10px] text-slate-500">{rules.length ? "قانونی با فیلترهای فعلی پیدا نشد." : "قانون اتوماسیونی وجود ندارد."}</div>}
         </div>
       </Panel>
+
       <Panel className="overflow-hidden">
         <div className="border-b border-slate-100 p-4 text-[12px] font-semibold">اجراهای اخیر</div>
         <div className="divide-y divide-slate-100">{runs.slice(0, 30).map((row) => <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div className="min-w-0"><div className="break-all text-[9px] font-semibold">{row.idempotency_key}</div><div className="mt-1 text-[8px] text-slate-400">{formatFaDateTime(row.created_at)}</div></div><div className="flex items-center gap-2"><Pill tone={row.state === "failed" ? "red" : row.state === "approval_required" ? "amber" : "blue"}>{faDomainLabel(row.state)}</Pill>{row.state === "approval_required" ? <button onClick={() => void approve(row)} className="rounded-lg bg-emerald-600 px-3 py-2 text-[9px] font-semibold text-white">تأیید</button> : null}</div></div>)}</div>
       </Panel>
+
+      <ConfirmDialog
+        open={deleteIds.length > 0}
+        title={deleteIds.length > 1 ? "حذف قوانین انتخاب‌شده؟" : "حذف قانون اتوماسیون؟"}
+        description={
+          deleteIds.length > 1
+            ? "فقط قوانینی که هنوز هیچ اجرای ثبت‌شده‌ای ندارند حذف می‌شوند. قوانین دارای سابقه برای حفظ حسابرسی باقی می‌مانند."
+            : "اگر این قانون سابقه اجرا نداشته باشد حذف می‌شود. قوانین دارای سابقه اجرا باید غیرفعال شوند و حذف نمی‌شوند."
+        }
+        confirmLabel={deleteIds.length > 1 ? "حذف قوانین" : "حذف قانون"}
+        busy={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleteIds([])}
+      />
     </div>
   );
 }
