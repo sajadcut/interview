@@ -13,6 +13,7 @@ const paths = {
   avaNormalizer: resolve(root, "services/ava-tts-worker/fa_tech_normalizer.py"),
   avaTests: resolve(root, "services/ava-tts-worker/test/test_ava_tts_worker.py"),
   avaSetup: resolve(root, "scripts/setup-ava-tts-windows.ps1"),
+  avaSmoke: resolve(root, "scripts/ava-runtime-smoke.py"),
   startAll: resolve(root, "start-all.ps1"),
   client: resolve(root, "apps/api/src/interviews/tts-http.client.ts"),
   clientTests: resolve(root, "apps/api/src/interviews/tts-http.client.spec.ts"),
@@ -40,6 +41,7 @@ const [
   avaNormalizerSource,
   avaTests,
   avaSetupSource,
+  avaSmokeSource,
   startAllSource,
   clientSource,
   clientTests,
@@ -161,8 +163,10 @@ invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroImportDeps?.spacyCu
 invariant(contract.avaAdapter?.setupVerification?.realPersianSynthesisByDefault === true, "Ava setup must prove real Persian synthesis");
 invariant(contract.avaAdapter?.setupVerification?.expectedSampleRate === 24000, "Ava setup smoke sample rate drift");
 invariant(avaSetupSource.includes("Running real Ava Persian synthesis smoke test on CPU"), "Ava setup real synthesis smoke test missing");
-invariant(avaSetupSource.includes('Ava.from_pretrained("xmanii/Ava-82M", device="cpu")'), "Ava setup must load the real model on CPU");
-invariant(avaSetupSource.includes('tts.generate("سلام، این یک آزمون کوتاه برای آوای فارسی است.")'), "Ava setup must synthesize representative Persian text");
+invariant(avaSetupSource.includes('scripts\\ava-runtime-smoke.py'), "Ava setup must execute the dedicated runtime smoke script");
+invariant(avaSmokeSource.includes('Ava.from_pretrained(MODEL_ID, device="cpu")'), "Ava smoke must load the real model on CPU");
+invariant(avaSmokeSource.includes('TEXT = "سلام، این یک آزمون کوتاه برای آوای فارسی است."'), "Ava smoke must synthesize representative Persian text");
+invariant(avaSmokeSource.includes("EXPECTED_SAMPLE_RATE = 24_000"), "Ava smoke sample rate drift");
 invariant(avaSetupSource.includes("Setup is not considered complete"), "Ava setup must fail closed when synthesis fails");
 invariant(avaSetupSource.includes("pip install --no-deps"), "Ava setup must use no-deps for pinned Kokoro/Ava packages");
 invariant(contract.avaAdapter?.python === ">=3.11,<3.14", "Ava declared Python runtime contract drift");
