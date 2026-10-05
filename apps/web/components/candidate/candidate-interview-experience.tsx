@@ -636,7 +636,10 @@ export function CandidateInterviewExperience({
       if (event.type === "remote_video") setRemoteVideoTrack(event.track);
       if (event.type === "remote_audio") setRemoteAudioTrack(event.track);
       if (event.type === "reconnecting") reduce({ type: "TRANSPORT_RECONNECTING" });
-      if (event.type === "reconnected") reduce({ type: "TRANSPORT_RECONNECTED" });
+      if (event.type === "reconnected") {
+        reduce({ type: "TRANSPORT_RECONNECTED" });
+        void runtime?.reportIntegrity?.({ eventType: "reconnect", clientOccurredAt: new Date().toISOString() }).catch(() => undefined);
+      }
       if (event.type === "disconnected") {
         reduce({ type: "CONNECTION_FAILED", code: "transport_unavailable" });
       }

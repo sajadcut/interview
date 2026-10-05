@@ -65,3 +65,12 @@ The local preview is not persisted. This UI does not perform biometric analysis 
 `npm run candidate-interview-ui:contract:check` verifies candidate runtime wiring, the same-origin security boundary, candidate-scoped API endpoints, remote interviewer video/audio surfaces, typed answers, voice answers, silence auto-submit, finalized-turn TTS, and the absence of engineering answer controls.
 
 Reducer tests remain deterministic and do not require realtime services. Playwright covers candidate authentication/setup, camera denial → audio-only recovery, **Start interview** availability, and offline → online session preservation without requiring a real LiveKit/Whisper/Silero/TTS/LLM stack in CI.
+
+
+## Lifecycle, authoritative clock and integrity
+
+Candidate interview completion is now canonical: a finalized Brain `close` turn is followed by the persisted session-state `finish` transition, `completed_at`, media `ended`, and an idempotent `interview.evaluate` job. Successful worker output is reconciled through the independent evaluator before it becomes criterion results or a deterministic scorecard.
+
+Interview time uses a server-authoritative wall clock derived from `interview_sessions.started_at` and the versioned plan `time_budget_minutes`. The browser countdown is display-only and re-synchronizes with the candidate-scoped API. Reconnects never reset the interview clock.
+
+Integrity collection is deliberately limited to observable browser/session events: visibility, focus, large-paste metadata and reconnects. Clipboard contents are never persisted. Integrity signals remain separate from technical and soft-skill scores, never constitute automatic proof of cheating, and never trigger automatic rejection.

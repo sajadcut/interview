@@ -1,8 +1,8 @@
 # AI Recruiter Platform — PROJECT STATE
 
 > **Status:** M1 Job → Candidate → Evidence is **CLOSED, CI-validated, and regression-protected** on `main`. The broader Core Product Closure and current pre-realtime hardening stack remain implementation-complete and CI-validated. Real third-party credentials, hardened production worker hosts, production Prometheus/Alertmanager/Grafana deployment and receiver delivery, real evaluator calibration/shadow/pilot evidence, actual LiveKit/FFmpeg runtime telemetry, real whisper.cpp runtime evidence, real LLM provider/model runtime evidence, representative realtime benchmarks, and final production approval remain deployment/evidence-gated by `production-readiness.md`.
-> **Version:** 0.41.0
-> **Date:** 2026-10-04
+> **Version:** 0.42.0
+> **Date:** 2026-10-06
 > **Repository:** https://github.com/sajadcut/interview
 > **Branch:** `main`
 
@@ -380,6 +380,20 @@ The AI Evaluator is provider-neutral and LLM-independent at the validation/scori
 Operational Monitoring covers API, PostgreSQL, all four durable worker queues, lease state, persisted Interview/media lifecycle, and the media-worker realtime contract surface. Alerting Contract v1 adds CI-validated Prometheus rules across collector health, API errors/latency, PostgreSQL, queue backlog/leases/failures, worker availability, stalled interviews, media heartbeat/error health, Gate F E2E latency, Whisper, LiveKit, and FFmpeg.
 
 ---
+
+## Interview Lifecycle & Evaluation Closure
+
+```text
+canonical candidate lifecycle              Brain close -> state-machine finish -> completed_at -> media ended
+authoritative interview clock              server wall-clock from started_at + versioned time budget; candidate resync every 10s
+canonical human lifecycle                  scheduled recognized by state machine; interviewer start/finish use lifecycle journal
+candidate evidence                         finalized candidate answers are transcript-anchored to the active rubric criterion
+AI evaluation closure                      completed sessions queue interview.evaluate; worker result is idempotently validated/persisted by InterviewEvaluatorService
+result workspace                           /app/interviews/:sessionId separates technical, observable soft skills, evidence, resume context, integrity and human review
+integrity boundary                         visibility/focus/large-paste/reconnect metadata only; no clipboard text; no biometric/personality inference; no automatic cheating verdict/score penalty
+rubric defaults                            new job rubrics include communication/problem-solving/collaboration/ownership criteria by default
+validation                                 source implementation prepared; CI/runtime validation remains pending until the commit chain is pushed
+```
 
 # 7. Production-readiness boundary
 

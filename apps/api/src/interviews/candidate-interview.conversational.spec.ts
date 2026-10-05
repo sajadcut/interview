@@ -148,7 +148,7 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
 }
 
 test("candidate text answers use the shared conversational brain path", async () => {
-  const { service, appended, brainCalls, mediaEvents } = harness();
+  const { service, appended, recordedEvidence, brainCalls, mediaEvents } = harness();
   const result = await service.answerText("candidate-token", {
     sessionId: interviewSessionId,
     mediaSessionId,

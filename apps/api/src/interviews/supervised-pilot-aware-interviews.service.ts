@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { evaluateInterviewRelease, type InterviewLifecycleStage } from "./interview-release.policy";
+import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { InterviewsService } from "./interviews.service";
 import { SupervisedPilotService } from "./supervised-pilot.service";
 
@@ -11,8 +12,9 @@ export class SupervisedPilotAwareInterviewsService extends InterviewsService {
     private readonly pilotDatabase: DatabaseService,
     private readonly pilotTenantContext: TenantContextService,
     private readonly pilot: SupervisedPilotService,
+    evaluator: InterviewEvaluatorService,
   ) {
-    super(pilotDatabase, pilotTenantContext);
+    super(pilotDatabase, pilotTenantContext, evaluator);
   }
 
   override async createSession(body: unknown) {
