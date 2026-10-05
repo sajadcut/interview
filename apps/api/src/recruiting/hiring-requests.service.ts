@@ -110,11 +110,11 @@ export class HiringRequestsService {
       UPDATE hiring_requests
       SET title = COALESCE(${input.title?.trim() || null}, title),
           hiring_team = COALESCE(${input.hiringTeam?.trim() || null}, hiring_team),
-          department = COALESCE(${input.department?.trim() || null}, department),
+          department = CASE WHEN ${input.department !== undefined} THEN ${typeof input.department === "string" ? input.department.trim() || null : null} ELSE department END,
           headcount = COALESCE(${input.headcount ?? null}, headcount),
-          seniority = COALESCE(${input.seniority?.trim() || null}, seniority),
-          location = COALESCE(${input.location?.trim() || null}, location),
-          employment_type = COALESCE(${input.employmentType?.trim() || null}, employment_type),
+          seniority = CASE WHEN ${input.seniority !== undefined} THEN ${typeof input.seniority === "string" ? input.seniority.trim() || null : null} ELSE seniority END,
+          location = CASE WHEN ${input.location !== undefined} THEN ${typeof input.location === "string" ? input.location.trim() || null : null} ELSE location END,
+          employment_type = CASE WHEN ${input.employmentType !== undefined} THEN ${typeof input.employmentType === "string" ? input.employmentType.trim() || null : null} ELSE employment_type END,
           business_reason = COALESCE(${input.businessReason?.trim() || null}, business_reason),
           requirements = COALESCE(${requirements ? JSON.stringify(requirements) : null}::jsonb, requirements),
           updated_at = now()
