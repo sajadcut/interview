@@ -24,6 +24,60 @@ MAX_TERMINATION_GRACE_SECONDS = 10.0
 DIAGNOSTIC_MAX_BYTES = 8192
 POLL_INTERVAL_SECONDS = 0.02
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
+
+# Pronunciation-only normalization for the local command/Piper path. The canonical
+# interview turn remains unchanged in the database; only the text file sent to TTS
+# receives these hints.
+_SPOKEN_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("ASP.NET", "اِی اِس پی دات‌نِت"),
+    ("Entity Framework", "اِنتیتی فِریم‌وِرک"),
+    ("dependency injection", "دِپِندِنسی اینجِکشن"),
+    ("PostgreSQL", "پُستگرس"),
+    ("RabbitMQ", "رَبیت اِم‌کیو"),
+    ("Kubernetes", "کوبرنتیز"),
+    ("TypeScript", "تایپ‌اسکریپت"),
+    ("JavaScript", "جاوااسکریپت"),
+    ("Next.js", "نکست جی‌اِس"),
+    ("Node.js", "نود جی‌اِس"),
+    ("backend", "بک‌اند"),
+    ("frontend", "فرانت‌اند"),
+    ("GitHub", "گیت‌هاب"),
+    ("Docker", "داکر"),
+    ("Redis", "رِدیس"),
+    ("React", "ری‌اَکت"),
+    ("gRPC", "جی آر پی سی"),
+    ("REST", "رِست"),
+    ("LINQ", "لینک"),
+    ("SQL", "اِس‌کیو‌اِل"),
+    ("Azure", "اَژور"),
+    ("AWS", "اِی دابِلیو اِس"),
+    ("Kafka", "کافکا"),
+    ("API", "اِی پی آی"),
+    ("CI/CD", "سی آی، سی دی"),
+    (".NET", "دات‌نِت"),
+    ("C++", "سی پلاس پلاس"),
+    ("C#", "سی شارپ"),
+)
+
+_SPOKEN_PATTERNS = tuple(
+    (
+        re.compile(
+            rf"(?<![A-Za-z0-9_]){re.escape(source)}(?![A-Za-z0-9_])",
+            re.IGNORECASE,
+        ),
+        target,
+    )
+    for source, target in _SPOKEN_REPLACEMENTS
+)
+
+
+def normalize_persian_spoken_text(text: str) -> str:
+    normalized = text
+    for pattern, target in _SPOKEN_PATTERNS:
+        normalized = pattern.sub(target, normalized)
+    normalized = normalized.replace("تخصیص", "تَخصیص")
+    normalized = normalized.replace("تخصص", "تَخَصُّص")
+    return normalized
 _PLACEHOLDER_PATTERN = re.compile(r"\{[^{}]+\}")
 _REQUIRED_PLACEHOLDERS = {"{text_file}", "{output_wav}"}
 
@@ -233,7 +287,7 @@ class TTSProcessRunner:
     def synthesize(self, spoken_text: str) -> bytes:
         if not isinstance(spoken_text, str):
             raise TTSError("invalid_request")
-        normalized = spoken_text.strip()
+        normalized = normalize_persian_spoken_text(spoken_text.strip())
         if not normalized or len(normalized) > MAX_TEXT_CHARS or "\x00" in normalized:
             raise TTSError("invalid_request")
 
