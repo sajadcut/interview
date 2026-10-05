@@ -117,30 +117,15 @@ $env:TTS_BASE_URL = "http://${TtsHost}:$TtsPort"
 $env:TTS_EDGE_VOICE = $TtsVoice
 
 if ($TtsEngine -eq "edge-tts") {
-    $edgeCommand = if ([string]::IsNullOrWhiteSpace($env:TTS_EDGE_EXECUTABLE)) {
-        "edge-tts"
-    }
-    else {
-        $env:TTS_EDGE_EXECUTABLE
+    $pythonApplication = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -eq $pythonApplication) {
+        throw "Python was not found on PATH. Install Python and run: python -m pip install -r services\tts-worker\requirements.txt"
     }
 
-    $edgeExecutable = $null
-    if (Test-Path -LiteralPath $edgeCommand -PathType Leaf) {
-        $edgeExecutable = (Resolve-Path -LiteralPath $edgeCommand).Path
+    & $pythonApplication.Source -c "import edge_tts" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The edge-tts Python package is not available. Run: python -m pip install -r services\tts-worker\requirements.txt"
     }
-    else {
-        $edgeApplication = Get-Command $edgeCommand -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($null -ne $edgeApplication) {
-            $edgeExecutable = $edgeApplication.Source
-        }
-    }
-
-    if (-not $edgeExecutable) {
-        throw "Edge TTS executable '$edgeCommand' was not found. Run: python -m pip install -r services\tts-worker\requirements.txt"
-    }
-
-    # Store the resolved path so the Python worker does not depend on a different PATH.
-    $env:TTS_EDGE_EXECUTABLE = $edgeExecutable
 }
 
 # livekit-server --dev binds locally and uses the documented development credentials.
