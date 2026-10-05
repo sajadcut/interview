@@ -19,6 +19,7 @@ export interface TextToSpeechReadiness {
   ready: boolean;
   reason?: string;
   contractVersion?: string;
+  provider?: string;
 }
 
 export interface TextToSpeechAdapter {
