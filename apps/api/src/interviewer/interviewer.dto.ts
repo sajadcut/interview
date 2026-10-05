@@ -60,6 +60,7 @@ export class SubmitInterviewerEvaluationDto {
   recommendation?: string;
 }
 
+// Interview operations may return applications that reached the interview stage before a Session exists.
 export class InterviewAssignmentSessionOptionDto {
   @ApiPropertyOptional({
     format: "uuid",
