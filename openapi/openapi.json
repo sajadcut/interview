@@ -10187,16 +10187,20 @@
             "type": "string"
           },
           "primaryEmail": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "primaryPhone": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "currentRole": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "currentCompany": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "location": {
             "type": "string"
@@ -10228,10 +10232,12 @@
             "type": "string"
           },
           "location": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "preferredLanguage": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           }
         }
       },
@@ -10313,16 +10319,20 @@
             ]
           },
           "department": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "location": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "seniority": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "summary": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "requirements": {
             "type": "array",
@@ -10675,7 +10685,8 @@
             "type": "string"
           },
           "department": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "headcount": {
             "type": "number",
@@ -10683,13 +10694,16 @@
             "maximum": 100
           },
           "seniority": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "location": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "employmentType": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "businessReason": {
             "type": "string"

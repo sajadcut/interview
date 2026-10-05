@@ -3029,10 +3029,10 @@ export interface components {
         };
         CreateCandidateDto: {
             displayName: string;
-            primaryEmail?: string;
-            primaryPhone?: string;
-            currentRole?: string;
-            currentCompany?: string;
+            primaryEmail?: Record<string, never> | null;
+            primaryPhone?: Record<string, never> | null;
+            currentRole?: Record<string, never> | null;
+            currentCompany?: Record<string, never> | null;
             location?: string;
             preferredLanguage?: string;
         };
@@ -3042,8 +3042,8 @@ export interface components {
             primaryPhone?: string;
             currentRole?: string;
             currentCompany?: string;
-            location?: string;
-            preferredLanguage?: string;
+            location?: Record<string, never> | null;
+            preferredLanguage?: Record<string, never> | null;
         };
         BulkIdsDto: {
             ids: string[];
@@ -3063,10 +3063,10 @@ export interface components {
             title?: string;
             /** @enum {string} */
             status?: "draft" | "open" | "paused" | "closed" | "archived";
-            department?: string;
-            location?: string;
-            seniority?: string;
-            summary?: string;
+            department?: Record<string, never> | null;
+            location?: Record<string, never> | null;
+            seniority?: Record<string, never> | null;
+            summary?: Record<string, never> | null;
             requirements?: components["schemas"]["CreateJobRequirementDto"][];
         };
         PublishJobResponseDto: {
@@ -3159,11 +3159,11 @@ export interface components {
         UpdateHiringRequestDto: {
             title?: string;
             hiringTeam?: string;
-            department?: string;
+            department?: Record<string, never> | null;
             headcount?: number;
-            seniority?: string;
-            location?: string;
-            employmentType?: string;
+            seniority?: Record<string, never> | null;
+            location?: Record<string, never> | null;
+            employmentType?: Record<string, never> | null;
             businessReason?: string;
             requirements?: string[];
         };
