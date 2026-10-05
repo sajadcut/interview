@@ -1,4 +1,4 @@
-export type TextToSpeechContentType = "audio/wav";
+export type TextToSpeechContentType = "audio/wav" | "audio/mpeg";
 
 export interface TextToSpeechRequest {
   spokenText: string;
