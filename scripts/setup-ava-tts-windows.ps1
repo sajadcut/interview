@@ -13,7 +13,10 @@ function Test-AvaPythonRuntime {
         [string[]]$PrefixArgs = @()
     )
 
-    $probe = "import struct,sys; bits=struct.calcsize('P')*8; ok=((3,11) <= sys.version_info[:2] < (3,14) and bits == 64); print(str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'.'+str(sys.version_info.micro)+'|'+str(bits)); raise SystemExit(0 if ok else 2)"
+    # Ava 0.2.0 declares Python 3.11-3.13, but it pins numpy==1.26.4.
+    # NumPy 1.26.4 has Windows binary wheels through CPython 3.12, not 3.13.
+    # Requiring 3.11/3.12 keeps setup binary-only and avoids a fragile source build.
+    $probe = "import struct,sys; bits=struct.calcsize('P')*8; ok=((3,11) <= sys.version_info[:2] < (3,13) and bits == 64); print(str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'.'+str(sys.version_info.micro)+'|'+str(bits)); raise SystemExit(0 if ok else 2)"
 
     try {
         $result = & $Command @PrefixArgs -c $probe 2>$null
@@ -34,7 +37,7 @@ function Test-AvaPythonRuntime {
 $PythonRuntime = $null
 
 if (Get-Command py -ErrorAction SilentlyContinue) {
-    foreach ($version in @("3.13", "3.12", "3.11")) {
+    foreach ($version in @("3.12", "3.11")) {
         $candidate = Test-AvaPythonRuntime -Command "py" -PrefixArgs @("-$version")
         if ($candidate) {
             $PythonRuntime = $candidate
@@ -53,7 +56,7 @@ if (-not $PythonRuntime -and (Get-Command python3 -ErrorAction SilentlyContinue)
 
 if (-not $PythonRuntime) {
     Write-Host ""
-    Write-Host "Ava requires a 64-bit Python version from 3.11 through 3.13."
+    Write-Host "Ava setup requires 64-bit Python 3.11 or 3.12."
     if (Get-Command py -ErrorAction SilentlyContinue) {
         Write-Host "Detected Python Launcher environments:"
         & py -0p
@@ -64,8 +67,8 @@ if (-not $PythonRuntime) {
     }
     Write-Host ""
     Write-Host "Recommended Windows install command:"
-    Write-Host "winget install --id Python.Python.3.13 -e"
-    throw "No compatible 64-bit Python 3.11-3.13 runtime was found."
+    Write-Host "winget install --id Python.Python.3.12 -e"
+    throw "No compatible 64-bit Python 3.11-3.12 runtime was found. Python 3.13 is intentionally not used because Ava 0.2.0 pins numpy==1.26.4, which has no CPython 3.13 Windows wheel."
 }
 
 Write-Host "Using Python $($PythonRuntime.Description) via: $($PythonRuntime.Command) $($PythonRuntime.PrefixArgs -join ' ')"
@@ -74,13 +77,22 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "git was not found. Ava's pinned Kokoro dependency is installed from GitHub."
 }
 
-if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
+$VenvPython = Join-Path $Venv "Scripts\python.exe"
+if (Test-Path -LiteralPath $VenvPython -PathType Leaf) {
+    & $VenvPython -c "import sys; raise SystemExit(0 if (3,11) <= sys.version_info[:2] < (3,13) else 2)" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Existing Ava environment uses an incompatible Python. Recreating it with Python $($PythonRuntime.Description)..."
+        Remove-Item -LiteralPath $Venv -Recurse -Force
+    }
+}
+
+if (-not (Test-Path -LiteralPath $VenvPython -PathType Leaf)) {
     Write-Host "Creating isolated Python environment..."
     & $PythonRuntime.Command @($PythonRuntime.PrefixArgs) -m venv $Venv
     if ($LASTEXITCODE -ne 0) { throw "Failed to create Ava virtual environment." }
 }
 
-$Python = Join-Path $Venv "Scripts\python.exe"
+$Python = $VenvPython
 Write-Host "Installing PyTorch 2.6.0 for the CPU-forced Ava runtime..."
 & $Python -m pip install --index-url $PyPiIndex --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
@@ -99,6 +111,15 @@ if ($LASTEXITCODE -ne 0) { throw "PyTorch 2.6.0 installation from PyPI failed." 
 
 & $Python -c "import torch; x=torch.ones(1, device='cpu'); print('torch', torch.__version__, 'device', x.device, 'cuda-available', torch.cuda.is_available()); assert x.device.type == 'cpu'"
 if ($LASTEXITCODE -ne 0) { throw "PyTorch CPU execution verification failed." }
+
+# Ava 0.2.0 pins numpy==1.26.4. Install it as a binary wheel before Ava so pip
+# never falls back to a source build (which fails on CPython 3.13 and is slow/
+# brittle on managed Windows machines).
+Write-Host "Installing NumPy 1.26.4 binary wheel..."
+& $Python -m pip install --index-url $PyPiIndex --only-binary=:all: "numpy==1.26.4"
+if ($LASTEXITCODE -ne 0) {
+    throw "NumPy 1.26.4 binary wheel installation failed. Use Python 3.11 or 3.12 for Ava."
+}
 
 Write-Host "Installing Ava-82M and pinned Persian frontend dependencies..."
 & $Python -m pip install --index-url $PyPiIndex $WheelUrl
