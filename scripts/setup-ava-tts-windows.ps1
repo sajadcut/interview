@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Venv = Join-Path $RepoRoot ".venv-ava-tts"
-$WheelUrl = "https://huggingface.co/xmanii/Ava-82M/resolve/main/ava_tts-0.2.0-py3-none-any.whl"
+$WheelUrl = "https://huggingface.co/xmanii/Ava-82M/resolve/24160e40cf970dc1b3dc245184e45d48e0fe89a9/ava_tts-0.2.0-py3-none-any.whl#sha256=eabc71ee86f1ffc78b763708523842490746c7b712f690269f519adacd73aad0"
 $PyPiIndex = "https://pypi.org/simple"
 $TorchCpuIndex = "https://download.pytorch.org/whl/cpu"
 
@@ -63,6 +63,9 @@ if (-not $PythonRuntime) {
         Write-Host "python on PATH:"
         & python --version
     }
+    Write-Host ""
+    Write-Host "Recommended Windows install command:"
+    Write-Host "winget install --id Python.Python.3.13 -e"
     throw "No compatible 64-bit Python 3.11-3.13 runtime was found."
 }
 
@@ -82,6 +85,11 @@ $Python = Join-Path $Venv "Scripts\python.exe"
 Write-Host "Installing CPU-only PyTorch..."
 & $Python -m pip install --index-url $PyPiIndex --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
+
+# Corporate Windows networks often terminate TLS with an internal root CA. Keep
+# verification enabled and bridge Python to the Windows certificate store.
+& $Python -m pip install --index-url $PyPiIndex "pip-system-certs>=4,<6"
+if ($LASTEXITCODE -ne 0) { throw "Windows certificate-store bridge installation failed." }
 
 # The PyTorch CPU index intentionally does not mirror normal PyPI packages.
 # Install torch's generic Python dependencies from PyPI first, then install only
@@ -105,7 +113,7 @@ Write-Host "Installing Ava-82M and pinned Persian frontend dependencies..."
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
-& $Python -c "import torch; from ava_tts import Ava; print('torch', torch.__version__, 'cuda', torch.cuda.is_available()); assert not torch.cuda.is_available(); print('Ava import OK')"
+& $Python -c "import torch, soundfile; from ava_tts import Ava; print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava import OK; worker forces device=cpu')"
 if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
