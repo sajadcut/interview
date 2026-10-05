@@ -73,12 +73,12 @@ export function CandidateEditForm({ candidateId }: { candidateId: string }) {
         headers: tenantHeaders(identity),
         body: {
           displayName: displayName.trim(),
-          ...(primaryEmail.trim() ? { primaryEmail: primaryEmail.trim() } : {}),
-          ...(primaryPhone.trim() ? { primaryPhone: primaryPhone.trim() } : {}),
-          ...(currentRole.trim() ? { currentRole: currentRole.trim() } : {}),
-          ...(currentCompany.trim() ? { currentCompany: currentCompany.trim() } : {}),
-          ...(location.trim() ? { location: location.trim() } : {}),
-          ...(preferredLanguage.trim() ? { preferredLanguage: preferredLanguage.trim() } : {}),
+          primaryEmail: primaryEmail.trim() || null,
+          primaryPhone: primaryPhone.trim() || null,
+          currentRole: currentRole.trim() || null,
+          currentCompany: currentCompany.trim() || null,
+          location: location.trim() || null,
+          preferredLanguage: preferredLanguage.trim() || null,
         },
       });
       if (result.error) throw new Error(apiErrorMessage(result, "ذخیره تغییرات کاندیدا ناموفق بود"));
