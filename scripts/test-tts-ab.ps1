@@ -59,7 +59,7 @@ if ($null -eq $edge) {
     throw "edge-tts was not found on PATH. Install it with: python -m pip install edge-tts"
 }
 
-Set-Content -LiteralPath $EdgeTextFile -Value $Text -Encoding UTF8
+[System.IO.File]::WriteAllText($EdgeTextFile, $Text, (New-Object System.Text.UTF8Encoding($false)))
 $edgeWatch = [System.Diagnostics.Stopwatch]::StartNew()
 & $edge.Source --voice $EdgeVoice --file $EdgeTextFile --write-media $EdgeOutput
 if ($LASTEXITCODE -ne 0) {
