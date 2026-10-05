@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Icon } from "../product/icon";
 import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
@@ -29,6 +30,8 @@ export function InterviewOperations() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busySession, setBusySession] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const load = useCallback(async () => {
     const current = identity ?? (await resolveTenantIdentity());
@@ -110,6 +113,23 @@ export function InterviewOperations() {
     }
   }
 
+  const filteredSessions = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return options.sessions.filter((session) => {
+      if (statusFilter !== "all" && session.sessionStatus !== statusFilter) return false;
+      if (!normalized) return true;
+      return [
+        session.candidateName,
+        session.jobTitle,
+        session.interviewerName,
+        session.interviewerEmail,
+        session.sessionStatus,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalized));
+    });
+  }, [options.sessions, query, statusFilter]);
+
   return (
     <div className="space-y-4">
       <div>
@@ -118,13 +138,27 @@ export function InterviewOperations() {
       </div>
       {error ? <div role="alert" className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
+          <div className="relative min-w-[260px] flex-1">
+            <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جست‌وجو بر اساس کاندیدا، موقعیت یا مصاحبه‌گر..." className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none focus:border-indigo-300 focus:bg-white" />
+          </div>
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="فیلتر وضعیت مصاحبه" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[11px]">
+            <option value="all">همه وضعیت‌ها</option>
+            <option value="scheduled">زمان‌بندی‌شده</option>
+            <option value="ready">آماده</option>
+            <option value="in_progress">در حال انجام</option>
+            <option value="completed">تکمیل‌شده</option>
+            <option value="cancelled">لغوشده</option>
+          </select>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-start text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-[.06em] text-slate-400">
               <tr><th className="px-5 py-3">کاندیدا</th><th className="px-3 py-3">موقعیت شغلی</th><th className="px-3 py-3">وضعیت</th><th className="px-3 py-3">زمان‌بندی</th><th className="px-3 py-3">مصاحبه‌گر</th><th className="px-5 py-3 text-end">اقدام</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {loading ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">در حال بارگذاری عملیات مصاحبه…</td></tr> : options.sessions.map((session) => (
+              {loading ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">در حال بارگذاری عملیات مصاحبه…</td></tr> : filteredSessions.map((session) => (
                 <tr key={session.sessionId}>
                   <td className="px-5 py-4 font-semibold text-slate-800">{session.candidateName}</td>
                   <td className="px-3 py-4 text-slate-600">{session.jobTitle}</td>
@@ -151,7 +185,7 @@ export function InterviewOperations() {
                   <td className="px-5 py-4 text-end"><button disabled={busySession === session.sessionId || !selected[session.sessionId]} onClick={() => void assign(session.sessionId)} className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40" type="button">{busySession === session.sessionId ? "در حال تخصیص…" : session.interviewerUserId ? "تخصیص مجدد" : "تخصیص"}</button></td>
                 </tr>
               ))}
-              {!loading && options.sessions.length === 0 ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">نشست مصاحبه‌ای پیدا نشد.</td></tr> : null}
+              {!loading && filteredSessions.length === 0 ? <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-400">{options.sessions.length ? "مصاحبه‌ای با فیلترهای فعلی پیدا نشد." : "نشست مصاحبه‌ای پیدا نشد."}</td></tr> : null}
             </tbody>
           </table>
         </div>
