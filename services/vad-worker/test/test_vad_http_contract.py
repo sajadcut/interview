@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import vad_layer  # noqa: E402
-from server import Handler  # noqa: E402
+from server import Handler, write_json  # noqa: E402
 from vad_layer import CONTRACT_VERSION  # noqa: E402
 
 
@@ -78,6 +78,26 @@ class VADHttpContractTests(unittest.TestCase):
             payload["independentOf"],
             ["llm", "whisper", "livekit", "ffmpeg", "tts"],
         )
+
+
+    def test_write_json_ignores_disconnected_client(self) -> None:
+        class DisconnectingWriter:
+            def write(self, _data: bytes) -> None:
+                raise ConnectionAbortedError(10053, "client disconnected")
+
+        class FakeHandler:
+            wfile = DisconnectingWriter()
+
+            def send_response(self, _status: int) -> None:
+                pass
+
+            def send_header(self, _name: str, _value: str) -> None:
+                pass
+
+            def end_headers(self) -> None:
+                pass
+
+        write_json(FakeHandler(), 200, {"ready": True})  # type: ignore[arg-type]
 
     def test_analyze_returns_versioned_structured_segments(self) -> None:
         request_id = "vad-http-test-001"
