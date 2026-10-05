@@ -8,6 +8,10 @@ if (-not (Test-Path $Python)) {
 }
 
 Set-Location $RepoRoot
-$env:AVA_TTS_WORKER_HOST = "127.0.0.1"
-$env:AVA_TTS_WORKER_PORT = "9022"
+if ([string]::IsNullOrWhiteSpace($env:AVA_TTS_WORKER_HOST)) {
+    $env:AVA_TTS_WORKER_HOST = "127.0.0.1"
+}
+if ([string]::IsNullOrWhiteSpace($env:AVA_TTS_WORKER_PORT)) {
+    $env:AVA_TTS_WORKER_PORT = "9022"
+}
 & $Python "services/ava-tts-worker/server.py"
