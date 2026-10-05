@@ -6,19 +6,25 @@ Ava-82M v0.2.0 is an Apache-2.0 Persian Kokoro fine-tune with a contextual Persi
 
 ## Windows setup
 
-The Ava 0.2.0 package declares Python 3.11–3.13, but it pins `numpy==1.26.4`. On Windows, NumPy 1.26.4 has binary wheels for Python 3.11/3.12 but not 3.13, so this project intentionally uses 64-bit Python 3.11 or 3.12 for a reproducible binary-only setup. The rest of the repository may use a newer Python because Ava runs in its own isolated environment.
+Ava 0.2.0 officially declares Python 3.11–3.13. This project intentionally runs the Windows worker on 64-bit Python 3.13. Ava 0.2.0 also pins `numpy==1.26.4` and `sentencepiece==0.2.0`; those two releases do not provide CPython 3.13 Windows wheels. To honor Ava's declared Python 3.13 support without source-building native dependencies, the Windows setup uses `numpy==2.1.3` and `sentencepiece==0.2.2`, both inside the looser compatibility ranges used by Ava before its exact-version pinning. This is an explicit compatibility override and should be treated as experimental until representative synthesis tests pass.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1
 ```
 
-Install Python 3.12 if it is not already present:
+Python 3.13 is the expected Windows runtime:
 
 ```powershell
-winget install --id Python.Python.3.12 -e
+py -3.13 --version
 ```
 
-If `.venv-ava-tts` was previously created with Python 3.13, the setup script detects that and recreates only the Ava virtual environment with Python 3.12.
+If it is not installed:
+
+```powershell
+winget install --id Python.Python.3.13 -e
+```
+
+If `.venv-ava-tts` was previously created with another Python version, the setup script recreates only that isolated Ava environment with Python 3.13.
 
 The setup script deliberately downloads PyTorch from PyPI instead of `download.pytorch.org`, because managed corporate networks can return HTTP 403 from PyTorch's R2 download host. The Windows PyPI wheel is the exact `torch==2.6.0` version pinned by Ava, and the worker explicitly loads Ava with `device="cpu"`.
 
@@ -26,8 +32,9 @@ The setup script:
 
 - creates `.venv-ava-tts`;
 - installs the official Windows `torch==2.6.0` wheel from PyPI and forces Ava inference to CPU;
-- preinstalls the `numpy==1.26.4` Windows binary wheel so pip never attempts a source build;
-- installs a pinned Ava-82M v0.2.0 wheel;
+- installs CPython 3.13 binary wheels `numpy==2.1.3` and `sentencepiece==0.2.2` as compatibility overrides;
+- keeps Click, Hugging Face Hub, SoundFile, Transformers, Torch, and the Kokoro revision aligned with Ava v0.2.0;
+- installs the pinned Ava-82M v0.2.0 wheel with `--no-deps` so its stale native pins do not force source builds;
 - installs the Windows certificate-store bridge for managed/corporate TLS networks;
 - verifies that Ava imports correctly.
 
