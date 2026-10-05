@@ -151,6 +151,7 @@ export class RecruitingService {
             a.id AS application_id,
             a.pipeline_stage,
             a.pre_interview_match_score,
+            1::int AS application_count,
             COALESCE(array_agg(DISTINCT cs.skill_label) FILTER (WHERE cs.skill_label IS NOT NULL), '{}') AS skills
           FROM applications a
           JOIN candidates c
@@ -173,8 +174,11 @@ export class RecruitingService {
             NULL::uuid AS application_id,
             NULL::varchar AS pipeline_stage,
             NULL::numeric AS pre_interview_match_score,
+            count(DISTINCT a.id)::int AS application_count,
             COALESCE(array_agg(DISTINCT cs.skill_label) FILTER (WHERE cs.skill_label IS NOT NULL), '{}') AS skills
           FROM candidates c
+          LEFT JOIN applications a
+            ON a.organization_id = c.organization_id AND a.candidate_id = c.id
           LEFT JOIN candidate_skills cs
             ON cs.organization_id = c.organization_id AND cs.candidate_id = c.id
           WHERE c.organization_id = ${organizationId}::uuid
@@ -193,6 +197,7 @@ export class RecruitingService {
       ...(row.pre_interview_match_score !== null
         ? { preInterviewMatchScore: Number(row.pre_interview_match_score) }
         : {}),
+      applicationCount: Number(row.application_count ?? 0),
       skills: Array.isArray(row.skills) ? row.skills.map(String) : [],
       updatedAt: new Date(String(row.updated_at)).toISOString(),
     }));
