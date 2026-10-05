@@ -13,6 +13,7 @@ import type {
   MoveApplicationStageDto,
   SaveRubricDraftDto,
   SubmitHiringDecisionDto,
+  UpdateCandidateDto,
   UpdateJobDto,
   UpsertShortlistDto,
 } from "./recruiting-operations.dto";
@@ -240,6 +241,151 @@ export class RecruitingOperationsService {
     });
   }
 
+  async updateCandidate(candidateId: string, input: UpdateCandidateDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const normalizedEmail = input.primaryEmail?.trim().toLowerCase();
+    const normalizedPhone = input.primaryPhone?.trim().replace(/\s+/g, "");
+
+    return this.database.sql.begin(async (tx) => {
+      const existing = await tx`
+        SELECT id::text, primary_email, primary_phone
+        FROM candidates
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${candidateId}::uuid
+        LIMIT 1
+        FOR UPDATE
+      `;
+      if (!existing[0]) throw new NotFoundException("Candidate not found");
+
+      if (normalizedEmail) {
+        const duplicateEmail = await tx`
+          SELECT id::text
+          FROM candidates
+          WHERE organization_id = ${organizationId}::uuid
+            AND id <> ${candidateId}::uuid
+            AND lower(primary_email) = ${normalizedEmail}
+          LIMIT 1
+        `;
+        if (duplicateEmail[0]) throw new BadRequestException("A candidate with this email already exists");
+      }
+
+      if (normalizedPhone) {
+        const duplicatePhone = await tx`
+          SELECT candidate_id::text
+          FROM candidate_identities
+          WHERE organization_id = ${organizationId}::uuid
+            AND identity_type = 'phone'
+            AND normalized_value = ${normalizedPhone}
+            AND candidate_id <> ${candidateId}::uuid
+          LIMIT 1
+        `;
+        if (duplicatePhone[0]) throw new BadRequestException("A candidate with this phone identity already exists");
+      }
+
+      const rows = await tx`
+        UPDATE candidates
+        SET display_name = COALESCE(${input.displayName?.trim() || null}, display_name),
+            primary_email = COALESCE(${normalizedEmail || null}, primary_email),
+            primary_phone = COALESCE(${input.primaryPhone?.trim() || null}, primary_phone),
+            "current_role" = COALESCE(${input.currentRole?.trim() || null}, "current_role"),
+            current_company = COALESCE(${input.currentCompany?.trim() || null}, current_company),
+            location = COALESCE(${input.location?.trim() || null}, location),
+            preferred_language = COALESCE(${input.preferredLanguage?.trim() || null}, preferred_language),
+            updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${candidateId}::uuid
+        RETURNING id::text, display_name, primary_email, primary_phone,
+                  "current_role" AS current_role, current_company, location, preferred_language, updated_at
+      `;
+
+      if (normalizedEmail) {
+        await tx`
+          DELETE FROM candidate_identities
+          WHERE organization_id = ${organizationId}::uuid
+            AND candidate_id = ${candidateId}::uuid
+            AND identity_type = 'email'
+        `;
+        await tx`
+          INSERT INTO candidate_identities (
+            organization_id, candidate_id, identity_type, normalized_value, is_verified
+          ) VALUES (
+            ${organizationId}::uuid, ${candidateId}::uuid, 'email', ${normalizedEmail}, false
+          )
+        `;
+      }
+
+      if (normalizedPhone) {
+        await tx`
+          DELETE FROM candidate_identities
+          WHERE organization_id = ${organizationId}::uuid
+            AND candidate_id = ${candidateId}::uuid
+            AND identity_type = 'phone'
+        `;
+        await tx`
+          INSERT INTO candidate_identities (
+            organization_id, candidate_id, identity_type, normalized_value, is_verified
+          ) VALUES (
+            ${organizationId}::uuid, ${candidateId}::uuid, 'phone', ${normalizedPhone}, false
+          )
+        `;
+      }
+
+      const candidate = rows[0];
+      return {
+        id: String(candidate?.id),
+        displayName: String(candidate?.display_name),
+        ...(candidate?.primary_email ? { primaryEmail: String(candidate.primary_email) } : {}),
+        ...(candidate?.primary_phone ? { primaryPhone: String(candidate.primary_phone) } : {}),
+        ...(candidate?.current_role ? { currentRole: String(candidate.current_role) } : {}),
+        ...(candidate?.current_company ? { currentCompany: String(candidate.current_company) } : {}),
+        ...(candidate?.location ? { location: String(candidate.location) } : {}),
+        ...(candidate?.preferred_language ? { preferredLanguage: String(candidate.preferred_language) } : {}),
+        updatedAt: new Date(String(candidate?.updated_at)).toISOString(),
+      };
+    });
+  }
+
+  async deleteCandidate(candidateId: string) {
+    const result = await this.bulkDeleteCandidates([candidateId]);
+    if (result.deletedCount === 0) {
+      throw new BadRequestException("Candidate cannot be deleted while linked to an application");
+    }
+    return { id: candidateId, deleted: true as const };
+  }
+
+  async bulkDeleteCandidates(candidateIds: string[]) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const uniqueIds = [...new Set(candidateIds)];
+
+    return this.database.sql.begin(async (tx) => {
+      const deletable = await tx`
+        SELECT c.id::text
+        FROM candidates c
+        WHERE c.organization_id = ${organizationId}::uuid
+          AND c.id = ANY(${uniqueIds}::uuid[])
+          AND NOT EXISTS (
+            SELECT 1
+            FROM applications a
+            WHERE a.organization_id = c.organization_id
+              AND a.candidate_id = c.id
+          )
+        FOR UPDATE
+      `;
+      const deletedIds = deletable.map((row) => String(row.id));
+
+      if (deletedIds.length > 0) {
+        await tx`
+          DELETE FROM candidates
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ANY(${deletedIds}::uuid[])
+        `;
+      }
+
+      const blockedIds = uniqueIds.filter((id) => !deletedIds.includes(id));
+      return { deletedIds, deletedCount: deletedIds.length, blockedIds };
+    });
+  }
+
   async createApplication(jobId: string, input: CreateApplicationDto) {
     const organizationId = this.tenantContext.require().organizationId;
 
@@ -376,6 +522,54 @@ export class RecruitingOperationsService {
       }
 
       return rows[0];
+    });
+  }
+
+  async deleteJob(jobId: string) {
+    const result = await this.bulkDeleteJobs([jobId]);
+    if (result.deletedCount === 0) {
+      throw new BadRequestException("Only unlinked draft jobs without applications can be deleted");
+    }
+    return { id: jobId, deleted: true as const };
+  }
+
+  async bulkDeleteJobs(jobIds: string[]) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const uniqueIds = [...new Set(jobIds)];
+
+    return this.database.sql.begin(async (tx) => {
+      const deletable = await tx`
+        SELECT j.id::text
+        FROM jobs j
+        WHERE j.organization_id = ${organizationId}::uuid
+          AND j.id = ANY(${uniqueIds}::uuid[])
+          AND j.status = 'draft'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM applications a
+            WHERE a.organization_id = j.organization_id
+              AND a.job_id = j.id
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM hiring_requests hr
+            WHERE hr.organization_id = j.organization_id
+              AND hr.linked_job_id = j.id
+          )
+        FOR UPDATE
+      `;
+      const deletedIds = deletable.map((row) => String(row.id));
+
+      if (deletedIds.length > 0) {
+        await tx`
+          DELETE FROM jobs
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ANY(${deletedIds}::uuid[])
+        `;
+      }
+
+      const blockedIds = uniqueIds.filter((id) => !deletedIds.includes(id));
+      return { deletedIds, deletedCount: deletedIds.length, blockedIds };
     });
   }
 
