@@ -134,29 +134,29 @@ export class CreateCandidateDto {
   @Length(1, 240)
   displayName!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsEmail()
   @Length(3, 320)
-  primaryEmail?: string;
+  primaryEmail?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 80)
-  primaryPhone?: string;
+  primaryPhone?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
-  currentRole?: string;
+  currentRole?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
-  currentCompany?: string;
+  currentCompany?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -202,17 +202,17 @@ export class UpdateCandidateDto {
   @Length(1, 240)
   currentCompany?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
-  location?: string;
+  location?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(2, 16)
-  preferredLanguage?: string;
+  preferredLanguage?: string | null;
 }
 
 export class BulkIdsDto {
@@ -265,28 +265,28 @@ export class UpdateJobDto {
   @IsIn(["draft", "open", "paused", "closed", "archived"])
   status?: "draft" | "open" | "paused" | "closed" | "archived";
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 160)
-  department?: string;
+  department?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
-  location?: string;
+  location?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 80)
-  seniority?: string;
+  seniority?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
-  summary?: string;
+  summary?: string | null;
 
   @ApiPropertyOptional({ type: [CreateJobRequirementDto] })
   @IsOptional()
