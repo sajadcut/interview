@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuthContextService } from "../auth/auth-context.service";
+import { CandidateAuthService } from "../auth/candidate-auth.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
-import type { ScheduleTechnicalInterviewDto } from "./interviewer.dto";
+import { InterviewOrchestrationService } from "../interviews/interview-orchestration.service";
+import type { PrepareAiInterviewDto, ScheduleTechnicalInterviewDto } from "./interviewer.dto";
 
 @Injectable()
 export class InterviewAssignmentAdminService {
@@ -10,7 +12,128 @@ export class InterviewAssignmentAdminService {
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly authContext: AuthContextService,
+    private readonly interviewOrchestration: InterviewOrchestrationService,
+    private readonly candidateAuth: CandidateAuthService,
   ) {}
+
+  async prepareAiInterview(input: PrepareAiInterviewDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const actorUserId = this.authContext.getOptional()?.userId;
+    if (!actorUserId) throw new BadRequestException("Authenticated user context is required");
+
+    const language = input.language?.trim() || "fa";
+    const applications = await this.database.sql`
+      SELECT
+        a.id::text,
+        a.job_id::text,
+        a.pipeline_stage,
+        a.status,
+        j.title AS job_title
+      FROM applications a
+      JOIN jobs j
+        ON j.organization_id = a.organization_id
+       AND j.id = a.job_id
+      WHERE a.organization_id = ${organizationId}::uuid
+        AND a.id = ${input.applicationId}::uuid
+      LIMIT 1
+    `;
+    const application = applications[0];
+    if (!application) throw new NotFoundException("Application not found");
+    if (["closed", "withdrawn"].includes(String(application.status))) {
+      throw new BadRequestException("A closed application cannot be sent to interview");
+    }
+    if (!["screening", "interview"].includes(String(application.pipeline_stage))) {
+      throw new BadRequestException("Application must be in screening or interview before AI interview");
+    }
+
+    const publishedPlans = await this.database.sql`
+      SELECT id::text
+      FROM interview_plans
+      WHERE organization_id = ${organizationId}::uuid
+        AND job_id = ${String(application.job_id)}::uuid
+        AND status = 'published'
+        AND interview_type <> 'human_technical'
+        AND language = ${language}
+      ORDER BY version DESC
+      LIMIT 1
+    `;
+
+    let interviewPlanId = publishedPlans[0]?.id ? String(publishedPlans[0].id) : undefined;
+    if (!interviewPlanId) {
+      const generated = await this.interviewOrchestration.generatePlan(String(application.job_id), {
+        language,
+        interviewType: "structured_competency",
+        timeBudgetMinutes: 45,
+        minDepth: 1,
+        maxDepth: 3,
+      });
+      const published = await this.interviewOrchestration.publishPlan(generated.id);
+      interviewPlanId = published.id;
+    }
+
+    await this.database.sql.begin(async (tx) => {
+      const lockedRows = await tx`
+        SELECT pipeline_stage
+        FROM applications
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${input.applicationId}::uuid
+        LIMIT 1
+        FOR UPDATE
+      `;
+      const currentStage = String(lockedRows[0]?.pipeline_stage ?? application.pipeline_stage);
+
+      const latestAiMarker = await tx`
+        SELECT 1
+        FROM application_stage_transitions
+        WHERE organization_id = ${organizationId}::uuid
+          AND application_id = ${input.applicationId}::uuid
+          AND to_stage = 'interview'
+          AND reason = 'AI interviewer selected for the interview stage'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+
+      if (!latestAiMarker[0]) {
+        await tx`
+          INSERT INTO application_stage_transitions (
+            organization_id,
+            application_id,
+            from_stage,
+            to_stage,
+            reason,
+            actor_user_id
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${input.applicationId}::uuid,
+            ${currentStage},
+            'interview',
+            'AI interviewer selected for the interview stage',
+            ${actorUserId}::uuid
+          )
+        `;
+      }
+
+      if (currentStage !== "interview") {
+        await tx`
+          UPDATE applications
+          SET pipeline_stage = 'interview', updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${input.applicationId}::uuid
+        `;
+      }
+    });
+
+    const invitation = await this.candidateAuth.createInvitation({
+      applicationId: input.applicationId,
+    });
+
+    return {
+      applicationId: input.applicationId,
+      interviewPlanId,
+      pipelineStage: "interview",
+      invitation,
+    };
+  }
 
   async scheduleTechnicalInterview(input: ScheduleTechnicalInterviewDto) {
     const organizationId = this.tenantContext.require().organizationId;
