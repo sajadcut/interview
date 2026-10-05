@@ -61,7 +61,7 @@ export default function JobsPage() {
   }, [jobs, query, statusFilter]);
 
   const selectableJobs = useMemo(
-    () => filteredJobs.filter((job) => job.status === "draft" && job.applicationCount === 0),
+    () => filteredJobs.filter((job) => job.deletable),
     [filteredJobs],
   );
   const selectedVisibleCount = selectableJobs.filter((job) => selectedIds.has(job.id)).length;
@@ -207,7 +207,7 @@ export default function JobsPage() {
                       <SelectionCheckbox
                         label={`انتخاب ${job.title}`}
                         checked={selectedIds.has(job.id)}
-                        disabled={job.status !== "draft" || job.applicationCount > 0}
+                        disabled={!job.deletable}
                         onChange={(checked) => toggleJob(job.id, checked)}
                       />
                     ) : null}
@@ -229,7 +229,7 @@ export default function JobsPage() {
                       {access.can("job.edit") ? (
                         <Link href={`/app/jobs/${job.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
                       ) : null}
-                      {access.can("job.edit") && job.status === "draft" && job.applicationCount === 0 ? (
+                      {access.can("job.edit") && job.deletable ? (
                         <button type="button" onClick={() => setDeleteIds([job.id])} className="text-[10px] font-semibold text-rose-600 hover:text-rose-700">حذف</button>
                       ) : null}
                     </div>
