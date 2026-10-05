@@ -176,7 +176,7 @@ export class InterviewAssignmentAdminService {
         WHERE s.organization_id = ${organizationId}::uuid
           AND s.application_id = ${input.applicationId}::uuid
           AND p.interview_type = 'human_technical'
-          AND s.status IN ('invited', 'in_progress', 'paused', 'disconnected')
+          AND s.status IN ('invited', 'scheduled', 'in_progress', 'paused', 'disconnected')
         ORDER BY s.created_at DESC
         LIMIT 1
         FOR UPDATE OF s
@@ -196,11 +196,13 @@ export class InterviewAssignmentAdminService {
             ${organizationId}::uuid,
             ${input.applicationId}::uuid,
             ${planId}::uuid,
-            'invited',
+            'scheduled',
             ${durationMinutes * 60},
             ${this.database.sql.json({
               interviewMode: "human_technical",
+              interviewerUserId: input.interviewerUserId,
               scheduledFor: scheduledFor.toISOString(),
+              durationMinutes,
             } as never)}
           )
           RETURNING id::text
@@ -209,10 +211,13 @@ export class InterviewAssignmentAdminService {
       } else {
         await tx`
           UPDATE interview_sessions
-          SET remaining_seconds = ${durationMinutes * 60},
+          SET status = CASE WHEN status = 'invited' THEN 'scheduled' ELSE status END,
+              remaining_seconds = ${durationMinutes * 60},
               checkpoint = checkpoint || ${this.database.sql.json({
                 interviewMode: "human_technical",
+                interviewerUserId: input.interviewerUserId,
                 scheduledFor: scheduledFor.toISOString(),
+                durationMinutes,
               } as never)}::jsonb,
               updated_at = now()
           WHERE organization_id = ${organizationId}::uuid
