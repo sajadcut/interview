@@ -156,6 +156,12 @@ invariant(avaSetupSource.includes('"espeakng-loader==0.2.4"'), "Ava setup must p
 invariant(contract.avaAdapter?.compatibilityOverrides?.misakiInstall === "core-git-no-extras", "Ava Misaki install mode drift");
 invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroImportDeps?.spacy === "3.8.16", "Ava spaCy import dependency drift");
 invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroImportDeps?.spacyCuratedTransformers === false, "Ava must avoid spaCy curated transformer extras");
+invariant(contract.avaAdapter?.setupVerification?.realPersianSynthesisByDefault === true, "Ava setup must prove real Persian synthesis");
+invariant(contract.avaAdapter?.setupVerification?.expectedSampleRate === 24000, "Ava setup smoke sample rate drift");
+invariant(avaSetupSource.includes("Running real Ava Persian synthesis smoke test on CPU"), "Ava setup real synthesis smoke test missing");
+invariant(avaSetupSource.includes('Ava.from_pretrained("xmanii/Ava-82M", device="cpu")'), "Ava setup must load the real model on CPU");
+invariant(avaSetupSource.includes('tts.generate("سلام، این یک آزمون کوتاه برای آوای فارسی است.")'), "Ava setup must synthesize representative Persian text");
+invariant(avaSetupSource.includes("Setup is not considered complete"), "Ava setup must fail closed when synthesis fails");
 invariant(avaSetupSource.includes("pip install --no-deps"), "Ava setup must use no-deps for pinned Kokoro/Ava packages");
 invariant(contract.avaAdapter?.python === ">=3.11,<3.14", "Ava declared Python runtime contract drift");
 invariant(contract.avaAdapter?.windowsSetupPython === "3.13", "Ava Windows setup Python drift");
