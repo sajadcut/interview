@@ -6,17 +6,19 @@ Ava-82M v0.2.0 is an Apache-2.0 Persian Kokoro fine-tune with a contextual Persi
 
 ## Windows setup
 
-Ava requires 64-bit Python 3.11–3.13. The rest of this repository may use a newer Python, so Ava runs in its own isolated environment.
+The Ava 0.2.0 package declares Python 3.11–3.13, but it pins `numpy==1.26.4`. On Windows, NumPy 1.26.4 has binary wheels for Python 3.11/3.12 but not 3.13, so this project intentionally uses 64-bit Python 3.11 or 3.12 for a reproducible binary-only setup. The rest of the repository may use a newer Python because Ava runs in its own isolated environment.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1
 ```
 
-If Python 3.13 is not installed, install it first:
+Install Python 3.12 if it is not already present:
 
 ```powershell
-winget install --id Python.Python.3.13 -e
+winget install --id Python.Python.3.12 -e
 ```
+
+If `.venv-ava-tts` was previously created with Python 3.13, the setup script detects that and recreates only the Ava virtual environment with Python 3.12.
 
 The setup script deliberately downloads PyTorch from PyPI instead of `download.pytorch.org`, because managed corporate networks can return HTTP 403 from PyTorch's R2 download host. The Windows PyPI wheel is the exact `torch==2.6.0` version pinned by Ava, and the worker explicitly loads Ava with `device="cpu"`.
 
@@ -24,6 +26,7 @@ The setup script:
 
 - creates `.venv-ava-tts`;
 - installs the official Windows `torch==2.6.0` wheel from PyPI and forces Ava inference to CPU;
+- preinstalls the `numpy==1.26.4` Windows binary wheel so pip never attempts a source build;
 - installs a pinned Ava-82M v0.2.0 wheel;
 - installs the Windows certificate-store bridge for managed/corporate TLS networks;
 - verifies that Ava imports correctly.
