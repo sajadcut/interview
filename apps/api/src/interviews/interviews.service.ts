@@ -98,7 +98,7 @@ export class InterviewsService {
         FROM interview_sessions s JOIN interview_plans p ON p.organization_id=s.organization_id AND p.id=s.interview_plan_id
         WHERE s.organization_id=${organizationId}::uuid AND s.id=${sessionId}::uuid FOR UPDATE OF s`;
       if (!sessions[0]) throw new Error("Interview session not found");
-      const session=sessions[0];
+      const session=sessions[0]!;
       const criterionRows = await transaction`
         SELECT criterion_key,description FROM rubric_criteria
         WHERE organization_id=${organizationId}::uuid AND rubric_version_id=${String(session.rubric_version_id)}::uuid ORDER BY display_order,criterion_key`;

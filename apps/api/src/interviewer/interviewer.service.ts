@@ -379,6 +379,7 @@ export class InterviewerService {
       LIMIT 1
     `;
     if (!session[0]) throw new NotFoundException("Interview session was not found");
+    const applicationId = String(session[0].application_id);
     await this.database.sql.begin(async (tx) => {
       await tx`
         UPDATE interview_assignments
@@ -391,7 +392,7 @@ export class InterviewerService {
         UPDATE applications
         SET pipeline_stage = 'review', updated_at = now()
         WHERE organization_id = ${organizationId}::uuid
-          AND id = ${String(session[0].application_id)}::uuid
+          AND id = ${applicationId}::uuid
       `;
     });
     const updated = await this.sessionState.getState(sessionId);
