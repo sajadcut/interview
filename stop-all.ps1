@@ -1,10 +1,26 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidateRange(1, 30)]
+    [int]$StopTimeoutSeconds = 5
+)
 
 $ErrorActionPreference = "Continue"
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $stateFile = Join-Path $repoRoot ".local-data\dev-stack-processes.json"
+
+# Only service names written by start-all.ps1 are eligible for automatic termination.
+# This keeps the state file from becoming an arbitrary PID kill list if it is edited
+# or corrupted. The TTS entry owns the Edge TTS worker and any transient edge-tts child.
+$knownTrackedServices = @(
+    "livekit",
+    "media",
+    "vad",
+    "tts",
+    "ai-interviewer",
+    "app",
+    "ai-worker"
+)
 
 if (-not (Test-Path -LiteralPath $stateFile -PathType Leaf)) {
     Write-Host "No tracked Interview development stack was found."
@@ -30,6 +46,22 @@ function Test-ProcessIsRunning {
     catch {
         return $false
     }
+}
+
+function Wait-ProcessStopped {
+    param(
+        [int]$ProcessId,
+        [int]$TimeoutSeconds = 5
+    )
+
+    $deadline = (Get-Date).AddSeconds([Math]::Max(1, $TimeoutSeconds))
+    while ((Get-Date) -lt $deadline) {
+        if (-not (Test-ProcessIsRunning -ProcessId $ProcessId)) {
+            return $true
+        }
+        Start-Sleep -Milliseconds 100
+    }
+    return -not (Test-ProcessIsRunning -ProcessId $ProcessId)
 }
 
 function Get-ProtectedProcessIds {
@@ -120,7 +152,11 @@ function Stop-OneProcess {
     if (-not (Test-ProcessIsRunning -ProcessId $ProcessId)) { return $true }
     try {
         Stop-Process -Id $ProcessId -Force -ErrorAction Stop
-        return $true
+        if (Wait-ProcessStopped -ProcessId $ProcessId -TimeoutSeconds $StopTimeoutSeconds) {
+            return $true
+        }
+        Write-Warning "$Label PID $ProcessId did not exit within $StopTimeoutSeconds seconds."
+        return $false
     }
     catch {
         if (-not (Test-ProcessIsRunning -ProcessId $ProcessId)) { return $true }
@@ -138,6 +174,11 @@ foreach ($entry in $reverse) {
     if ($null -eq $entry -or -not $entry.ProcessId) { continue }
     $processId = [int]$entry.ProcessId
     $name = if ($entry.Name) { [string]$entry.Name } else { "unknown" }
+
+    if ($knownTrackedServices -notcontains $name) {
+        Write-Warning "Ignoring unknown tracked service '$name' (PID $processId)."
+        continue
+    }
 
     if (-not (Test-ProcessIsRunning -ProcessId $processId)) {
         Write-Host "[stopped] $name (PID $processId was already gone)"
@@ -169,6 +210,7 @@ if ($failed.Count -eq 0) {
     Remove-Item -LiteralPath $stateFile -Force -ErrorAction SilentlyContinue
     Write-Host ""
     Write-Host "Interview development stack stopped."
+    Write-Host "Tracked service trees, including Edge TTS synthesis child processes, were terminated."
     Write-Host "The current PowerShell process and all parent processes were protected from termination."
     exit 0
 }
