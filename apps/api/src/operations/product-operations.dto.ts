@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsIn, IsObject, IsOptional, IsString, Length } from "class-validator";
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsIn, IsObject, IsOptional, IsString, IsUUID, Length } from "class-validator";
 
 const openMap = { type: "object" as const, additionalProperties: true };
 
@@ -107,6 +107,40 @@ export class CreateAutomationRuleDto {
 }
 
 export class UpdateAutomationRuleDto {
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  name?: string;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  @Length(1, 4000)
+  description?: string;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  triggerType?: string;
+
+  @ApiPropertyOptional(openMap)
+  @IsOptional()
+  @IsObject()
+  triggerConfig?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: String })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  actionType?: string;
+
+  @ApiPropertyOptional(openMap)
+  @IsOptional()
+  @IsObject()
+  actionConfig?: Record<string, unknown>;
+
   @ApiPropertyOptional({ type: Boolean })
   @IsOptional()
   @IsBoolean()
@@ -116,6 +150,21 @@ export class UpdateAutomationRuleDto {
   @IsOptional()
   @IsBoolean()
   approvalRequired?: boolean;
+}
+
+export class BulkAutomationIdsDto {
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
+  ids!: string[];
+}
+
+export class BulkAutomationDeleteResultDto {
+  @ApiProperty({ type: [String], format: "uuid" }) deletedIds!: string[];
+  @ApiProperty({ minimum: 0 }) deletedCount!: number;
+  @ApiProperty({ type: [String], format: "uuid" }) blockedIds!: string[];
 }
 
 export class CreateAutomationRunDto {
@@ -169,6 +218,7 @@ export class AutomationRuleResponseDto {
   @ApiPropertyOptional(openMap) action_config?: Record<string, unknown>;
   @ApiProperty({ type: Boolean }) approval_required!: boolean;
   @ApiProperty({ type: Boolean }) enabled!: boolean;
+  @ApiProperty({ minimum: 0 }) run_count!: number;
   @ApiProperty({ type: String, format: "date-time" }) created_at!: string;
   @ApiProperty({ type: String, format: "date-time" }) updated_at!: string;
 }
