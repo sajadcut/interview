@@ -173,6 +173,16 @@ function hasValidWavHeader(audio: Uint8Array): boolean {
   );
 }
 
+function hasValidMp3Header(audio: Uint8Array): boolean {
+  if (audio.byteLength < 4) return false;
+  if (String.fromCharCode(...audio.subarray(0, 3)) === "ID3") return true;
+  const probeLength = Math.min(audio.byteLength - 1, 4096);
+  for (let index = 0; index < probeLength; index += 1) {
+    if (audio[index] === 0xff && (audio[index + 1] & 0xe0) === 0xe0) return true;
+  }
+  return false;
+}
+
 function productionConfigurationIsSafe(baseUrl: string | undefined, secret: string): boolean {
   const env = getEnv();
   if (env.NODE_ENV !== "production") return true;
@@ -244,7 +254,8 @@ export class TtsHttpClient implements TextToSpeechAdapter {
       const row = payload as Record<string, unknown>;
       if (
         row.contractVersion !== TTS_CONTRACT_VERSION ||
-        row.provider !== "local-command" ||
+        typeof row.provider !== "string" ||
+        !PROVIDER_PATTERN.test(row.provider) ||
         row.ready !== true
       ) {
         return { reachable: true, ready: false, reason: "invalid_response" };
@@ -277,7 +288,7 @@ export class TtsHttpClient implements TextToSpeechAdapter {
         const response = await fetch(endpoint(env.TTS_BASE_URL, "synthesize"), {
           method: "POST",
           headers: {
-            accept: "audio/wav",
+            accept: "audio/mpeg, audio/wav",
             "content-type": "application/json",
             "x-tts-secret": env.MEDIA_WORKER_SHARED_SECRET,
             "x-tts-contract-version": TTS_CONTRACT_VERSION,
@@ -293,10 +304,11 @@ export class TtsHttpClient implements TextToSpeechAdapter {
           retryAfterMs = retryAfterMilliseconds(response.headers.get("retry-after"));
         } else {
           const provider = response.headers.get("x-tts-provider")?.trim() ?? "";
+          const contentType = normalizedContentType(response.headers.get("content-type"));
           if (
             response.headers.get("x-tts-contract-version") !== TTS_CONTRACT_VERSION ||
             response.headers.get("x-request-id") !== requestId ||
-            normalizedContentType(response.headers.get("content-type")) !== "audio/wav" ||
+            !["audio/wav", "audio/mpeg"].includes(contentType) ||
             !PROVIDER_PATTERN.test(provider)
           ) {
             throw new TtsClientError("invalid_response", {
@@ -317,7 +329,10 @@ export class TtsHttpClient implements TextToSpeechAdapter {
               httpStatus: response.status,
             });
           }
-          if (!hasValidWavHeader(audio)) {
+          if (
+            (contentType === "audio/wav" && !hasValidWavHeader(audio)) ||
+            (contentType === "audio/mpeg" && !hasValidMp3Header(audio))
+          ) {
             throw new TtsClientError("invalid_response", {
               retryable: false,
               attempts: attempt,
@@ -330,7 +345,7 @@ export class TtsHttpClient implements TextToSpeechAdapter {
             provider,
             requestId,
             audio,
-            contentType: "audio/wav",
+            contentType: contentType as "audio/wav" | "audio/mpeg",
             attempts: attempt,
           };
         }
