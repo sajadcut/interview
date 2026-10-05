@@ -1,6 +1,6 @@
 # Standalone TTS Worker
 
-`services/tts-worker` is the provider-neutral text-to-speech boundary used by the interview runtime. The default engine is now Microsoft Edge neural TTS with the Persian male voice `fa-IR-FaridNeural`. It requires network access but no local GPU. The previous local command/Piper path remains available only as an explicit fallback.
+`services/tts-worker` is the generic fallback text-to-speech worker. The preferred Persian development runtime is now `services/ava-tts-worker` (Ava-82M on CPU, port 9022). This generic worker keeps Microsoft Edge neural TTS with `fa-IR-FaridNeural` as the online no-GPU fallback and retains the previous local command/Piper path as an explicit legacy fallback.
 
 The worker exposes:
 
@@ -11,7 +11,7 @@ POST /synthesize
 
 The versioned contract is `contracts/tts-synthesis.v1.json`. `POST /synthesize` requires `x-tts-contract-version`, `x-request-id` and the shared secret. The worker accepts only the finalized server-side interview `spokenText`; browser-supplied arbitrary TTS text is not accepted by the core interview flow.
 
-## Default Edge neural engine
+## Edge neural fallback
 
 Install the worker dependency:
 
@@ -46,11 +46,13 @@ TTS_WORK_ROOT=
 MEDIA_WORKER_SHARED_SECRET=<local-secret>
 ```
 
-Start it with:
+Start the generic fallback worker directly with:
 
 ```powershell
 npm run tts-worker:dev
 ```
+
+For the normal full project, use `.\start-all.ps1`; it selects Ava-82M by default.
 
 Expected health metadata includes:
 
