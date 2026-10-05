@@ -25,7 +25,7 @@ On managed Windows networks that use a corporate TLS interception/root CA, Pytho
 python -m pip install pip-system-certs
 ```
 
-The user workstation has already validated `edge-tts` successfully against `fa-IR-FaridNeural`.
+The worker now uses the installed `edge-tts` Python module directly in-process rather than spawning the CLI executable. This avoids Windows child-process/socket failures while keeping the same Persian neural voice.
 
 Configuration:
 
@@ -34,7 +34,6 @@ TTS_PROVIDER=local-http
 TTS_BASE_URL=http://127.0.0.1:9020
 
 TTS_ENGINE=edge-tts
-TTS_EDGE_EXECUTABLE=edge-tts
 TTS_EDGE_VOICE=fa-IR-FaridNeural
 TTS_EDGE_RATE=+0%
 TTS_EDGE_VOLUME=+0%
@@ -62,7 +61,7 @@ voice: fa-IR-FaridNeural
 ready: true
 ```
 
-Edge TTS outputs MP3. The API contract accepts `audio/mpeg` for this engine and streams it directly to the browser, which avoids a local FFmpeg conversion step and keeps CPU/latency low.
+Edge TTS outputs MP3. The worker collects the module's audio stream in-process, validates the MP3 signature and size, and the API streams `audio/mpeg` directly to the browser. No local FFmpeg conversion is required.
 
 ## Legacy local/Piper fallback
 
