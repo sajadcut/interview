@@ -339,6 +339,13 @@ export class InterviewEvaluatorService {
             WHERE organization_id = ${organizationId}::uuid
               AND id = ${evaluationId}::uuid
           `;
+          await tx`
+            UPDATE interview_review_tasks
+            SET scorecard_id = ${scorecardId}::uuid, updated_at = now()
+            WHERE organization_id = ${organizationId}::uuid
+              AND evaluation_id = ${evaluationId}::uuid
+              AND scorecard_id IS NULL
+          `;
         }
       }
 

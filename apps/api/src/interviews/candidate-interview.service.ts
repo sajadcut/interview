@@ -824,7 +824,7 @@ export class CandidateInterviewService {
             ${eventType},
             ${clientOccurredAt},
             ${durationMs},
-            ${tx.json(metadata as never)}
+            ${this.database.sql.json(metadata as never)}
           )
           RETURNING id::text, created_at
         `;
