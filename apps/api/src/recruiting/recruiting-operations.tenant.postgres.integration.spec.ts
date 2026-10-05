@@ -585,3 +585,107 @@ test(
     }
   },
 );
+
+
+test(
+  "explicit cascade candidate deletion removes linked applications without crossing tenants",
+  { skip: !integrationDatabaseUrl },
+  async () => {
+    const database = createIntegrationDatabase();
+    const tenantContext = new TenantContextService();
+    const operations = new RecruitingOperationsService(
+      database,
+      tenantContext,
+      new AuthContextService(),
+    );
+    const organizationA = randomUUID();
+    const organizationB = randomUUID();
+    const jobA = randomUUID();
+    const rubricA = randomUUID();
+    const versionA = randomUUID();
+    const candidateA = randomUUID();
+    const candidateB = randomUUID();
+    const applicationA = randomUUID();
+    const suffix = randomUUID();
+
+    try {
+      await database.sql`
+        INSERT INTO organizations (id, name, slug)
+        VALUES
+          (${organizationA}::uuid, 'Cascade Delete Tenant A', ${`cascade-delete-a-${suffix}`}),
+          (${organizationB}::uuid, 'Cascade Delete Tenant B', ${`cascade-delete-b-${suffix}`})
+      `;
+      await database.sql`
+        INSERT INTO jobs (id, organization_id, title, status)
+        VALUES (${jobA}::uuid, ${organizationA}::uuid, 'Cascade Delete Job', 'open')
+      `;
+      await database.sql`
+        INSERT INTO rubrics (id, organization_id, job_id, name, status)
+        VALUES (${rubricA}::uuid, ${organizationA}::uuid, ${jobA}::uuid, 'Cascade rubric', 'published')
+      `;
+      await database.sql`
+        INSERT INTO rubric_versions (id, organization_id, rubric_id, version, status, published_at)
+        VALUES (${versionA}::uuid, ${organizationA}::uuid, ${rubricA}::uuid, 1, 'published', now())
+      `;
+      await database.sql`
+        INSERT INTO candidates (id, organization_id, display_name, primary_email)
+        VALUES
+          (${candidateA}::uuid, ${organizationA}::uuid, 'Cascade Candidate A', ${`cascade-a-${suffix}@example.invalid`}),
+          (${candidateB}::uuid, ${organizationB}::uuid, 'Cascade Candidate B', ${`cascade-b-${suffix}@example.invalid`})
+      `;
+      await database.sql`
+        INSERT INTO applications (
+          id, organization_id, job_id, candidate_id, rubric_version_id, status, pipeline_stage, source
+        ) VALUES (
+          ${applicationA}::uuid,
+          ${organizationA}::uuid,
+          ${jobA}::uuid,
+          ${candidateA}::uuid,
+          ${versionA}::uuid,
+          'active',
+          'new',
+          'integration-test'
+        )
+      `;
+
+      const safeResult = await tenantContext.run(organizationA, () =>
+        operations.bulkDeleteCandidates([candidateA, candidateB]),
+      );
+      assert.deepEqual(safeResult.deletedIds, []);
+      assert.deepEqual(new Set(safeResult.blockedIds), new Set([candidateA, candidateB]));
+
+      const cascadeResult = await tenantContext.run(organizationA, () =>
+        operations.bulkDeleteCandidates([candidateA, candidateB], true),
+      );
+      assert.deepEqual(cascadeResult.deletedIds, [candidateA]);
+      assert.deepEqual(cascadeResult.blockedIds, [candidateB]);
+
+      const removedCandidate = await database.sql`
+        SELECT 1 FROM candidates
+        WHERE organization_id = ${organizationA}::uuid
+          AND id = ${candidateA}::uuid
+      `;
+      assert.equal(removedCandidate.length, 0);
+
+      const removedApplication = await database.sql`
+        SELECT 1 FROM applications
+        WHERE organization_id = ${organizationA}::uuid
+          AND id = ${applicationA}::uuid
+      `;
+      assert.equal(removedApplication.length, 0);
+
+      const preservedForeignCandidate = await database.sql`
+        SELECT 1 FROM candidates
+        WHERE organization_id = ${organizationB}::uuid
+          AND id = ${candidateB}::uuid
+      `;
+      assert.equal(preservedForeignCandidate.length, 1);
+    } finally {
+      await database.sql`
+        DELETE FROM organizations
+        WHERE id IN (${organizationA}::uuid, ${organizationB}::uuid)
+      `;
+      await database.onModuleDestroy();
+    }
+  },
+);
