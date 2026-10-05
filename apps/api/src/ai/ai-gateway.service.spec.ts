@@ -127,6 +127,47 @@ test("realtime interviewer execution validates contract and returns provenance",
   });
 });
 
+test("Persian pronunciation execution uses the dedicated realtime endpoint", async () => {
+  await withRealtimeEnvironment(async () => {
+    let observedUrl = "";
+    globalThis.fetch = async (url, init) => {
+      observedUrl = String(url);
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      assert.equal(body.capability, "speech.persian_pronunciation");
+      return new Response(
+        JSON.stringify({
+          contractVersion: "speech-pronunciation.v1",
+          executionId: "pronunciation-1",
+          output: {
+            ttsText: "دَر مورِدِ تَخصیصِ مَنابِع توضیح بِدِه.",
+          },
+          provenance: {
+            provider: "openai-compatible",
+            model: "test-model",
+            promptId: "speech.persian_pronunciation",
+            promptVersion: "v1",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "x-speech-pronunciation-contract-version": "speech-pronunciation.v1",
+          },
+        },
+      );
+    };
+
+    const result = await gateway().pronouncePersianForTts({
+      spokenText: "در مورد تخصیص منابع توضیح بده.",
+      turnId: "turn-1",
+    });
+    assert.match(observedUrl, /\/v1\/speech\/persian-pronunciation$/);
+    assert.equal(result.ttsText, "دَر مورِدِ تَخصیصِ مَنابِع توضیح بِدِه.");
+    assert.equal(result.provenance.promptId, "speech.persian_pronunciation");
+  });
+});
+
 test("realtime provider failures are surfaced as typed safe errors for brain fallback", async () => {
   await withRealtimeEnvironment(async () => {
     globalThis.fetch = async () =>
