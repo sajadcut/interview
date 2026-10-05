@@ -6,12 +6,14 @@ param(
     [string]$LiveKitHealthUrl = "http://127.0.0.1:7880",
     [string]$ApiReadyUrl = "http://127.0.0.1:4100/health/ready",
     [int]$ApiReadyTimeoutSeconds = 90,
-    [ValidateSet("edge-tts", "local-command")]
-    [string]$TtsEngine = "edge-tts",
+    [ValidateSet("ava-82m", "edge-tts", "local-command")]
+    [string]$TtsEngine = "ava-82m",
     [string]$TtsVoice = "fa-IR-FaridNeural",
     [string]$TtsHost = "127.0.0.1",
     [int]$TtsPort = 9020,
-    [int]$TtsReadyTimeoutSeconds = 30
+    [string]$AvaTtsHost = "127.0.0.1",
+    [int]$AvaTtsPort = 9022,
+    [int]$TtsReadyTimeoutSeconds = 600
 )
 
 $ErrorActionPreference = "Stop"
@@ -110,21 +112,39 @@ if ([string]::IsNullOrWhiteSpace($env:MEDIA_WORKER_SHARED_SECRET)) {
 }
 
 $env:TTS_PROVIDER = "local-http"
-$env:TTS_ENGINE = $TtsEngine
-$env:TTS_WORKER_HOST = $TtsHost
-$env:TTS_WORKER_PORT = [string]$TtsPort
-$env:TTS_BASE_URL = "http://${TtsHost}:$TtsPort"
-$env:TTS_EDGE_VOICE = $TtsVoice
 
-if ($TtsEngine -eq "edge-tts") {
-    $pythonApplication = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -eq $pythonApplication) {
-        throw "Python was not found on PATH. Install Python and run: python -m pip install -r services\tts-worker\requirements.txt"
+if ($TtsEngine -eq "ava-82m") {
+    $avaPython = Join-Path $repoRoot ".venv-ava-tts\Scripts\python.exe"
+    if (-not (Test-Path -LiteralPath $avaPython -PathType Leaf)) {
+        throw "Ava-82M environment is missing. Run: powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1"
     }
 
-    & $pythonApplication.Source -c "import edge_tts" 2>$null
+    & $avaPython -c "import ava_tts, torch, soundfile" 2>$null
     if ($LASTEXITCODE -ne 0) {
-        throw "The edge-tts Python package is not available. Run: python -m pip install -r services\tts-worker\requirements.txt"
+        throw "Ava-82M environment is incomplete. Re-run: powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1"
+    }
+
+    $env:AVA_TTS_WORKER_HOST = $AvaTtsHost
+    $env:AVA_TTS_WORKER_PORT = [string]$AvaTtsPort
+    $env:TTS_BASE_URL = "http://${AvaTtsHost}:$AvaTtsPort"
+}
+else {
+    $env:TTS_ENGINE = $TtsEngine
+    $env:TTS_WORKER_HOST = $TtsHost
+    $env:TTS_WORKER_PORT = [string]$TtsPort
+    $env:TTS_BASE_URL = "http://${TtsHost}:$TtsPort"
+    $env:TTS_EDGE_VOICE = $TtsVoice
+
+    if ($TtsEngine -eq "edge-tts") {
+        $pythonApplication = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -eq $pythonApplication) {
+            throw "Python was not found on PATH. Install Python and run: python -m pip install -r services\tts-worker\requirements.txt"
+        }
+
+        & $pythonApplication.Source -c "import edge_tts" 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            throw "The edge-tts Python package is not available. Run: python -m pip install -r services\tts-worker\requirements.txt"
+        }
     }
 }
 
@@ -245,9 +265,17 @@ $services = @(
     [pscustomobject]@{
         Name      = "tts"
         Kind      = "npm"
-        NpmScript = "tts-worker:dev"
-        Title     = if ($TtsEngine -eq "edge-tts") { "Interview - Edge TTS ($TtsVoice)" } else { "Interview - Local TTS" }
-        Display   = "npm run tts-worker:dev [$TtsEngine]"
+        NpmScript = if ($TtsEngine -eq "ava-82m") { "ava-tts-worker:dev" } else { "tts-worker:dev" }
+        Title     = if ($TtsEngine -eq "ava-82m") {
+            "Interview - Ava-82M Persian TTS (CPU)"
+        }
+        elseif ($TtsEngine -eq "edge-tts") {
+            "Interview - Edge TTS ($TtsVoice)"
+        }
+        else {
+            "Interview - Local TTS"
+        }
+        Display   = if ($TtsEngine -eq "ava-82m") { "npm run ava-tts-worker:dev [CPU]" } else { "npm run tts-worker:dev [$TtsEngine]" }
         ReadyUrl  = "$env:TTS_BASE_URL/health"
         ReadyTimeoutSeconds = $TtsReadyTimeoutSeconds
     },
@@ -376,7 +404,11 @@ else {
 }
 Write-Host "AI Worker:       $env:AI_WORKER_API_BASE_URL (starts only after API readiness)"
 Write-Host "LLM Interviewer: $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
-if ($TtsEngine -eq "edge-tts") {
+if ($TtsEngine -eq "ava-82m") {
+    Write-Host "TTS:             $env:TTS_BASE_URL · Ava-82M Persian · CPU only · Apache-2.0"
+    Write-Host "TTS fallback:    .\start-all.ps1 -TtsEngine edge-tts"
+}
+elseif ($TtsEngine -eq "edge-tts") {
     Write-Host "TTS:             $env:TTS_BASE_URL · Edge neural · $env:TTS_EDGE_VOICE · no local GPU"
 }
 else {
