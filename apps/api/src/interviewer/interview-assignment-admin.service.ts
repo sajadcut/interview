@@ -298,7 +298,7 @@ export class InterviewAssignmentAdminService {
 
   async getOptions() {
     const organizationId = this.tenantContext.require().organizationId;
-    const [sessions, interviewers] = await Promise.all([
+    const [sessions, pendingApplications, interviewers] = await Promise.all([
       this.database.sql`
         SELECT
           s.id::text AS session_id,
@@ -350,6 +350,63 @@ export class InterviewAssignmentAdminService {
           ) DESC
       `,
       this.database.sql`
+        SELECT
+          a.id::text AS application_id,
+          c.display_name AS candidate_name,
+          j.title AS job_title,
+          previous_assignment.interviewer_user_id::text,
+          previous_assignment.interviewer_name,
+          previous_assignment.interviewer_email
+        FROM applications a
+        JOIN candidates c
+          ON c.organization_id = a.organization_id
+         AND c.id = a.candidate_id
+        JOIN jobs j
+          ON j.organization_id = a.organization_id
+         AND j.id = a.job_id
+        LEFT JOIN LATERAL (
+          SELECT
+            ia.interviewer_user_id,
+            COALESCE(
+              NULLIF(trim(concat_ws(' ', ip.first_name, ip.last_name)), ''),
+              iu.display_name,
+              iu.email
+            ) AS interviewer_name,
+            iu.email AS interviewer_email
+          FROM interview_sessions historical_session
+          JOIN interview_assignments ia
+            ON ia.organization_id = historical_session.organization_id
+           AND ia.interview_session_id = historical_session.id
+           AND ia.status <> 'cancelled'
+          JOIN users iu ON iu.id = ia.interviewer_user_id
+          LEFT JOIN interviewer_profiles ip
+            ON ip.organization_id = historical_session.organization_id
+           AND lower(ip.email) = lower(iu.email)
+          WHERE historical_session.organization_id = a.organization_id
+            AND historical_session.application_id = a.id
+          ORDER BY ia.updated_at DESC, historical_session.created_at DESC
+          LIMIT 1
+        ) previous_assignment ON true
+        WHERE a.organization_id = ${organizationId}::uuid
+          AND a.pipeline_stage = 'interview'
+          AND a.status NOT IN ('closed', 'withdrawn')
+          AND NOT EXISTS (
+            SELECT 1
+            FROM interview_sessions active_session
+            WHERE active_session.organization_id = a.organization_id
+              AND active_session.application_id = a.id
+              AND active_session.status IN (
+                'invited',
+                'scheduled',
+                'in_progress',
+                'paused',
+                'disconnected',
+                'reconnecting'
+              )
+          )
+        ORDER BY a.updated_at DESC
+      `,
+      this.database.sql`
         SELECT DISTINCT
           ip.id::text AS profile_id,
           u.id::text AS user_id,
@@ -375,19 +432,31 @@ export class InterviewAssignmentAdminService {
       `,
     ]);
 
+    const scheduledSessions = sessions.map((row) => ({
+      sessionId: String(row.session_id),
+      sessionStatus: String(row.session_status),
+      applicationId: String(row.application_id),
+      candidateName: String(row.candidate_name),
+      jobTitle: String(row.job_title),
+      ...(row.interviewer_user_id ? { interviewerUserId: String(row.interviewer_user_id) } : {}),
+      ...(row.interviewer_name ? { interviewerName: String(row.interviewer_name) } : {}),
+      ...(row.interviewer_email ? { interviewerEmail: String(row.interviewer_email) } : {}),
+      ...(row.assignment_status ? { assignmentStatus: String(row.assignment_status) } : {}),
+      ...(row.scheduled_for ? { scheduledFor: new Date(String(row.scheduled_for)).toISOString() } : {}),
+    }));
+
+    const unscheduledApplications = pendingApplications.map((row) => ({
+      sessionStatus: "needs_scheduling",
+      applicationId: String(row.application_id),
+      candidateName: String(row.candidate_name),
+      jobTitle: String(row.job_title),
+      ...(row.interviewer_user_id ? { interviewerUserId: String(row.interviewer_user_id) } : {}),
+      ...(row.interviewer_name ? { interviewerName: String(row.interviewer_name) } : {}),
+      ...(row.interviewer_email ? { interviewerEmail: String(row.interviewer_email) } : {}),
+    }));
+
     return {
-      sessions: sessions.map((row) => ({
-        sessionId: String(row.session_id),
-        sessionStatus: String(row.session_status),
-        applicationId: String(row.application_id),
-        candidateName: String(row.candidate_name),
-        jobTitle: String(row.job_title),
-        ...(row.interviewer_user_id ? { interviewerUserId: String(row.interviewer_user_id) } : {}),
-        ...(row.interviewer_name ? { interviewerName: String(row.interviewer_name) } : {}),
-        ...(row.interviewer_email ? { interviewerEmail: String(row.interviewer_email) } : {}),
-        ...(row.assignment_status ? { assignmentStatus: String(row.assignment_status) } : {}),
-        ...(row.scheduled_for ? { scheduledFor: new Date(String(row.scheduled_for)).toISOString() } : {}),
-      })),
+      sessions: [...unscheduledApplications, ...scheduledSessions],
       interviewers: interviewers.map((row) => ({
         profileId: String(row.profile_id),
         userId: String(row.user_id),
