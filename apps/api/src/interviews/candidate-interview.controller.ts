@@ -108,9 +108,10 @@ export class CandidateInterviewController {
       mediaSessionId,
       turnId,
     );
+    const extension = result.contentType === "audio/mpeg" ? "mp3" : "wav";
     return new StreamableFile(result.audio, {
       type: result.contentType,
-      disposition: `inline; filename="interview-turn-${turnId}.wav"`,
+      disposition: `inline; filename="interview-turn-${turnId}.${extension}"`,
       length: result.audio.length,
     });
   }
