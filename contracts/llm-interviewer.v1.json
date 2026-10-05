@@ -6,7 +6,7 @@
   },
   "prompt": {
     "id": "interview.conversational_next_turn",
-    "version": "v2"
+    "version": "v3"
   },
   "transport": {
     "path": "/v1/interview/next-turn",
