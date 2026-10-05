@@ -21,7 +21,7 @@ export function TechnicalInterviewScheduler({
 }) {
   const [identity, setIdentity] = useState<TenantIdentity>();
   const [interviewers, setInterviewers] = useState<InterviewerOption[]>([]);
-  const [interviewerUserId, setInterviewerUserId] = useState("");
+  const [interviewerSelection, setInterviewerSelection] = useState("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("60");
   const [busy, setBusy] = useState(false);
@@ -52,10 +52,32 @@ export function TechnicalInterviewScheduler({
   }, [applicationId]);
 
   async function schedule() {
-    if (!identity || !interviewerUserId || !scheduledFor) return;
+    if (!identity || !interviewerSelection) return;
     setBusy(true);
     setMessage(undefined);
     try {
+      if (interviewerSelection === "ai") {
+        const result = await api.POST("/v1/applications/{applicationId}/stage", {
+          params: { path: { applicationId } },
+          headers: tenantHeaders(identity),
+          body: {
+            stage: "interview",
+            reason: "AI interviewer selected for the interview stage",
+          },
+        });
+        if (result.error) {
+          setMessage(apiErrorMessage(result, "ارجاع کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
+          return;
+        }
+        setMessage("کاندیدا به مرحله مصاحبه با هوش مصنوعی ارجاع شد. اجرای مصاحبه از پرتال امن کاندیدا و با Interview Plan منتشرشده انجام می‌شود.");
+        await onScheduled();
+        return;
+      }
+
+      if (!scheduledFor) {
+        setMessage("برای مصاحبه‌گر انسانی، تاریخ و ساعت مصاحبه را مشخص کنید.");
+        return;
+      }
       const date = new Date(scheduledFor);
       if (Number.isNaN(date.getTime())) {
         setMessage("تاریخ و ساعت مصاحبه معتبر نیست.");
@@ -65,7 +87,7 @@ export function TechnicalInterviewScheduler({
         headers: tenantHeaders(identity),
         body: {
           applicationId,
-          interviewerUserId,
+          interviewerUserId: interviewerSelection,
           scheduledFor: date.toISOString(),
           durationMinutes: Number(durationMinutes),
           language: "fa",
@@ -75,7 +97,7 @@ export function TechnicalInterviewScheduler({
         setMessage(apiErrorMessage(result, "زمان‌بندی مصاحبه فنی ناموفق بود"));
         return;
       }
-      setMessage("مصاحبه فنی زمان‌بندی و به مصاحبه‌گر تخصیص داده شد.");
+      setMessage("مصاحبه فنی زمان‌بندی و به مصاحبه‌گر انسانی تخصیص داده شد.");
       await onScheduled();
     } finally {
       setBusy(false);
@@ -88,7 +110,7 @@ export function TechnicalInterviewScheduler({
         <div>
           <div className="text-[11px] font-semibold text-slate-900">زمان‌بندی مصاحبه فنی · {candidateName}</div>
           <div className="mt-1 text-[9px] text-slate-500">
-            Session انسانی، Interviewer Assignment و انتقال پرونده به مرحله مصاحبه در یک تراکنش ثبت می‌شوند.
+            ابتدا نوع مصاحبه‌گر را انتخاب کنید: هوش مصنوعی برای اجرای خودکار ساختاریافته، یا یکی از مصاحبه‌گرهای انسانی فعال سازمان.
           </div>
         </div>
         <button type="button" onClick={onClose} className="text-[10px] font-semibold text-slate-500">بستن</button>
@@ -98,19 +120,21 @@ export function TechnicalInterviewScheduler({
 
       <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_140px_auto]">
         <select
-          value={interviewerUserId}
-          onChange={(event) => setInterviewerUserId(event.target.value)}
+          value={interviewerSelection}
+          onChange={(event) => setInterviewerSelection(event.target.value)}
           className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[10px]"
         >
-          <option value="">انتخاب مصاحبه‌گر فنی…</option>
+          <option value="">انتخاب مصاحبه‌گر…</option>
+          <option value="ai">✨ مصاحبه‌گر هوش مصنوعی</option>
           {interviewers.map((interviewer) => (
             <option key={interviewer.userId} value={interviewer.userId}>
-              {interviewer.displayName || interviewer.email}
+              👤 {interviewer.displayName || interviewer.email}
             </option>
           ))}
         </select>
         <input
           type="datetime-local"
+          disabled={interviewerSelection === "ai"}
           value={scheduledFor}
           onChange={(event) => setScheduledFor(event.target.value)}
           className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[10px]"
@@ -128,12 +152,17 @@ export function TechnicalInterviewScheduler({
         <button
           type="button"
           onClick={() => void schedule()}
-          disabled={busy || !interviewerUserId || !scheduledFor}
+          disabled={busy || !interviewerSelection || (interviewerSelection !== "ai" && !scheduledFor)}
           className="h-10 rounded-lg bg-slate-950 px-4 text-[10px] font-semibold text-white disabled:opacity-40"
         >
-          {busy ? "در حال ثبت…" : "ثبت مصاحبه"}
+          {busy ? "در حال ثبت…" : interviewerSelection === "ai" ? "ارجاع به مصاحبه AI" : "ثبت مصاحبه"}
         </button>
       </div>
+      {interviewerSelection === "ai" ? (
+        <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-[9px] leading-5 text-indigo-800">
+          در حالت AI، مصاحبه‌گر یک actor سیستمی است و کاربر سازمانی ساخته نمی‌شود. شروع واقعی مصاحبه از پرتال امن کاندیدا، پس از رضایت و بررسی آمادگی دستگاه انجام می‌شود.
+        </div>
+      ) : null}
       {interviewers.length === 0 ? (
         <div className="mt-3 text-[9px] text-amber-700">
           مصاحبه‌گر فعالی با نقش INTERVIEWER پیدا نشد. ابتدا از تنظیمات کاربران یک مصاحبه‌گر بسازید یا نقش کاربر را تغییر دهید.
