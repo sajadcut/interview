@@ -24,7 +24,7 @@
     "vad-worker:dev": "python services/vad-worker/server.py",
     "vad-worker:test": "python3 -m unittest discover -s services/vad-worker/test -p 'test_*.py' && python3 -m py_compile services/vad-worker/server.py services/vad-worker/vad_layer.py",
     "tts-worker:dev": "python services/tts-worker/server.py",
-    "tts-worker:test": "python3 -m unittest discover -s services/tts-worker/test -p 'test_*.py' && python3 -m py_compile services/tts-worker/server.py services/tts-worker/tts_layer.py",
+    "tts-worker:test": "python3 -m unittest discover -s services/tts-worker/test -p 'test_*.py' && python3 -m py_compile services/tts-worker/server.py services/tts-worker/tts_layer.py services/tts-worker/edge_tts_layer.py",
     "moss-tts-worker:test": "python3 -m unittest discover -s services/moss-tts-worker/test -p 'test_*.py' && python3 -m py_compile services/moss-tts-worker/server.py services/moss-tts-worker/fa_tech_normalizer.py",
     "ai-worker:dev": "node services/ai-worker/src/main.mjs",
     "ai-interviewer:dev": "node services/ai-worker/src/interviewer-main.mjs",
