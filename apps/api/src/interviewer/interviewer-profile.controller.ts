@@ -26,14 +26,14 @@ export class InterviewerProfileController {
   }
 
   @Post()
-  @RequirePermissions(Permissions.OrganizationManageUsers)
+  @RequirePermissions(Permissions.InterviewAssign)
   @ApiOkResponse({ type: InterviewerProfileDto })
   create(@Body() body: CreateInterviewerProfileDto) {
     return this.profiles.create(body);
   }
 
   @Patch(":profileId")
-  @RequirePermissions(Permissions.OrganizationManageUsers)
+  @RequirePermissions(Permissions.InterviewAssign)
   @ApiOkResponse({ type: InterviewerProfileDto })
   update(
     @Param("profileId") profileId: string,
@@ -43,7 +43,7 @@ export class InterviewerProfileController {
   }
 
   @Delete(":profileId")
-  @RequirePermissions(Permissions.OrganizationManageUsers)
+  @RequirePermissions(Permissions.InterviewAssign)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiNoContentResponse({ description: "Interviewer profile removed; historical interview records are retained." })
   remove(@Param("profileId") profileId: string) {
