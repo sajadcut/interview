@@ -78,19 +78,22 @@ export function TechnicalInterviewScheduler({
     setMessage(undefined);
     try {
       if (interviewerSelection === "ai") {
-        const result = await api.POST("/v1/applications/{applicationId}/stage", {
-          params: { path: { applicationId } },
+        const result = await api.POST("/v1/interview-operations/ai-interviews", {
           headers: tenantHeaders(identity),
           body: {
-            stage: "interview",
-            reason: "AI interviewer selected for the interview stage",
+            applicationId,
+            language: "fa",
           },
         });
-        if (result.error) {
-          setMessage(apiErrorMessage(result, "ارجاع کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
+        if (result.error || !result.data) {
+          setMessage(apiErrorMessage(result, "ارسال کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
           return;
         }
-        setMessage("مصاحبه‌گر هوش مصنوعی برای این پرونده ثبت شد. ادامه ارسال از صفحه «مصاحبه‌ها» انجام می‌شود.");
+        const invitation = result.data.invitation;
+        const devOtp = invitation.developmentOtp ? ` کد OTP تست: ${invitation.developmentOtp}` : "";
+        setMessage(
+          `مصاحبه AI آماده شد؛ پلن منتشرشده و دعوت کاندیدا ایجاد شد.${devOtp}`,
+        );
         await onScheduled();
         return;
       }
@@ -257,7 +260,7 @@ export function TechnicalInterviewScheduler({
       ) : null}
       {interviewerSelection === "ai" ? (
         <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-[9px] leading-5 text-indigo-800">
-          در حالت AI فعلاً زمان‌بندی تقویمی لازم نیست؛ با ثبت، پرونده مستقیماً به مرحله مصاحبه AI منتقل می‌شود. برای زمان‌بندی با تاریخ و ساعت، یک مصاحبه‌گر انسانی انتخاب کنید.
+          در حالت AI تاریخ و ساعت لازم نیست؛ با «ارسال به مصاحبه» پلن مصاحبه منتشر و دعوت امن کاندیدا در همان مرحله ساخته می‌شود.
         </div>
       ) : null}
       {interviewers.length === 0 ? (
