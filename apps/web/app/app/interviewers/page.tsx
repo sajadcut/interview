@@ -1,5 +1,6 @@
 "use client";
 
+import type { components } from "@interview/api-client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
@@ -11,25 +12,11 @@ import {
 import { Icon } from "../../../components/product/icon";
 import { useInternalAccess } from "../../../components/product/internal-access";
 import { Panel, Pill, ToolbarButton } from "../../../components/product/recruiting-ui";
+import { api, apiErrorMessage } from "../../../lib/api";
 import { formatFaNumber } from "../../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../../lib/tenant-client";
 
-type InterviewerProfile = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  jobTitle?: string;
-  specialties: string[];
-  bio?: string;
-  status: "active" | "disabled";
-  effectiveStatus: "active" | "pending" | "disabled";
-  userId?: string;
-  assignmentCount: number;
-  invitationPending: boolean;
-  updatedAt: string;
-};
+type InterviewerProfile = components["schemas"]["InterviewerProfileDto"];
 
 const EMPTY_FORM = {
   email: "",
@@ -54,27 +41,6 @@ function statusLabel(status: InterviewerProfile["effectiveStatus"]): string {
   return "غیرفعال";
 }
 
-async function backend<T>(
-  identity: TenantIdentity,
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(tenantHeaders(identity, Boolean(init.body)));
-  const response = await fetch(`/api/backend${path}`, {
-    ...init,
-    headers,
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => undefined) as { message?: string | string[] } | undefined;
-    const message = Array.isArray(payload?.message)
-      ? payload?.message.join("؛ ")
-      : payload?.message;
-    throw new Error(message || "عملیات ناموفق بود");
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
-}
-
 export default function InterviewersPage() {
   const access = useInternalAccess();
   const [identity, setIdentity] = useState<TenantIdentity>();
@@ -94,11 +60,13 @@ export default function InterviewersPage() {
   const load = useCallback(async (known?: TenantIdentity) => {
     const current = known ?? identity ?? (await resolveTenantIdentity());
     if (!identity) setIdentity(current);
-    const data = await backend<InterviewerProfile[]>(
-      current,
-      "/v1/interview-operations/interviewers",
-    );
-    setProfiles(data);
+    const result = await api.GET("/v1/interview-operations/interviewers", {
+      headers: tenantHeaders(current),
+    });
+    if (result.error || !result.data) {
+      throw new Error(apiErrorMessage(result, "فهرست مصاحبه‌گرها بارگذاری نشد"));
+    }
+    setProfiles(result.data);
   }, [identity]);
 
   useEffect(() => {
@@ -200,30 +168,45 @@ export default function InterviewersPage() {
     setBusy(true);
     setError(undefined);
     setFeedback(undefined);
-    const payload = {
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      phone: form.phone.trim() || null,
-      jobTitle: form.jobTitle.trim() || null,
-      specialties: form.specialties
-        .split(/[،,\n]/)
-        .map((item) => item.trim())
-        .filter(Boolean),
-      bio: form.bio.trim() || null,
-      ...(editingId ? { status: form.status } : { email: form.email.trim() }),
-    };
+    const specialties = form.specialties
+      .split(/[،,\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
     try {
       if (editingId) {
-        await backend(identity, `/v1/interview-operations/interviewers/${editingId}`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
+        const result = await api.PATCH("/v1/interview-operations/interviewers/{profileId}", {
+          params: { path: { profileId: editingId } },
+          headers: tenantHeaders(identity),
+          body: {
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            phone: form.phone.trim() || null,
+            jobTitle: form.jobTitle.trim() || null,
+            specialties,
+            bio: form.bio.trim() || null,
+            status: form.status,
+          },
         });
+        if (result.error) {
+          throw new Error(apiErrorMessage(result, "ویرایش مصاحبه‌گر ناموفق بود"));
+        }
         setFeedback({ tone: "success", text: "اطلاعات مصاحبه‌گر با موفقیت ویرایش شد." });
       } else {
-        await backend(identity, "/v1/interview-operations/interviewers", {
-          method: "POST",
-          body: JSON.stringify(payload),
+        const result = await api.POST("/v1/interview-operations/interviewers", {
+          headers: tenantHeaders(identity),
+          body: {
+            email: form.email.trim(),
+            firstName: form.firstName.trim(),
+            lastName: form.lastName.trim(),
+            ...(form.phone.trim() ? { phone: form.phone.trim() } : {}),
+            ...(form.jobTitle.trim() ? { jobTitle: form.jobTitle.trim() } : {}),
+            specialties,
+            ...(form.bio.trim() ? { bio: form.bio.trim() } : {}),
+          },
         });
+        if (result.error) {
+          throw new Error(apiErrorMessage(result, "ایجاد مصاحبه‌گر ناموفق بود"));
+        }
         setFeedback({
           tone: "success",
           text: "مصاحبه‌گر ایجاد شد. اگر هنوز عضو سازمان نباشد، دعوت‌نامه با نقش مصاحبه‌گر برای او ایجاد می‌شود.",
@@ -246,13 +229,20 @@ export default function InterviewersPage() {
     try {
       const ids = [...deleteIds];
       const results = await Promise.allSettled(
-        ids.map((id) =>
-          backend<void>(identity, `/v1/interview-operations/interviewers/${id}`, {
-            method: "DELETE",
-          }),
-        ),
+        ids.map(async (profileId) => {
+          const result = await api.DELETE("/v1/interview-operations/interviewers/{profileId}", {
+            params: { path: { profileId } },
+            headers: tenantHeaders(identity),
+          });
+          if (result.error) {
+            throw new Error(apiErrorMessage(result, "حذف مصاحبه‌گر ناموفق بود"));
+          }
+          return profileId;
+        }),
       );
-      const deletedIds = ids.filter((_, index) => results[index]?.status === "fulfilled");
+      const deletedIds = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
       const failed = results.flatMap((result) =>
         result.status === "rejected"
           ? [result.reason instanceof Error ? result.reason.message : "حذف ناموفق بود"]
