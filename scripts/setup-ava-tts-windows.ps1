@@ -135,13 +135,26 @@ Write-Host "Installing Ava's validated runtime versions..."
 if ($LASTEXITCODE -ne 0) { throw "Ava runtime dependency installation failed." }
 
 # PyPI misaki 0.9.4 declares Python <3.13, while the upstream Misaki
-# repository contains a verified Python 3.13 enablement commit. Install that
-# exact revision with English extras because Kokoro imports misaki.en/espeak
-# at module import time even though Ava uses its own Persian frontend.
-Write-Host "Installing Python 3.13-enabled Misaki runtime..."
+# repository contains a verified Python 3.13 enablement commit. Install only
+# the core package from that revision. Do NOT use misaki[en]: its transformer
+# extra pulls spacy-curated-transformers and can make pip backtrack into
+# source-only spaCy/thinc/blis releases on CPython 3.13.
+Write-Host "Installing Python 3.13-enabled Misaki core..."
 & $Python -m pip install --index-url $PyPiIndex `
-    "misaki[en] @ git+https://github.com/hexgrad/misaki.git@fba1236595f2d2bf21d414ba6e57d25256afada3"
-if ($LASTEXITCODE -ne 0) { throw "Python 3.13 Misaki installation failed." }
+    "git+https://github.com/hexgrad/misaki.git@fba1236595f2d2bf21d414ba6e57d25256afada3"
+if ($LASTEXITCODE -ne 0) { throw "Python 3.13 Misaki core installation failed." }
+
+# Kokoro imports misaki.en and misaki.espeak at module import time even though
+# Ava uses its own Persian G2P frontend. Install just the runtime modules those
+# imports require, pinned to CPython-3.13-compatible releases. Avoid
+# spacy-curated-transformers because Ava never enables Misaki's trf=True path.
+Write-Host "Installing minimal Kokoro import dependencies..."
+& $Python -m pip install --index-url $PyPiIndex `
+    "num2words==0.5.14" `
+    "spacy==3.8.16" `
+    "phonemizer-fork==3.3.2" `
+    "espeakng-loader==0.2.4"
+if ($LASTEXITCODE -ne 0) { throw "Minimal Kokoro import dependency installation failed." }
 
 # Install Ava's exact Kokoro revision without dependency resolution. Its
 # metadata asks pip for misaki>=0.9.4 from PyPI, whose published 0.9.4 metadata
@@ -157,7 +170,7 @@ Write-Host "Installing Ava-82M package without stale binary pins..."
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
-& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile, misaki, kokoro; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__, 'misaki', m.version('misaki'), 'kokoro', m.version('kokoro')); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
+& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile, misaki, spacy, phonemizer, kokoro; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__, 'misaki', m.version('misaki'), 'spacy', spacy.__version__, 'kokoro', m.version('kokoro')); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
 if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
@@ -169,5 +182,5 @@ Write-Host ""
 Write-Host "Next command:"
 Write-Host "powershell -ExecutionPolicy Bypass -File scripts/start-ava-tts-worker.ps1"
 Write-Host ""
-Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2 + Misaki fba1236."
+Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2 + Misaki fba1236 + minimal Kokoro imports."
 Write-Host "The first worker start downloads the Ava model and Persian G2P files to the local Hugging Face cache."
