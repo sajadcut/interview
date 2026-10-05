@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import server  # noqa: E402
 from server import Handler  # noqa: E402
 from tts_layer import CONTRACT_VERSION  # noqa: E402
 
@@ -97,6 +98,42 @@ class TTSHttpContractTests(unittest.TestCase):
         self.assertEqual(headers.get("x-tts-contract-version"), CONTRACT_VERSION)
         self.assertEqual(headers.get("x-request-id"), request_id)
         self.assertTrue(body.startswith(b"RIFF"))
+
+    def test_edge_engine_returns_mp3_without_using_legacy_readiness(self) -> None:
+        os.environ["TTS_ENGINE"] = "edge-tts"
+        original_status = server.active_status
+        original_synthesize = server.synthesize_audio
+        server.active_status = lambda: {
+            "contractVersion": CONTRACT_VERSION,
+            "provider": "edge-tts",
+            "contentType": "audio/mpeg",
+            "voice": "fa-IR-FaridNeural",
+            "ready": True,
+        }
+        server.synthesize_audio = lambda _text: b"ID3" + (b"\\x00" * 256)
+        try:
+            request_id = "tts-edge-http-001"
+            status, headers, body = self.request(
+                "POST",
+                "/synthesize",
+                body=json.dumps({"spokenText": "سلام"}).encode(),
+                headers={
+                    "content-type": "application/json",
+                    "x-tts-secret": "contract-test-secret",
+                    "x-tts-contract-version": CONTRACT_VERSION,
+                    "x-request-id": request_id,
+                },
+            )
+        finally:
+            server.active_status = original_status
+            server.synthesize_audio = original_synthesize
+            os.environ["TTS_ENGINE"] = "local-command"
+
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("content-type"), "audio/mpeg")
+        self.assertEqual(headers.get("x-tts-provider"), "edge-tts")
+        self.assertEqual(headers.get("x-request-id"), request_id)
+        self.assertTrue(body.startswith(b"ID3"))
 
     def test_synthesize_rejects_bad_contract_and_auth(self) -> None:
         body = json.dumps({"spokenText": "hello"}).encode()
