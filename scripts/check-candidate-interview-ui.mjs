@@ -157,8 +157,9 @@ for (const marker of [
 for (const marker of [
   '"cookie"',
   '"content-type"',
+  'const target = new URL(configured.origin)',
   'const requestedSegments = ["v1", "candidate-interview", ...path].map(encodeURIComponent)',
-  'basePath.endsWith("/v1")',
+  'target.pathname = `/${requestedSegments.join("/")}`',
   "request.arrayBuffer()",
 ]) {
   invariant(proxySource.includes(marker), `candidate proxy marker missing: ${marker}`);
