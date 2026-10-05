@@ -9,6 +9,11 @@ const paths = {
   server: resolve(root, "services/tts-worker/server.py"),
   layerTests: resolve(root, "services/tts-worker/test/test_tts_layer.py"),
   httpTests: resolve(root, "services/tts-worker/test/test_tts_http_contract.py"),
+  avaServer: resolve(root, "services/ava-tts-worker/server.py"),
+  avaNormalizer: resolve(root, "services/ava-tts-worker/fa_tech_normalizer.py"),
+  avaTests: resolve(root, "services/ava-tts-worker/test/test_ava_tts_worker.py"),
+  avaSetup: resolve(root, "scripts/setup-ava-tts-windows.ps1"),
+  startAll: resolve(root, "start-all.ps1"),
   client: resolve(root, "apps/api/src/interviews/tts-http.client.ts"),
   clientTests: resolve(root, "apps/api/src/interviews/tts-http.client.spec.ts"),
   adapter: resolve(root, "apps/api/src/interviews/text-to-speech.adapter.ts"),
@@ -31,6 +36,11 @@ const [
   serverSource,
   layerTests,
   httpTests,
+  avaServerSource,
+  avaNormalizerSource,
+  avaTests,
+  avaSetupSource,
+  startAllSource,
   clientSource,
   clientTests,
   adapterSource,
@@ -44,13 +54,22 @@ const contract = JSON.parse(contractText);
 const pkg = JSON.parse(packageText);
 
 invariant(contract.version === "tts-synthesis.v1", "version drift");
-invariant(contract.provider === "edge-tts", "default provider drift");
-invariant(contract.fallbackProvider === "local-command", "fallback provider drift");
+invariant(contract.provider === "ava-82m-persian-cpu", "preferred Persian provider drift");
+invariant(contract.fallbackProvider === "edge-tts", "Edge fallback provider drift");
+invariant(contract.legacyFallbackProvider === "local-command", "legacy fallback provider drift");
 invariant(
   JSON.stringify(contract.response?.acceptedContentTypes) === JSON.stringify(["audio/mpeg", "audio/wav"]),
   "TTS response content types drift",
 );
-invariant(contract.edgeAdapter?.voiceDefault === "fa-IR-FaridNeural", "Persian Edge voice drift");
+invariant(contract.avaAdapter?.model === "xmanii/Ava-82M", "Ava model drift");
+invariant(contract.avaAdapter?.modelVersion === "0.2.0", "Ava model version drift");
+invariant(contract.avaAdapter?.license === "Apache-2.0", "Ava license metadata drift");
+invariant(contract.avaAdapter?.device === "cpu", "Ava must remain CPU-only");
+invariant(contract.avaAdapter?.sampleRate === 24000, "Ava sample rate drift");
+invariant(contract.avaAdapter?.localGpuRequired === false, "Ava must not require local GPU");
+invariant(contract.avaAdapter?.contextualPersianG2p === true, "Ava native Persian G2P boundary drift");
+invariant(contract.avaAdapter?.defaultDevelopmentRuntime === true, "Ava must remain default in development");
+invariant(contract.edgeAdapter?.voiceDefault === "fa-IR-FaridNeural", "Persian Edge fallback voice drift");
 invariant(contract.edgeAdapter?.pythonPackage === "edge-tts", "Edge Python package drift");
 invariant(contract.edgeAdapter?.textTransport === "in-process-python-module", "Edge text transport drift");
 invariant(contract.edgeAdapter?.temporaryFileRequired === false, "Edge provider must not require temp text files");
@@ -107,6 +126,30 @@ for (const marker of [
   invariant(edgeLayerSource.includes(marker), `Edge TTS layer marker missing: ${marker}`);
 }
 
+for (const marker of [
+  'PROVIDER = "ava-82m-persian-cpu"',
+  'MODEL_ID = "xmanii/Ava-82M"',
+  'MODEL_VERSION = "0.2.0"',
+  'CONTENT_TYPE = "audio/wav"',
+  "SAMPLE_RATE = 24_000",
+  'Ava.from_pretrained(MODEL_ID, device="cpu")',
+  "self.tts.generate",
+  '"x-request-id"',
+  '"x-tts-provider"',
+  "validate_wav_bytes",
+]) {
+  invariant(avaServerSource.includes(marker), `Ava worker marker missing: ${marker}`);
+}
+invariant(avaNormalizerSource.includes("normalize_technical_terms"), "Ava technical-term normalizer missing");
+invariant(avaTests.includes("synthesis_echoes_request_id"), "Ava HTTP contract test missing");
+invariant(avaTests.includes("ava-82m-persian-cpu"), "Ava provider test missing");
+invariant(avaSetupSource.includes("3.11-3.13"), "Ava Python compatibility guard missing");
+invariant(avaSetupSource.includes("torch==2.6.0+cpu"), "Ava setup must install CPU-only PyTorch");
+invariant(avaSetupSource.includes("24160e40cf970dc1b3dc245184e45d48e0fe89a9"), "Ava wheel release pin missing");
+invariant(startAllSource.includes('[ValidateSet("ava-82m", "edge-tts", "local-command")]'), "start-all TTS choices drift");
+invariant(startAllSource.includes('[string]$TtsEngine = "ava-82m"'), "start-all must default to Ava");
+invariant(startAllSource.includes("ava-tts-worker:dev"), "start-all Ava worker wiring missing");
+
 invariant(serverSource.includes("active_status()"), "worker synthesis readiness must follow the active engine");
 
 for (const marker of [
@@ -143,18 +186,25 @@ for (const marker of [
   invariant(clientSource.includes(marker), `API client marker missing: ${marker}`);
 }
 invariant(clientTests.includes("touches only the configured TTS endpoint"), "standalone API client test missing");
+invariant(adapterSource.includes("provider?: string"), "TTS readiness must expose active provider");
 invariant(adapterSource.includes("TEXT_TO_SPEECH_ADAPTER"), "TTS adapter token missing");
 invariant(speechSource.includes("TEXT_TO_SPEECH_ADAPTER"), "InterviewSpeechService must use TTS adapter");
 invariant(speechSource.includes("await this.tts.readiness()"), "InterviewSpeechService must use TTS-local readiness");
 invariant(!/await\s+this\.media\.getReadiness\s*\(/.test(speechSource), "InterviewSpeechService must not await global media readiness");
+invariant(speechSource.includes('readiness.provider === "ava-82m-persian-cpu"'), "Ava native G2P routing missing");
+invariant(speechSource.includes('"native_g2p"'), "Ava pronunciation mode marker missing");
 invariant(speechSource.includes("t.spoken_text") && speechSource.includes("t.finalized"), "persisted finalized spoken_text safety boundary missing");
+invariant(speechTests.includes("Ava Persian TTS uses native contextual G2P"), "Ava native G2P regression test missing");
 invariant(speechTests.includes("global realtime pipeline"), "service independence regression test missing");
 invariant(moduleSource.includes("useExisting: TtsHttpClient"), "TTS adapter wiring missing");
 invariant(docsSource.includes("does not call `InterviewMediaService.getReadiness()`"), "standalone boundary documentation missing");
 
 invariant(pkg.scripts?.["tts:contract:check"] === "node scripts/check-tts-contract.mjs", "contract script missing");
 invariant(pkg.scripts?.["tts-worker:test"]?.includes("services/tts-worker/test"), "worker test script missing");
+invariant(pkg.scripts?.["ava-tts-worker:dev"]?.includes("start-ava-tts-worker.ps1"), "Ava dev script missing");
+invariant(pkg.scripts?.["ava-tts-worker:test"]?.includes("services/ava-tts-worker/test"), "Ava worker test script missing");
 invariant(pkg.scripts?.test?.includes("tts:contract:check"), "root test must enforce TTS contract");
-invariant(pkg.scripts?.test?.includes("tts-worker:test"), "root test must execute TTS worker tests");
+invariant(pkg.scripts?.test?.includes("tts-worker:test"), "root test must execute generic TTS worker tests");
+invariant(pkg.scripts?.test?.includes("ava-tts-worker:test"), "root test must execute Ava worker tests");
 
-console.log("TTS Synthesis Contract v1 is internally consistent without requiring a real TTS engine.");
+console.log("TTS Synthesis Contract v1 is internally consistent with Ava CPU preferred and Edge fallback.");
