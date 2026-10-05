@@ -308,10 +308,17 @@ export class InterviewAssignmentAdminService {
           c.display_name AS candidate_name,
           j.title AS job_title,
           ia.interviewer_user_id::text,
-          iu.display_name AS interviewer_name,
+          COALESCE(
+            NULLIF(trim(concat_ws(' ', ip.first_name, ip.last_name)), ''),
+            iu.display_name,
+            iu.email
+          ) AS interviewer_name,
           iu.email AS interviewer_email,
           ia.status AS assignment_status,
-          ia.scheduled_for
+          COALESCE(
+            ia.scheduled_for,
+            NULLIF(s.checkpoint->>'scheduledFor', '')::timestamptz
+          ) AS scheduled_for
         FROM interview_sessions s
         JOIN applications a
           ON a.organization_id = s.organization_id AND a.id = s.application_id
@@ -319,14 +326,28 @@ export class InterviewAssignmentAdminService {
           ON c.organization_id = a.organization_id AND c.id = a.candidate_id
         JOIN jobs j
           ON j.organization_id = a.organization_id AND j.id = a.job_id
-        LEFT JOIN interview_assignments ia
-          ON ia.organization_id = s.organization_id
-         AND ia.interview_session_id = s.id
-         AND ia.status <> 'cancelled'
+        LEFT JOIN LATERAL (
+          SELECT current_assignment.*
+          FROM interview_assignments current_assignment
+          WHERE current_assignment.organization_id = s.organization_id
+            AND current_assignment.interview_session_id = s.id
+            AND current_assignment.status <> 'cancelled'
+          ORDER BY current_assignment.updated_at DESC, current_assignment.created_at DESC
+          LIMIT 1
+        ) ia ON true
         LEFT JOIN users iu ON iu.id = ia.interviewer_user_id
+        LEFT JOIN interviewer_profiles ip
+          ON ip.organization_id = s.organization_id
+         AND lower(ip.email) = lower(iu.email)
         WHERE s.organization_id = ${organizationId}::uuid
           AND s.status NOT IN ('cancelled')
-        ORDER BY COALESCE(ia.scheduled_for, s.created_at) DESC
+        ORDER BY
+          CASE WHEN s.status IN ('completed', 'failed') THEN 1 ELSE 0 END,
+          COALESCE(
+            ia.scheduled_for,
+            NULLIF(s.checkpoint->>'scheduledFor', '')::timestamptz,
+            s.created_at
+          ) DESC
       `,
       this.database.sql`
         SELECT DISTINCT
