@@ -16,11 +16,11 @@ The worker returns only bounded safe error codes/messages; child-process stderr 
 
 ## Engine process boundary
 
-The default `edge-tts` engine is invoked with `shell=false`. Spoken text is kept off argv: it is written to an owned UTF-8 temporary file and supplied through Edge TTS's `--file` option. The configured Persian voice defaults to `fa-IR-FaridNeural`, and Edge returns MP3. No local GPU, FFmpeg, Whisper or LiveKit dependency is required for synthesis, although network access to the Edge speech service is required.
+The default `edge-tts` engine runs through the installed Python module in-process; no CLI child process or shell is used. The configured Persian voice defaults to `fa-IR-FaridNeural`, and Edge returns MP3 chunks that are collected under the response-size limit and media-signature validated. No local GPU, FFmpeg, Whisper or LiveKit dependency is required for synthesis, although network access to the Edge speech service is required.
 
 The explicit legacy `local-command` fallback keeps the previous `TTS_COMMAND` contract: it is parsed into argv, runs with `shell=false` and stdin disabled, receives text through `{text_file}`, and writes `{output_wav}`.
 
-Each child process runs in its own process group/session. Timeout uses terminate then kill escalation. stderr diagnostics are bounded and workspace paths sanitized. Output is media-signature validated and bounded by the maximum response size. The temporary workspace is removed after success and failure.
+The legacy local-command child process runs in its own process group/session and retains terminate-then-kill timeout handling, bounded stderr diagnostics, workspace cleanup and WAV validation. Edge synthesis instead uses a bounded in-process asynchronous request with timeout and MP3 size/signature validation.
 
 ## Runtime evidence boundary
 
