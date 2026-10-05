@@ -2212,6 +2212,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interview-operations/interviewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewerProfileController_list"];
+        put?: never;
+        post: operations["InterviewerProfileController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/interview-operations/interviewers/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["InterviewerProfileController_remove"];
+        options?: never;
+        head?: never;
+        patch: operations["InterviewerProfileController_update"];
+        trace?: never;
+    };
     "/v1/assessments/{assessmentId}/sessions": {
         parameters: {
             query?: never;
@@ -4065,10 +4097,13 @@ export interface components {
         };
         InterviewerOptionDto: {
             /** Format: uuid */
+            profileId: string;
+            /** Format: uuid */
             userId: string;
             /** Format: email */
             email: string;
             displayName?: string;
+            specialties: string[];
         };
         InterviewAssignmentOptionsDto: {
             sessions: components["schemas"]["InterviewAssignmentSessionOptionDto"][];
@@ -4109,6 +4144,48 @@ export interface components {
             criterionResults: Record<string, never>[];
             /** @enum {string} */
             recommendation?: "strong_yes" | "yes" | "mixed" | "no" | "strong_no";
+        };
+        InterviewerProfileDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            firstName: string;
+            lastName: string;
+            phone?: string;
+            jobTitle?: string;
+            specialties: string[];
+            bio?: string;
+            /** @enum {string} */
+            status: "active" | "disabled";
+            /** @enum {string} */
+            effectiveStatus: "active" | "pending" | "disabled";
+            /** Format: uuid */
+            userId?: string;
+            assignmentCount: number;
+            invitationPending: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CreateInterviewerProfileDto: {
+            /** Format: email */
+            email: string;
+            firstName: string;
+            lastName: string;
+            phone?: string;
+            jobTitle?: string;
+            specialties?: string[];
+            bio?: string;
+        };
+        UpdateInterviewerProfileDto: {
+            firstName?: string;
+            lastName?: string;
+            phone?: Record<string, never> | null;
+            jobTitle?: Record<string, never> | null;
+            specialties?: string[];
+            bio?: Record<string, never> | null;
+            /** @enum {string} */
+            status?: "active" | "disabled";
         };
         AssessmentSessionRequestDto: {
             applicationId: string;
@@ -10016,6 +10093,221 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    InterviewerProfileController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewerProfileDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewerProfileController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInterviewerProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewerProfileDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewerProfileController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Interviewer profile removed; historical interview records are retained. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewerProfileController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInterviewerProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewerProfileDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
             };
         };
     };
