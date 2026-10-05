@@ -184,7 +184,15 @@
       "status": "experimental",
       "misakiGitRevision": "fba1236595f2d2bf21d414ba6e57d25256afada3",
       "kokoroInstallNoDeps": true,
-      "misakiReason": "PyPI misaki 0.9.4 declares Python <3.13; upstream commit fba1236 explicitly enables Python 3.13"
+      "misakiReason": "PyPI misaki 0.9.4 declares Python <3.13; upstream commit fba1236 explicitly enables Python 3.13",
+      "misakiInstall": "core-git-no-extras",
+      "kokoroImportDeps": {
+        "num2words": "0.5.14",
+        "spacy": "3.8.16",
+        "phonemizerFork": "3.3.2",
+        "espeakngLoader": "0.2.4",
+        "spacyCuratedTransformers": false
+      }
     }
   }
 }
