@@ -51,6 +51,9 @@ invariant(
   "TTS response content types drift",
 );
 invariant(contract.edgeAdapter?.voiceDefault === "fa-IR-FaridNeural", "Persian Edge voice drift");
+invariant(contract.edgeAdapter?.pythonPackage === "edge-tts", "Edge Python package drift");
+invariant(contract.edgeAdapter?.textTransport === "in-process-python-module", "Edge text transport drift");
+invariant(contract.edgeAdapter?.temporaryFileRequired === false, "Edge provider must not require temp text files");
 invariant(contract.edgeAdapter?.localGpuRequired === false, "Edge provider must not require local GPU");
 invariant(contract.edgeAdapter?.shell === false, "Edge provider must remain shell-free");
 invariant(
@@ -96,13 +99,15 @@ for (const marker of [
   'CONTENT_TYPE = "audio/mpeg"',
   'DEFAULT_VOICE = "fa-IR-FaridNeural"',
   "class EdgeTTSRunner",
-  '"--file"',
-  '"--write-media"',
+  "edge_tts_module.Communicate",
+  "communicate.stream()",
+  "asyncio.wait_for",
   "validate_mp3_bytes",
-  "shell=False",
 ]) {
   invariant(edgeLayerSource.includes(marker), `Edge TTS layer marker missing: ${marker}`);
 }
+
+invariant(serverSource.includes("active_status()"), "worker synthesis readiness must follow the active engine");
 
 for (const marker of [
   'self.path != "/health"',
