@@ -143,9 +143,14 @@ for (const marker of [
 invariant(avaNormalizerSource.includes("normalize_technical_terms"), "Ava technical-term normalizer missing");
 invariant(avaTests.includes("synthesis_echoes_request_id"), "Ava HTTP contract test missing");
 invariant(avaTests.includes("ava-82m-persian-cpu"), "Ava provider test missing");
-invariant(avaSetupSource.includes("3.11-3.12"), "Ava Python compatibility guard missing");
-invariant(avaSetupSource.includes('"numpy==1.26.4"'), "Ava setup must preinstall NumPy 1.26.4 binary");
-invariant(contract.avaAdapter?.python === ">=3.11,<3.13", "Ava Python runtime contract drift");
+invariant(avaSetupSource.includes("Python 3.13"), "Ava Python 3.13 compatibility guard missing");
+invariant(avaSetupSource.includes('"numpy==2.1.3"'), "Ava setup must install the CPython 3.13 NumPy override");
+invariant(avaSetupSource.includes('"sentencepiece==0.2.2"'), "Ava setup must install the CPython 3.13 SentencePiece override");
+invariant(avaSetupSource.includes("--no-deps $WheelUrl"), "Ava wheel must bypass stale binary pins on Python 3.13");
+invariant(contract.avaAdapter?.python === ">=3.11,<3.14", "Ava declared Python runtime contract drift");
+invariant(contract.avaAdapter?.windowsSetupPython === "3.13", "Ava Windows setup Python drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.numpy === "2.1.3", "Ava NumPy compatibility override drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.sentencepiece === "0.2.2", "Ava SentencePiece compatibility override drift");
 invariant(avaSetupSource.includes('"torch==2.6.0"'), "Ava setup must pin PyTorch 2.6.0");
 invariant(avaSetupSource.includes("--index-url $PyPiIndex"), "Ava Windows setup must use the PyPI route");
 invariant(!avaSetupSource.includes("download.pytorch.org/whl/cpu"), "Ava Windows setup must avoid the blocked PyTorch R2 route");
