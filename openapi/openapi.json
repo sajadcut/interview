@@ -1612,6 +1612,211 @@
         ]
       }
     },
+    "/v1/candidates/{candidateId}": {
+      "patch": {
+        "operationId": "RecruitingOperationsController_updateCandidate",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCandidateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
+      },
+      "delete": {
+        "operationId": "RecruitingOperationsController_deleteCandidate",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
+      }
+    },
+    "/v1/candidates/bulk-delete": {
+      "post": {
+        "operationId": "RecruitingOperationsController_bulkDeleteCandidates",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
+      }
+    },
     "/v1/jobs/{jobId}/applications": {
       "post": {
         "operationId": "RecruitingOperationsController_createApplication",
@@ -1756,6 +1961,67 @@
         "tags": [
           "recruiting-operations"
         ]
+      },
+      "delete": {
+        "operationId": "RecruitingOperationsController_deleteJob",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
       }
     },
     "/v1/jobs/{jobId}/publish": {
@@ -1778,6 +2044,77 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublishJobResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "recruiting-operations"
+        ]
+      }
+    },
+    "/v1/jobs/bulk-delete": {
+      "post": {
+        "operationId": "RecruitingOperationsController_bulkDeleteJobs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkDeleteResultDto"
                 }
               }
             }
@@ -2658,6 +2995,211 @@
         "responses": {
           "201": {
             "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hiring-requests"
+        ]
+      }
+    },
+    "/v1/hiring-requests/{hiringRequestId}": {
+      "patch": {
+        "operationId": "HiringRequestsController_updateHiringRequest",
+        "parameters": [
+          {
+            "name": "hiringRequestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHiringRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hiring-requests"
+        ]
+      },
+      "delete": {
+        "operationId": "HiringRequestsController_deleteHiringRequest",
+        "parameters": [
+          {
+            "name": "hiringRequestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "hiring-requests"
+        ]
+      }
+    },
+    "/v1/hiring-requests/bulk-delete": {
+      "post": {
+        "operationId": "HiringRequestsController_bulkDeleteHiringRequests",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkHiringRequestIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkHiringRequestDeleteResultDto"
+                }
+              }
+            }
           },
           "400": {
             "description": "",
@@ -7674,6 +8216,58 @@
         "tags": [
           "product-operations"
         ]
+      },
+      "delete": {
+        "operationId": "ProductOperationsController_deleteAutomation",
+        "parameters": [
+          {
+            "name": "ruleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "product-operations"
+        ]
+      }
+    },
+    "/v1/automations/bulk-delete": {
+      "post": {
+        "operationId": "ProductOperationsController_bulkDeleteAutomations",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAutomationIdsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkAutomationDeleteResultDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "product-operations"
+        ]
       }
     },
     "/v1/automations/{ruleId}/runs": {
@@ -9297,6 +9891,10 @@
           "preInterviewMatchScore": {
             "type": "number"
           },
+          "applicationCount": {
+            "type": "number",
+            "minimum": 0
+          },
           "skills": {
             "type": "array",
             "items": {
@@ -9310,6 +9908,7 @@
         "required": [
           "id",
           "displayName",
+          "applicationCount",
           "skills",
           "updatedAt"
         ]
@@ -9608,6 +10207,75 @@
         },
         "required": [
           "displayName"
+        ]
+      },
+      "UpdateCandidateDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "primaryEmail": {
+            "type": "string"
+          },
+          "primaryPhone": {
+            "type": "string"
+          },
+          "currentRole": {
+            "type": "string"
+          },
+          "currentCompany": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "preferredLanguage": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkIdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "BulkDeleteResultDto": {
+        "type": "object",
+        "properties": {
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "deletedCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "blockedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "deletedIds",
+          "deletedCount",
+          "blockedIds"
         ]
       },
       "CreateApplicationDto": {
@@ -9995,6 +10663,86 @@
           "headcount",
           "businessReason",
           "requirements"
+        ]
+      },
+      "UpdateHiringRequestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "hiringTeam": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "headcount": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "seniority": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "employmentType": {
+            "type": "string"
+          },
+          "businessReason": {
+            "type": "string"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BulkHiringRequestIdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "BulkHiringRequestDeleteResultDto": {
+        "type": "object",
+        "properties": {
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "deletedCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "blockedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "deletedIds",
+          "deletedCount",
+          "blockedIds"
         ]
       },
       "ReviewHiringRequestDto": {
@@ -14364,6 +15112,10 @@
           "enabled": {
             "type": "boolean"
           },
+          "run_count": {
+            "type": "number",
+            "minimum": 0
+          },
           "created_at": {
             "type": "string",
             "format": "date-time"
@@ -14380,6 +15132,7 @@
           "action_type",
           "approval_required",
           "enabled",
+          "run_count",
           "created_at",
           "updated_at"
         ]
@@ -14501,6 +15254,26 @@
       "UpdateAutomationRuleDto": {
         "type": "object",
         "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "triggerType": {
+            "type": "string"
+          },
+          "triggerConfig": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "actionType": {
+            "type": "string"
+          },
+          "actionConfig": {
+            "type": "object",
+            "additionalProperties": true
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -14508,6 +15281,49 @@
             "type": "boolean"
           }
         }
+      },
+      "BulkAutomationIdsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "BulkAutomationDeleteResultDto": {
+        "type": "object",
+        "properties": {
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "deletedCount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "blockedIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "deletedIds",
+          "deletedCount",
+          "blockedIds"
+        ]
       },
       "CreateAutomationRunDto": {
         "type": "object",

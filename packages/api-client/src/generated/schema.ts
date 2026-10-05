@@ -468,6 +468,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/{candidateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["RecruitingOperationsController_deleteCandidate"];
+        options?: never;
+        head?: never;
+        patch: operations["RecruitingOperationsController_updateCandidate"];
+        trace?: never;
+    };
+    "/v1/candidates/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RecruitingOperationsController_bulkDeleteCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/jobs/{jobId}/applications": {
         parameters: {
             query?: never;
@@ -494,7 +526,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["RecruitingOperationsController_deleteJob"];
         options?: never;
         head?: never;
         patch: operations["RecruitingOperationsController_updateJob"];
@@ -510,6 +542,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["RecruitingOperationsController_publishJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/jobs/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RecruitingOperationsController_bulkDeleteJobs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,6 +750,38 @@ export interface paths {
         get: operations["HiringRequestsController_listHiringRequests"];
         put?: never;
         post: operations["HiringRequestsController_createHiringRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hiring-requests/{hiringRequestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["HiringRequestsController_deleteHiringRequest"];
+        options?: never;
+        head?: never;
+        patch: operations["HiringRequestsController_updateHiringRequest"];
+        trace?: never;
+    };
+    "/v1/hiring-requests/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["HiringRequestsController_bulkDeleteHiringRequests"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2430,10 +2510,26 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["ProductOperationsController_deleteAutomation"];
         options?: never;
         head?: never;
         patch: operations["ProductOperationsController_updateAutomation"];
+        trace?: never;
+    };
+    "/v1/automations/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ProductOperationsController_bulkDeleteAutomations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/automations/{ruleId}/runs": {
@@ -2858,6 +2954,7 @@ export interface components {
             applicationId?: string;
             pipelineStage?: string;
             preInterviewMatchScore?: number;
+            applicationCount: number;
             skills: string[];
             updatedAt: string;
         };
@@ -2938,6 +3035,23 @@ export interface components {
             currentCompany?: string;
             location?: string;
             preferredLanguage?: string;
+        };
+        UpdateCandidateDto: {
+            displayName?: string;
+            primaryEmail?: string;
+            primaryPhone?: string;
+            currentRole?: string;
+            currentCompany?: string;
+            location?: string;
+            preferredLanguage?: string;
+        };
+        BulkIdsDto: {
+            ids: string[];
+        };
+        BulkDeleteResultDto: {
+            deletedIds: string[];
+            deletedCount: number;
+            blockedIds: string[];
         };
         CreateApplicationDto: {
             /** Format: uuid */
@@ -3041,6 +3155,25 @@ export interface components {
             employmentType?: string;
             businessReason: string;
             requirements: string[];
+        };
+        UpdateHiringRequestDto: {
+            title?: string;
+            hiringTeam?: string;
+            department?: string;
+            headcount?: number;
+            seniority?: string;
+            location?: string;
+            employmentType?: string;
+            businessReason?: string;
+            requirements?: string[];
+        };
+        BulkHiringRequestIdsDto: {
+            ids: string[];
+        };
+        BulkHiringRequestDeleteResultDto: {
+            deletedIds: string[];
+            deletedCount: number;
+            blockedIds: string[];
         };
         ReviewHiringRequestDto: {
             /** @enum {string} */
@@ -4217,6 +4350,7 @@ export interface components {
             };
             approval_required: boolean;
             enabled: boolean;
+            run_count: number;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -4262,8 +4396,26 @@ export interface components {
             approvalRequired?: boolean;
         };
         UpdateAutomationRuleDto: {
+            name?: string;
+            description?: string;
+            triggerType?: string;
+            triggerConfig?: {
+                [key: string]: unknown;
+            };
+            actionType?: string;
+            actionConfig?: {
+                [key: string]: unknown;
+            };
             enabled?: boolean;
             approvalRequired?: boolean;
+        };
+        BulkAutomationIdsDto: {
+            ids: string[];
+        };
+        BulkAutomationDeleteResultDto: {
+            deletedIds: string[];
+            deletedCount: number;
+            blockedIds: string[];
         };
         CreateAutomationRunDto: {
             idempotencyKey: string;
@@ -5636,6 +5788,167 @@ export interface operations {
             };
         };
     };
+    RecruitingOperationsController_deleteCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_updateCandidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCandidateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_bulkDeleteCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkIdsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkDeleteResultDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
     RecruitingOperationsController_createApplication: {
         parameters: {
             query?: never;
@@ -5652,6 +5965,57 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_deleteJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5763,6 +6127,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishJobResponseDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    RecruitingOperationsController_bulkDeleteJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkIdsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkDeleteResultDto"];
                 };
             };
             400: {
@@ -6446,6 +6865,167 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    HiringRequestsController_deleteHiringRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hiringRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    HiringRequestsController_updateHiringRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                hiringRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHiringRequestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    HiringRequestsController_bulkDeleteHiringRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkHiringRequestIdsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkHiringRequestDeleteResultDto"];
+                };
             };
             400: {
                 headers: {
@@ -10069,6 +10649,25 @@ export interface operations {
             };
         };
     };
+    ProductOperationsController_deleteAutomation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ProductOperationsController_updateAutomation: {
         parameters: {
             query?: never;
@@ -10090,6 +10689,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AutomationRuleResponseDto"];
+                };
+            };
+        };
+    };
+    ProductOperationsController_bulkDeleteAutomations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAutomationIdsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkAutomationDeleteResultDto"];
                 };
             };
         };
