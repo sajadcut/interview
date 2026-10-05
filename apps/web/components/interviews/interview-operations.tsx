@@ -360,6 +360,7 @@ export function InterviewOperations() {
                                 aria-label={`تاریخ مصاحبه برای ${session.candidateName}`}
                                 type="date"
                                 min={minDate}
+                                disabled={selected[key] === "ai"}
                                 value={scheduledDate[key] ?? ""}
                                 onChange={(event) =>
                                   setScheduledDate((state) => ({ ...state, [key]: event.target.value }))
@@ -375,6 +376,7 @@ export function InterviewOperations() {
                                 aria-label={`ساعت مصاحبه برای ${session.candidateName}`}
                                 type="time"
                                 step="300"
+                                disabled={selected[key] === "ai"}
                                 value={scheduledTime[key] ?? ""}
                                 onChange={(event) =>
                                   setScheduledTime((state) => ({ ...state, [key]: event.target.value }))
@@ -384,7 +386,11 @@ export function InterviewOperations() {
                               />
                             </label>
 
-                            {session.scheduledFor ? (
+                            {selected[key] === "ai" ? (
+                              <div className="col-span-2 text-[9px] text-indigo-600">
+                                برای مصاحبه هوش مصنوعی تاریخ و ساعت از این صفحه لازم نیست؛ کاندیدا با دعوت امن وارد مسیر مصاحبه می‌شود.
+                              </div>
+                            ) : session.scheduledFor ? (
                               <div className="col-span-2 text-[9px] text-slate-400">
                                 ثبت‌شده: {formatFaDateTime(session.scheduledFor)}
                               </div>
