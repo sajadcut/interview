@@ -144,7 +144,9 @@ invariant(avaNormalizerSource.includes("normalize_technical_terms"), "Ava techni
 invariant(avaTests.includes("synthesis_echoes_request_id"), "Ava HTTP contract test missing");
 invariant(avaTests.includes("ava-82m-persian-cpu"), "Ava provider test missing");
 invariant(avaSetupSource.includes("3.11-3.13"), "Ava Python compatibility guard missing");
-invariant(avaSetupSource.includes("torch==2.6.0+cpu"), "Ava setup must install CPU-only PyTorch");
+invariant(avaSetupSource.includes('"torch==2.6.0"'), "Ava setup must pin PyTorch 2.6.0");
+invariant(avaSetupSource.includes("--index-url $PyPiIndex"), "Ava Windows setup must use the PyPI route");
+invariant(!avaSetupSource.includes("download.pytorch.org/whl/cpu"), "Ava Windows setup must avoid the blocked PyTorch R2 route");
 invariant(avaSetupSource.includes("24160e40cf970dc1b3dc245184e45d48e0fe89a9"), "Ava wheel release pin missing");
 invariant(startAllSource.includes('[ValidateSet("ava-82m", "edge-tts", "local-command")]'), "start-all TTS choices drift");
 invariant(startAllSource.includes('[string]$TtsEngine = "ava-82m"'), "start-all must default to Ava");
