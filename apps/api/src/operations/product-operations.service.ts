@@ -248,7 +248,13 @@ export class ProductOperationsService {
                 action_config, approval_required, enabled, created_at, updated_at
     `;
     const row = rows[0];
-    return { ...row, run_count: 0 };
+    const counts = await this.database.sql`
+      SELECT count(*)::int AS run_count
+      FROM automation_runs
+      WHERE organization_id = ${organizationId}::uuid
+        AND rule_id = ${ruleId}::uuid
+    `;
+    return { ...row, run_count: Number(counts[0]?.run_count ?? 0) };
   }
 
   async deleteAutomation(ruleId: string) {
