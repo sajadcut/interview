@@ -4,12 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { localizeApiMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
-import { formatFaNumber } from "../../lib/fa-numbers";
+import { formatFaDigits, formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 
 type Detail = {
   assignment: { id: string; status: string; scheduledFor?: string };
-  session: { id: string; status: string; startedAt?: string; completedAt?: string; remainingSeconds: number | null };
+  session: {
+    id: string;
+    status: string;
+    startedAt?: string;
+    completedAt?: string;
+    remainingSeconds: number | null;
+    clock?: { remainingSeconds: number; serverNow: string; stage: "not_started" | "normal" | "ending_soon" | "final_minute" | "expired" };
+  };
   application: { id: string; pipelineStage: string };
   candidate: { id: string; displayName: string; currentRole?: string; currentCompany?: string; location?: string };
   job: { id: string; title: string };
@@ -17,6 +24,11 @@ type Detail = {
 };
 
 type Note = { id: string; body: string; authorName?: string; createdAt?: string };
+
+function interviewTime(value: number | null | undefined): string {
+  const seconds = Math.max(0, Math.trunc(value ?? 0));
+  return formatFaDigits(`${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`);
+}
 
 function message(payload: unknown, fallback: string): string {
   if (payload && typeof payload === "object" && "message" in payload) {
@@ -35,6 +47,7 @@ export function InterviewerSession({ sessionId }: { sessionId: string }) {
   const [evidenceSummary, setEvidenceSummary] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [remaining, setRemaining] = useState<number | null>(null);
 
   const request = useCallback(async (path: string, init: RequestInit = {}) => {
     const current = identity ?? (await resolveTenantIdentity());
@@ -62,13 +75,25 @@ export function InterviewerSession({ sessionId }: { sessionId: string }) {
       request(`/api/backend/v1/interviewer/interviews/${sessionId}`),
       request(`/api/backend/v1/interviewer/interviews/${sessionId}/notes`),
     ]);
-    setDetail(detailPayload as Detail);
+    const loaded = detailPayload as Detail;
+    setDetail(loaded);
+    setRemaining(loaded.session.clock?.remainingSeconds ?? loaded.session.remainingSeconds);
     setNotes(notesPayload as Note[]);
   }, [request, sessionId]);
 
   useEffect(() => {
     load().catch((cause) => setError(cause instanceof Error ? cause.message : "مصاحبه بارگذاری نشد"));
   }, [load]);
+
+  useEffect(() => {
+    if (detail?.session.status !== "in_progress") return;
+    const tick = window.setInterval(() => setRemaining((value) => Math.max(0, (value ?? 0) - 1)), 1_000);
+    const sync = window.setInterval(() => void load().catch(() => undefined), 15_000);
+    return () => {
+      window.clearInterval(tick);
+      window.clearInterval(sync);
+    };
+  }, [detail?.session.status, load]);
 
   async function action(name: "start" | "complete") {
     setBusy(true);
@@ -140,7 +165,14 @@ export function InterviewerSession({ sessionId }: { sessionId: string }) {
             <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-slate-950">{detail.candidate.displayName}</h1>
             <p className="mt-1 text-xs text-slate-500">{detail.job.title} · {faDomainLabel(detail.plan.interviewType)} · {faDomainLabel(detail.plan.language)}</p>
           </div>
-          <div className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.06em] text-slate-600">{faDomainLabel(detail.session.status)}</div>
+          <div className="flex items-center gap-2">
+            {detail.session.status === "in_progress" ? (
+              <div className={`rounded-full px-3 py-1.5 text-xs font-semibold tabular-nums ${(remaining ?? 0) <= 60 ? "bg-rose-100 text-rose-700" : (remaining ?? 0) <= 300 ? "bg-amber-100 text-amber-800" : "bg-indigo-50 text-indigo-700"}`}>
+                زمان باقی‌مانده: {interviewTime(remaining)}
+              </div>
+            ) : null}
+            <div className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[.06em] text-slate-600">{faDomainLabel(detail.session.status)}</div>
+          </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-slate-50 p-3 text-xs"><div className="text-[10px] text-slate-400">نقش فعلی</div><div className="mt-1 font-semibold text-slate-700">{detail.candidate.currentRole ?? "ثبت نشده"}</div></div>
@@ -149,7 +181,8 @@ export function InterviewerSession({ sessionId }: { sessionId: string }) {
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <button disabled={busy || !["invited", "scheduled"].includes(detail.session.status)} onClick={() => action("start")} className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40" type="button">شروع مصاحبه</button>
-          <button disabled={busy || detail.session.status !== "in_progress"} onClick={() => action("complete")} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-800 disabled:opacity-40" type="button">تکمیل مصاحبه</button>
+          <button disabled={busy || !["in_progress", "paused"].includes(detail.session.status)} onClick={() => action("complete")} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-800 disabled:opacity-40" type="button">تکمیل مصاحبه</button>
+          {detail.session.status === "completed" ? <a href={`/app/interviews/${sessionId}`} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-semibold text-indigo-700">مشاهده نتیجه و شواهد</a> : null}
         </div>
       </section>
 

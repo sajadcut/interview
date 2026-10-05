@@ -452,7 +452,11 @@ export function InterviewOperations() {
 
                       <td className="px-5 py-4 text-end">
                         {terminal ? (
-                          <span className="text-[10px] text-slate-400">این مصاحبه پایان یافته است</span>
+                          session.sessionId ? (
+                            <Link href={`/app/interviews/${session.sessionId}`} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100">
+                              مشاهده نتیجه
+                            </Link>
+                          ) : <span className="text-[10px] text-slate-400">این مصاحبه پایان یافته است</span>
                         ) : (
                           <button
                             disabled={

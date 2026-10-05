@@ -16,7 +16,13 @@ type AssignedInterview = {
   jobTitle: string;
 };
 
-export function InterviewerList({ title = "مصاحبه‌های من" }: { title?: string }) {
+export function InterviewerList({
+  title = "مصاحبه‌های من",
+  scorecardMode = false,
+}: {
+  title?: string;
+  scorecardMode?: boolean;
+}) {
   const [items, setItems] = useState<AssignedInterview[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,14 +60,18 @@ export function InterviewerList({ title = "مصاحبه‌های من" }: { titl
         <div>
           <div className="text-[10px] font-semibold uppercase tracking-[.14em] text-indigo-600">کارهای تخصیص‌یافته</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-[-.03em] text-slate-950">{title}</h1>
-          <p className="mt-1 text-xs text-slate-500">فقط مصاحبه‌هایی که به حساب کاربری شما تخصیص یافته‌اند در این فضای کاری نمایش داده می‌شوند.</p>
+          <p className="mt-1 text-xs text-slate-500">{scorecardMode ? "مصاحبه‌های تکمیل‌شده مستقیماً به امتیازنامه، شواهد و نتیجه ارزیابی باز می‌شوند." : "فقط مصاحبه‌هایی که به حساب کاربری شما تخصیص یافته‌اند در این فضای کاری نمایش داده می‌شوند."}</p>
         </div>
       </div>
 
       {error ? <div role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-700">{error}</div> : null}
       <div className="mt-5 grid gap-3">
         {items.map((item) => (
-          <Link key={item.assignmentId} href={`/interviewer/session/${item.sessionId}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200">
+          <Link
+            key={item.assignmentId}
+            href={scorecardMode && item.sessionStatus === "completed" ? `/app/interviews/${item.sessionId}` : `/interviewer/session/${item.sessionId}`}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-200"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-slate-900">{item.candidateName}</div>
