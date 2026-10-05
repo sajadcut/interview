@@ -148,7 +148,14 @@ invariant(avaSetupSource.includes('"numpy==2.1.3"'), "Ava setup must install the
 invariant(avaSetupSource.includes('"sentencepiece==0.2.2"'), "Ava setup must install the CPython 3.13 SentencePiece override");
 invariant(avaSetupSource.includes("--no-deps $WheelUrl"), "Ava wheel must bypass stale binary pins on Python 3.13");
 invariant(avaSetupSource.includes("fba1236595f2d2bf21d414ba6e57d25256afada3"), "Ava setup must pin Python 3.13-enabled Misaki");
-invariant(avaSetupSource.includes("misaki[en] @ git+https://github.com/hexgrad/misaki.git"), "Ava setup must install Misaki from upstream Git");
+invariant(avaSetupSource.includes("git+https://github.com/hexgrad/misaki.git@fba1236595f2d2bf21d414ba6e57d25256afada3"), "Ava setup must install Misaki from upstream Git");
+invariant(!avaSetupSource.includes("misaki[en] @"), "Ava setup must not install heavy Misaki English extras");
+invariant(avaSetupSource.includes('"spacy==3.8.16"'), "Ava setup must pin CPython-3.13 spaCy wheel");
+invariant(avaSetupSource.includes('"phonemizer-fork==3.3.2"'), "Ava setup must pin phonemizer import dependency");
+invariant(avaSetupSource.includes('"espeakng-loader==0.2.4"'), "Ava setup must pin espeak loader import dependency");
+invariant(contract.avaAdapter?.compatibilityOverrides?.misakiInstall === "core-git-no-extras", "Ava Misaki install mode drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroImportDeps?.spacy === "3.8.16", "Ava spaCy import dependency drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroImportDeps?.spacyCuratedTransformers === false, "Ava must avoid spaCy curated transformer extras");
 invariant(avaSetupSource.includes("pip install --no-deps"), "Ava setup must use no-deps for pinned Kokoro/Ava packages");
 invariant(contract.avaAdapter?.python === ">=3.11,<3.14", "Ava declared Python runtime contract drift");
 invariant(contract.avaAdapter?.windowsSetupPython === "3.13", "Ava Windows setup Python drift");
