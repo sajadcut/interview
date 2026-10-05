@@ -11,8 +11,15 @@ const row = {
   finalized: true,
 };
 
-function serviceWith(options: { ttsReady?: boolean; speechDetected?: boolean } = {}) {
-  const sql = async () => [row];
+function serviceWith(options: {
+  ttsReady?: boolean;
+  speechDetected?: boolean;
+  spokenText?: string;
+  pronunciationText?: string;
+  pronunciationFails?: boolean;
+} = {}) {
+  const activeRow = { ...row, spoken_text: options.spokenText ?? row.spoken_text };
+  const sql = async () => [activeRow];
   const database = { sql };
   const tenant = { require: () => ({ organizationId: "11111111-1111-4111-8111-111111111111" }) };
   const mediaCalls: unknown[] = [];
@@ -22,6 +29,21 @@ function serviceWith(options: { ttsReady?: boolean; speechDetected?: boolean } =
     },
     async appendEvent(...args: unknown[]) {
       mediaCalls.push(args);
+    },
+  };
+  const aiCalls: string[] = [];
+  const ai = {
+    async pronouncePersianForTts(input: { spokenText: string }) {
+      aiCalls.push(input.spokenText);
+      if (options.pronunciationFails) throw new Error("pronunciation unavailable");
+      return {
+        ttsText: options.pronunciationText ?? input.spokenText,
+        provenance: {
+          provider: "openai-compatible",
+          promptId: "speech.persian_pronunciation",
+          promptVersion: "v1",
+        },
+      };
     },
   };
   const ttsCalls: string[] = [];
@@ -37,7 +59,10 @@ function serviceWith(options: { ttsReady?: boolean; speechDetected?: boolean } =
     },
     async synthesize(input: { spokenText: string; requestId?: string }) {
       ttsCalls.push("synthesize");
-      assert.equal(input.spokenText, row.spoken_text);
+      assert.equal(
+        input.spokenText,
+        options.pronunciationText ?? activeRow.spoken_text,
+      );
       return {
         contractVersion: "tts-synthesis.v1",
         provider: "local-command",
@@ -99,11 +124,13 @@ function serviceWith(options: { ttsReady?: boolean; speechDetected?: boolean } =
       database as never,
       tenant as never,
       media as never,
+      ai as never,
       tts,
       vad,
       stt,
     ),
     mediaCalls,
+    aiCalls,
     ttsCalls,
     vadCalls,
     sttCalls,
@@ -132,6 +159,34 @@ test("TTS-local readiness failure blocks synthesis without consulting other medi
     ),
   );
   assert.deepEqual(ttsCalls, ["readiness"]);
+});
+
+test("Persian TTS uses the LLM pronunciation rendering before synthesis", async () => {
+  const { service, aiCalls, ttsCalls } = serviceWith({
+    spokenText: "در مورد تخصیص منابع توضیح بده.",
+    pronunciationText: "دَر مورِدِ تَخصیصِ مَنابِع توضیح بِدِه.",
+  });
+  await service.synthesizePersistedTurn(
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+  );
+  assert.deepEqual(aiCalls, ["در مورد تخصیص منابع توضیح بده."]);
+  assert.deepEqual(ttsCalls, ["readiness", "synthesize"]);
+});
+
+test("Persian pronunciation failure falls back to the canonical finalized text", async () => {
+  const { service, aiCalls, ttsCalls } = serviceWith({
+    spokenText: "درباره معماری سیستم توضیح بده.",
+    pronunciationFails: true,
+  });
+  await service.synthesizePersistedTurn(
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+  );
+  assert.deepEqual(aiCalls, ["درباره معماری سیستم توضیح بده."]);
+  assert.deepEqual(ttsCalls, ["readiness", "synthesize"]);
 });
 
 test("candidate audio runs VAD before Whisper and returns no transcript for silence", async () => {
