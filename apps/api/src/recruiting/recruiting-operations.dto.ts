@@ -224,6 +224,16 @@ export class BulkIdsDto {
   ids!: string[];
 }
 
+export class BulkCandidateDeleteDto extends BulkIdsDto {
+  @ApiPropertyOptional({
+    default: false,
+    description: "When true, permanently deletes linked applications and all cascade-owned recruiting records before deleting the candidate.",
+  })
+  @IsOptional()
+  @IsBoolean()
+  cascadeApplications?: boolean;
+}
+
 export class BulkDeleteResultDto {
   @ApiProperty({ type: [String], format: "uuid" })
   deletedIds!: string[];
