@@ -191,7 +191,7 @@ test(
           AND s.id = ${scheduled.sessionId}::uuid
         LIMIT 1
       `;
-      assert.equal(String(sessions[0]?.status), "invited");
+      assert.equal(String(sessions[0]?.status), "scheduled");
       assert.equal(String(sessions[0]?.interview_type), "human_technical");
       assert.equal(String(sessions[0]?.plan_status), "published");
 
@@ -226,6 +226,15 @@ test(
       assert.equal(String(transitions[0]?.from_stage), "screening");
       assert.equal(String(transitions[0]?.to_stage), "interview");
       assert.equal(String(transitions[0]?.actor_user_id), actorUserId);
+
+      const options = await tenantContext.run(organizationId, () => service.getOptions());
+      const scheduledOption = options.sessions.find((item) => item.sessionId === scheduled.sessionId);
+      assert.ok(scheduledOption);
+      assert.equal(scheduledOption.interviewerUserId, interviewerUserId);
+      assert.equal(scheduledOption.interviewerName, "Technical Interviewer");
+      assert.equal(scheduledOption.assignmentStatus, "assigned");
+      assert.equal(scheduledOption.sessionStatus, "scheduled");
+      assert.equal(scheduledOption.scheduledFor, scheduledFor);
     } finally {
       await database.sql`DELETE FROM organizations WHERE id = ${organizationId}::uuid`;
       await database.sql`
