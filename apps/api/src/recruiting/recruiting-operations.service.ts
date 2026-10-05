@@ -243,12 +243,12 @@ export class RecruitingOperationsService {
 
   async updateCandidate(candidateId: string, input: UpdateCandidateDto) {
     const organizationId = this.tenantContext.require().organizationId;
-    const normalizedEmail = input.primaryEmail?.trim().toLowerCase();
-    const normalizedPhone = input.primaryPhone?.trim().replace(/\s+/g, "");
+    const normalizedEmail = typeof input.primaryEmail === "string" ? input.primaryEmail.trim().toLowerCase() : null;
+    const normalizedPhone = typeof input.primaryPhone === "string" ? input.primaryPhone.trim().replace(/\s+/g, "") : null;
 
     return this.database.sql.begin(async (tx) => {
       const existing = await tx`
-        SELECT id::text, primary_email, primary_phone
+        SELECT id::text
         FROM candidates
         WHERE organization_id = ${organizationId}::uuid
           AND id = ${candidateId}::uuid
@@ -259,11 +259,12 @@ export class RecruitingOperationsService {
 
       if (normalizedEmail) {
         const duplicateEmail = await tx`
-          SELECT id::text
-          FROM candidates
+          SELECT candidate_id::text
+          FROM candidate_identities
           WHERE organization_id = ${organizationId}::uuid
-            AND id <> ${candidateId}::uuid
-            AND lower(primary_email) = ${normalizedEmail}
+            AND identity_type = 'email'
+            AND normalized_value = ${normalizedEmail}
+            AND candidate_id <> ${candidateId}::uuid
           LIMIT 1
         `;
         if (duplicateEmail[0]) throw new BadRequestException("A candidate with this email already exists");
@@ -284,13 +285,13 @@ export class RecruitingOperationsService {
 
       const rows = await tx`
         UPDATE candidates
-        SET display_name = COALESCE(${input.displayName?.trim() || null}, display_name),
-            primary_email = COALESCE(${normalizedEmail || null}, primary_email),
-            primary_phone = COALESCE(${input.primaryPhone?.trim() || null}, primary_phone),
-            "current_role" = COALESCE(${input.currentRole?.trim() || null}, "current_role"),
-            current_company = COALESCE(${input.currentCompany?.trim() || null}, current_company),
-            location = COALESCE(${input.location?.trim() || null}, location),
-            preferred_language = COALESCE(${input.preferredLanguage?.trim() || null}, preferred_language),
+        SET display_name = CASE WHEN ${input.displayName !== undefined} THEN ${input.displayName?.trim() || null} ELSE display_name END,
+            primary_email = CASE WHEN ${input.primaryEmail !== undefined} THEN ${normalizedEmail} ELSE primary_email END,
+            primary_phone = CASE WHEN ${input.primaryPhone !== undefined} THEN ${typeof input.primaryPhone === "string" ? input.primaryPhone.trim() || null : null} ELSE primary_phone END,
+            "current_role" = CASE WHEN ${input.currentRole !== undefined} THEN ${typeof input.currentRole === "string" ? input.currentRole.trim() || null : null} ELSE "current_role" END,
+            current_company = CASE WHEN ${input.currentCompany !== undefined} THEN ${typeof input.currentCompany === "string" ? input.currentCompany.trim() || null : null} ELSE current_company END,
+            location = CASE WHEN ${input.location !== undefined} THEN ${typeof input.location === "string" ? input.location.trim() || null : null} ELSE location END,
+            preferred_language = CASE WHEN ${input.preferredLanguage !== undefined} THEN ${typeof input.preferredLanguage === "string" ? input.preferredLanguage.trim() || null : null} ELSE preferred_language END,
             updated_at = now()
         WHERE organization_id = ${organizationId}::uuid
           AND id = ${candidateId}::uuid
@@ -298,36 +299,40 @@ export class RecruitingOperationsService {
                   "current_role" AS current_role, current_company, location, preferred_language, updated_at
       `;
 
-      if (normalizedEmail) {
+      if (input.primaryEmail !== undefined) {
         await tx`
           DELETE FROM candidate_identities
           WHERE organization_id = ${organizationId}::uuid
             AND candidate_id = ${candidateId}::uuid
             AND identity_type = 'email'
         `;
-        await tx`
-          INSERT INTO candidate_identities (
-            organization_id, candidate_id, identity_type, normalized_value, is_verified
-          ) VALUES (
-            ${organizationId}::uuid, ${candidateId}::uuid, 'email', ${normalizedEmail}, false
-          )
-        `;
+        if (normalizedEmail) {
+          await tx`
+            INSERT INTO candidate_identities (
+              organization_id, candidate_id, identity_type, normalized_value, is_verified
+            ) VALUES (
+              ${organizationId}::uuid, ${candidateId}::uuid, 'email', ${normalizedEmail}, false
+            )
+          `;
+        }
       }
 
-      if (normalizedPhone) {
+      if (input.primaryPhone !== undefined) {
         await tx`
           DELETE FROM candidate_identities
           WHERE organization_id = ${organizationId}::uuid
             AND candidate_id = ${candidateId}::uuid
             AND identity_type = 'phone'
         `;
-        await tx`
-          INSERT INTO candidate_identities (
-            organization_id, candidate_id, identity_type, normalized_value, is_verified
-          ) VALUES (
-            ${organizationId}::uuid, ${candidateId}::uuid, 'phone', ${normalizedPhone}, false
-          )
-        `;
+        if (normalizedPhone) {
+          await tx`
+            INSERT INTO candidate_identities (
+              organization_id, candidate_id, identity_type, normalized_value, is_verified
+            ) VALUES (
+              ${organizationId}::uuid, ${candidateId}::uuid, 'phone', ${normalizedPhone}, false
+            )
+          `;
+        }
       }
 
       const candidate = rows[0];
@@ -487,10 +492,10 @@ export class RecruitingOperationsService {
         UPDATE jobs
         SET title = COALESCE(${input.title?.trim() || null}, title),
             status = COALESCE(${input.status ?? null}, status),
-            department = COALESCE(${input.department?.trim() || null}, department),
-            location = COALESCE(${input.location?.trim() || null}, location),
-            seniority = COALESCE(${input.seniority?.trim() || null}, seniority),
-            summary = COALESCE(${input.summary?.trim() || null}, summary),
+            department = CASE WHEN ${input.department !== undefined} THEN ${typeof input.department === "string" ? input.department.trim() || null : null} ELSE department END,
+            location = CASE WHEN ${input.location !== undefined} THEN ${typeof input.location === "string" ? input.location.trim() || null : null} ELSE location END,
+            seniority = CASE WHEN ${input.seniority !== undefined} THEN ${typeof input.seniority === "string" ? input.seniority.trim() || null : null} ELSE seniority END,
+            summary = CASE WHEN ${input.summary !== undefined} THEN ${typeof input.summary === "string" ? input.summary.trim() || null : null} ELSE summary END,
             updated_at = now()
         WHERE organization_id = ${organizationId}::uuid AND id = ${jobId}::uuid
         RETURNING id::text, title, status, department, location, seniority, summary, updated_at
