@@ -64,13 +64,12 @@ export default function CandidatesPage() {
     });
   }, [candidates, engagementFilter, query]);
 
-  const selectableCandidates = useMemo(
-    () => filteredCandidates.filter((candidate) => candidate.applicationCount === 0),
-    [filteredCandidates],
-  );
-  const selectedVisibleCount = selectableCandidates.filter((candidate) => selectedIds.has(candidate.id)).length;
-  const allVisibleSelected = selectableCandidates.length > 0 && selectedVisibleCount === selectableCandidates.length;
+  const selectedVisibleCount = filteredCandidates.filter((candidate) => selectedIds.has(candidate.id)).length;
+  const allVisibleSelected = filteredCandidates.length > 0 && selectedVisibleCount === filteredCandidates.length;
   const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+  const selectedDeletableCount = candidates.filter(
+    (candidate) => selectedIds.has(candidate.id) && candidate.applicationCount === 0,
+  ).length;
 
   function toggleCandidate(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -84,7 +83,7 @@ export default function CandidatesPage() {
   function toggleAllVisible(checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const candidate of selectableCandidates) {
+      for (const candidate of filteredCandidates) {
         if (checked) next.add(candidate.id);
         else next.delete(candidate.id);
       }
@@ -157,8 +156,10 @@ export default function CandidatesPage() {
           <BulkActionBar selectedCount={selectedIds.size} noun="کاندیدا" onClear={() => setSelectedIds(new Set())}>
             <button
               type="button"
+              disabled={selectedDeletableCount === 0}
+              title={selectedDeletableCount === 0 ? "کاندیداهای انتخاب‌شده به پرونده استخدامی متصل‌اند و حذف مستقیم آن‌ها مجاز نیست." : undefined}
               onClick={() => setDeleteIds([...selectedIds])}
-              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700"
+              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               حذف انتخاب‌شده‌ها
             </button>
@@ -194,10 +195,10 @@ export default function CandidatesPage() {
                 <th className="w-10">
                   {access.can("candidate.resume_manage") ? (
                     <SelectionCheckbox
-                      label="انتخاب همه کاندیداهای قابل حذف در این فهرست"
+                      label="انتخاب همه کاندیداهای این فهرست"
                       checked={allVisibleSelected}
                       indeterminate={someVisibleSelected}
-                      disabled={selectableCandidates.length === 0}
+                      disabled={filteredCandidates.length === 0}
                       onChange={toggleAllVisible}
                     />
                   ) : null}
@@ -219,7 +220,6 @@ export default function CandidatesPage() {
                       <SelectionCheckbox
                         label={`انتخاب ${candidate.displayName}`}
                         checked={selectedIds.has(candidate.id)}
-                        disabled={candidate.applicationCount > 0}
                         onChange={(checked) => toggleCandidate(candidate.id, checked)}
                       />
                     ) : null}
@@ -247,8 +247,16 @@ export default function CandidatesPage() {
                       {access.can("candidate.resume_manage") ? (
                         <Link href={`/app/candidates/${candidate.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
                       ) : null}
-                      {access.can("candidate.resume_manage") && candidate.applicationCount === 0 ? (
-                        <button type="button" onClick={() => setDeleteIds([candidate.id])} className="text-[10px] font-semibold text-rose-600 hover:text-rose-700">حذف</button>
+                      {access.can("candidate.resume_manage") ? (
+                        <button
+                          type="button"
+                          disabled={candidate.applicationCount > 0}
+                          title={candidate.applicationCount > 0 ? "این کاندیدا به پرونده استخدامی متصل است؛ برای حفظ سابقه و شواهد، حذف مستقیم مجاز نیست." : "حذف کاندیدا"}
+                          onClick={() => setDeleteIds([candidate.id])}
+                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                        >
+                          حذف
+                        </button>
                       ) : null}
                     </div>
                   </td>
