@@ -35,7 +35,7 @@ test(
     const database = createIntegrationDatabase();
     const tenantContext = new TenantContextService();
     const authContext = new AuthContextService();
-    const service = new InterviewAssignmentAdminService(database, tenantContext, authContext);
+    const service = new InterviewAssignmentAdminService(database, tenantContext, authContext, {} as never, {} as never);
 
     const organizationId = randomUUID();
     const actorUserId = randomUUID();
