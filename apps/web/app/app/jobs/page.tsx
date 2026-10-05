@@ -63,7 +63,6 @@ export default function JobsPage() {
   const selectedVisibleCount = filteredJobs.filter((job) => selectedIds.has(job.id)).length;
   const allVisibleSelected = filteredJobs.length > 0 && selectedVisibleCount === filteredJobs.length;
   const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
-  const selectedDeletableCount = jobs.filter((job) => selectedIds.has(job.id) && job.deletable).length;
 
   function toggleJob(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -139,10 +138,8 @@ export default function JobsPage() {
           <BulkActionBar selectedCount={selectedIds.size} noun="موقعیت" onClear={() => setSelectedIds(new Set())}>
             <button
               type="button"
-              disabled={selectedDeletableCount === 0}
-              title={selectedDeletableCount === 0 ? "هیچ‌کدام از موقعیت‌های انتخاب‌شده در وضعیت قابل حذف نیستند." : undefined}
               onClick={() => setDeleteIds([...selectedIds])}
-              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700"
             >
               حذف انتخاب‌شده‌ها
             </button>
@@ -230,10 +227,9 @@ export default function JobsPage() {
                       {access.can("job.edit") ? (
                         <button
                           type="button"
-                          disabled={!job.deletable}
-                          title={!job.deletable ? "فقط موقعیت‌های بدون وابستگی و در وضعیت مجاز قابل حذف‌اند." : "حذف موقعیت"}
+                          title={!job.deletable ? "حذف را امتحان کنید؛ اگر وضعیت یا وابستگی مانع باشد، دلیل دقیق نمایش داده می‌شود." : "حذف موقعیت"}
                           onClick={() => setDeleteIds([job.id])}
-                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700"
                         >
                           حذف
                         </button>
