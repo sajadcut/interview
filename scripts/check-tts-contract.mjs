@@ -143,7 +143,9 @@ for (const marker of [
 invariant(avaNormalizerSource.includes("normalize_technical_terms"), "Ava technical-term normalizer missing");
 invariant(avaTests.includes("synthesis_echoes_request_id"), "Ava HTTP contract test missing");
 invariant(avaTests.includes("ava-82m-persian-cpu"), "Ava provider test missing");
-invariant(avaSetupSource.includes("3.11-3.13"), "Ava Python compatibility guard missing");
+invariant(avaSetupSource.includes("3.11-3.12"), "Ava Python compatibility guard missing");
+invariant(avaSetupSource.includes('"numpy==1.26.4"'), "Ava setup must preinstall NumPy 1.26.4 binary");
+invariant(contract.avaAdapter?.python === ">=3.11,<3.13", "Ava Python runtime contract drift");
 invariant(avaSetupSource.includes('"torch==2.6.0"'), "Ava setup must pin PyTorch 2.6.0");
 invariant(avaSetupSource.includes("--index-url $PyPiIndex"), "Ava Windows setup must use the PyPI route");
 invariant(!avaSetupSource.includes("download.pytorch.org/whl/cpu"), "Ava Windows setup must avoid the blocked PyTorch R2 route");
