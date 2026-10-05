@@ -5,7 +5,13 @@ param(
     [string]$LiveKitUrl = "ws://127.0.0.1:7880",
     [string]$LiveKitHealthUrl = "http://127.0.0.1:7880",
     [string]$ApiReadyUrl = "http://127.0.0.1:4100/health/ready",
-    [int]$ApiReadyTimeoutSeconds = 90
+    [int]$ApiReadyTimeoutSeconds = 90,
+    [ValidateSet("edge-tts", "local-command")]
+    [string]$TtsEngine = "edge-tts",
+    [string]$TtsVoice = "fa-IR-FaridNeural",
+    [string]$TtsHost = "127.0.0.1",
+    [int]$TtsPort = 9020,
+    [int]$TtsReadyTimeoutSeconds = 30
 )
 
 $ErrorActionPreference = "Stop"
@@ -97,6 +103,46 @@ if ([string]::IsNullOrWhiteSpace($env:AI_WORKER_API_BASE_URL)) {
     $env:AI_WORKER_API_BASE_URL = "http://127.0.0.1:4100"
 }
 
+# start-all.ps1 owns the local realtime speech stack. Keep the local worker contract
+# stable even when .env still contains an older Piper/MOSS experiment.
+if ([string]::IsNullOrWhiteSpace($env:MEDIA_WORKER_SHARED_SECRET)) {
+    $env:MEDIA_WORKER_SHARED_SECRET = "local-interview-media-worker-dev-secret"
+}
+
+$env:TTS_PROVIDER = "local-http"
+$env:TTS_ENGINE = $TtsEngine
+$env:TTS_WORKER_HOST = $TtsHost
+$env:TTS_WORKER_PORT = [string]$TtsPort
+$env:TTS_BASE_URL = "http://${TtsHost}:$TtsPort"
+$env:TTS_EDGE_VOICE = $TtsVoice
+
+if ($TtsEngine -eq "edge-tts") {
+    $edgeCommand = if ([string]::IsNullOrWhiteSpace($env:TTS_EDGE_EXECUTABLE)) {
+        "edge-tts"
+    }
+    else {
+        $env:TTS_EDGE_EXECUTABLE
+    }
+
+    $edgeExecutable = $null
+    if (Test-Path -LiteralPath $edgeCommand -PathType Leaf) {
+        $edgeExecutable = (Resolve-Path -LiteralPath $edgeCommand).Path
+    }
+    else {
+        $edgeApplication = Get-Command $edgeCommand -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($null -ne $edgeApplication) {
+            $edgeExecutable = $edgeApplication.Source
+        }
+    }
+
+    if (-not $edgeExecutable) {
+        throw "Edge TTS executable '$edgeCommand' was not found. Run: python -m pip install -r services\tts-worker\requirements.txt"
+    }
+
+    # Store the resolved path so the Python worker does not depend on a different PATH.
+    $env:TTS_EDGE_EXECUTABLE = $edgeExecutable
+}
+
 # livekit-server --dev binds locally and uses the documented development credentials.
 # Override only the LiveKit development values after importing .env so the server, API and
 # browser token response all point at the same local instance.
@@ -155,10 +201,10 @@ function Wait-HttpReady {
     }
 
     if ($lastError) {
-        Write-Warning "API readiness did not succeed at $Url within $TimeoutSeconds seconds. Last error: $lastError"
+        Write-Warning "HTTP readiness did not succeed at $Url within $TimeoutSeconds seconds. Last error: $lastError"
     }
     else {
-        Write-Warning "API readiness did not succeed at $Url within $TimeoutSeconds seconds."
+        Write-Warning "HTTP readiness did not succeed at $Url within $TimeoutSeconds seconds."
     }
 
     return $false
@@ -215,8 +261,10 @@ $services = @(
         Name      = "tts"
         Kind      = "npm"
         NpmScript = "tts-worker:dev"
-        Title     = "Interview - Piper TTS"
-        Display   = "npm run tts-worker:dev"
+        Title     = if ($TtsEngine -eq "edge-tts") { "Interview - Edge TTS ($TtsVoice)" } else { "Interview - Local TTS" }
+        Display   = "npm run tts-worker:dev [$TtsEngine]"
+        ReadyUrl  = "$env:TTS_BASE_URL/health"
+        ReadyTimeoutSeconds = $TtsReadyTimeoutSeconds
     },
     [pscustomobject]@{
         Name      = "ai-interviewer"
@@ -304,6 +352,26 @@ foreach ($service in $services) {
         Set-Content -LiteralPath $stateFile -Encoding UTF8
 
     Start-Sleep -Milliseconds 300
+
+    if ($service.PSObject.Properties.Name -contains "ReadyUrl" -and $service.ReadyUrl) {
+        Write-Host "[waiting] $($service.Name) readiness: $($service.ReadyUrl)"
+        $readyTimeout = if (
+            $service.PSObject.Properties.Name -contains "ReadyTimeoutSeconds" -and
+            $service.ReadyTimeoutSeconds
+        ) {
+            [int]$service.ReadyTimeoutSeconds
+        }
+        else {
+            30
+        }
+
+        if (Wait-HttpReady -Url ([string]$service.ReadyUrl) -TimeoutSeconds $readyTimeout) {
+            Write-Host "[ready] $($service.Name) is ready."
+        }
+        else {
+            Write-Warning "$($service.Name) started but is not ready yet. Check its worker window before starting an interview."
+        }
+    }
 }
 
 $nextState | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $stateFile -Encoding UTF8
@@ -321,9 +389,15 @@ if ($liveKitDevMode) {
 else {
     Write-Host "LiveKit: managed with custom arguments; application connection settings come from the configured environment."
 }
-Write-Host "AI Worker:      $env:AI_WORKER_API_BASE_URL (starts only after API readiness)"
+Write-Host "AI Worker:       $env:AI_WORKER_API_BASE_URL (starts only after API readiness)"
 Write-Host "LLM Interviewer: $env:AI_INTERVIEWER_BASE_URL (deterministic fallback remains available)"
-Write-Host "Web:     http://localhost:3000"
+if ($TtsEngine -eq "edge-tts") {
+    Write-Host "TTS:             $env:TTS_BASE_URL · Edge neural · $env:TTS_EDGE_VOICE · no local GPU"
+}
+else {
+    Write-Host "TTS:             $env:TTS_BASE_URL · local-command fallback"
+}
+Write-Host "Web:             http://localhost:3000"
 Write-Host "Stop the complete tracked stack with: .\stop-all.ps1"
 Write-Host ""
 Write-Host "If your LiveKit installation is not on PATH, run for example:"
