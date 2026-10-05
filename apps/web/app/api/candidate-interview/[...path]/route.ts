@@ -71,6 +71,8 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       const value = response.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
+    responseHeaders.set("x-interview-api-path", target.pathname);
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
