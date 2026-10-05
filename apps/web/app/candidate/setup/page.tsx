@@ -22,6 +22,29 @@ function messageFrom(value: unknown, fallback: string, locale: "fa" | "en"): str
   return fallback;
 }
 
+function deviceErrorMessage(
+  cause: unknown,
+  copy: typeof candidateCopy.fa.setup,
+): string {
+  if (cause instanceof DOMException) {
+    if (["NotFoundError", "DevicesNotFoundError", "OverconstrainedError"].includes(cause.name)) {
+      return copy.deviceNotFound;
+    }
+    if (["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)) {
+      return copy.devicePermissionDenied;
+    }
+  }
+  if (cause instanceof Error) {
+    if (
+      cause.message === copy.deviceUnsupported ||
+      cause.message === copy.deviceRequired
+    ) {
+      return cause.message;
+    }
+  }
+  return copy.deviceFailed;
+}
+
 export default function CandidateSetupPage() {
   const locale = getDefaultLocale();
   const copy = candidateCopy[locale].setup;
@@ -83,7 +106,7 @@ export default function CandidateSetupPage() {
       setDeviceState("ready");
     } catch (cause) {
       setDeviceState("failed");
-      setDeviceError(cause instanceof Error ? cause.message : copy.deviceFailed);
+      setDeviceError(deviceErrorMessage(cause, copy));
     } finally {
       stream?.getTracks().forEach((track) => track.stop());
     }
