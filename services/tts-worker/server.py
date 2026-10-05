@@ -7,15 +7,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
+from edge_tts_layer import CONTENT_TYPE as EDGE_CONTENT_TYPE
+from edge_tts_layer import PROVIDER as EDGE_PROVIDER
+from edge_tts_layer import EdgeTTSRunner, edge_tts_status
 from tts_layer import (
     CONTRACT_VERSION,
     MAX_AUDIO_BYTES,
     MAX_TEXT_CHARS,
-    PROVIDER,
+    PROVIDER as LOCAL_COMMAND_PROVIDER,
     TTSError,
     TTSProcessRunner,
     normalize_request_id,
-    tts_status,
+    tts_status as local_command_status,
 )
 
 MAX_REQUEST_BYTES = 32 * 1024
@@ -43,6 +46,42 @@ load_root_env()
 
 def shared_secret() -> str:
     return os.getenv("TTS_SHARED_SECRET", "").strip() or os.getenv("MEDIA_WORKER_SHARED_SECRET", "").strip()
+
+
+def active_engine() -> str:
+    value = os.getenv("TTS_ENGINE", "edge-tts").strip().lower()
+    return value if value in {"edge-tts", "local-command"} else "invalid"
+
+
+def active_status() -> dict[str, object]:
+    engine = active_engine()
+    if engine == "edge-tts":
+        return edge_tts_status(shared_secret=shared_secret())
+    if engine == "local-command":
+        return local_command_status(shared_secret=shared_secret())
+    return {
+        "contractVersion": CONTRACT_VERSION,
+        "provider": "unknown",
+        "ready": False,
+        "reason": "TTS_ENGINE must be edge-tts or local-command",
+        "independentOf": ["llm", "whisper", "livekit", "ffmpeg"],
+    }
+
+
+def active_provider() -> str:
+    return EDGE_PROVIDER if active_engine() == "edge-tts" else LOCAL_COMMAND_PROVIDER
+
+
+def active_content_type() -> str:
+    return EDGE_CONTENT_TYPE if active_engine() == "edge-tts" else "audio/wav"
+
+
+def synthesize_audio(spoken_text: str) -> bytes:
+    if active_engine() == "edge-tts":
+        return EdgeTTSRunner().synthesize(spoken_text)
+    if active_engine() == "local-command":
+        return TTSProcessRunner().synthesize(spoken_text)
+    raise TTSError("not_configured", diagnostic="TTS_ENGINE is invalid")
 
 
 def is_authorized(handler: BaseHTTPRequestHandler) -> bool:
@@ -112,7 +151,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/health":
             write_json(self, 404, {"error": "Not Found"})
             return
-        status = tts_status(shared_secret=shared_secret())
+        status = active_status()
         write_json(self, 200 if status["ready"] else 503, status)
 
     def do_POST(self) -> None:
@@ -165,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            audio = TTSProcessRunner().synthesize(spoken_text)
+            audio = synthesize_audio(spoken_text)
         except TTSError as exc:
             mapping = {
                 "invalid_request": (400, False),
@@ -187,11 +226,11 @@ class Handler(BaseHTTPRequestHandler):
             write_error(self, 502, "invalid_audio_output", request_id, True)
             return
         self.send_response(200)
-        self.send_header("content-type", "audio/wav")
+        self.send_header("content-type", active_content_type())
         self.send_header("content-length", str(len(audio)))
         self.send_header("cache-control", "no-store")
         self.send_header("x-tts-contract-version", CONTRACT_VERSION)
-        self.send_header("x-tts-provider", PROVIDER)
+        self.send_header("x-tts-provider", active_provider())
         self.send_header("x-request-id", request_id)
         self.end_headers()
         self.wfile.write(audio)
@@ -201,7 +240,11 @@ def main() -> None:
     host = os.getenv("TTS_WORKER_HOST", "127.0.0.1").strip() or "127.0.0.1"
     port = int(os.getenv("TTS_WORKER_PORT", "9020"))
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"TTS worker listening on http://{host}:{port}")
+    status = active_status()
+    provider = status.get("provider", "unknown")
+    voice = status.get("voice")
+    detail = f" · voice {voice}" if voice else ""
+    print(f"TTS worker listening on http://{host}:{port} · provider {provider}{detail}")
     server.serve_forever()
 
 
