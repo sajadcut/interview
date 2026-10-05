@@ -32,17 +32,13 @@ function getApiTarget(): URL {
 }
 
 function buildTargetUrl(request: Request, path: string[]): URL {
-  const target = getApiTarget();
-  const basePath = target.pathname.replace(/\/+$/, "");
+  const configured = getApiTarget();
+  const target = new URL(configured.origin);
   const requestedSegments = path.map(encodeURIComponent);
 
-  // Support API base URLs configured with or without a trailing /v1 prefix.
-  // Without this guard, /api/backend/v1/... becomes /v1/v1/... and Nest returns 404.
-  if (basePath.endsWith("/v1") && requestedSegments[0] === "v1") {
-    requestedSegments.shift();
-  }
-
-  target.pathname = `${basePath}/${requestedSegments.join("/")}`;
+  // Internal API routes are always rooted at the API origin. Ignore any pathname
+  // accidentally configured in API_INTERNAL_URL/NEXT_PUBLIC_API_URL.
+  target.pathname = `/${requestedSegments.join("/")}`;
   target.search = new URL(request.url).search;
   return target;
 }
@@ -104,6 +100,7 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     forwardResponseCookies(response.headers, responseHeaders);
     responseHeaders.set("x-interview-api-target", target.origin);
 
+    responseHeaders.set("x-interview-api-origin", target.origin);
     responseHeaders.set("x-interview-api-path", target.pathname);
 
     return new Response(response.body, {
