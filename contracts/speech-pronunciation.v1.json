@@ -1,0 +1,26 @@
+{
+  "contractVersion": "speech-pronunciation.v1",
+  "capability": {
+    "name": "speech.persian_pronunciation",
+    "version": "v1"
+  },
+  "prompt": {
+    "id": "speech.persian_pronunciation",
+    "version": "v1"
+  },
+  "transport": {
+    "path": "/v1/speech/persian-pronunciation",
+    "authHeader": "x-ai-worker-secret",
+    "responseHeader": "x-speech-pronunciation-contract-version"
+  },
+  "output": {
+    "required": ["ttsText"],
+    "maxTextChars": 4000
+  },
+  "safety": {
+    "canonicalInterviewTextMustRemainUnchanged": true,
+    "pronunciationOutputUsedOnlyForTts": true,
+    "fallbackToCanonicalTextOnFailure": true,
+    "mustNotAddOrRemoveInterviewMeaning": true
+  }
+}
