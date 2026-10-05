@@ -1,5 +1,7 @@
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -167,6 +169,70 @@ export class CreateCandidateDto {
   @IsString()
   @Length(2, 16)
   preferredLanguage?: string;
+}
+
+export class UpdateCandidateDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  displayName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  @Length(3, 320)
+  primaryEmail?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  primaryPhone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  currentRole?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  currentCompany?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(1, 240)
+  location?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Length(2, 16)
+  preferredLanguage?: string;
+}
+
+export class BulkIdsDto {
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
+  ids!: string[];
+}
+
+export class BulkDeleteResultDto {
+  @ApiProperty({ type: [String], format: "uuid" })
+  deletedIds!: string[];
+
+  @ApiProperty({ minimum: 0 })
+  deletedCount!: number;
+
+  @ApiProperty({ type: [String], format: "uuid" })
+  blockedIds!: string[];
 }
 
 export class CreateApplicationDto {
