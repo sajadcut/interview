@@ -91,7 +91,7 @@ test("regression: درباره تجربه backend توضیح بده -> نتیج�
   assert.notEqual(result.output.spokenText, "درباره تجربه backend توضیح بده");
   assert.equal(result.provenance.provider, "scripted-openai-compatible");
   assert.equal(result.provenance.promptId, "interview.conversational_next_turn");
-  assert.equal(result.provenance.promptVersion, "v2");
+  assert.equal(result.provenance.promptVersion, "v3");
 });
 
 test("technical follow-up can stay anchored on a concrete Redis choice", async () => {
