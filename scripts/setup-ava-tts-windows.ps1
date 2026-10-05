@@ -13,10 +13,10 @@ function Test-AvaPythonRuntime {
         [string[]]$PrefixArgs = @()
     )
 
-    # Ava 0.2.0 declares Python 3.11-3.13, but it pins numpy==1.26.4.
-    # NumPy 1.26.4 has Windows binary wheels through CPython 3.12, not 3.13.
-    # Requiring 3.11/3.12 keeps setup binary-only and avoids a fragile source build.
-    $probe = "import struct,sys; bits=struct.calcsize('P')*8; ok=((3,11) <= sys.version_info[:2] < (3,13) and bits == 64); print(str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'.'+str(sys.version_info.micro)+'|'+str(bits)); raise SystemExit(0 if ok else 2)"
+    # Ava declares Python 3.11-3.13. This Windows setup intentionally targets
+    # CPython 3.13 and replaces two stale binary pins from Ava 0.2.0 with
+    # CPython-3.13-compatible wheels while keeping the rest of the stack pinned.
+    $probe = "import struct,sys; bits=struct.calcsize('P')*8; ok=(sys.version_info[:2] == (3,13) and bits == 64); print(str(sys.version_info.major)+'.'+str(sys.version_info.minor)+'.'+str(sys.version_info.micro)+'|'+str(bits)); raise SystemExit(0 if ok else 2)"
 
     try {
         $result = & $Command @PrefixArgs -c $probe 2>$null
@@ -37,7 +37,7 @@ function Test-AvaPythonRuntime {
 $PythonRuntime = $null
 
 if (Get-Command py -ErrorAction SilentlyContinue) {
-    foreach ($version in @("3.12", "3.11")) {
+    foreach ($version in @("3.13")) {
         $candidate = Test-AvaPythonRuntime -Command "py" -PrefixArgs @("-$version")
         if ($candidate) {
             $PythonRuntime = $candidate
@@ -56,7 +56,7 @@ if (-not $PythonRuntime -and (Get-Command python3 -ErrorAction SilentlyContinue)
 
 if (-not $PythonRuntime) {
     Write-Host ""
-    Write-Host "Ava setup requires 64-bit Python 3.11 or 3.12."
+    Write-Host "This Ava Windows setup requires 64-bit Python 3.13."
     if (Get-Command py -ErrorAction SilentlyContinue) {
         Write-Host "Detected Python Launcher environments:"
         & py -0p
@@ -67,8 +67,8 @@ if (-not $PythonRuntime) {
     }
     Write-Host ""
     Write-Host "Recommended Windows install command:"
-    Write-Host "winget install --id Python.Python.3.12 -e"
-    throw "No compatible 64-bit Python 3.11-3.12 runtime was found. Python 3.13 is intentionally not used because Ava 0.2.0 pins numpy==1.26.4, which has no CPython 3.13 Windows wheel."
+    Write-Host "winget install --id Python.Python.3.13 -e"
+    throw "No compatible 64-bit Python 3.13 runtime was found."
 }
 
 Write-Host "Using Python $($PythonRuntime.Description) via: $($PythonRuntime.Command) $($PythonRuntime.PrefixArgs -join ' ')"
@@ -79,7 +79,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 
 $VenvPython = Join-Path $Venv "Scripts\python.exe"
 if (Test-Path -LiteralPath $VenvPython -PathType Leaf) {
-    & $VenvPython -c "import sys; raise SystemExit(0 if (3,11) <= sys.version_info[:2] < (3,13) else 2)" 2>$null
+    & $VenvPython -c "import sys; raise SystemExit(0 if sys.version_info[:2] == (3,13) else 2)" 2>$null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Existing Ava environment uses an incompatible Python. Recreating it with Python $($PythonRuntime.Description)..."
         Remove-Item -LiteralPath $Venv -Recurse -Force
@@ -112,21 +112,39 @@ if ($LASTEXITCODE -ne 0) { throw "PyTorch 2.6.0 installation from PyPI failed." 
 & $Python -c "import torch; x=torch.ones(1, device='cpu'); print('torch', torch.__version__, 'device', x.device, 'cuda-available', torch.cuda.is_available()); assert x.device.type == 'cpu'"
 if ($LASTEXITCODE -ne 0) { throw "PyTorch CPU execution verification failed." }
 
-# Ava 0.2.0 pins numpy==1.26.4. Install it as a binary wheel before Ava so pip
-# never falls back to a source build (which fails on CPython 3.13 and is slow/
-# brittle on managed Windows machines).
-Write-Host "Installing NumPy 1.26.4 binary wheel..."
-& $Python -m pip install --index-url $PyPiIndex --only-binary=:all: "numpy==1.26.4"
+# Ava 0.2.0 declares Python 3.13 support but pins numpy==1.26.4 and
+# sentencepiece==0.2.0, neither of which ships a CPython 3.13 Windows wheel.
+# Earlier Ava metadata used the compatible ranges numpy>=1.26,<3 and
+# sentencepiece>=0.2,<1. Use modern wheels inside those original ranges, then
+# install the reviewed Ava wheel with --no-deps so pip does not force the stale
+# binary pins back in.
+Write-Host "Installing CPython 3.13 compatibility overrides..."
+& $Python -m pip install --index-url $PyPiIndex --only-binary=:all: `
+    "numpy==2.1.3" `
+    "sentencepiece==0.2.2"
 if ($LASTEXITCODE -ne 0) {
-    throw "NumPy 1.26.4 binary wheel installation failed. Use Python 3.11 or 3.12 for Ava."
+    throw "Ava Python 3.13 compatibility wheels failed to install."
 }
 
-Write-Host "Installing Ava-82M and pinned Persian frontend dependencies..."
-& $Python -m pip install --index-url $PyPiIndex $WheelUrl
+Write-Host "Installing Ava's validated runtime versions..."
+& $Python -m pip install --index-url $PyPiIndex `
+    "click==8.2.1" `
+    "huggingface-hub==0.34.4" `
+    "soundfile==0.13.1" `
+    "transformers==4.51.3"
+if ($LASTEXITCODE -ne 0) { throw "Ava runtime dependency installation failed." }
+
+Write-Host "Installing Ava's pinned Kokoro runtime..."
+& $Python -m pip install --index-url $PyPiIndex `
+    "git+https://github.com/semidark/kokoro.git@b96fef95e6a746495f92443fac7c688f90fc57fc"
+if ($LASTEXITCODE -ne 0) { throw "Pinned Kokoro runtime installation failed." }
+
+Write-Host "Installing Ava-82M package without stale binary pins..."
+& $Python -m pip install --no-deps $WheelUrl
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
-& $Python -c "import torch, soundfile; from ava_tts import Ava; print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava import OK; worker forces device=cpu')"
+& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
 if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
@@ -138,4 +156,5 @@ Write-Host ""
 Write-Host "Next command:"
 Write-Host "powershell -ExecutionPolicy Bypass -File scripts/start-ava-tts-worker.ps1"
 Write-Host ""
+Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2."
 Write-Host "The first worker start downloads the Ava model and Persian G2P files to the local Hugging Face cache."
