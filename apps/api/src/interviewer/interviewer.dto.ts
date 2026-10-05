@@ -61,6 +61,7 @@ export class SubmitInterviewerEvaluationDto {
 }
 
 // Interview operations may return applications that reached the interview stage before a Session exists.
+// Interviewer mode is included so AI selections survive recovery and prefill the operations UI.
 export class InterviewAssignmentSessionOptionDto {
   @ApiPropertyOptional({
     format: "uuid",
