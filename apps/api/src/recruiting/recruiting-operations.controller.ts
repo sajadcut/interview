@@ -1,4 +1,4 @@
-// Job mutation surface: edit metadata/requirements, manage rubric drafts, and publish jobs with readiness checks.
+// Job/candidate mutation surface: edit, publish, and safe bulk collection actions with tenant/audit guards.
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
