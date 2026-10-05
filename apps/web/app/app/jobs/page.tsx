@@ -60,13 +60,10 @@ export default function JobsPage() {
     });
   }, [jobs, query, statusFilter]);
 
-  const selectableJobs = useMemo(
-    () => filteredJobs.filter((job) => job.deletable),
-    [filteredJobs],
-  );
-  const selectedVisibleCount = selectableJobs.filter((job) => selectedIds.has(job.id)).length;
-  const allVisibleSelected = selectableJobs.length > 0 && selectedVisibleCount === selectableJobs.length;
+  const selectedVisibleCount = filteredJobs.filter((job) => selectedIds.has(job.id)).length;
+  const allVisibleSelected = filteredJobs.length > 0 && selectedVisibleCount === filteredJobs.length;
   const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+  const selectedDeletableCount = jobs.filter((job) => selectedIds.has(job.id) && job.deletable).length;
 
   function toggleJob(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -80,7 +77,7 @@ export default function JobsPage() {
   function toggleAllVisible(checked: boolean) {
     setSelectedIds((current) => {
       const next = new Set(current);
-      for (const job of selectableJobs) {
+      for (const job of filteredJobs) {
         if (checked) next.add(job.id);
         else next.delete(job.id);
       }
@@ -142,8 +139,10 @@ export default function JobsPage() {
           <BulkActionBar selectedCount={selectedIds.size} noun="موقعیت" onClear={() => setSelectedIds(new Set())}>
             <button
               type="button"
+              disabled={selectedDeletableCount === 0}
+              title={selectedDeletableCount === 0 ? "هیچ‌کدام از موقعیت‌های انتخاب‌شده در وضعیت قابل حذف نیستند." : undefined}
               onClick={() => setDeleteIds([...selectedIds])}
-              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700"
+              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
               حذف انتخاب‌شده‌ها
             </button>
@@ -182,10 +181,10 @@ export default function JobsPage() {
                 <th className="w-10">
                   {access.can("job.edit") ? (
                     <SelectionCheckbox
-                      label="انتخاب همه پیش‌نویس‌های قابل حذف در این فهرست"
+                      label="انتخاب همه موقعیت‌های این فهرست"
                       checked={allVisibleSelected}
                       indeterminate={someVisibleSelected}
-                      disabled={selectableJobs.length === 0}
+                      disabled={filteredJobs.length === 0}
                       onChange={toggleAllVisible}
                     />
                   ) : null}
@@ -207,7 +206,6 @@ export default function JobsPage() {
                       <SelectionCheckbox
                         label={`انتخاب ${job.title}`}
                         checked={selectedIds.has(job.id)}
-                        disabled={!job.deletable}
                         onChange={(checked) => toggleJob(job.id, checked)}
                       />
                     ) : null}
@@ -229,8 +227,16 @@ export default function JobsPage() {
                       {access.can("job.edit") ? (
                         <Link href={`/app/jobs/${job.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
                       ) : null}
-                      {access.can("job.edit") && job.deletable ? (
-                        <button type="button" onClick={() => setDeleteIds([job.id])} className="text-[10px] font-semibold text-rose-600 hover:text-rose-700">حذف</button>
+                      {access.can("job.edit") ? (
+                        <button
+                          type="button"
+                          disabled={!job.deletable}
+                          title={!job.deletable ? "فقط موقعیت‌های بدون وابستگی و در وضعیت مجاز قابل حذف‌اند." : "حذف موقعیت"}
+                          onClick={() => setDeleteIds([job.id])}
+                          className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:text-slate-300"
+                        >
+                          حذف
+                        </button>
                       ) : null}
                     </div>
                   </td>
