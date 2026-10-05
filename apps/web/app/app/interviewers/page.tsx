@@ -299,7 +299,7 @@ export default function InterviewersPage() {
           <Link href="/app/interviews">
             <ToolbarButton icon="interviews">مشاهده مصاحبه‌ها</ToolbarButton>
           </Link>
-          {access.can("organization.manage_users") ? (
+          {access.can("interview.assign") ? (
             <button
               type="button"
               onClick={openCreate}
@@ -315,7 +315,7 @@ export default function InterviewersPage() {
       {error ? <InlineFeedback tone="error">{error}</InlineFeedback> : null}
       {feedback ? <InlineFeedback tone={feedback.tone}>{feedback.text}</InlineFeedback> : null}
 
-      {formOpen && access.can("organization.manage_users") ? (
+      {formOpen && access.can("interview.assign") ? (
         <Panel className="p-5">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -403,7 +403,7 @@ export default function InterviewersPage() {
             <thead>
               <tr>
                 <th className="w-10">
-                  {access.can("organization.manage_users") ? (
+                  {access.can("interview.assign") ? (
                     <SelectionCheckbox label="انتخاب همه مصاحبه‌گرهای انسانی این فهرست" checked={allVisibleSelected} indeterminate={someVisibleSelected} disabled={filteredProfiles.length === 0} onChange={toggleAllVisible} />
                   ) : null}
                 </th>
@@ -438,7 +438,7 @@ export default function InterviewersPage() {
               {filteredProfiles.map((profile) => (
                 <tr key={profile.id}>
                   <td>
-                    {access.can("organization.manage_users") ? (
+                    {access.can("interview.assign") ? (
                       <SelectionCheckbox label={`انتخاب ${profile.firstName} ${profile.lastName}`} checked={selectedIds.has(profile.id)} onChange={(checked) => toggleOne(profile.id, checked)} />
                     ) : null}
                   </td>
@@ -459,7 +459,7 @@ export default function InterviewersPage() {
                   </td>
                   <td className="font-semibold text-slate-700">{formatFaNumber(profile.assignmentCount)}</td>
                   <td className="whitespace-nowrap">
-                    {access.can("organization.manage_users") ? (
+                    {access.can("interview.assign") ? (
                       <div className="flex items-center gap-3">
                         <button type="button" onClick={() => openEdit(profile)} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800">ویرایش</button>
                         <button type="button" onClick={() => setDeleteIds([profile.id])} title={profile.assignmentCount > 0 ? "در صورت داشتن مصاحبه فعال، سرور دلیل عدم حذف را اعلام می‌کند." : "حذف مصاحبه‌گر"} className="text-[10px] font-semibold text-rose-600 hover:text-rose-700">حذف</button>
