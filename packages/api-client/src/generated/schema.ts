@@ -4097,6 +4097,8 @@ export interface components {
             applicationId: string;
             candidateName: string;
             jobTitle: string;
+            /** @enum {string} */
+            interviewerMode?: "ai" | "human";
             /** Format: uuid */
             interviewerUserId?: string;
             interviewerName?: string;

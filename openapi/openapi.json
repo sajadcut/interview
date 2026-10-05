@@ -14447,6 +14447,13 @@
           "jobTitle": {
             "type": "string"
           },
+          "interviewerMode": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "human"
+            ]
+          },
           "interviewerUserId": {
             "type": "string",
             "format": "uuid"
