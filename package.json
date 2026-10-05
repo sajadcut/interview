@@ -38,7 +38,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "node --test scripts/worker-tls.test.mjs && npm run api-load-test:contract:check && npm run load:test:unit && npm run candidate-interview-ui:contract:check && npm run vad:contract:check && npm run tts:contract:check && npm run llm-provider:contract:check && npm run llm-interviewer:contract:check && npm run ffmpeg:contract:check && npm run whisper:contract:check && npm run livekit:config:check && npm run alerting:check && turbo run test && npm run media-worker:test && npm run vad-worker:test && npm run tts-worker:test && npm run moss-tts-worker:test && npm run ai-worker:test && npm run assessment-worker:test && npm run privacy-worker:test && npm run retention-worker:test",
+    "test": "node --test scripts/worker-tls.test.mjs && npm run api-load-test:contract:check && npm run load:test:unit && npm run candidate-interview-ui:contract:check && npm run vad:contract:check && npm run tts:contract:check && npm run llm-provider:contract:check && npm run llm-interviewer:contract:check && npm run ffmpeg:contract:check && npm run whisper:contract:check && npm run livekit:config:check && npm run alerting:check && turbo run test && npm run media-worker:test && npm run vad-worker:test && npm run tts-worker:test && npm run ava-tts-worker:test && npm run moss-tts-worker:test && npm run ai-worker:test && npm run assessment-worker:test && npm run privacy-worker:test && npm run retention-worker:test",
     "e2e": "playwright test",
     "e2e:typecheck": "tsc --noEmit -p tsconfig.e2e.json",
     "e2e:headed": "playwright test --headed",
@@ -71,7 +71,9 @@
     "load:test:seed": "node scripts/load-test-seed.mjs",
     "openapi:export": "npm run openapi:export --workspace=@interview/api",
     "api-client:generate": "npm run generate --workspace=@interview/api-client",
-    "api:sync": "npm run openapi:export && npm run api-client:generate"
+    "api:sync": "npm run openapi:export && npm run api-client:generate",
+    "ava-tts-worker:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-ava-tts-worker.ps1",
+    "ava-tts-worker:test": "python3 -m unittest discover -s services/ava-tts-worker/test -p 'test_*.py' && python3 -m py_compile services/ava-tts-worker/server.py services/ava-tts-worker/fa_tech_normalizer.py"
   },
   "overrides": {
     "@nestjs/platform-express": {
