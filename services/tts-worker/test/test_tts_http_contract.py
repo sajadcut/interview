@@ -39,8 +39,12 @@ class TTSHttpContractTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        self.previous = {key: os.environ.get(key) for key in ["TTS_SHARED_SECRET", "TTS_COMMAND", "TTS_TIMEOUT_SECONDS"]}
+        self.previous = {
+            key: os.environ.get(key)
+            for key in ["TTS_SHARED_SECRET", "TTS_ENGINE", "TTS_COMMAND", "TTS_TIMEOUT_SECONDS"]
+        }
         os.environ["TTS_SHARED_SECRET"] = "contract-test-secret"
+        os.environ["TTS_ENGINE"] = "local-command"
         os.environ["TTS_COMMAND"] = f"{quoted(sys.executable)} {quoted(str(engine))} {quoted('{text_file}')} {quoted('{output_wav}')}"
         os.environ["TTS_TIMEOUT_SECONDS"] = "2"
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
