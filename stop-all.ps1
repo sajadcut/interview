@@ -11,7 +11,7 @@ $stateFile = Join-Path $repoRoot ".local-data\dev-stack-processes.json"
 
 # Only service names written by start-all.ps1 are eligible for automatic termination.
 # This keeps the state file from becoming an arbitrary PID kill list if it is edited
-# or corrupted. The TTS entry owns the Edge TTS worker and any transient edge-tts child.
+# or corrupted. The TTS entry owns whichever speech runtime start-all selected (Ava, Edge, or local-command).
 $knownTrackedServices = @(
     "livekit",
     "media",
@@ -210,7 +210,7 @@ if ($failed.Count -eq 0) {
     Remove-Item -LiteralPath $stateFile -Force -ErrorAction SilentlyContinue
     Write-Host ""
     Write-Host "Interview development stack stopped."
-    Write-Host "Tracked service trees, including Edge TTS synthesis child processes, were terminated."
+    Write-Host "Tracked service trees, including the selected TTS runtime, were terminated."
     Write-Host "The current PowerShell process and all parent processes were protected from termination."
     exit 0
 }
