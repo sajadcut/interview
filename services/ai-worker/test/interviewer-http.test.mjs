@@ -137,6 +137,52 @@ test("realtime interviewer returns structured output and provenance", async () =
   });
 });
 
+test("Persian pronunciation endpoint returns a speech-only rendering", async () => {
+  const llm = {
+    async generateStructured({ prompt }) {
+      assert.equal(prompt.id, "speech.persian_pronunciation");
+      return {
+        data: {
+          ttsText: "دَر مورِدِ تَخصیصِ مَنابِع توضیح بِدِه.",
+        },
+        provider: "fake",
+        model: "fake-1",
+        prompt: { id: "speech.persian_pronunciation", version: "v1" },
+        attempts: [],
+        usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20, costMicros: 0 },
+      };
+    },
+  };
+
+  await withServer(llm, async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/v1/speech/persian-pronunciation`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-ai-worker-secret": secret,
+      },
+      body: JSON.stringify({
+        contractVersion: "speech-pronunciation.v1",
+        capability: "speech.persian_pronunciation",
+        capabilityVersion: "v1",
+        promptId: "speech.persian_pronunciation",
+        promptVersion: "v1",
+        structuredOutputSchemaVersion: "speech-pronunciation.v1",
+        input: { spokenText: "در مورد تخصیص منابع توضیح بده." },
+        inputReferences: { turnId: "turn-1" },
+      }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("x-speech-pronunciation-contract-version"),
+      "speech-pronunciation.v1",
+    );
+    const body = await response.json();
+    assert.equal(body.output.ttsText, "دَر مورِدِ تَخصیصِ مَنابِع توضیح بِدِه.");
+    assert.equal(body.provenance.promptVersion, "v1");
+  });
+});
+
 test("realtime interviewer maps provider failures to safe errors", async () => {
   const llm = {
     async generateStructured() {
