@@ -1,3 +1,8 @@
+[CmdletBinding()]
+param(
+    [switch]$SkipRuntimeSmokeTest
+)
+
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -175,6 +180,34 @@ if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
 
+if (-not $SkipRuntimeSmokeTest) {
+    Write-Host "Running real Ava Persian synthesis smoke test on CPU..."
+    Write-Host "This first run may download the acoustic model and Persian G2P artifacts."
+    $SmokeScript = @'
+from ava_tts import Ava
+
+tts = Ava.from_pretrained("xmanii/Ava-82M", device="cpu")
+result = tts.generate("سلام، این یک آزمون کوتاه برای آوای فارسی است.")
+audio = result.audio
+sample_rate = int(result.sample_rate)
+
+if sample_rate != 24000:
+    raise RuntimeError(f"unexpected sample rate: {sample_rate}")
+if audio is None or len(audio) < 2400:
+    raise RuntimeError("Ava generated empty or implausibly short audio")
+
+duration = len(audio) / sample_rate
+print(f"Ava real synthesis OK · sample_rate={sample_rate} · samples={len(audio)} · duration={duration:.2f}s · device=cpu")
+'@
+    & $Python -c $SmokeScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Ava real Persian synthesis smoke test failed. Setup is not considered complete."
+    }
+}
+else {
+    Write-Warning "Real Ava synthesis smoke test was skipped. Import success alone does not prove usable synthesis."
+}
+
 Write-Host ""
 Write-Host "Setup complete."
 Write-Host "Python: $Python"
@@ -183,4 +216,9 @@ Write-Host "Next command:"
 Write-Host "powershell -ExecutionPolicy Bypass -File scripts/start-ava-tts-worker.ps1"
 Write-Host ""
 Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2 + Misaki fba1236 + minimal Kokoro imports."
-Write-Host "The first worker start downloads the Ava model and Persian G2P files to the local Hugging Face cache."
+if ($SkipRuntimeSmokeTest) {
+    Write-Host "The first worker start will download the Ava model and Persian G2P files to the local Hugging Face cache."
+}
+else {
+    Write-Host "Ava model + Persian G2P were loaded and a real Persian utterance was synthesized successfully."
+}
