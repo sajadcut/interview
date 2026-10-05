@@ -6,7 +6,7 @@ Ava-82M v0.2.0 is an Apache-2.0 Persian Kokoro fine-tune with a contextual Persi
 
 ## Windows setup
 
-Ava 0.2.0 officially declares Python 3.11–3.13. This project intentionally runs the Windows worker on 64-bit Python 3.13. Ava 0.2.0 also pins `numpy==1.26.4` and `sentencepiece==0.2.0`; those two releases do not provide CPython 3.13 Windows wheels. To honor Ava's declared Python 3.13 support without source-building native dependencies, the Windows setup uses `numpy==2.1.3` and `sentencepiece==0.2.2`, both inside the looser compatibility ranges used by Ava before its exact-version pinning. This is an explicit compatibility override and should be treated as experimental until representative synthesis tests pass.
+Ava 0.2.0 officially declares Python 3.11–3.13. This project intentionally runs the Windows worker on 64-bit Python 3.13. Ava 0.2.0 pins `numpy==1.26.4` and `sentencepiece==0.2.0`; those two releases do not provide CPython 3.13 Windows wheels, so the setup uses `numpy==2.1.3` and `sentencepiece==0.2.2`. There is a second packaging mismatch: the published PyPI `misaki==0.9.4` metadata requires Python <3.13, while upstream Misaki commit `fba1236595f2d2bf21d414ba6e57d25256afada3` is specifically the Python 3.13 enablement commit and was tested with Kokoro. The setup pins that upstream Misaki revision and installs Ava's exact Kokoro revision with `--no-deps` so pip cannot replace it with incompatible PyPI metadata. These are explicit compatibility overrides and should be treated as experimental until representative synthesis tests pass.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1
@@ -33,6 +33,8 @@ The setup script:
 - creates `.venv-ava-tts`;
 - installs the official Windows `torch==2.6.0` wheel from PyPI and forces Ava inference to CPU;
 - installs CPython 3.13 binary wheels `numpy==2.1.3` and `sentencepiece==0.2.2` as compatibility overrides;
+- installs upstream Misaki commit `fba1236`, which explicitly enables Python 3.13, with the English extras Kokoro imports;
+- installs Ava's pinned Kokoro revision with `--no-deps` to avoid PyPI's Python<3.13 Misaki resolver;
 - keeps Click, Hugging Face Hub, SoundFile, Transformers, Torch, and the Kokoro revision aligned with Ava v0.2.0;
 - installs the pinned Ava-82M v0.2.0 wheel with `--no-deps` so its stale native pins do not force source builds;
 - installs the Windows certificate-store bridge for managed/corporate TLS networks;
