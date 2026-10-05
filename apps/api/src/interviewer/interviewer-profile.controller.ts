@@ -1,4 +1,5 @@
 // Managed interviewer profile collection for human interviewer CRUD and assignment discovery.
+// Typed client contract sync marker: nullable profile fields are explicit strings.
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from "@nestjs/common";
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Permissions } from "../auth/permissions";
