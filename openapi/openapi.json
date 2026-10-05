@@ -7068,6 +7068,77 @@
         ]
       }
     },
+    "/v1/interview-operations/ai-interviews": {
+      "post": {
+        "operationId": "InterviewAssignmentAdminController_prepareAiInterview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareAiInterviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedAiInterviewDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interview-operations"
+        ]
+      }
+    },
     "/v1/interview-operations/technical-interviews": {
       "post": {
         "operationId": "InterviewAssignmentAdminController_scheduleTechnicalInterview",
@@ -14531,6 +14602,47 @@
         "required": [
           "sessions",
           "interviewers"
+        ]
+      },
+      "PrepareAiInterviewDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "language": {
+            "type": "string",
+            "default": "fa"
+          }
+        },
+        "required": [
+          "applicationId"
+        ]
+      },
+      "PreparedAiInterviewDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "interviewPlanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pipelineStage": {
+            "type": "string"
+          },
+          "invitation": {
+            "$ref": "#/components/schemas/CandidateInvitationResponseDto"
+          }
+        },
+        "required": [
+          "applicationId",
+          "interviewPlanId",
+          "pipelineStage",
+          "invitation"
         ]
       },
       "ScheduleTechnicalInterviewDto": {
