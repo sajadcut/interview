@@ -23,6 +23,7 @@ export class CandidateSummaryDto {
   @ApiPropertyOptional() applicationId?: string;
   @ApiPropertyOptional() pipelineStage?: string;
   @ApiPropertyOptional() preInterviewMatchScore?: number;
+  @ApiProperty({ minimum: 0 }) applicationCount!: number;
   @ApiProperty({ type: [String] }) skills!: string[];
   @ApiProperty() updatedAt!: string;
 }
