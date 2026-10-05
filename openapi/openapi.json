@@ -14431,7 +14431,8 @@
         "properties": {
           "sessionId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Absent when an application is in the interview stage but still needs a real interview session to be scheduled."
           },
           "sessionStatus": {
             "type": "string"
@@ -14466,7 +14467,6 @@
           }
         },
         "required": [
-          "sessionId",
           "sessionStatus",
           "applicationId",
           "candidateName",

@@ -4087,8 +4087,11 @@ export interface components {
             policy: components["schemas"]["EngagementWorkspacePolicyDto"];
         };
         InterviewAssignmentSessionOptionDto: {
-            /** Format: uuid */
-            sessionId: string;
+            /**
+             * Format: uuid
+             * @description Absent when an application is in the interview stage but still needs a real interview session to be scheduled.
+             */
+            sessionId?: string;
             sessionStatus: string;
             /** Format: uuid */
             applicationId: string;
