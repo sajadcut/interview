@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { ApiCreatedResponse, ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
@@ -7,6 +7,8 @@ import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   AutomationApprovalResponseDto,
   AutomationRuleResponseDto,
+  BulkAutomationDeleteResultDto,
+  BulkAutomationIdsDto,
   AutomationRunCreatedResponseDto,
   AutomationWorkspaceResponseDto,
   CreateAutomationRuleDto,
@@ -90,6 +92,21 @@ export class ProductOperationsController {
   @ApiOkResponse({ type: AutomationRuleResponseDto })
   updateAutomation(@Param("ruleId") ruleId: string, @Body() body: UpdateAutomationRuleDto) {
     return this.operations.updateAutomation(ruleId, body);
+  }
+
+  @Delete("automations/:ruleId")
+  @RequirePermissions(Permissions.AutomationManage)
+  @AuditedAction("automation.delete", "automation_rule")
+  deleteAutomation(@Param("ruleId") ruleId: string) {
+    return this.operations.deleteAutomation(ruleId);
+  }
+
+  @Post("automations/bulk-delete")
+  @RequirePermissions(Permissions.AutomationManage)
+  @AuditedAction("automation.bulk_delete", "automation_rule")
+  @ApiOkResponse({ type: BulkAutomationDeleteResultDto })
+  bulkDeleteAutomations(@Body() body: BulkAutomationIdsDto) {
+    return this.operations.bulkDeleteAutomations(body.ids);
   }
 
   @Post("automations/:ruleId/runs")
