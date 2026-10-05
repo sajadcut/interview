@@ -19,7 +19,7 @@ import type {
 } from "../../lib/candidate-realtime-runtime";
 import { getDefaultLocale } from "../../lib/i18n";
 import { localizeApiMessage } from "../../lib/api";
-import { formatFaNumber } from "../../lib/fa-numbers";
+import { formatFaDigits, formatFaNumber } from "../../lib/fa-numbers";
 
 const TARGET_SAMPLE_RATE = 16_000;
 const SILENCE_TO_SUBMIT_MS = 1_400;
@@ -37,12 +37,33 @@ export interface CandidateInterviewRuntime {
   turnAudio?(turnId: string): Promise<Blob>;
   submitText?(text: string): Promise<CandidateRuntimeAnswer>;
   submitVoice?(audio: Blob): Promise<CandidateRuntimeVoiceAnswer>;
+  sync?(): Promise<{
+    status: "active" | "completed";
+    sessionId: string;
+    remainingSeconds: number;
+    clock: CandidateRuntimeSnapshot["clock"];
+    turn: CandidateRuntimeSnapshot["turn"];
+  }>;
+  reportIntegrity?(input: {
+    eventType: "visibility_hidden" | "visibility_visible" | "window_blur" | "window_focus" | "large_paste" | "reconnect";
+    clientOccurredAt?: string;
+    durationMs?: number;
+    metadata?: { field?: string; characterCount?: number };
+  }): Promise<void>;
 }
 
 export interface CandidateInterviewExperienceProps {
   candidateName: string;
   jobTitle: string;
   sessionExpiresAt: string;
+  interviewDurationMinutes: number;
+  interviewType: string;
+  integrityPolicy: {
+    observableSignalsOnly: true;
+    automaticCheatingDecision: false;
+    automaticScorePenalty: false;
+    humanReviewRequiredForConcern: true;
+  };
   runtime?: CandidateInterviewRuntime;
 }
 
@@ -166,6 +187,12 @@ function encodePcm16Wav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+function formatCountdown(seconds: number, locale: string): string {
+  const safe = Math.max(0, Math.trunc(seconds));
+  const value = `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
+  return locale.toLowerCase().startsWith("fa") ? formatFaDigits(value) : value;
+}
+
 function roomCopy(locale: string) {
   const fa = locale.toLowerCase().startsWith("fa");
   return fa
@@ -192,6 +219,10 @@ function roomCopy(locale: string) {
         completed: "مصاحبه با موفقیت تکمیل شد",
         completedBody: "پاسخ‌های شما ثبت شد. می‌توانید این صفحه را ببندید.",
         privacy: "صوت و ویدیوی خام در دیتابیس API ذخیره نمی‌شود؛ فقط متن نهایی لازم برای مصاحبه و ارزیابی نگهداری می‌شود.",
+        remaining: "زمان باقی‌مانده",
+        endingSoon: "کمتر از ۵ دقیقه تا پایان",
+        finalMinute: "مصاحبه در حال جمع‌بندی است",
+        integrity: "فقط رخدادهای قابل مشاهده مانند خروج از صفحه، بازگشت، قطع اتصال و paste بزرگ ثبت می‌شوند. محتوای Clipboard ذخیره نمی‌شود و این سیگنال‌ها به‌تنهایی اثبات تقلب یا دلیل رد خودکار نیستند.",
       }
     : {
         interviewer: "AI Interviewer",
@@ -216,6 +247,10 @@ function roomCopy(locale: string) {
         completed: "Interview completed successfully",
         completedBody: "Your answers were saved. You may close this page.",
         privacy: "Raw audio/video is not persisted in the API database; only finalized text needed for the interview and evaluation is retained.",
+        remaining: "Time remaining",
+        endingSoon: "Less than 5 minutes remaining",
+        finalMinute: "The interview is wrapping up",
+        integrity: "Only observable session-integrity events are recorded. Clipboard contents are not stored and signals are never automatic proof of cheating.",
       };
 }
 
@@ -223,6 +258,9 @@ export function CandidateInterviewExperience({
   candidateName,
   jobTitle,
   sessionExpiresAt,
+  interviewDurationMinutes,
+  interviewType,
+  integrityPolicy,
   runtime,
 }: CandidateInterviewExperienceProps) {
   const locale = getDefaultLocale();
@@ -249,6 +287,7 @@ export function CandidateInterviewExperience({
   const [listening, setListening] = useState(false);
   const [liveStatus, setLiveStatus] = useState(liveCopy.yourTurn);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [displayRemainingSeconds, setDisplayRemainingSeconds] = useState(interviewDurationMinutes * 60);
 
   const streamRef = useRef<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -267,6 +306,8 @@ export function CandidateInterviewExperience({
   const lastSpeechRef = useRef(0);
   const voiceStartedRef = useRef(0);
   const maxVoiceTimerRef = useRef<number | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
+  const closeTurnPlayedRef = useRef<string | null>(null);
 
   const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) =>
     setState((current) => candidateInterviewReducer(current, event));
@@ -347,10 +388,7 @@ export function CandidateInterviewExperience({
 
   const applySnapshot = (snapshot: CandidateRuntimeSnapshot) => {
     setRuntimeSnapshot(snapshot);
-    if (snapshot.status === "completed" || snapshot.turn.action === "close") {
-      reduce({ type: "COMPLETE" });
-      setLiveStatus(liveCopy.completed);
-    }
+    setDisplayRemainingSeconds(snapshot.clock?.remainingSeconds ?? snapshot.remainingSeconds);
   };
 
   const playTurn = async (turnId: string) => {
@@ -377,6 +415,15 @@ export function CandidateInterviewExperience({
     }
   };
 
+  const finishAfterCloseTurn = async (turnId: string) => {
+    if (closeTurnPlayedRef.current !== turnId) {
+      closeTurnPlayedRef.current = turnId;
+      await playTurn(turnId);
+    }
+    reduce({ type: "COMPLETE" });
+    setLiveStatus(liveCopy.completed);
+  };
+
   const attemptConnection = async (reconnect = false) => {
     if (!hasLocalMedia || !streamRef.current) {
       reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
@@ -397,8 +444,12 @@ export function CandidateInterviewExperience({
           : await runtime.connect({ stream: streamRef.current, audioOnly: state.audioOnly });
       if (snapshot) applySnapshot(snapshot);
       reduce({ type: reconnect ? "TRANSPORT_RECONNECTED" : "CONNECTED" });
-      if (snapshot && snapshot.status !== "completed" && snapshot.turn.action !== "close") {
-        await playTurn(snapshot.turn.id);
+      if (reconnect) {
+        void runtime.reportIntegrity?.({ eventType: "reconnect", clientOccurredAt: new Date().toISOString() }).catch(() => undefined);
+      }
+      if (snapshot) {
+        if (snapshot.status === "completed" || snapshot.turn.action === "close") await finishAfterCloseTurn(snapshot.turn.id);
+        else await playTurn(snapshot.turn.id);
       }
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
@@ -453,12 +504,9 @@ export function CandidateInterviewExperience({
         setLiveStatus(liveCopy.emptySpeech);
         return;
       }
-      if (result.completed) {
-        reduce({ type: "COMPLETE" });
-        setLiveStatus(liveCopy.completed);
-      } else {
-        await playTurn(result.turn.id);
-      }
+      setDisplayRemainingSeconds(result.clock?.remainingSeconds ?? result.remainingSeconds ?? displayRemainingSeconds);
+      if (result.completed) await finishAfterCloseTurn(result.turn.id);
+      else await playTurn(result.turn.id);
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
@@ -550,12 +598,9 @@ export function CandidateInterviewExperience({
     try {
       const result = await runtime.submitText(text);
       setTypedAnswer("");
-      if (result.completed) {
-        reduce({ type: "COMPLETE" });
-        setLiveStatus(liveCopy.completed);
-      } else {
-        await playTurn(result.turn.id);
-      }
+      setDisplayRemainingSeconds(result.clock?.remainingSeconds ?? result.remainingSeconds);
+      if (result.completed) await finishAfterCloseTurn(result.turn.id);
+      else await playTurn(result.turn.id);
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
@@ -598,6 +643,58 @@ export function CandidateInterviewExperience({
     });
     return () => unsubscribe?.();
   }, [runtime]);
+
+  useEffect(() => {
+    if (!runtimeSnapshot || state.phase === "completed") return;
+    const tick = window.setInterval(() => setDisplayRemainingSeconds((value) => Math.max(0, value - 1)), 1_000);
+    return () => window.clearInterval(tick);
+  }, [runtimeSnapshot?.sessionId, state.phase]);
+
+  useEffect(() => {
+    if (!runtimeSnapshot || !runtime?.sync || state.phase === "completed") return;
+    let active = true;
+    const synchronize = async () => {
+      try {
+        const synced = await runtime.sync!();
+        if (!active) return;
+        setDisplayRemainingSeconds(synced.clock.remainingSeconds);
+        setRuntimeSnapshot((current) => current ? { ...current, status: synced.status, remainingSeconds: synced.remainingSeconds, clock: synced.clock, turn: synced.turn } : current);
+        if (synced.status === "completed" || synced.turn.action === "close") await finishAfterCloseTurn(synced.turn.id);
+      } catch {
+        // Transport recovery owns connection errors; clock resync must not terminate the interview.
+      }
+    };
+    void synchronize();
+    const timer = window.setInterval(() => void synchronize(), 10_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [runtime, runtimeSnapshot?.sessionId, state.phase]);
+
+  useEffect(() => {
+    if (!runtimeSnapshot || !runtime?.reportIntegrity || state.phase !== "live") return;
+    const report = (input: Parameters<NonNullable<CandidateInterviewRuntime["reportIntegrity"]>>[0]) =>
+      void runtime.reportIntegrity!(input).catch(() => undefined);
+    const onVisibility = () => {
+      const now = Date.now();
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = now;
+        report({ eventType: "visibility_hidden", clientOccurredAt: new Date(now).toISOString() });
+      } else {
+        const hiddenAt = hiddenAtRef.current;
+        hiddenAtRef.current = null;
+        report({ eventType: "visibility_visible", clientOccurredAt: new Date(now).toISOString(), ...(hiddenAt ? { durationMs: Math.max(0, now - hiddenAt) } : {}) });
+      }
+    };
+    const onBlur = () => report({ eventType: "window_blur", clientOccurredAt: new Date().toISOString() });
+    const onFocus = () => report({ eventType: "window_focus", clientOccurredAt: new Date().toISOString() });
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [runtime, runtimeSnapshot?.sessionId, state.phase]);
 
   useEffect(() => {
     const expiresAt = new Date(sessionExpiresAt).getTime();
@@ -701,10 +798,16 @@ export function CandidateInterviewExperience({
               <div className="text-sm font-semibold">{copy.eyebrow}</div>
               <div className="mt-1 text-[11px] text-slate-400">{copy.hello} {candidateName} · {copy.role}: {jobTitle}</div>
             </div>
-            <div className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${state.phase === "live" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-200"}`}>
-              {copy.stage[state.phase]}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tabular-nums ${displayRemainingSeconds <= 60 ? "bg-rose-400/15 text-rose-200" : displayRemainingSeconds <= 300 ? "bg-amber-400/15 text-amber-200" : "bg-white/10 text-slate-100"}`}>
+                {liveCopy.remaining}: {formatCountdown(displayRemainingSeconds, locale)}
+              </div>
+              <div className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${state.phase === "live" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-200"}`}>
+                {copy.stage[state.phase]}
+              </div>
             </div>
           </header>
+          {displayRemainingSeconds <= 300 ? <div role="status" className={`rounded-xl border px-4 py-2 text-xs ${displayRemainingSeconds <= 60 ? "border-rose-300/20 bg-rose-300/10 text-rose-100" : "border-amber-300/20 bg-amber-300/10 text-amber-100"}`}>{displayRemainingSeconds <= 60 ? liveCopy.finalMinute : liveCopy.endingSoon}</div> : null}
 
           {state.network === "offline" ? (
             <div role="alert" className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">{liveCopy.offline}</div>
@@ -750,7 +853,18 @@ export function CandidateInterviewExperience({
 
                 <div className="mt-4 grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-end">
                   <button type="button" onClick={() => void startVoiceAnswer()} disabled={!canAnswer || !microphoneEnabled || !runtime?.submitVoice} className="min-h-12 rounded-xl bg-emerald-500 px-5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:bg-slate-700 disabled:text-slate-400">{listening ? liveCopy.listening : liveCopy.voice}</button>
-                  <textarea value={typedAnswer} onChange={(event) => setTypedAnswer(event.target.value)} disabled={!canAnswer} rows={2} placeholder={liveCopy.typedPlaceholder} className="min-h-12 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-400 disabled:opacity-50" />
+                  <textarea
+                    value={typedAnswer}
+                    onChange={(event) => setTypedAnswer(event.target.value)}
+                    onPaste={(event) => {
+                      const characterCount = event.clipboardData.getData("text").length;
+                      if (characterCount >= 80) void runtime?.reportIntegrity?.({ eventType: "large_paste", clientOccurredAt: new Date().toISOString(), metadata: { field: "typed_answer", characterCount } }).catch(() => undefined);
+                    }}
+                    disabled={!canAnswer}
+                    rows={2}
+                    placeholder={liveCopy.typedPlaceholder}
+                    className="min-h-12 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-indigo-400 disabled:opacity-50"
+                  />
                   <button type="button" onClick={() => void submitTypedAnswer()} disabled={!canAnswer || !typedAnswer.trim() || !runtime?.submitText} className="min-h-12 rounded-xl bg-indigo-500 px-5 text-sm font-semibold text-white hover:bg-indigo-400 disabled:bg-slate-700 disabled:text-slate-400">{liveCopy.send}</button>
                 </div>
 
@@ -792,9 +906,14 @@ export function CandidateInterviewExperience({
             </div>
             <div aria-live="polite" className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${phaseTone(state.phase)}`}>{copy.stage[state.phase]}</div>
           </div>
-          <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
-            <strong className="font-semibold text-slate-800">{copy.secureSession}</strong>
-            <span>{copy.sessionValidUntil}: {formatSessionExpiry(sessionExpiresAt, locale)}</span>
+          <div className="mt-5 grid gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:grid-cols-3">
+            <div><strong className="font-semibold text-slate-800">{copy.secureSession}</strong></div>
+            <div>مدت مصاحبه: <strong className="text-slate-800">{formatFaNumber(interviewDurationMinutes)} دقیقه</strong></div>
+            <div className="text-end">{copy.sessionValidUntil}: {formatSessionExpiry(sessionExpiresAt, locale)}</div>
+          </div>
+          <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-[11px] leading-5 text-indigo-900">
+            <strong>یکپارچگی جلسه:</strong> {liveCopy.integrity}
+            {integrityPolicy.automaticScorePenalty === false ? <span className="ms-1 font-semibold">این سیگنال‌ها امتیاز فنی یا مهارت نرم را خودکار تغییر نمی‌دهند.</span> : null}
           </div>
         </header>
 
@@ -839,6 +958,14 @@ export function CandidateInterviewExperience({
               </section>
 
               {showAudioOnly || fallbacks.includes("resume_later") ? <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.fallback.title}</h2>{showAudioOnly ? <FallbackCard title={copy.fallback.audioOnlyTitle} body={copy.fallback.audioOnlyDescription} /> : null}{fallbacks.includes("resume_later") ? <FallbackCard title={copy.fallback.resumeTitle} body={copy.fallback.resumeDescription} linkLabel={copy.controls.backToSetup} /> : null}</section> : null}
+              <section className="border-t border-slate-200 pt-5">
+                <h2 className="text-sm font-semibold text-slate-900">طرح مصاحبه</h2>
+                <dl className="mt-3 space-y-2 text-xs">
+                  <StatusRow label="نوع" value={interviewType} />
+                  <StatusRow label="مدت" value={`${formatFaNumber(interviewDurationMinutes)} دقیقه`} />
+                  <StatusRow label="سیاست قطع اتصال" value="تایمر سرور ادامه دارد" />
+                </dl>
+              </section>
               <section className="border-t border-slate-200 pt-5"><h2 className="text-sm font-semibold text-slate-900">{copy.instructionsTitle}</h2><ul className="mt-3 space-y-2 text-[11px] leading-5 text-slate-500">{copy.instructions.map((item) => <li key={item} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />{item}</li>)}</ul></section>
             </aside>
           </div>

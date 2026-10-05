@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { formatFaNumber } from "../../lib/fa-numbers";
 import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
+import {
+  DEFAULT_SOFT_SKILL_LABELS,
+  appendDefaultSoftSkills,
+  criterionKeyForLabel,
+} from "../../lib/rubric-criteria";
 import { Panel } from "../product/recruiting-ui";
 
 interface DraftRequirement {
@@ -41,11 +46,7 @@ function lines(value: string): string[] {
 }
 
 function keyFor(value: string, index: number): string {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return normalized || `criterion_${index + 1}`;
+  return criterionKeyForLabel(value, index);
 }
 
 function errorMessage(value: unknown, fallback: string): string {
@@ -64,7 +65,7 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
   const [summary, setSummary] = useState("");
   const [mustHave, setMustHave] = useState("");
   const [niceToHave, setNiceToHave] = useState("");
-  const [criteriaText, setCriteriaText] = useState("");
+  const [criteriaText, setCriteriaText] = useState(DEFAULT_SOFT_SKILL_LABELS.join("\n"));
   const [submitting, setSubmitting] = useState(false);
   const [loadingSource, setLoadingSource] = useState(Boolean(hiringRequestId));
   const [sourceRequest, setSourceRequest] = useState<HiringRequestSource>();
@@ -125,9 +126,11 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
         setMustHave(request.requirements.join("\n"));
         setNiceToHave("");
         setCriteriaText(
-          request.requirements.length
-            ? request.requirements.join("\n")
-            : `تناسب فنی با نقش ${request.title}`,
+          appendDefaultSoftSkills(
+            request.requirements.length
+              ? request.requirements
+              : [`تناسب فنی با نقش ${request.title}`],
+          ).join("\n"),
         );
       } catch (caught) {
         if (active) setError(caught instanceof Error ? caught.message : "درخواست جذب نیرو بارگذاری نشد");
@@ -225,7 +228,8 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
             </label>
           </div>
           <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای چارچوب ارزیابی — هر خط یک معیار
-            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش بک‌اند\nاستدلال قابلیت اطمینان\nارتباط مؤثر"} />
+            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش بک‌اند\nوضوح و ساختار ارتباط\nهمکاری و کار تیمی"} />
+            <span className="block text-[9px] font-normal leading-4 text-slate-400">معیارهای نرم استاندارد به‌صورت پیش‌فرض اضافه شده‌اند و فقط از پاسخ و شواهد شغلی امتیاز می‌گیرند؛ هیچ تحلیل چهره، لهجه یا شخصیت انجام نمی‌شود.</span>
           </label>
         </Panel>
 

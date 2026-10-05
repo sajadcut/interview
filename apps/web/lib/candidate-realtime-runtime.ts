@@ -13,11 +13,25 @@ export type CandidateRuntimeTurn = {
   spokenText: string;
 };
 
+export type CandidateRuntimeClock = {
+  mode: "server_wall_clock";
+  durationSeconds: number;
+  elapsedSeconds: number;
+  remainingSeconds: number;
+  startedAt: string | null;
+  serverNow: string;
+  completedAt: string | null;
+  running: boolean;
+  stage: "not_started" | "normal" | "ending_soon" | "final_minute" | "expired";
+  disconnectPolicy: "clock_continues";
+};
+
 export type CandidateRuntimeSnapshot = {
   status: "active" | "completed";
   sessionId: string;
   mediaSessionId: string;
   remainingSeconds: number;
+  clock: CandidateRuntimeClock;
   releaseMode: string;
   interviewer: {
     name: string;
@@ -36,6 +50,7 @@ export type CandidateRuntimeSnapshot = {
 export type CandidateRuntimeAnswer = {
   candidateText: string;
   remainingSeconds: number;
+  clock: CandidateRuntimeClock;
   completed: boolean;
   turn: CandidateRuntimeTurn;
 };
@@ -203,6 +218,7 @@ class CandidateBrowserRealtimeRuntime {
       ...snapshot,
       status: result.completed ? "completed" : "active",
       remainingSeconds: result.remainingSeconds,
+      clock: result.clock,
       turn: result.turn,
       transcript: [
         ...snapshot.transcript,
@@ -212,6 +228,46 @@ class CandidateBrowserRealtimeRuntime {
     };
     this.emit({ type: "snapshot", snapshot: this.snapshot });
     return result;
+  }
+
+  async sync(): Promise<Pick<CandidateRuntimeSnapshot, "status" | "sessionId" | "remainingSeconds" | "clock" | "turn">> {
+    const snapshot = this.snapshot;
+    if (!snapshot) throw new Error("Candidate interview runtime is not connected");
+    const result = await readJson<Pick<CandidateRuntimeSnapshot, "status" | "sessionId" | "remainingSeconds" | "clock" | "turn">>(
+      await fetch(
+        `${candidateApi}/sessions/${encodeURIComponent(snapshot.sessionId)}/media/${encodeURIComponent(snapshot.mediaSessionId)}/status`,
+        { method: "GET", credentials: "same-origin", cache: "no-store" },
+      ),
+    );
+    this.snapshot = {
+      ...snapshot,
+      status: result.status,
+      remainingSeconds: result.remainingSeconds,
+      clock: result.clock,
+      turn: result.turn,
+    };
+    return result;
+  }
+
+  async reportIntegrity(input: {
+    eventType: "visibility_hidden" | "visibility_visible" | "window_blur" | "window_focus" | "large_paste" | "reconnect";
+    clientOccurredAt?: string;
+    durationMs?: number;
+    metadata?: { field?: string; characterCount?: number };
+  }): Promise<void> {
+    const snapshot = this.snapshot;
+    if (!snapshot) return;
+    await readJson<Record<string, unknown>>(
+      await fetch(
+        `${candidateApi}/sessions/${encodeURIComponent(snapshot.sessionId)}/media/${encodeURIComponent(snapshot.mediaSessionId)}/integrity-events`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(input),
+        },
+      ),
+    );
   }
 
   async submitVoice(audio: Blob): Promise<CandidateRuntimeVoiceAnswer> {
@@ -233,6 +289,7 @@ class CandidateBrowserRealtimeRuntime {
         ...snapshot,
         status: result.completed ? "completed" : "active",
         remainingSeconds: result.remainingSeconds,
+        clock: result.clock!,
         turn: result.turn,
         transcript: [
           ...snapshot.transcript,

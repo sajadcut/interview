@@ -8,11 +8,34 @@ import { createCandidateRealtimeRuntime } from "../../../lib/candidate-realtime-
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
 type CandidateSession = components["schemas"]["CandidateSessionDto"];
+type CandidateInterviewPreflight = {
+  timeBudgetMinutes: number;
+  interviewType: string;
+  language: string;
+  clockPolicy: { mode: "server_wall_clock"; disconnectPolicy: "clock_continues" };
+  integrityPolicy: {
+    observableSignalsOnly: true;
+    automaticCheatingDecision: false;
+    automaticScorePenalty: false;
+    humanReviewRequiredForConcern: true;
+  };
+};
+
+async function loadInterviewPreflight(): Promise<CandidateInterviewPreflight> {
+  const response = await fetch("/api/candidate-interview/preflight", {
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (response.status === 401) window.location.replace("/candidate/login");
+  if (!response.ok) throw new Error("interview_preflight_failed");
+  return response.json() as Promise<CandidateInterviewPreflight>;
+}
 
 export default function CandidateInterviewPage() {
   const locale = getDefaultLocale();
   const copy = candidateCopy[locale];
   const [session, setSession] = useState<CandidateSession | null>(null);
+  const [preflight, setPreflight] = useState<CandidateInterviewPreflight | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const runtime = useMemo(
@@ -29,8 +52,9 @@ export default function CandidateInterviewPage() {
     void Promise.all([
       api.GET("/v1/candidate-auth/session"),
       api.GET("/v1/candidate-consent"),
+      loadInterviewPreflight(),
     ])
-      .then(([sessionResult, consentResult]) => {
+      .then(([sessionResult, consentResult, preflightResult]) => {
         if (!active) return;
         if (sessionResult.error || !sessionResult.data) {
           if (sessionResult.response.status === 401) {
@@ -53,6 +77,7 @@ export default function CandidateInterviewPage() {
           return;
         }
         setSession(sessionResult.data);
+        setPreflight(preflightResult);
       })
       .catch(() => {
         if (active) setLoadError(true);
@@ -85,7 +110,7 @@ export default function CandidateInterviewPage() {
     );
   }
 
-  if (!session) {
+  if (!session || !preflight) {
     return (
       <main className="grid min-h-screen place-items-center px-4 text-sm text-slate-500" role="status" aria-live="polite">
         {copy.loading}
@@ -98,6 +123,9 @@ export default function CandidateInterviewPage() {
       candidateName={session.candidateDisplayName}
       jobTitle={session.jobTitle}
       sessionExpiresAt={session.expiresAt}
+      interviewDurationMinutes={preflight.timeBudgetMinutes}
+      interviewType={preflight.interviewType}
+      integrityPolicy={preflight.integrityPolicy}
       runtime={runtime}
     />
   );
