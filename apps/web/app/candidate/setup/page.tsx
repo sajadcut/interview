@@ -24,7 +24,13 @@ function messageFrom(value: unknown, fallback: string, locale: "fa" | "en"): str
 
 function deviceErrorMessage(
   cause: unknown,
-  copy: typeof candidateCopy.fa.setup,
+  copy: {
+    deviceNotFound: string;
+    devicePermissionDenied: string;
+    deviceUnsupported: string;
+    deviceRequired: string;
+    deviceFailed: string;
+  },
 ): string {
   if (cause instanceof DOMException) {
     if (["NotFoundError", "DevicesNotFoundError", "OverconstrainedError"].includes(cause.name)) {
