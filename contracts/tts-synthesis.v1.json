@@ -169,7 +169,7 @@
     "device": "cpu",
     "sampleRate": 24000,
     "workerPort": 9022,
-    "python": ">=3.11,<3.14",
+    "python": ">=3.11,<3.13",
     "localGpuRequired": false,
     "networkRequiredAfterModelCache": false,
     "contextualPersianG2p": true,
