@@ -5,6 +5,7 @@ const root = resolve(import.meta.dirname, "..");
 const paths = {
   contract: resolve(root, "contracts/tts-synthesis.v1.json"),
   layer: resolve(root, "services/tts-worker/tts_layer.py"),
+  edgeLayer: resolve(root, "services/tts-worker/edge_tts_layer.py"),
   server: resolve(root, "services/tts-worker/server.py"),
   layerTests: resolve(root, "services/tts-worker/test/test_tts_layer.py"),
   httpTests: resolve(root, "services/tts-worker/test/test_tts_http_contract.py"),
@@ -26,6 +27,7 @@ const entries = await Promise.all(Object.values(paths).map((path) => readFile(pa
 const [
   contractText,
   layerSource,
+  edgeLayerSource,
   serverSource,
   layerTests,
   httpTests,
@@ -42,7 +44,15 @@ const contract = JSON.parse(contractText);
 const pkg = JSON.parse(packageText);
 
 invariant(contract.version === "tts-synthesis.v1", "version drift");
-invariant(contract.provider === "local-command", "provider drift");
+invariant(contract.provider === "edge-tts", "default provider drift");
+invariant(contract.fallbackProvider === "local-command", "fallback provider drift");
+invariant(
+  JSON.stringify(contract.response?.acceptedContentTypes) === JSON.stringify(["audio/mpeg", "audio/wav"]),
+  "TTS response content types drift",
+);
+invariant(contract.edgeAdapter?.voiceDefault === "fa-IR-FaridNeural", "Persian Edge voice drift");
+invariant(contract.edgeAdapter?.localGpuRequired === false, "Edge provider must not require local GPU");
+invariant(contract.edgeAdapter?.shell === false, "Edge provider must remain shell-free");
 invariant(
   JSON.stringify(contract.independentOf) === JSON.stringify(["llm", "whisper", "livekit", "ffmpeg"]),
   "standalone dependency boundary drift",
@@ -82,11 +92,25 @@ for (const marker of [
 }
 
 for (const marker of [
+  'PROVIDER = "edge-tts"',
+  'CONTENT_TYPE = "audio/mpeg"',
+  'DEFAULT_VOICE = "fa-IR-FaridNeural"',
+  "class EdgeTTSRunner",
+  '"--file"',
+  '"--write-media"',
+  "validate_mp3_bytes",
+  "shell=False",
+]) {
+  invariant(edgeLayerSource.includes(marker), `Edge TTS layer marker missing: ${marker}`);
+}
+
+for (const marker of [
   'self.path != "/health"',
   'self.path != "/synthesize"',
   '"x-tts-contract-version"',
   '"x-tts-provider"',
-  "TTSProcessRunner().synthesize",
+  "synthesize_audio(spoken_text)",
+  'active_engine() == "edge-tts"',
 ]) {
   invariant(serverSource.includes(marker), `worker HTTP marker missing: ${marker}`);
 }
@@ -108,6 +132,8 @@ for (const marker of [
   '"x-tts-secret"',
   "readBoundedBytes",
   "hasValidWavHeader",
+  "hasValidMp3Header",
+  '"audio/mpeg"',
 ]) {
   invariant(clientSource.includes(marker), `API client marker missing: ${marker}`);
 }
