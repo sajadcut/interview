@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
 import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
-  CreateHiringRequestDto, LinkHiringRequestJobDto, ReviewHiringRequestDto, SubmitTechnicalApprovalDto,
+  BulkHiringRequestDeleteResultDto, BulkHiringRequestIdsDto, CreateHiringRequestDto, LinkHiringRequestJobDto, ReviewHiringRequestDto, SubmitTechnicalApprovalDto, UpdateHiringRequestDto,
 } from "./hiring-requests.dto";
 import { HiringRequestsService } from "./hiring-requests.service";
 
@@ -25,6 +25,28 @@ export class HiringRequestsController {
   @RequirePermissions(Permissions.HiringRequestCreate)
   @AuditedAction("hiring_request.create", "hiring_request")
   createHiringRequest(@Body() body: CreateHiringRequestDto) { return this.hiringRequests.createHiringRequest(body); }
+
+  @Patch("hiring-requests/:hiringRequestId")
+  @RequirePermissions(Permissions.HiringRequestCreate)
+  @AuditedAction("hiring_request.update", "hiring_request")
+  updateHiringRequest(@Param("hiringRequestId") hiringRequestId: string, @Body() body: UpdateHiringRequestDto) {
+    return this.hiringRequests.updateHiringRequest(hiringRequestId, body);
+  }
+
+  @Delete("hiring-requests/:hiringRequestId")
+  @RequirePermissions(Permissions.HiringRequestCreate)
+  @AuditedAction("hiring_request.delete", "hiring_request")
+  deleteHiringRequest(@Param("hiringRequestId") hiringRequestId: string) {
+    return this.hiringRequests.deleteHiringRequest(hiringRequestId);
+  }
+
+  @Post("hiring-requests/bulk-delete")
+  @RequirePermissions(Permissions.HiringRequestCreate)
+  @AuditedAction("hiring_request.bulk_delete", "hiring_request")
+  @ApiOkResponse({ type: BulkHiringRequestDeleteResultDto })
+  bulkDeleteHiringRequests(@Body() body: BulkHiringRequestIdsDto) {
+    return this.hiringRequests.bulkDeleteHiringRequests(body.ids);
+  }
 
   @Post("hiring-requests/:hiringRequestId/submit")
   @RequirePermissions(Permissions.HiringRequestCreate)
