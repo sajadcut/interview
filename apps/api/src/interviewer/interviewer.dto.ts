@@ -61,7 +61,12 @@ export class SubmitInterviewerEvaluationDto {
 }
 
 export class InterviewAssignmentSessionOptionDto {
-  @ApiProperty({ format: "uuid" }) sessionId!: string;
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Absent when an application is in the interview stage but still needs a real interview session to be scheduled.",
+  })
+  sessionId?: string;
+
   @ApiProperty() sessionStatus!: string;
   @ApiProperty({ format: "uuid" }) applicationId!: string;
   @ApiProperty() candidateName!: string;
