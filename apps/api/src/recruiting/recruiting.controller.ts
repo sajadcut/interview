@@ -1,3 +1,4 @@
+// Collection query surface exposes safe list metadata for consistent search, selection, and bulk actions.
 import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
