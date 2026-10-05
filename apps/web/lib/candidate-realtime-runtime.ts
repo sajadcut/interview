@@ -2,7 +2,7 @@
 
 import { Room, RoomEvent, Track } from "livekit-client";
 
-const candidateApi = "/api/candidate-interview";
+const candidateApi = "/api/backend/v1/candidate-interview";
 
 type CandidateSpeaker = "candidate" | "interviewer";
 
