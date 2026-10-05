@@ -17,6 +17,7 @@ function serviceWith(options: {
   spokenText?: string;
   pronunciationText?: string;
   pronunciationFails?: boolean;
+  ttsProvider?: string;
 } = {}) {
   const activeRow = { ...row, spoken_text: options.spokenText ?? row.spoken_text };
   const sql = async () => [activeRow];
@@ -55,14 +56,20 @@ function serviceWith(options: {
       ttsCalls.push("readiness");
       return options.ttsReady === false
         ? { reachable: true, ready: false, reason: "provider_unavailable" }
-        : { reachable: true, ready: true, contractVersion: "tts-synthesis.v1" };
+        : {
+            reachable: true,
+            ready: true,
+            contractVersion: "tts-synthesis.v1",
+            provider: options.ttsProvider ?? "local-command",
+          };
     },
     async synthesize(input: { spokenText: string; requestId?: string }) {
       ttsCalls.push("synthesize");
-      assert.equal(
-        input.spokenText,
-        options.pronunciationText ?? activeRow.spoken_text,
-      );
+      const expectedText =
+        options.ttsProvider === "ava-82m-persian-cpu"
+          ? activeRow.spoken_text
+          : options.pronunciationText ?? activeRow.spoken_text;
+      assert.equal(input.spokenText, expectedText);
       return {
         contractVersion: "tts-synthesis.v1",
         provider: "local-command",
@@ -173,6 +180,22 @@ test("Persian TTS uses the LLM pronunciation rendering before synthesis", async 
   );
   assert.deepEqual(aiCalls, ["در مورد تخصیص منابع توضیح بده."]);
   assert.deepEqual(ttsCalls, ["readiness", "synthesize"]);
+});
+
+test("Ava Persian TTS uses native contextual G2P and skips LLM pronunciation", async () => {
+  const { service, aiCalls, ttsCalls, mediaCalls } = serviceWith({
+    spokenText: "در مورد تخصیص منابع و معماری سیستم توضیح بده.",
+    ttsProvider: "ava-82m-persian-cpu",
+  });
+  await service.synthesizePersistedTurn(
+    "22222222-2222-4222-8222-222222222222",
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+  );
+  assert.deepEqual(aiCalls, []);
+  assert.deepEqual(ttsCalls, ["readiness", "synthesize"]);
+  const started = mediaCalls[0] as [unknown, unknown, { payload?: { pronunciationMode?: string } }];
+  assert.equal(started[2]?.payload?.pronunciationMode, "native_g2p");
 });
 
 test("Persian pronunciation failure falls back to the canonical finalized text", async () => {
