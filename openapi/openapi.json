@@ -9718,6 +9718,9 @@
           "interviewCount": {
             "type": "number"
           },
+          "deletable": {
+            "type": "boolean"
+          },
           "updatedAt": {
             "type": "string"
           }
@@ -9728,6 +9731,7 @@
           "status",
           "applicationCount",
           "interviewCount",
+          "deletable",
           "updatedAt"
         ]
       },

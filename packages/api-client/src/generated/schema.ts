@@ -2909,6 +2909,7 @@ export interface components {
             seniority?: string;
             applicationCount: number;
             interviewCount: number;
+            deletable: boolean;
             updatedAt: string;
         };
         RequirementDto: {
