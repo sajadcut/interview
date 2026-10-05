@@ -15,7 +15,7 @@ type InterviewerOption = {
 };
 
 type SessionOption = {
-  sessionId: string;
+  sessionId?: string;
   sessionStatus: string;
   applicationId: string;
   candidateName: string;
@@ -30,6 +30,15 @@ type SessionOption = {
 type Options = { sessions: SessionOption[]; interviewers: InterviewerOption[] };
 
 const TERMINAL_SESSION_STATUSES = new Set(["completed", "cancelled", "failed"]);
+
+function operationKey(session: SessionOption): string {
+  return session.sessionId ?? `application:${session.applicationId}`;
+}
+
+function statusLabel(status: string): string {
+  if (status === "needs_scheduling") return "نیازمند برنامه‌ریزی";
+  return faDomainLabel(status);
+}
 
 function localDateParts(value: string): { date: string; time: string } | undefined {
   const parsed = new Date(value);
@@ -51,9 +60,17 @@ export function InterviewOperations() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busySession, setBusySession] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+
+  const minDate = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
 
   const load = useCallback(async () => {
     const current = identity ?? (await resolveTenantIdentity());
@@ -76,14 +93,15 @@ export function InterviewOperations() {
     const nextDate: Record<string, string> = {};
     const nextTime: Record<string, string> = {};
     for (const session of data.sessions) {
+      const key = operationKey(session);
       if (session.interviewerUserId) {
-        nextSelected[session.sessionId] = session.interviewerUserId;
+        nextSelected[key] = session.interviewerUserId;
       }
       if (session.scheduledFor) {
         const parts = localDateParts(session.scheduledFor);
         if (parts) {
-          nextDate[session.sessionId] = parts.date;
-          nextTime[session.sessionId] = parts.time;
+          nextDate[key] = parts.date;
+          nextTime[key] = parts.time;
         }
       }
     }
@@ -106,22 +124,23 @@ export function InterviewOperations() {
     };
   }, [load]);
 
-  async function assign(session: SessionOption) {
+  async function scheduleOrAssign(session: SessionOption) {
     if (TERMINAL_SESSION_STATUSES.has(session.sessionStatus)) {
       setError("مصاحبه تکمیل‌شده یا لغوشده قابل تخصیص مجدد نیست.");
       return;
     }
 
-    const interviewerUserId = selected[session.sessionId];
+    const key = operationKey(session);
+    const interviewerUserId = selected[key];
     if (!interviewerUserId) {
       setError("ابتدا یک مصاحبه‌گر انتخاب کنید.");
       return;
     }
 
-    const date = scheduledDate[session.sessionId];
-    const time = scheduledTime[session.sessionId];
+    const date = scheduledDate[key];
+    const time = scheduledTime[key];
     if (!date || !time) {
-      setError("برای تخصیص مصاحبه، تاریخ و ساعت را مشخص کنید.");
+      setError("برای مصاحبه، تاریخ و ساعت را مشخص کنید.");
       return;
     }
 
@@ -136,29 +155,50 @@ export function InterviewOperations() {
     }
 
     const current = identity ?? (await resolveTenantIdentity());
-    setBusySession(session.sessionId);
+    setBusyKey(key);
     setError(null);
     setNotice(null);
+
     try {
-      const result = await api.POST("/v1/interviewer/assignments", {
-        headers: tenantHeaders(current),
-        body: {
-          sessionId: session.sessionId,
-          interviewerUserId,
-          scheduledFor: scheduled.toISOString(),
-        },
-      });
-      if (!result.response.ok) {
-        throw new Error(apiErrorMessage(result, "تخصیص مصاحبه‌گر ناموفق بود"));
+      if (session.sessionId) {
+        const result = await api.POST("/v1/interviewer/assignments", {
+          headers: tenantHeaders(current),
+          body: {
+            sessionId: session.sessionId,
+            interviewerUserId,
+            scheduledFor: scheduled.toISOString(),
+          },
+        });
+        if (!result.response.ok) {
+          throw new Error(apiErrorMessage(result, "به‌روزرسانی تخصیص مصاحبه‌گر ناموفق بود"));
+        }
+        setNotice(
+          `تخصیص «${session.candidateName}» به‌روزرسانی شد؛ مصاحبه‌گر می‌تواند آن را از «مصاحبه‌های من» شروع کند.`,
+        );
+      } else {
+        const result = await api.POST("/v1/interview-operations/technical-interviews", {
+          headers: tenantHeaders(current),
+          body: {
+            applicationId: session.applicationId,
+            interviewerUserId,
+            scheduledFor: scheduled.toISOString(),
+            durationMinutes: 60,
+            language: "fa",
+          },
+        });
+        if (result.error) {
+          throw new Error(apiErrorMessage(result, "ساخت و زمان‌بندی مصاحبه فنی ناموفق بود"));
+        }
+        setNotice(
+          `برای «${session.candidateName}» Session واقعی مصاحبه ساخته و به مصاحبه‌گر انتخاب‌شده تخصیص داده شد.`,
+        );
       }
+
       await load();
-      setNotice(
-        `تخصیص «${session.candidateName}» ثبت شد؛ پرونده در مرحله مصاحبه است و مصاحبه‌گر می‌تواند آن را از «مصاحبه‌های من» شروع کند.`,
-      );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تخصیص مصاحبه‌گر ناموفق بود");
+      setError(cause instanceof Error ? cause.message : "ثبت مصاحبه ناموفق بود");
     } finally {
-      setBusySession(null);
+      setBusyKey(null);
     }
   }
 
@@ -173,7 +213,7 @@ export function InterviewOperations() {
         session.jobTitle,
         session.interviewerName,
         session.interviewerEmail,
-        session.sessionStatus,
+        statusLabel(session.sessionStatus),
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
@@ -186,7 +226,7 @@ export function InterviewOperations() {
         <div>
           <h1 className="text-[24px] font-semibold tracking-[-.03em] text-slate-950">مصاحبه‌ها</h1>
           <p className="mt-1 text-[11px] text-slate-500">
-            مصاحبه‌گر و زمان انتخاب‌شده در مرحله برنامه‌ریزی اینجا نمایش داده می‌شوند؛ تخصیص مجدد نیز همین Session را به‌روزرسانی می‌کند.
+            پرونده‌های واردشده به مرحله مصاحبه حتی اگر Session نداشته باشند اینجا نمایش داده می‌شوند؛ انتخاب مصاحبه‌گر و زمان، Session واقعی را می‌سازد.
           </p>
         </div>
         <Link
@@ -226,6 +266,7 @@ export function InterviewOperations() {
             className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[11px]"
           >
             <option value="active">مصاحبه‌های فعال</option>
+            <option value="needs_scheduling">نیازمند برنامه‌ریزی</option>
             <option value="all">همه وضعیت‌ها</option>
             <option value="invited">در انتظار</option>
             <option value="scheduled">زمان‌بندی‌شده</option>
@@ -247,6 +288,7 @@ export function InterviewOperations() {
                 <th className="px-5 py-3 text-end">اقدام</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
@@ -256,16 +298,30 @@ export function InterviewOperations() {
                 </tr>
               ) : (
                 filteredSessions.map((session) => {
+                  const key = operationKey(session);
                   const terminal = TERMINAL_SESSION_STATUSES.has(session.sessionStatus);
+                  const needsScheduling = session.sessionStatus === "needs_scheduling";
+
                   return (
-                    <tr key={session.sessionId}>
+                    <tr key={key} className={needsScheduling ? "bg-amber-50/30" : undefined}>
                       <td className="px-5 py-4 font-semibold text-slate-800">{session.candidateName}</td>
                       <td className="px-3 py-4 text-slate-600">{session.jobTitle}</td>
+
                       <td className="px-3 py-4">
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
-                          {faDomainLabel(session.sessionStatus)}
+                        <span
+                          className={
+                            needsScheduling
+                              ? "rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800"
+                              : "rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600"
+                          }
+                        >
+                          {statusLabel(session.sessionStatus)}
                         </span>
-                        {session.assignmentStatus && !terminal ? (
+                        {needsScheduling ? (
+                          <div className="mt-1 max-w-44 text-[9px] leading-4 text-amber-700">
+                            پرونده در مرحله مصاحبه است ولی Session فعال ندارد.
+                          </div>
+                        ) : session.assignmentStatus && !terminal ? (
                           <div className="mt-1 text-[9px] font-medium text-emerald-600">تخصیص ثبت‌شده</div>
                         ) : null}
                       </td>
@@ -280,28 +336,31 @@ export function InterviewOperations() {
                               <input
                                 aria-label={`تاریخ مصاحبه برای ${session.candidateName}`}
                                 type="date"
-                                value={scheduledDate[session.sessionId] ?? ""}
+                                min={minDate}
+                                value={scheduledDate[key] ?? ""}
                                 onChange={(event) =>
-                                  setScheduledDate((state) => ({ ...state, [session.sessionId]: event.target.value }))
+                                  setScheduledDate((state) => ({ ...state, [key]: event.target.value }))
                                 }
                                 dir="ltr"
                                 className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-[10px]"
                               />
                             </label>
+
                             <label className="text-[9px] font-medium text-slate-500">
                               ساعت
                               <input
                                 aria-label={`ساعت مصاحبه برای ${session.candidateName}`}
                                 type="time"
                                 step="300"
-                                value={scheduledTime[session.sessionId] ?? ""}
+                                value={scheduledTime[key] ?? ""}
                                 onChange={(event) =>
-                                  setScheduledTime((state) => ({ ...state, [session.sessionId]: event.target.value }))
+                                  setScheduledTime((state) => ({ ...state, [key]: event.target.value }))
                                 }
                                 dir="ltr"
                                 className="mt-1 h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-[10px]"
                               />
                             </label>
+
                             {session.scheduledFor ? (
                               <div className="col-span-2 text-[9px] text-slate-400">
                                 ثبت‌شده: {formatFaDateTime(session.scheduledFor)}
@@ -313,21 +372,19 @@ export function InterviewOperations() {
 
                       <td className="px-3 py-4">
                         {terminal ? (
-                          <div>
-                            <div className="font-semibold text-slate-700">
-                              {session.interviewerName || session.interviewerEmail || "بدون مصاحبه‌گر"}
-                            </div>
+                          <div className="font-semibold text-slate-700">
+                            {session.interviewerName || session.interviewerEmail || "بدون مصاحبه‌گر"}
                           </div>
                         ) : (
                           <div className="min-w-52">
-                            <label className="sr-only" htmlFor={`interviewer-${session.sessionId}`}>
+                            <label className="sr-only" htmlFor={`interviewer-${key}`}>
                               مصاحبه‌گر برای {session.candidateName}
                             </label>
                             <select
-                              id={`interviewer-${session.sessionId}`}
-                              value={selected[session.sessionId] ?? ""}
+                              id={`interviewer-${key}`}
+                              value={selected[key] ?? ""}
                               onChange={(event) =>
-                                setSelected((state) => ({ ...state, [session.sessionId]: event.target.value }))
+                                setSelected((state) => ({ ...state, [key]: event.target.value }))
                               }
                               className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px]"
                             >
@@ -338,12 +395,14 @@ export function InterviewOperations() {
                                 </option>
                               ))}
                             </select>
+
                             {session.interviewerUserId ? (
                               <div className="mt-1 text-[9px] text-emerald-600">
-                                مصاحبه‌گر مرحله قبل: {session.interviewerName || session.interviewerEmail}
+                                {needsScheduling ? "آخرین مصاحبه‌گر ثبت‌شده" : "مصاحبه‌گر مرحله قبل"}:{" "}
+                                {session.interviewerName || session.interviewerEmail}
                               </div>
                             ) : (
-                              <div className="mt-1 text-[9px] text-amber-600">هنوز مصاحبه‌گری ثبت نشده است.</div>
+                              <div className="mt-1 text-[9px] text-amber-600">مصاحبه‌گر را انتخاب کنید.</div>
                             )}
                           </div>
                         )}
@@ -354,16 +413,18 @@ export function InterviewOperations() {
                           <span className="text-[10px] text-slate-400">این مصاحبه پایان یافته است</span>
                         ) : (
                           <button
-                            disabled={busySession === session.sessionId || !selected[session.sessionId]}
-                            onClick={() => void assign(session)}
+                            disabled={busyKey === key || !selected[key] || !scheduledDate[key] || !scheduledTime[key]}
+                            onClick={() => void scheduleOrAssign(session)}
                             className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40"
                             type="button"
                           >
-                            {busySession === session.sessionId
+                            {busyKey === key
                               ? "در حال ثبت…"
-                              : session.interviewerUserId
-                                ? "ذخیره تخصیص"
-                                : "تخصیص و ارسال به مصاحبه"}
+                              : needsScheduling
+                                ? "ساخت Session و ارسال به مصاحبه"
+                                : session.interviewerUserId
+                                  ? "ذخیره تخصیص"
+                                  : "تخصیص و ارسال به مصاحبه"}
                           </button>
                         )}
                       </td>
@@ -377,7 +438,7 @@ export function InterviewOperations() {
                   <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
                     {options.sessions.length
                       ? "مصاحبه فعالی با فیلترهای فعلی پیدا نشد. برای دیدن تاریخچه، «همه وضعیت‌ها» را انتخاب کنید."
-                      : "نشست مصاحبه‌ای پیدا نشد."}
+                      : "هیچ پرونده‌ای در مرحله مصاحبه یا Session مصاحبه‌ای وجود ندارد."}
                   </td>
                 </tr>
               ) : null}
