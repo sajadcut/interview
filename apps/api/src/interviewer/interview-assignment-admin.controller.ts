@@ -7,6 +7,8 @@ import { ApiStandardErrorResponses } from "../common/http/api-standard-error-res
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
   InterviewAssignmentOptionsDto,
+  PrepareAiInterviewDto,
+  PreparedAiInterviewDto,
   ScheduleTechnicalInterviewDto,
   ScheduledTechnicalInterviewDto,
 } from "./interviewer.dto";
@@ -24,6 +26,14 @@ export class InterviewAssignmentAdminController {
   @ApiStandardErrorResponses()
   getAssignmentOptions() {
     return this.assignments.getOptions();
+  }
+
+  @Post("ai-interviews")
+  @AuditedAction("interview.ai.prepare", "application")
+  @ApiOkResponse({ type: PreparedAiInterviewDto })
+  @ApiStandardErrorResponses()
+  prepareAiInterview(@Body() body: PrepareAiInterviewDto) {
+    return this.assignments.prepareAiInterview(body);
   }
 
   @Post("technical-interviews")
