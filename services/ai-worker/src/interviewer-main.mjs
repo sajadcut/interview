@@ -2,6 +2,7 @@
 import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 import process from "node:process";
 import { interviewerPromptDefinition } from "./interviewer-capability.mjs";
+import { persianPronunciationPromptDefinition } from "./persian-pronunciation-capability.mjs";
 import { createInterviewerHttpServer } from "./interviewer-http.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider, providerInfoFromEnvironment } from "./provider-factory.mjs";
@@ -27,7 +28,10 @@ const sharedSecret = process.env.AI_WORKER_SHARED_SECRET?.trim();
 if (!sharedSecret) throw new Error("AI_WORKER_SHARED_SECRET is required");
 
 const selected = providerFromEnvironment();
-const promptRegistry = new PromptRegistry([interviewerPromptDefinition]);
+const promptRegistry = new PromptRegistry([
+  interviewerPromptDefinition,
+  persianPronunciationPromptDefinition,
+]);
 const llm = new LLMProviderLayer({
   providers: [selected.provider],
   promptRegistry,
