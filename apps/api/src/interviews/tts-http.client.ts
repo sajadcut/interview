@@ -178,7 +178,9 @@ function hasValidMp3Header(audio: Uint8Array): boolean {
   if (String.fromCharCode(...audio.subarray(0, 3)) === "ID3") return true;
   const probeLength = Math.min(audio.byteLength - 1, 4096);
   for (let index = 0; index < probeLength; index += 1) {
-    if (audio[index] === 0xff && (audio[index + 1] & 0xe0) === 0xe0) return true;
+    const current = audio[index];
+    const next = audio[index + 1];
+    if (current === 0xff && next !== undefined && (next & 0xe0) === 0xe0) return true;
   }
   return false;
 }
