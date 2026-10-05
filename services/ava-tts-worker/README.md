@@ -39,9 +39,10 @@ The setup script:
 - keeps Click, Hugging Face Hub, SoundFile, Transformers, Torch, and the Kokoro revision aligned with Ava v0.2.0;
 - installs the pinned Ava-82M v0.2.0 wheel with `--no-deps` so its stale native pins do not force source builds;
 - installs the Windows certificate-store bridge for managed/corporate TLS networks;
-- verifies that Ava imports correctly.
+- verifies that Ava imports correctly;
+- by default loads the real Ava model on CPU and synthesizes a short Persian sentence; setup fails if the model cannot generate non-empty 24 kHz audio.
 
-The first worker start downloads the Ava acoustic model and pinned Persian G2P artifacts into the user cache. Later starts use the local cache.
+The setup script now performs the first real model/G2P download itself as part of an end-to-end Persian synthesis smoke test. Later worker starts use the local cache. Import success alone is not treated as proof that the runtime works. For troubleshooting only, the real synthesis check can be skipped with `-SkipRuntimeSmokeTest`; that mode does not provide runtime assurance.
 
 ## Run
 
