@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
+import { AiGatewayService } from "../ai/ai-gateway.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewMediaService } from "./interview-media.service";
 import {
@@ -38,6 +39,7 @@ export class InterviewSpeechService {
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
     private readonly media: InterviewMediaService,
+    private readonly ai: AiGatewayService,
     @Inject(TEXT_TO_SPEECH_ADAPTER) private readonly tts: TextToSpeechAdapter,
     @Inject(VOICE_ACTIVITY_DETECTION_ADAPTER) private readonly vad: VoiceActivityDetectionAdapter,
     @Inject(SPEECH_TO_TEXT_ADAPTER) private readonly stt: SpeechToTextAdapter,
@@ -257,17 +259,38 @@ export class InterviewSpeechService {
       );
     }
 
+    let ttsSpokenText = spokenText;
+    let pronunciationMode: "llm" | "fallback" | "not_needed" = "not_needed";
+    if (/[\u0600-\u06FF]/u.test(spokenText)) {
+      try {
+        const pronunciation = await this.ai.pronouncePersianForTts({
+          spokenText,
+          turnId,
+        });
+        ttsSpokenText = pronunciation.ttsText;
+        pronunciationMode = "llm";
+      } catch {
+        // Pronunciation rendering improves TTS quality but must never block the interview.
+        // Fall back to the canonical finalized turn if the LLM sidecar is unavailable.
+        pronunciationMode = "fallback";
+      }
+    }
+
     await this.media.appendEvent(sessionId, mediaSessionId, {
       idempotencyKey: `tts:${turnId}:started`,
       eventType: "tts_started",
       sourceComponent: "tts",
-      payload: { turnId, action: String(row?.action ?? "unknown") },
+      payload: {
+        turnId,
+        action: String(row?.action ?? "unknown"),
+        pronunciationMode,
+      },
     });
 
     let synthesis: Awaited<ReturnType<TextToSpeechAdapter["synthesize"]>>;
     try {
       synthesis = await this.tts.synthesize({
-        spokenText,
+        spokenText: ttsSpokenText,
         requestId: `tts:${turnId}`,
       });
     } catch (cause) {
