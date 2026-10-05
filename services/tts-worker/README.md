@@ -1,6 +1,6 @@
 # Standalone TTS Worker
 
-`services/tts-worker` is the provider-neutral local command boundary for text-to-speech. It is intentionally a separate process from the media worker so TTS can be developed, deployed, benchmarked and replaced without waiting for LLM, whisper.cpp, LiveKit or FFmpeg.
+`services/tts-worker` is the provider-neutral text-to-speech boundary used by the interview runtime. The default engine is now Microsoft Edge neural TTS with the Persian male voice `fa-IR-FaridNeural`. It requires network access but no local GPU. The previous local command/Piper path remains available only as an explicit fallback.
 
 The worker exposes:
 
@@ -9,38 +9,81 @@ GET  /health
 POST /synthesize
 ```
 
-The versioned contract is `contracts/tts-synthesis.v1.json`. `POST /synthesize` requires `x-tts-contract-version`, `x-request-id` and the shared secret. The worker accepts UTF-8 `spokenText`, writes it only to an owned temporary file, invokes the configured engine with `shell=false`, validates non-empty WAV output, then removes both text and audio workspace files.
+The versioned contract is `contracts/tts-synthesis.v1.json`. `POST /synthesize` requires `x-tts-contract-version`, `x-request-id` and the shared secret. The worker accepts only the finalized server-side interview `spokenText`; browser-supplied arbitrary TTS text is not accepted by the core interview flow.
 
-## Configuration
+## Default Edge neural engine
 
-The command template must contain exactly `{text_file}` and `{output_wav}`. The engine must read UTF-8 text from the first path and write WAV to the second path.
+Install the worker dependency:
 
-```env
-TTS_COMMAND=<tts-executable> ... --input {text_file} ... --output {output_wav}
-TTS_TIMEOUT_SECONDS=60
-TTS_TERMINATION_GRACE_SECONDS=2
-TTS_WORK_ROOT=
-TTS_WORKER_HOST=127.0.0.1
-TTS_WORKER_PORT=9020
-MEDIA_WORKER_SHARED_SECRET=<local-secret>
+```powershell
+python -m pip install -r services/tts-worker/requirements.txt
 ```
 
-The standalone worker currently reuses `MEDIA_WORKER_SHARED_SECRET` as the API/worker shared-secret source so existing secret management remains compatible. This is only a credential name; the worker has no runtime dependency on the media worker. It also accepts `TTS_SHARED_SECRET` as an override when launched independently.
+On managed Windows networks that use a corporate TLS interception/root CA, Python may also need the Windows certificate store bridge:
 
-Point the API at the standalone service:
+```powershell
+python -m pip install pip-system-certs
+```
+
+The user workstation has already validated `edge-tts` successfully against `fa-IR-FaridNeural`.
+
+Configuration:
 
 ```env
 TTS_PROVIDER=local-http
 TTS_BASE_URL=http://127.0.0.1:9020
+
+TTS_ENGINE=edge-tts
+TTS_EDGE_EXECUTABLE=edge-tts
+TTS_EDGE_VOICE=fa-IR-FaridNeural
+TTS_EDGE_RATE=+0%
+TTS_EDGE_VOLUME=+0%
+TTS_EDGE_PITCH=+0Hz
+TTS_EDGE_PROXY=
+
+TTS_TIMEOUT_SECONDS=60
+TTS_TERMINATION_GRACE_SECONDS=2
+TTS_WORK_ROOT=
+MEDIA_WORKER_SHARED_SECRET=<local-secret>
 ```
 
-Production deployments should terminate TLS in front of the worker and use HTTPS plus a strong shared secret. The API adapter fails closed on insecure production TTS configuration.
+Start it with:
 
-## Tests without a TTS engine
+```powershell
+npm run tts-worker:dev
+```
+
+Expected health metadata includes:
+
+```text
+provider: edge-tts
+contentType: audio/mpeg
+voice: fa-IR-FaridNeural
+ready: true
+```
+
+Edge TTS outputs MP3. The API contract accepts `audio/mpeg` for this engine and streams it directly to the browser, which avoids a local FFmpeg conversion step and keeps CPU/latency low.
+
+## Legacy local/Piper fallback
+
+The old command adapter is still available for offline fallback:
+
+```env
+TTS_ENGINE=local-command
+TTS_COMMAND=<tts-executable> ... --input {text_file} ... --output {output_wav}
+```
+
+The command template must contain exactly `{text_file}` and `{output_wav}`; the engine must read UTF-8 text from the first path and produce WAV in the second path. The process is still launched with `shell=false`, bounded timeouts and owned temporary workspaces.
+
+## Privacy boundary
+
+The worker does not persist text or audio. With `edge-tts`, the synthesized interviewer text is sent to Microsoft's online Edge speech service, so this engine is not an offline/private-local provider. Keep Piper/local-command available for deployments whose policy prohibits sending synthesized interviewer text to an external speech service.
+
+## Tests
 
 ```bash
 npm run tts:contract:check
 npm run tts-worker:test
 ```
 
-Tests use the current Python interpreter as a scripted fake engine. They cover shell-free command construction, text-via-file transport, timeout/terminate/kill, cleanup, WAV validation, HTTP authentication/versioning and standalone readiness. No model, voice package, API key, FFmpeg, Whisper, LiveKit or LLM is required.
+Contract tests do not call the real Edge service. They exercise local command safety, media validation and API compatibility without requiring a GPU or external network.
