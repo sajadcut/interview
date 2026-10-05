@@ -26,6 +26,7 @@ export default function CandidatesPage() {
   const [engagementFilter, setEngagementFilter] = useState<"all" | "active" | "unassigned">("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [cascadeDeleteIds, setCascadeDeleteIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string }>();
   const [loading, setLoading] = useState(true);
@@ -106,14 +107,67 @@ export default function CandidatesPage() {
         result.data.deletedIds.forEach((id) => next.delete(id));
         return next;
       });
-      setFeedback(
-        result.data.blockedIds.length
-          ? { tone: "warning", text: `${formatFaNumber(result.data.deletedCount)} کاندیدا حذف شد؛ ${formatFaNumber(result.data.blockedIds.length)} مورد به پرونده استخدامی متصل بود و حذف نشد.` }
-          : { tone: "success", text: `${formatFaNumber(result.data.deletedCount)} کاندیدا با موفقیت حذف شد.` },
-      );
+      if (result.data.blockedIds.length > 0) {
+        setCascadeDeleteIds(result.data.blockedIds);
+        setFeedback({
+          tone: "warning",
+          text: `${formatFaNumber(result.data.deletedCount)} کاندیدا حذف شد؛ برای ${formatFaNumber(result.data.blockedIds.length)} مورد، حذف کامل پرونده‌های استخدامی نیاز به تأیید جداگانه دارد.`,
+        });
+      } else {
+        setFeedback({
+          tone: "success",
+          text: `${formatFaNumber(result.data.deletedCount)} کاندیدا با موفقیت حذف شد.`,
+        });
+      }
       setDeleteIds([]);
     } catch (cause) {
       setFeedback({ tone: "error", text: cause instanceof Error ? cause.message : "حذف کاندیداها ناموفق بود" });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function confirmCascadeDelete() {
+    if (cascadeDeleteIds.length === 0 || deleting) return;
+    setDeleting(true);
+    setFeedback(undefined);
+    try {
+      const identity = await resolveTenantIdentity();
+      const result = await api.POST("/v1/candidates/bulk-delete", {
+        headers: tenantHeaders(identity),
+        body: {
+          ids: cascadeDeleteIds,
+          cascadeApplications: true,
+        },
+      });
+      if (result.error || !result.data) {
+        throw new Error("حذف کامل کاندیدا و پرونده‌های استخدامی ناموفق بود");
+      }
+
+      const deletedIds = new Set(result.data.deletedIds);
+      setCandidates((current) => current.filter((candidate) => !deletedIds.has(candidate.id)));
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        result.data.deletedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      setCascadeDeleteIds([]);
+      setFeedback(
+        result.data.blockedIds.length
+          ? {
+              tone: "warning",
+              text: `${formatFaNumber(result.data.deletedCount)} کاندیدا به‌صورت کامل حذف شد؛ ${formatFaNumber(result.data.blockedIds.length)} مورد پیدا نشد یا قابل حذف نبود.`,
+            }
+          : {
+              tone: "success",
+              text: `${formatFaNumber(result.data.deletedCount)} کاندیدا همراه با پرونده‌های استخدامی و داده‌های وابسته با موفقیت حذف شد.`,
+            },
+      );
+    } catch (cause) {
+      setFeedback({
+        tone: "error",
+        text: cause instanceof Error ? cause.message : "حذف کامل کاندیدا ناموفق بود",
+      });
     } finally {
       setDeleting(false);
     }
@@ -245,7 +299,7 @@ export default function CandidatesPage() {
                       {access.can("candidate.resume_manage") ? (
                         <button
                           type="button"
-                          title={candidate.applicationCount > 0 ? "حذف را امتحان کنید؛ اگر پرونده استخدامی مانع باشد، دلیل دقیق نمایش داده می‌شود." : "حذف کاندیدا"}
+                          title={candidate.applicationCount > 0 ? "ابتدا حذف امن بررسی می‌شود؛ سپس می‌توانید حذف کامل پرونده‌های استخدامی را جداگانه تأیید کنید." : "حذف کاندیدا"}
                           onClick={() => setDeleteIds([candidate.id])}
                           className="text-[10px] font-semibold text-rose-600 hover:text-rose-700"
                         >
@@ -271,13 +325,27 @@ export default function CandidatesPage() {
         title={deleteIds.length > 1 ? "حذف کاندیداهای انتخاب‌شده؟" : "حذف کاندیدا؟"}
         description={
           deleteIds.length > 1
-            ? `این کار ${formatFaNumber(deleteIds.length)} پروفایل انتخاب‌شده را همراه با رزومه‌ها و شواهد مستقل آن‌ها حذف می‌کند. کاندیداهای دارای پرونده استخدامی حذف نمی‌شوند.`
-            : "این پروفایل و رزومه‌ها و شواهد مستقل آن حذف می‌شوند. اگر کاندیدا به پرونده استخدامی متصل باشد، حذف انجام نمی‌شود."
+            ? `ابتدا حذف امن برای ${formatFaNumber(deleteIds.length)} پروفایل انجام می‌شود. اگر موردی پرونده استخدامی داشته باشد، قبل از حذف کامل یک تأیید جداگانه نمایش داده می‌شود.`
+            : "ابتدا حذف امن انجام می‌شود. اگر این کاندیدا پرونده استخدامی داشته باشد، قبل از حذف کامل همه سوابق وابسته یک تأیید جداگانه نمایش داده می‌شود."
         }
-        confirmLabel={deleteIds.length > 1 ? "حذف کاندیداها" : "حذف کاندیدا"}
+        confirmLabel={deleteIds.length > 1 ? "بررسی و حذف" : "بررسی و حذف"}
         busy={deleting}
         onConfirm={() => void confirmDelete()}
         onCancel={() => setDeleteIds([])}
+      />
+
+      <ConfirmDialog
+        open={cascadeDeleteIds.length > 0}
+        title={cascadeDeleteIds.length > 1 ? "حذف کامل کاندیداها و پرونده‌های استخدامی؟" : "حذف کامل کاندیدا و پرونده استخدامی؟"}
+        description={
+          cascadeDeleteIds.length > 1
+            ? `این عملیات غیرقابل‌بازگشت است. ${formatFaNumber(cascadeDeleteIds.length)} کاندیدا همراه با همه پرونده‌های استخدامی، مصاحبه‌ها، ارزیابی‌ها، امتیازها، تصمیم‌های استخدامی، رزومه‌ها و سایر داده‌های وابسته برای همیشه حذف می‌شوند.`
+            : "این عملیات غیرقابل‌بازگشت است. کاندیدا همراه با همه پرونده‌های استخدامی، مصاحبه‌ها، ارزیابی‌ها، امتیازها، تصمیم‌های استخدامی، رزومه‌ها و سایر داده‌های وابسته برای همیشه حذف می‌شود."
+        }
+        confirmLabel="حذف کامل و غیرقابل‌بازگشت"
+        busy={deleting}
+        onConfirm={() => void confirmCascadeDelete()}
+        onCancel={() => setCascadeDeleteIds([])}
       />
     </div>
   );
