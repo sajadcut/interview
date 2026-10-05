@@ -1,5 +1,5 @@
 // Job mutation surface: edit metadata/requirements, manage rubric drafts, and publish jobs with readiness checks.
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { Permissions } from "../auth/permissions";
@@ -7,6 +7,8 @@ import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
+  BulkDeleteResultDto,
+  BulkIdsDto,
   CreateApplicationDto,
   CreateCandidateDto,
   CreateCriterionEvaluationDto,
@@ -16,6 +18,7 @@ import {
   PublishJobResponseDto,
   SaveRubricDraftDto,
   SubmitHiringDecisionDto,
+  UpdateCandidateDto,
   UpdateJobDto,
   UpsertShortlistDto,
 } from "./recruiting-operations.dto";
@@ -42,6 +45,28 @@ export class RecruitingOperationsController {
     return this.operations.createCandidate(body);
   }
 
+  @Patch("candidates/:candidateId")
+  @RequirePermissions(Permissions.CandidateResumeManage)
+  @AuditedAction("candidate.update", "candidate")
+  updateCandidate(@Param("candidateId") candidateId: string, @Body() body: UpdateCandidateDto) {
+    return this.operations.updateCandidate(candidateId, body);
+  }
+
+  @Delete("candidates/:candidateId")
+  @RequirePermissions(Permissions.CandidateResumeManage)
+  @AuditedAction("candidate.delete", "candidate")
+  deleteCandidate(@Param("candidateId") candidateId: string) {
+    return this.operations.deleteCandidate(candidateId);
+  }
+
+  @Post("candidates/bulk-delete")
+  @RequirePermissions(Permissions.CandidateResumeManage)
+  @AuditedAction("candidate.bulk_delete", "candidate")
+  @ApiOkResponse({ type: BulkDeleteResultDto })
+  bulkDeleteCandidates(@Body() body: BulkIdsDto) {
+    return this.operations.bulkDeleteCandidates(body.ids);
+  }
+
   @Post("jobs/:jobId/applications")
   @RequirePermissions(Permissions.CandidateMoveStage)
   @AuditedAction("application.create", "application")
@@ -63,6 +88,21 @@ export class RecruitingOperationsController {
   @ApiOkResponse({ type: PublishJobResponseDto })
   publishJob(@Param("jobId") jobId: string) {
     return this.operations.publishJob(jobId);
+  }
+
+  @Delete("jobs/:jobId")
+  @RequirePermissions(Permissions.JobEdit)
+  @AuditedAction("job.delete", "job")
+  deleteJob(@Param("jobId") jobId: string) {
+    return this.operations.deleteJob(jobId);
+  }
+
+  @Post("jobs/bulk-delete")
+  @RequirePermissions(Permissions.JobEdit)
+  @AuditedAction("job.bulk_delete", "job")
+  @ApiOkResponse({ type: BulkDeleteResultDto })
+  bulkDeleteJobs(@Body() body: BulkIdsDto) {
+    return this.operations.bulkDeleteJobs(body.ids);
   }
 
   @Put("jobs/:jobId/rubric/draft")
