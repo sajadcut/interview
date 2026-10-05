@@ -1,6 +1,6 @@
 {
   "version": "tts-synthesis.v1",
-  "provider": "edge-tts",
+  "provider": "ava-82m-persian-cpu",
   "apiProviderKey": "local-http",
   "independentOf": [
     "llm",
@@ -26,7 +26,7 @@
     }
   },
   "response": {
-    "contentType": "audio/mpeg",
+    "contentType": "audio/wav",
     "maxAudioBytes": 20971520,
     "requiredHeaders": [
       "x-tts-contract-version",
@@ -146,9 +146,11 @@
     "coversHttpContract": true,
     "coversStandaloneApiPath": true,
     "coversMp3Validation": true,
-    "coversInProcessEdgeSynthesis": true
+    "coversInProcessEdgeSynthesis": true,
+    "coversAvaHttpContract": true,
+    "coversAvaNativeG2p": true
   },
-  "fallbackProvider": "local-command",
+  "fallbackProvider": "edge-tts",
   "edgeAdapter": {
     "pythonPackage": "edge-tts",
     "voiceDefault": "fa-IR-FaridNeural",
@@ -158,5 +160,20 @@
     "networkRequired": true,
     "shell": false,
     "temporaryFileRequired": false
+  },
+  "legacyFallbackProvider": "local-command",
+  "avaAdapter": {
+    "model": "xmanii/Ava-82M",
+    "modelVersion": "0.2.0",
+    "license": "Apache-2.0",
+    "device": "cpu",
+    "sampleRate": 24000,
+    "workerPort": 9022,
+    "python": ">=3.11,<3.14",
+    "localGpuRequired": false,
+    "networkRequiredAfterModelCache": false,
+    "contextualPersianG2p": true,
+    "pronunciationOverrides": true,
+    "defaultDevelopmentRuntime": true
   }
 }
