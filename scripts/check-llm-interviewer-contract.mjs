@@ -4,14 +4,17 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const contract = JSON.parse(readFileSync(resolve(root, "contracts/llm-interviewer.v1.json"), "utf8"));
+const pronunciationContract = JSON.parse(readFileSync(resolve(root, "contracts/speech-pronunciation.v1.json"), "utf8"));
 const capability = readFileSync(resolve(root, "services/ai-worker/src/interviewer-capability.mjs"), "utf8");
 const http = readFileSync(resolve(root, "services/ai-worker/src/interviewer-http.mjs"), "utf8");
+const pronunciation = readFileSync(resolve(root, "services/ai-worker/src/persian-pronunciation-capability.mjs"), "utf8");
 const provider = readFileSync(resolve(root, "services/ai-worker/src/openai-compatible-provider.mjs"), "utf8");
 const interviewerMain = readFileSync(resolve(root, "services/ai-worker/src/interviewer-main.mjs"), "utf8");
 const gateway = readFileSync(resolve(root, "apps/api/src/ai/ai-gateway.service.ts"), "utf8");
 const adapter = readFileSync(resolve(root, "apps/api/src/interviews/llm-interviewer.service.ts"), "utf8");
 const brain = readFileSync(resolve(root, "apps/api/src/interviews/interview-brain.service.ts"), "utf8");
 const candidate = readFileSync(resolve(root, "apps/api/src/interviews/candidate-interview.service.ts"), "utf8");
+const speech = readFileSync(resolve(root, "apps/api/src/interviews/interview-speech.service.ts"), "utf8");
 const firewall = readFileSync(resolve(root, "apps/api/src/interviews/interview-policy-firewall.ts"), "utf8");
 const turbo = JSON.parse(readFileSync(resolve(root, "turbo.json"), "utf8"));
 const launcher = readFileSync(resolve(root, "start-all.ps1"), "utf8");
@@ -39,6 +42,24 @@ assert.equal(contract.safety.expectedEvidenceMustComeFromCriterion, true);
 assert.equal(contract.safety.scoringSeparated, true);
 assert.equal(contract.safety.nearDuplicateQuestionGuardRequired, true);
 assert.equal(contract.fallback.mustKeepInterviewRecoverable, true);
+assert.equal(pronunciationContract.contractVersion, "speech-pronunciation.v1");
+assert.equal(pronunciationContract.capability.name, "speech.persian_pronunciation");
+assert.equal(pronunciationContract.prompt.id, "speech.persian_pronunciation");
+assert.equal(pronunciationContract.transport.path, "/v1/speech/persian-pronunciation");
+assert.equal(pronunciationContract.safety.canonicalInterviewTextMustRemainUnchanged, true);
+assert.equal(pronunciationContract.safety.fallbackToCanonicalTextOnFailure, true);
+for (const token of [
+  "persianPronunciationPromptDefinition",
+  "تخصیص",
+  "short-vowel",
+  "Do not remove content",
+]) {
+  assert.ok(pronunciation.includes(token), `Persian pronunciation capability must contain ${token}`);
+}
+assert.ok(
+  http.includes('path === "/v1/speech/persian-pronunciation"'),
+  "realtime AI sidecar must expose the Persian pronunciation endpoint",
+);
 
 for (const token of [
   'LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1"',
@@ -68,6 +89,10 @@ assert.ok(interviewerMain.includes("providerReadiness:"), "realtime sidecar must
 assert.ok(gateway.includes('request.capability !== "interview.next_turn"'), "synchronous AI must be restricted to interview.next_turn");
 assert.ok(gateway.includes("AbortSignal.timeout"), "realtime AI gateway must have a request timeout");
 assert.ok(gateway.includes("AI_INTERVIEWER_BASE_URL"), "API must use a configurable interviewer sidecar URL");
+assert.ok(
+  gateway.includes("pronouncePersianForTts"),
+  "API gateway must expose the synchronous Persian pronunciation renderer",
+);
 assert.ok(gateway.includes("payload.reachable === true"), "API readiness must reflect provider reachability, not only sidecar reachability");
 
 for (const token of [
@@ -97,6 +122,14 @@ assert.ok(brain.includes("evidenceCoverage"), "evidence coverage must remain exp
 
 assert.ok(candidate.includes("this.processCandidateText("), "candidate text/audio paths must share candidate-text processing");
 assert.ok(candidate.includes("this.brain.nextTurn(sessionId"), "candidate answer processing must route through Interview Brain");
+assert.ok(
+  speech.includes("pronouncePersianForTts"),
+  "TTS path must render Persian pronunciation immediately before synthesis",
+);
+assert.ok(
+  speech.includes('pronunciationMode = "fallback"'),
+  "TTS pronunciation must fail open to the canonical finalized text",
+);
 
 const devEnv = new Set(turbo.tasks?.dev?.env ?? []);
 for (const key of [
