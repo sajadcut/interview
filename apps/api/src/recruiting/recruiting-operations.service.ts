@@ -358,11 +358,33 @@ export class RecruitingOperationsService {
     return { id: candidateId, deleted: true as const };
   }
 
-  async bulkDeleteCandidates(candidateIds: string[]) {
+  async bulkDeleteCandidates(candidateIds: string[], cascadeApplications = false) {
     const organizationId = this.tenantContext.require().organizationId;
     const uniqueIds = [...new Set(candidateIds)];
 
     return this.database.sql.begin(async (tx) => {
+      if (cascadeApplications) {
+        const existing = await tx`
+          SELECT c.id::text
+          FROM candidates c
+          WHERE c.organization_id = ${organizationId}::uuid
+            AND c.id = ANY(${uniqueIds}::uuid[])
+          FOR UPDATE
+        `;
+        const deletedIds = existing.map((row) => String(row.id));
+
+        if (deletedIds.length > 0) {
+          await tx`
+            DELETE FROM candidates
+            WHERE organization_id = ${organizationId}::uuid
+              AND id = ANY(${deletedIds}::uuid[])
+          `;
+        }
+
+        const blockedIds = uniqueIds.filter((id) => !deletedIds.includes(id));
+        return { deletedIds, deletedCount: deletedIds.length, blockedIds };
+      }
+
       const deletable = await tx`
         SELECT c.id::text
         FROM candidates c
