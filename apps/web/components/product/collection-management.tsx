@@ -91,12 +91,25 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
     cancelRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onCancel();
+      if (event.key === "Escape" && !busy) {
+        onCancel();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const active = document.activeElement;
+      if (event.shiftKey && active === cancelRef.current) {
+        event.preventDefault();
+        confirmRef.current?.focus();
+      } else if (!event.shiftKey && active === confirmRef.current) {
+        event.preventDefault();
+        cancelRef.current?.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -127,6 +140,7 @@ export function ConfirmDialog({
         </div>
         <div className="mt-5 flex flex-row-reverse gap-2">
           <button
+            ref={confirmRef}
             type="button"
             disabled={busy}
             onClick={onConfirm}
