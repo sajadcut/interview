@@ -147,10 +147,15 @@ invariant(avaSetupSource.includes("Python 3.13"), "Ava Python 3.13 compatibility
 invariant(avaSetupSource.includes('"numpy==2.1.3"'), "Ava setup must install the CPython 3.13 NumPy override");
 invariant(avaSetupSource.includes('"sentencepiece==0.2.2"'), "Ava setup must install the CPython 3.13 SentencePiece override");
 invariant(avaSetupSource.includes("--no-deps $WheelUrl"), "Ava wheel must bypass stale binary pins on Python 3.13");
+invariant(avaSetupSource.includes("fba1236595f2d2bf21d414ba6e57d25256afada3"), "Ava setup must pin Python 3.13-enabled Misaki");
+invariant(avaSetupSource.includes("misaki[en] @ git+https://github.com/hexgrad/misaki.git"), "Ava setup must install Misaki from upstream Git");
+invariant(avaSetupSource.includes("pip install --no-deps"), "Ava setup must use no-deps for pinned Kokoro/Ava packages");
 invariant(contract.avaAdapter?.python === ">=3.11,<3.14", "Ava declared Python runtime contract drift");
 invariant(contract.avaAdapter?.windowsSetupPython === "3.13", "Ava Windows setup Python drift");
 invariant(contract.avaAdapter?.compatibilityOverrides?.numpy === "2.1.3", "Ava NumPy compatibility override drift");
 invariant(contract.avaAdapter?.compatibilityOverrides?.sentencepiece === "0.2.2", "Ava SentencePiece compatibility override drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.misakiGitRevision === "fba1236595f2d2bf21d414ba6e57d25256afada3", "Ava Misaki Python 3.13 revision drift");
+invariant(contract.avaAdapter?.compatibilityOverrides?.kokoroInstallNoDeps === true, "Ava Kokoro must bypass stale PyPI Misaki metadata");
 invariant(avaSetupSource.includes('"torch==2.6.0"'), "Ava setup must pin PyTorch 2.6.0");
 invariant(avaSetupSource.includes("--index-url $PyPiIndex"), "Ava Windows setup must use the PyPI route");
 invariant(!avaSetupSource.includes("download.pytorch.org/whl/cpu"), "Ava Windows setup must avoid the blocked PyTorch R2 route");
