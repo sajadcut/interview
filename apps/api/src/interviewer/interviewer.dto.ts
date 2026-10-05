@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsArray, IsISO8601, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min } from "class-validator";
+import { CandidateInvitationResponseDto } from "../auth/dto/candidate-auth.dto";
 
 export class AssignInterviewerDto {
   @ApiProperty() @IsUUID() sessionId!: string;
@@ -40,6 +41,25 @@ export class ScheduledTechnicalInterviewDto {
   @ApiProperty({ format: "date-time" }) scheduledFor!: string;
   @ApiProperty() durationMinutes!: number;
   @ApiProperty() pipelineStage!: string;
+}
+
+export class PrepareAiInterviewDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  applicationId!: string;
+
+  @ApiPropertyOptional({ default: "fa" })
+  @IsOptional()
+  @IsString()
+  language?: string;
+}
+
+export class PreparedAiInterviewDto {
+  @ApiProperty({ format: "uuid" }) applicationId!: string;
+  @ApiProperty({ format: "uuid" }) interviewPlanId!: string;
+  @ApiProperty() pipelineStage!: string;
+  @ApiProperty({ type: CandidateInvitationResponseDto })
+  invitation!: CandidateInvitationResponseDto;
 }
 
 export class InterviewerNoteInputDto {
