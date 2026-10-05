@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Icon } from "../../../components/product/icon";
 import { CandidateResumeIntakePanel } from "../../../components/recruiting/candidate-resume-intake-panel";
 import { Panel, PersonAvatar, Pill } from "../../../components/product/recruiting-ui";
+import { BulkActionBar, ConfirmDialog, InlineFeedback, SelectionCheckbox } from "../../../components/product/collection-management";
+import { useInternalAccess } from "../../../components/product/internal-access";
 import { api } from "../../../lib/api";
 import { formatFaNumber } from "../../../lib/fa-numbers";
 import { formatFaDateTime } from "../../../lib/i18n";
@@ -18,8 +20,13 @@ function formatUpdatedAt(value: string): string {
 }
 
 export default function CandidatesPage() {
+  const access = useInternalAccess();
   const [candidates, setCandidates] = useState<CandidateSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteIds, setDeleteIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<{ tone: "success" | "warning" | "error"; text: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
 
@@ -54,6 +61,65 @@ export default function CandidatesPage() {
     );
   }, [candidates, query]);
 
+  const selectableCandidates = useMemo(
+    () => filteredCandidates.filter((candidate) => candidate.applicationCount === 0),
+    [filteredCandidates],
+  );
+  const selectedVisibleCount = selectableCandidates.filter((candidate) => selectedIds.has(candidate.id)).length;
+  const allVisibleSelected = selectableCandidates.length > 0 && selectedVisibleCount === selectableCandidates.length;
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+
+  function toggleCandidate(id: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const candidate of selectableCandidates) {
+        if (checked) next.add(candidate.id);
+        else next.delete(candidate.id);
+      }
+      return next;
+    });
+  }
+
+  async function confirmDelete() {
+    if (deleteIds.length === 0 || deleting) return;
+    setDeleting(true);
+    setFeedback(undefined);
+    try {
+      const identity = await resolveTenantIdentity();
+      const result = await api.POST("/v1/candidates/bulk-delete", {
+        headers: tenantHeaders(identity),
+        body: { ids: deleteIds },
+      });
+      if (result.error || !result.data) throw new Error("حذف کاندیداهای انتخاب‌شده ناموفق بود");
+      const deletedIds = new Set(result.data.deletedIds);
+      setCandidates((current) => current.filter((candidate) => !deletedIds.has(candidate.id)));
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        result.data.deletedIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      setFeedback(
+        result.data.blockedIds.length
+          ? { tone: "warning", text: `${formatFaNumber(result.data.deletedCount)} کاندیدا حذف شد؛ ${formatFaNumber(result.data.blockedIds.length)} مورد به پرونده استخدامی متصل بود و حذف نشد.` }
+          : { tone: "success", text: `${formatFaNumber(result.data.deletedCount)} کاندیدا با موفقیت حذف شد.` },
+      );
+      setDeleteIds([]);
+    } catch (cause) {
+      setFeedback({ tone: "error", text: cause instanceof Error ? cause.message : "حذف کاندیداها ناموفق بود" });
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -63,6 +129,7 @@ export default function CandidatesPage() {
       </div>
 
       {error ? <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-xs text-rose-700">{error}</div> : null}
+      {feedback ? <InlineFeedback tone={feedback.tone}>{feedback.text}</InlineFeedback> : null}
 
       <CandidateResumeIntakePanel
         onCandidateReady={async () => {
@@ -76,34 +143,67 @@ export default function CandidatesPage() {
       />
 
       <Panel>
-        <div className="border-b border-slate-200 p-4">
-          <div className="relative min-w-[280px] flex-1">
-            <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
-              placeholder="جست‌وجو بر اساس نام، مهارت، شرکت، نقش یا محل..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
+        {selectedIds.size > 0 ? (
+          <BulkActionBar selectedCount={selectedIds.size} noun="کاندیدا" onClear={() => setSelectedIds(new Set())}>
+            <button
+              type="button"
+              onClick={() => setDeleteIds([...selectedIds])}
+              className="h-8 rounded-lg bg-rose-600 px-3 text-[10px] font-semibold text-white hover:bg-rose-700"
+            >
+              حذف انتخاب‌شده‌ها
+            </button>
+          </BulkActionBar>
+        ) : (
+          <div className="border-b border-slate-200 p-4">
+            <div className="relative min-w-[280px] flex-1">
+              <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+                placeholder="جست‌وجو بر اساس نام، مهارت، شرکت، نقش یا محل..."
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="data-table min-w-[980px]">
             <thead>
               <tr>
-                {["کاندیدا", "نقش فعلی", "شرکت", "مهارت‌ها", "محل", "آخرین به‌روزرسانی"].map((heading) => (
+                <th className="w-10">
+                  {access.can("candidate.resume_manage") ? (
+                    <SelectionCheckbox
+                      label="انتخاب همه کاندیداهای قابل حذف در این فهرست"
+                      checked={allVisibleSelected}
+                      indeterminate={someVisibleSelected}
+                      disabled={selectableCandidates.length === 0}
+                      onChange={toggleAllVisible}
+                    />
+                  ) : null}
+                </th>
+                {["کاندیدا", "نقش فعلی", "شرکت", "مهارت‌ها", "محل", "آخرین به‌روزرسانی", "عملیات"].map((heading) => (
                   <th key={heading}>{heading}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">در حال بارگذاری کاندیداها…</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-slate-400">در حال بارگذاری کاندیداها…</td></tr>
               ) : filteredCandidates.length === 0 ? (
-                <tr><td colSpan={6} className="py-12 text-center text-slate-400">{candidates.length ? "کاندیدایی با این جست‌وجو پیدا نشد." : "هنوز کاندیدایی برای این سازمان ثبت نشده است."}</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-slate-400">{candidates.length ? "کاندیدایی با این جست‌وجو پیدا نشد." : "هنوز کاندیدایی برای این سازمان ثبت نشده است."}</td></tr>
               ) : filteredCandidates.map((candidate, index) => (
                 <tr key={candidate.id}>
+                  <td>
+                    {access.can("candidate.resume_manage") ? (
+                      <SelectionCheckbox
+                        label={`انتخاب ${candidate.displayName}`}
+                        checked={selectedIds.has(candidate.id)}
+                        disabled={candidate.applicationCount > 0}
+                        onChange={(checked) => toggleCandidate(candidate.id, checked)}
+                      />
+                    ) : null}
+                  </td>
                   <td>
                     <Link href={`/app/candidates/${candidate.id}`} className="flex items-center gap-3">
                       <PersonAvatar name={candidate.displayName} size={32} tone={index % 5} />
@@ -122,6 +222,17 @@ export default function CandidatesPage() {
                   </td>
                   <td>{candidate.location || "—"}</td>
                   <td className="whitespace-nowrap">{formatUpdatedAt(candidate.updatedAt)}</td>
+                  <td className="whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Link href={`/app/candidates/${candidate.id}`} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700">مشاهده</Link>
+                      {access.can("candidate.resume_manage") ? (
+                        <Link href={`/app/candidates/${candidate.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
+                      ) : null}
+                      {access.can("candidate.resume_manage") && candidate.applicationCount === 0 ? (
+                        <button type="button" onClick={() => setDeleteIds([candidate.id])} className="text-[10px] font-semibold text-rose-600 hover:text-rose-700">حذف</button>
+                      ) : null}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -133,6 +244,20 @@ export default function CandidatesPage() {
           <span>تطبیق پیش از مصاحبه مختص هر پرونده استخدامی است و در فضای کاری موقعیت نمایش داده می‌شود.</span>
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={deleteIds.length > 0}
+        title={deleteIds.length > 1 ? "حذف کاندیداهای انتخاب‌شده؟" : "حذف کاندیدا؟"}
+        description={
+          deleteIds.length > 1
+            ? `این کار ${formatFaNumber(deleteIds.length)} پروفایل انتخاب‌شده را همراه با رزومه‌ها و شواهد مستقل آن‌ها حذف می‌کند. کاندیداهای دارای پرونده استخدامی حذف نمی‌شوند.`
+            : "این پروفایل و رزومه‌ها و شواهد مستقل آن حذف می‌شوند. اگر کاندیدا به پرونده استخدامی متصل باشد، حذف انجام نمی‌شود."
+        }
+        confirmLabel={deleteIds.length > 1 ? "حذف کاندیداها" : "حذف کاندیدا"}
+        busy={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleteIds([])}
+      />
     </div>
   );
 }
