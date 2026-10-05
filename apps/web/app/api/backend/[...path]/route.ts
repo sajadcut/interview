@@ -104,6 +104,8 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
     forwardResponseCookies(response.headers, responseHeaders);
     responseHeaders.set("x-interview-api-target", target.origin);
 
+    responseHeaders.set("x-interview-api-path", target.pathname);
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
