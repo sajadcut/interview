@@ -17,12 +17,21 @@ import {
   LLM_INTERVIEWER_SCHEMA_VERSION,
   generateConversationalInterviewTurn,
 } from "./interviewer-capability.mjs";
+import {
+  PERSIAN_PRONUNCIATION_CAPABILITY,
+  PERSIAN_PRONUNCIATION_CAPABILITY_VERSION,
+  PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+  PERSIAN_PRONUNCIATION_PROMPT_ID,
+  PERSIAN_PRONUNCIATION_PROMPT_VERSION,
+  PERSIAN_PRONUNCIATION_SCHEMA_VERSION,
+  generatePersianPronunciation,
+} from "./persian-pronunciation-capability.mjs";
 
 const MAX_REQUEST_BYTES = 96 * 1024;
 const PROVIDER_READINESS_TIMEOUT_MS = 2_000;
 const PROVIDER_READINESS_CACHE_MS = 30_000;
 
-function writeJson(response, status, payload, meta = {}) {
+function writeJson(response, status, payload, meta = {}, extraHeaders = {}) {
   const body = Buffer.from(JSON.stringify(payload), "utf8");
   const trace = currentTraceContext();
   response.writeHead(status, {
@@ -30,6 +39,7 @@ function writeJson(response, status, payload, meta = {}) {
     "content-length": String(body.length),
     "cache-control": "no-store",
     "x-llm-interviewer-contract-version": LLM_INTERVIEWER_CONTRACT_VERSION,
+    ...extraHeaders,
     ...(trace ? {
       "x-trace-id": trace.traceId,
       "x-request-id": trace.requestId,
@@ -79,6 +89,26 @@ function validateEnvelope(value) {
     throw new LLMProviderError("UNKNOWN_PROMPT");
   }
   if (value.structuredOutputSchemaVersion !== LLM_INTERVIEWER_SCHEMA_VERSION) {
+    throw new LLMProviderError("INVALID_REQUEST");
+  }
+  if (!value.input || typeof value.input !== "object" || Array.isArray(value.input)) {
+    throw new LLMProviderError("INVALID_REQUEST");
+  }
+  return value;
+}
+
+function validatePronunciationEnvelope(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new LLMProviderError("INVALID_REQUEST");
+  if (value.contractVersion !== PERSIAN_PRONUNCIATION_CONTRACT_VERSION) throw new LLMProviderError("INVALID_REQUEST");
+  if (value.capability !== PERSIAN_PRONUNCIATION_CAPABILITY) throw new LLMProviderError("INVALID_REQUEST");
+  if (value.capabilityVersion !== PERSIAN_PRONUNCIATION_CAPABILITY_VERSION) throw new LLMProviderError("INVALID_REQUEST");
+  if (
+    value.promptId !== PERSIAN_PRONUNCIATION_PROMPT_ID ||
+    value.promptVersion !== PERSIAN_PRONUNCIATION_PROMPT_VERSION
+  ) {
+    throw new LLMProviderError("UNKNOWN_PROMPT");
+  }
+  if (value.structuredOutputSchemaVersion !== PERSIAN_PRONUNCIATION_SCHEMA_VERSION) {
     throw new LLMProviderError("INVALID_REQUEST");
   }
   if (!value.input || typeof value.input !== "object" || Array.isArray(value.input)) {
@@ -158,13 +188,13 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, p
     withTraceContext(contextFromHeaders(request.headers), async () => {
       const startedAt = process.hrtime.bigint();
       const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
-      const reply = (status, payload) => {
+      const reply = (status, payload, extraHeaders = {}) => {
         const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
         writeJson(response, status, payload, {
           method: request.method,
           path,
           durationMs: Number(durationMs.toFixed(3)),
-        });
+        }, extraHeaders);
       };
 
       writeLog("info", "interviewer.http.request", {
@@ -194,12 +224,15 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, p
           return;
         }
 
-        if (request.method !== "POST" || path !== "/v1/interview/next-turn") {
+        const isInterviewTurn = request.method === "POST" && path === "/v1/interview/next-turn";
+        const isPronunciation =
+          request.method === "POST" && path === "/v1/speech/persian-pronunciation";
+        if (!isInterviewTurn && !isPronunciation) {
           reply(404, { error: { code: "NOT_FOUND", message: "Not Found" } });
           return;
         }
         if (!authorized(request.headers["x-ai-worker-secret"], sharedSecret)) {
-          reply(401, { error: { code: "UNAUTHORIZED", message: "Realtime interviewer authentication failed" } });
+          reply(401, { error: { code: "UNAUTHORIZED", message: "Realtime AI authentication failed" } });
           return;
         }
 
@@ -209,8 +242,37 @@ export function createInterviewerHttpServer({ llm, sharedSecret, providerInfo, p
           path,
           body: loggableBody(rawEnvelope, "application/json"),
         });
-        const envelope = validateEnvelope(rawEnvelope);
         const executionId = randomUUID();
+
+        if (isPronunciation) {
+          const envelope = validatePronunciationEnvelope(rawEnvelope);
+          const generated = await generatePersianPronunciation({
+            llm,
+            input: envelope.input,
+            metadata: {
+              executionId,
+              inputReferences:
+                envelope.inputReferences && typeof envelope.inputReferences === "object" && !Array.isArray(envelope.inputReferences)
+                  ? envelope.inputReferences
+                  : {},
+            },
+          });
+          reply(
+            200,
+            {
+              contractVersion: PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+              executionId,
+              output: generated.output,
+              provenance: generated.provenance,
+            },
+            {
+              "x-speech-pronunciation-contract-version": PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+            },
+          );
+          return;
+        }
+
+        const envelope = validateEnvelope(rawEnvelope);
         const generated = await generateConversationalInterviewTurn({
           llm,
           input: envelope.input,
