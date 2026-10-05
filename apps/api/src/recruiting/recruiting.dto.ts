@@ -11,6 +11,7 @@ export class JobSummaryDto {
   @ApiPropertyOptional() seniority?: string;
   @ApiProperty() applicationCount!: number;
   @ApiProperty() interviewCount!: number;
+  @ApiProperty() deletable!: boolean;
   @ApiProperty() updatedAt!: string;
 }
 
