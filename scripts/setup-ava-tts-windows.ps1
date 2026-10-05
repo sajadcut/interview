@@ -184,23 +184,14 @@ if ($LASTEXITCODE -ne 0) {
 if (-not $SkipRuntimeSmokeTest) {
     Write-Host "Running real Ava Persian synthesis smoke test on CPU..."
     Write-Host "This first run may download the acoustic model and Persian G2P artifacts."
-    $SmokeScript = @'
-from ava_tts import Ava
+    $SmokeScriptPath = Join-Path $RepoRoot "scripts\ava-runtime-smoke.py"
+    if (-not (Test-Path -LiteralPath $SmokeScriptPath -PathType Leaf)) {
+        throw "Ava runtime smoke script is missing: $SmokeScriptPath"
+    }
 
-tts = Ava.from_pretrained("xmanii/Ava-82M", device="cpu")
-result = tts.generate("سلام، این یک آزمون کوتاه برای آوای فارسی است.")
-audio = result.audio
-sample_rate = int(result.sample_rate)
-
-if sample_rate != 24000:
-    raise RuntimeError(f"unexpected sample rate: {sample_rate}")
-if audio is None or len(audio) < 2400:
-    raise RuntimeError("Ava generated empty or implausibly short audio")
-
-duration = len(audio) / sample_rate
-print(f"Ava real synthesis OK · sample_rate={sample_rate} · samples={len(audio)} · duration={duration:.2f}s · device=cpu")
-'@
-    & $Python -c $SmokeScript
+    # Run a real .py file instead of python -c. PowerShell/native argument
+    # quoting can strip embedded quotes from multi-line -c payloads on Windows.
+    & $Python $SmokeScriptPath
     if ($LASTEXITCODE -ne 0) {
         throw "Ava real Persian synthesis smoke test failed. Setup is not considered complete."
     }
