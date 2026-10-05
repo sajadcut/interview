@@ -169,24 +169,24 @@ export function InterviewOperations() {
 
     try {
       if (isAi) {
-        const invitationResult = await api.POST("/v1/candidate-auth/invitations", {
+        const preparationResult = await api.POST("/v1/interview-operations/ai-interviews", {
           headers: tenantHeaders(current),
-          body: { applicationId: session.applicationId },
+          body: {
+            applicationId: session.applicationId,
+            language: "fa",
+          },
         });
-        if (invitationResult.error || !invitationResult.data) {
-          throw new Error(apiErrorMessage(invitationResult, "ارسال کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
+        if (preparationResult.error || !preparationResult.data) {
+          throw new Error(apiErrorMessage(preparationResult, "ارسال کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
         }
 
-        const invitation = invitationResult.data as {
-          developmentToken?: string;
-          developmentOtp?: string;
-          maskedEmail?: string;
-        };
+        const invitation = preparationResult.data.invitation;
         const devLink = invitation.developmentToken
           ? ` لینک تست: /candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`
           : "";
+        const devOtp = invitation.developmentOtp ? ` کد OTP تست: ${invitation.developmentOtp}` : "";
         setNotice(
-          `دعوت مصاحبه هوش مصنوعی برای «${session.candidateName}» ایجاد شد و برای ${invitation.maskedEmail ?? "کاندیدا"} آماده ارسال است.${devLink}`,
+          `مصاحبه هوش مصنوعی برای «${session.candidateName}» آماده شد، پلن منتشرشده ثبت شد و دعوت برای ${invitation.maskedEmail ?? "کاندیدا"} ساخته شد.${devLink}${devOtp}`,
         );
       } else if (session.sessionId) {
         const result = await api.POST("/v1/interviewer/assignments", {
