@@ -1,20 +1,44 @@
 {
   "version": "tts-synthesis.v1",
-  "provider": "local-command",
+  "provider": "edge-tts",
   "apiProviderKey": "local-http",
-  "independentOf": ["llm", "whisper", "livekit", "ffmpeg"],
+  "independentOf": [
+    "llm",
+    "whisper",
+    "livekit",
+    "ffmpeg"
+  ],
   "request": {
     "method": "POST",
     "path": "/synthesize",
     "contentType": "application/json",
-    "requiredHeaders": ["x-tts-contract-version", "x-request-id", "x-tts-secret"],
-    "body": { "required": ["spokenText"], "additionalProperties": false, "maxTextChars": 4000 }
+    "requiredHeaders": [
+      "x-tts-contract-version",
+      "x-request-id",
+      "x-tts-secret"
+    ],
+    "body": {
+      "required": [
+        "spokenText"
+      ],
+      "additionalProperties": false,
+      "maxTextChars": 4000
+    }
   },
   "response": {
-    "contentType": "audio/wav",
+    "contentType": "audio/mpeg",
     "maxAudioBytes": 20971520,
-    "requiredHeaders": ["x-tts-contract-version", "x-request-id", "x-tts-provider"],
-    "validateWav": true
+    "requiredHeaders": [
+      "x-tts-contract-version",
+      "x-request-id",
+      "x-tts-provider"
+    ],
+    "validateWav": true,
+    "acceptedContentTypes": [
+      "audio/mpeg",
+      "audio/wav"
+    ],
+    "validateMp3": true
   },
   "health": {
     "method": "GET",
@@ -26,12 +50,23 @@
     "shell": false,
     "stdin": "disabled",
     "textTransport": "utf8-temporary-file",
-    "requiredPlaceholders": ["{text_file}", "{output_wav}"],
+    "requiredPlaceholders": [
+      "{text_file}",
+      "{output_wav}"
+    ],
     "workspaceOnlyPaths": true
   },
   "process": {
-    "timeoutSeconds": { "default": 60, "min": 0.05, "max": 300 },
-    "terminationGraceSeconds": { "default": 2, "min": 0.05, "max": 10 },
+    "timeoutSeconds": {
+      "default": 60,
+      "min": 0.05,
+      "max": 300
+    },
+    "terminationGraceSeconds": {
+      "default": 2,
+      "min": 0.05,
+      "max": 10
+    },
     "processGroupIsolation": true,
     "terminateThenKill": true,
     "diagnosticMaxBytes": 8192
@@ -47,7 +82,13 @@
     "requestTimeoutMs": 65000,
     "maxAttempts": 2,
     "retryBaseMs": 200,
-    "retryableHttpStatuses": [429, 500, 502, 503, 504],
+    "retryableHttpStatuses": [
+      429,
+      500,
+      502,
+      503,
+      504
+    ],
     "redirects": "manual",
     "productionHttpsRequired": true
   },
@@ -58,15 +99,42 @@
     "globalRealtimeReadinessRequiredForSynthesis": false
   },
   "errors": [
-    { "code": "invalid_request", "retryable": false },
-    { "code": "unauthorized", "retryable": false },
-    { "code": "contract_mismatch", "retryable": false },
-    { "code": "payload_too_large", "retryable": false },
-    { "code": "provider_unavailable", "retryable": true },
-    { "code": "provider_timeout", "retryable": true },
-    { "code": "provider_error", "retryable": true },
-    { "code": "invalid_audio_output", "retryable": true },
-    { "code": "worker_error", "retryable": true }
+    {
+      "code": "invalid_request",
+      "retryable": false
+    },
+    {
+      "code": "unauthorized",
+      "retryable": false
+    },
+    {
+      "code": "contract_mismatch",
+      "retryable": false
+    },
+    {
+      "code": "payload_too_large",
+      "retryable": false
+    },
+    {
+      "code": "provider_unavailable",
+      "retryable": true
+    },
+    {
+      "code": "provider_timeout",
+      "retryable": true
+    },
+    {
+      "code": "provider_error",
+      "retryable": true
+    },
+    {
+      "code": "invalid_audio_output",
+      "retryable": true
+    },
+    {
+      "code": "worker_error",
+      "retryable": true
+    }
   ],
   "testEvidence": {
     "realTtsEngineRequired": false,
@@ -76,6 +144,17 @@
     "coversCleanup": true,
     "coversWavValidation": true,
     "coversHttpContract": true,
-    "coversStandaloneApiPath": true
+    "coversStandaloneApiPath": true,
+    "coversMp3Validation": true
+  },
+  "fallbackProvider": "local-command",
+  "edgeAdapter": {
+    "executable": "edge-tts",
+    "voiceDefault": "fa-IR-FaridNeural",
+    "textTransport": "utf8-temporary-file",
+    "mediaFormat": "mp3",
+    "localGpuRequired": false,
+    "networkRequired": true,
+    "shell": false
   }
 }
