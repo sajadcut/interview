@@ -63,12 +63,12 @@ export class UpdateInterviewerProfileDto {
   @Length(1, 120)
   lastName?: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   phone?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   jobTitle?: string | null;
@@ -80,7 +80,7 @@ export class UpdateInterviewerProfileDto {
   @IsString({ each: true })
   specialties?: string[];
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   bio?: string | null;
