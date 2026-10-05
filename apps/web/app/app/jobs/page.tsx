@@ -226,7 +226,6 @@ export default function JobsPage() {
                   <td className="whitespace-nowrap">{formatUpdatedAt(job.updatedAt)}</td>
                   <td className="whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <Link href={`/app/jobs/${job.id}`} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700">مدیریت</Link>
                       {access.can("job.edit") ? (
                         <Link href={`/app/jobs/${job.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
                       ) : null}
