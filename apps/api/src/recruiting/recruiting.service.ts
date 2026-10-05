@@ -26,12 +26,15 @@ export class RecruitingService {
         j.seniority,
         j.updated_at,
         count(DISTINCT a.id)::int AS application_count,
-        count(DISTINCT s.id)::int AS interview_count
+        count(DISTINCT s.id)::int AS interview_count,
+        count(DISTINCT hr.id)::int AS linked_hiring_request_count
       FROM jobs j
       LEFT JOIN applications a
         ON a.organization_id = j.organization_id AND a.job_id = j.id
       LEFT JOIN interview_sessions s
         ON s.organization_id = a.organization_id AND s.application_id = a.id
+      LEFT JOIN hiring_requests hr
+        ON hr.organization_id = j.organization_id AND hr.linked_job_id = j.id
       WHERE j.organization_id = ${organizationId}::uuid
       GROUP BY j.id, j.title, j.status, j.department, j.location, j.seniority, j.updated_at
       ORDER BY j.updated_at DESC
@@ -46,6 +49,10 @@ export class RecruitingService {
       ...(row.seniority ? { seniority: String(row.seniority) } : {}),
       applicationCount: Number(row.application_count ?? 0),
       interviewCount: Number(row.interview_count ?? 0),
+      deletable:
+        String(row.status) === "draft" &&
+        Number(row.application_count ?? 0) === 0 &&
+        Number(row.linked_hiring_request_count ?? 0) === 0,
       updatedAt: new Date(String(row.updated_at)).toISOString(),
     }));
   }
