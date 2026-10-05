@@ -18,6 +18,7 @@ from tts_layer import (  # noqa: E402
     TTSCommandBuilder,
     TTSError,
     TTSProcessRunner,
+    normalize_persian_spoken_text,
     tts_status,
 )
 
@@ -60,6 +61,15 @@ class TTSLayerTests(unittest.TestCase):
             TTSCommandBuilder(f"{quoted(sys.executable)} {{text_file}}").resolved_executable()
         with self.assertRaises(TTSError):
             TTSCommandBuilder(f"{quoted(sys.executable)} {{text_file}} {{output_wav}} {{voice}}").resolved_executable()
+
+    def test_persian_pronunciation_hints_cover_reported_terms_and_dotnet_stack(self) -> None:
+        normalized = normalize_persian_spoken_text(
+            "تخصیص منابع در ASP.NET و SQL با Entity Framework"
+        )
+        self.assertEqual(
+            normalized,
+            "تَخصیص منابع در اِی اِس پی دات‌نِت و اِس‌کیو‌اِل با اِنتیتی فِریم‌وِرک",
+        )
 
     def test_runner_synthesizes_valid_wav_without_real_engine(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
