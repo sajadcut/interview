@@ -220,7 +220,7 @@ export class CandidateAuthService {
 
     if (getEnv().NODE_ENV !== "production") {
       this.logger.log(
-        `[DEV ONLY] Candidate OTP application=${applicationId} email=${maskEmail(email)} otp=${otp}`,
+        `[DEV ONLY] Candidate OTP candidate=${candidateId} application=${applicationId} email=${maskEmail(email)} otp=${otp}`,
       );
     }
 
