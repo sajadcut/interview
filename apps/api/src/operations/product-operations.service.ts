@@ -171,11 +171,18 @@ export class ProductOperationsService {
   async listAutomations() {
     const organizationId = this.tenantContext.require().organizationId;
     const rules = await this.database.sql`
-      SELECT id::text, name, description, trigger_type, trigger_config,
-             action_type, action_config, approval_required, enabled, created_at, updated_at
-      FROM automation_rules
-      WHERE organization_id = ${organizationId}::uuid
-      ORDER BY updated_at DESC
+      SELECT ar.id::text, ar.name, ar.description, ar.trigger_type, ar.trigger_config,
+             ar.action_type, ar.action_config, ar.approval_required, ar.enabled,
+             count(r.id)::int AS run_count, ar.created_at, ar.updated_at
+      FROM automation_rules ar
+      LEFT JOIN automation_runs r
+        ON r.organization_id = ar.organization_id
+       AND r.rule_id = ar.id
+      WHERE ar.organization_id = ${organizationId}::uuid
+      GROUP BY ar.id, ar.name, ar.description, ar.trigger_type, ar.trigger_config,
+               ar.action_type, ar.action_config, ar.approval_required, ar.enabled,
+               ar.created_at, ar.updated_at
+      ORDER BY ar.updated_at DESC
     `;
     const runs = await this.database.sql`
       SELECT id::text, rule_id::text, trigger_reference, idempotency_key, state,
@@ -216,22 +223,71 @@ export class ProductOperationsService {
   async updateAutomation(ruleId: string, input: UpdateAutomationRuleDto) {
     const organizationId = this.tenantContext.require().organizationId;
     const rules = await this.database.sql`
-      SELECT enabled, approval_required
+      SELECT name, description, trigger_type, trigger_config, action_type, action_config,
+             enabled, approval_required
       FROM automation_rules
       WHERE organization_id = ${organizationId}::uuid AND id = ${ruleId}::uuid
       LIMIT 1
     `;
     const current = rules[0];
     if (!current) throw new NotFoundException("Automation rule not found");
-    const enabled = input.enabled ?? Boolean(current.enabled);
-    const approvalRequired = input.approvalRequired ?? Boolean(current.approval_required);
+
     const rows = await this.database.sql`
       UPDATE automation_rules
-      SET enabled = ${enabled}, approval_required = ${approvalRequired}, updated_at = now()
+      SET name = ${input.name?.trim() || String(current.name)},
+          description = ${input.description?.trim() || (current.description ? String(current.description) : null)},
+          trigger_type = ${input.triggerType?.trim() || String(current.trigger_type)},
+          trigger_config = ${this.database.sql.json((input.triggerConfig ?? current.trigger_config ?? {}) as never)},
+          action_type = ${input.actionType?.trim() || String(current.action_type)},
+          action_config = ${this.database.sql.json((input.actionConfig ?? current.action_config ?? {}) as never)},
+          enabled = ${input.enabled ?? Boolean(current.enabled)},
+          approval_required = ${input.approvalRequired ?? Boolean(current.approval_required)},
+          updated_at = now()
       WHERE organization_id = ${organizationId}::uuid AND id = ${ruleId}::uuid
-      RETURNING id::text, name, trigger_type, action_type, approval_required, enabled, updated_at
+      RETURNING id::text, name, description, trigger_type, trigger_config, action_type,
+                action_config, approval_required, enabled, created_at, updated_at
     `;
-    return rows[0];
+    const row = rows[0];
+    return { ...row, run_count: 0 };
+  }
+
+  async deleteAutomation(ruleId: string) {
+    const result = await this.bulkDeleteAutomations([ruleId]);
+    if (result.deletedCount === 0) {
+      throw new BadRequestException("Automation rules with execution history cannot be deleted; disable them instead");
+    }
+    return { id: ruleId, deleted: true as const };
+  }
+
+  async bulkDeleteAutomations(ruleIds: string[]) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const uniqueIds = [...new Set(ruleIds)];
+
+    return this.database.sql.begin(async (tx) => {
+      const deletable = await tx`
+        SELECT ar.id::text
+        FROM automation_rules ar
+        WHERE ar.organization_id = ${organizationId}::uuid
+          AND ar.id = ANY(${uniqueIds}::uuid[])
+          AND NOT EXISTS (
+            SELECT 1
+            FROM automation_runs r
+            WHERE r.organization_id = ar.organization_id
+              AND r.rule_id = ar.id
+          )
+        FOR UPDATE
+      `;
+      const deletedIds = deletable.map((row) => String(row.id));
+      if (deletedIds.length > 0) {
+        await tx`
+          DELETE FROM automation_rules
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ANY(${deletedIds}::uuid[])
+        `;
+      }
+      const blockedIds = uniqueIds.filter((id) => !deletedIds.includes(id));
+      return { deletedIds, deletedCount: deletedIds.length, blockedIds };
+    });
   }
 
   async createAutomationRun(ruleId: string, input: CreateAutomationRunDto) {
