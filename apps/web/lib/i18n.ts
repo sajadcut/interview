@@ -2,7 +2,9 @@ export const supportedLocales = ["fa", "en"] as const;
 export type AppLocale = (typeof supportedLocales)[number];
 
 export function getDefaultLocale(): AppLocale {
-  return process.env.NEXT_PUBLIC_DEFAULT_LOCALE === "en" ? "en" : "fa";
+  // Product UI is intentionally Persian-only for the current release.
+  // Do not let a local/public environment variable silently switch candidate-facing pages to English.
+  return "fa";
 }
 
 export function getInternalLocale(): AppLocale {
@@ -253,6 +255,8 @@ export const candidateCopy = {
       continue: "ادامه به مصاحبه",
       deviceUnsupported: "این مرورگر دسترسی لازم به دوربین و میکروفن را پشتیبانی نمی‌کند.",
       deviceRequired: "دوربین و میکروفن هر دو باید در دسترس باشند.",
+      deviceNotFound: "دوربین یا میکروفن موردنیاز پیدا نشد. اتصال دستگاه را بررسی کنید و دوباره تلاش کنید.",
+      devicePermissionDenied: "دسترسی به دوربین یا میکروفن مسدود شده است. مجوز سایت را در تنظیمات مرورگر فعال کنید.",
       deviceFailed: "بررسی دستگاه ناموفق بود.",
       deviceNote: "بررسی دستگاه فقط دسترسی مرورگر را می‌سنجد و جریان‌های موقت رسانه‌ای بلافاصله متوقف می‌شوند. از دوربین یا میکروفن برای استنباط احساس، صداقت، شخصیت یا تناسب شغلی استفاده نمی‌شود.",
     },
@@ -325,6 +329,8 @@ export const candidateCopy = {
       continue: "Continue to interview",
       deviceUnsupported: "Camera and microphone access are not supported by this browser.",
       deviceRequired: "Both microphone and camera must be available.",
+      deviceNotFound: "The required camera or microphone was not found. Check the device connection and try again.",
+      devicePermissionDenied: "Camera or microphone access is blocked. Allow this site in browser settings and try again.",
       deviceFailed: "Device check failed.",
       deviceNote: "The device check only verifies browser access and immediately stops temporary media tracks. Camera and microphone data are not used to infer emotion, honesty, personality, or suitability.",
     },
