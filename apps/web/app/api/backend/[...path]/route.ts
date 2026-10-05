@@ -33,8 +33,16 @@ function getApiTarget(): URL {
 
 function buildTargetUrl(request: Request, path: string[]): URL {
   const target = getApiTarget();
-  const basePath = target.pathname.replace(/\/$/, "");
-  target.pathname = `${basePath}/${path.map(encodeURIComponent).join("/")}`;
+  const basePath = target.pathname.replace(/\/+$/, "");
+  const requestedSegments = path.map(encodeURIComponent);
+
+  // Support API base URLs configured with or without a trailing /v1 prefix.
+  // Without this guard, /api/backend/v1/... becomes /v1/v1/... and Nest returns 404.
+  if (basePath.endsWith("/v1") && requestedSegments[0] === "v1") {
+    requestedSegments.shift();
+  }
+
+  target.pathname = `${basePath}/${requestedSegments.join("/")}`;
   target.search = new URL(request.url).search;
   return target;
 }
