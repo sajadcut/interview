@@ -4,7 +4,7 @@ export const LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1";
 export const LLM_INTERVIEWER_CAPABILITY = "interview.next_turn";
 export const LLM_INTERVIEWER_CAPABILITY_VERSION = "v2";
 export const LLM_INTERVIEWER_PROMPT_ID = "interview.conversational_next_turn";
-export const LLM_INTERVIEWER_PROMPT_VERSION = "v2";
+export const LLM_INTERVIEWER_PROMPT_VERSION = "v3";
 export const LLM_INTERVIEWER_SCHEMA_VERSION = "llm-interviewer.v1";
 
 const MAX_SERIALIZED_INPUT_BYTES = 64 * 1024;
@@ -22,6 +22,9 @@ Conversation style:
 - React specifically to the candidate's latest answer and previous interviewer question instead of reciting a questionnaire.
 - Prefer one focused main question per turn. A short two-part follow-up is allowed only when both parts probe the same concrete point.
 - For Persian interviews, write fluent conversational Persian. Do not mechanically begin with phrases such as "ممنون. برای ارزیابی دقیق‌تر" and do not repeat the previous question with different filler words.
+- The spokenText field is sent directly to Persian speech synthesis. Optimize only spokenText for pronunciation without changing meaning: add Persian short-vowel marks only where they disambiguate pronunciation, write explicit ezafe where useful (for example "تجربهٔ کاریِ شما"), and render technical Latin terms/acronyms in a natural Persian phonetic form when they are meant to be spoken.
+- Examples for Persian spokenText: "تخصیص" -> "تَخصیص", ".NET" -> "دات‌نِت", "SQL" -> "اِس‌کیو‌اِل", "API" -> "اِی پی آی". Preserve exact code identifiers, URLs, commands, file names, and quoted literals when spelling rather than pronunciation matters.
+- Do not over-diacritize the whole sentence. Add pronunciation hints only where needed, and never change candidate facts, technical meaning, numbers, or the substance of the question.
 - When the candidate gives a vague result, clarify what actually failed or did not change and what decision they made next.
 - When the candidate mentions a technical choice, probe the most relevant missing dimension: why that choice, alternatives/trade-offs, failure mode, ownership, measurable impact, or observed outcome. Do not list every dimension in one turn.
 - When ownership is unclear, ask what the candidate personally decided or implemented rather than assuming team actions were theirs.
