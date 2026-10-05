@@ -64,6 +64,24 @@ function successResponse(requestId: string): Response {
   });
 }
 
+function mp3Bytes(): Uint8Array {
+  return Uint8Array.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, ...new Array(256).fill(0)]);
+}
+
+function edgeSuccessResponse(requestId: string): Response {
+  const audio = mp3Bytes();
+  return new Response(Buffer.from(audio), {
+    status: 200,
+    headers: {
+      "content-type": "audio/mpeg",
+      "content-length": String(audio.byteLength),
+      "x-tts-contract-version": TTS_CONTRACT_VERSION,
+      "x-tts-provider": "edge-tts",
+      "x-request-id": requestId,
+    },
+  });
+}
+
 test("TTS retry delays are bounded exponential", () => {
   assert.equal(computeTtsRetryDelayMs(1), 200);
   assert.equal(computeTtsRetryDelayMs(2), 400);
@@ -165,6 +183,33 @@ test("TTS client sends versioned text request and validates WAV response", async
         assert.equal(headers?.get("x-tts-secret"), "test-tts-secret");
         assert.deepEqual(JSON.parse(body), { spokenText: "Hello" });
         assert.equal(JSON.stringify(result).includes("test-tts-secret"), false);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    },
+  );
+});
+
+test("TTS client accepts Edge neural MP3 responses", async () => {
+  await withTtsEnv(
+    {
+      NODE_ENV: "test",
+      TTS_PROVIDER: "local-http",
+      TTS_BASE_URL: "http://127.0.0.1:9020",
+      MEDIA_WORKER_SHARED_SECRET: "test-tts-secret",
+    },
+    async () => {
+      const originalFetch = globalThis.fetch;
+      const requestId = "tts-edge-request-001";
+      globalThis.fetch = async () => edgeSuccessResponse(requestId);
+      try {
+        const result = await new TtsHttpClient().synthesize({
+          spokenText: "در مورد تخصیص منابع توضیح بده.",
+          requestId,
+        });
+        assert.equal(result.provider, "edge-tts");
+        assert.equal(result.contentType, "audio/mpeg");
+        assert.equal(result.audio[0], 0x49);
       } finally {
         globalThis.fetch = originalFetch;
       }
