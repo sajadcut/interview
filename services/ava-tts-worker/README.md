@@ -18,10 +18,12 @@ If Python 3.13 is not installed, install it first:
 winget install --id Python.Python.3.13 -e
 ```
 
+The setup script deliberately downloads PyTorch from PyPI instead of `download.pytorch.org`, because managed corporate networks can return HTTP 403 from PyTorch's R2 download host. The Windows PyPI wheel is the exact `torch==2.6.0` version pinned by Ava, and the worker explicitly loads Ava with `device="cpu"`.
+
 The setup script:
 
 - creates `.venv-ava-tts`;
-- installs CPU-only PyTorch;
+- installs the official Windows `torch==2.6.0` wheel from PyPI and forces Ava inference to CPU;
 - installs a pinned Ava-82M v0.2.0 wheel;
 - installs the Windows certificate-store bridge for managed/corporate TLS networks;
 - verifies that Ava imports correctly.
