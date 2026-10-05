@@ -124,6 +124,7 @@ export class CandidateInterviewService {
         AND a.id = ${scope.applicationId}::uuid
         AND a.candidate_id = ${scope.candidateId}::uuid
         AND p.status = 'published'
+        AND p.interview_type <> 'human_technical'
       ORDER BY p.version DESC
       LIMIT 1
     `;
