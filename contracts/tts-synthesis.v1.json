@@ -191,7 +191,8 @@
         "spacy": "3.8.16",
         "phonemizerFork": "3.3.2",
         "espeakngLoader": "0.2.4",
-        "spacyCuratedTransformers": false
+        "spacyCuratedTransformers": false,
+        "loguru": "0.7.3"
       }
     },
     "setupVerification": {
