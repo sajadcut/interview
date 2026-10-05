@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import { configureWorkerTls } from "../../../scripts/worker-tls.mjs";
 import process from "node:process";
-import { interviewerPromptDefinition } from "./interviewer-capability.mjs";
-import { persianPronunciationPromptDefinition } from "./persian-pronunciation-capability.mjs";
+import {
+  LLM_INTERVIEWER_PROMPT_VERSION,
+  interviewerPromptDefinition,
+} from "./interviewer-capability.mjs";
+import {
+  PERSIAN_PRONUNCIATION_PROMPT_VERSION,
+  persianPronunciationPromptDefinition,
+} from "./persian-pronunciation-capability.mjs";
 import { createInterviewerHttpServer } from "./interviewer-http.mjs";
 import { LLMProviderLayer, PromptRegistry } from "./llm-provider.mjs";
 import { createConfiguredProvider, providerInfoFromEnvironment } from "./provider-factory.mjs";
@@ -60,6 +66,9 @@ await new Promise((resolve, reject) => {
       provider: selected.info.provider,
       model: selected.info.model,
       configured: selected.info.configured,
+      promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
+      pronunciationPromptVersion: PERSIAN_PRONUNCIATION_PROMPT_VERSION,
+      pronunciationPath: "/v1/speech/persian-pronunciation",
       logFile: logPath(),
     });
     resolve();
