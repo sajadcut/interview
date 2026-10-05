@@ -33,59 +33,148 @@ export class InterviewerService {
   async assign(input: AssignInterviewerDto) {
     const organizationId = this.tenantContext.require().organizationId;
     const actorUserId = this.requireUserId();
-
-    const sessionRows = await this.database.sql`
-      SELECT id::text
-      FROM interview_sessions
-      WHERE organization_id = ${organizationId}::uuid
-        AND id = ${input.sessionId}::uuid
-      LIMIT 1
-    `;
-    if (!sessionRows[0]) throw new NotFoundException("Interview session was not found");
-
-    const interviewerRows = await this.database.sql`
-      SELECT m.id::text
-      FROM memberships m
-      JOIN membership_roles mr
-        ON mr.membership_id = m.id AND mr.organization_id = m.organization_id
-      JOIN roles r
-        ON r.id = mr.role_id AND r.organization_id = m.organization_id
-      WHERE m.organization_id = ${organizationId}::uuid
-        AND m.user_id = ${input.interviewerUserId}::uuid
-        AND m.status = 'active'
-        AND r.key = 'INTERVIEWER'
-      LIMIT 1
-    `;
-    if (!interviewerRows[0]) {
-      throw new BadRequestException("Assigned user must be an active INTERVIEWER in this organization");
+    const scheduledFor = input.scheduledFor ? new Date(input.scheduledFor) : undefined;
+    if (scheduledFor && Number.isNaN(scheduledFor.getTime())) {
+      throw new BadRequestException("scheduledFor must be a valid ISO date-time");
     }
 
-    const rows = await this.database.sql`
-      INSERT INTO interview_assignments (
-        organization_id,
-        interview_session_id,
-        interviewer_user_id,
-        assigned_by_user_id,
-        status,
-        scheduled_for
-      ) VALUES (
-        ${organizationId}::uuid,
-        ${input.sessionId}::uuid,
-        ${input.interviewerUserId}::uuid,
-        ${actorUserId}::uuid,
-        'assigned',
-        ${input.scheduledFor ? new Date(input.scheduledFor) : null}
-      )
-      ON CONFLICT (organization_id, interview_session_id, interviewer_user_id)
-      DO UPDATE SET
-        assigned_by_user_id = EXCLUDED.assigned_by_user_id,
-        status = 'assigned',
-        scheduled_for = EXCLUDED.scheduled_for,
-        updated_at = now()
-      RETURNING id::text, status, scheduled_for, created_at, updated_at
-    `;
-    const row = rows[0];
-    if (!row) throw new ConflictException("Unable to assign interviewer");
+    const result = await this.database.sql.begin(async (tx) => {
+      const sessionRows = await tx`
+        SELECT
+          s.id::text,
+          s.status AS session_status,
+          s.application_id::text,
+          a.pipeline_stage
+        FROM interview_sessions s
+        JOIN applications a
+          ON a.organization_id = s.organization_id
+         AND a.id = s.application_id
+        WHERE s.organization_id = ${organizationId}::uuid
+          AND s.id = ${input.sessionId}::uuid
+        LIMIT 1
+        FOR UPDATE OF s, a
+      `;
+      const session = sessionRows[0];
+      if (!session) throw new NotFoundException("Interview session was not found");
+      if (["completed", "cancelled", "failed"].includes(String(session.session_status))) {
+        throw new ConflictException("A finished interview session cannot be assigned");
+      }
+      if (!["screening", "interview"].includes(String(session.pipeline_stage))) {
+        throw new BadRequestException("Application must be in screening or interview before interviewer assignment");
+      }
+
+      const interviewerRows = await tx`
+        SELECT m.id::text
+        FROM interviewer_profiles ip
+        JOIN users u ON lower(u.email) = lower(ip.email)
+        JOIN memberships m
+          ON m.organization_id = ip.organization_id
+         AND m.user_id = u.id
+        JOIN membership_roles mr
+          ON mr.membership_id = m.id
+         AND mr.organization_id = m.organization_id
+        JOIN roles r
+          ON r.id = mr.role_id
+         AND r.organization_id = m.organization_id
+        WHERE ip.organization_id = ${organizationId}::uuid
+          AND ip.status = 'active'
+          AND u.id = ${input.interviewerUserId}::uuid
+          AND u.disabled_at IS NULL
+          AND m.status = 'active'
+          AND r.key = 'INTERVIEWER'
+        LIMIT 1
+      `;
+      if (!interviewerRows[0]) {
+        throw new BadRequestException("Assigned user must be an active INTERVIEWER in this organization");
+      }
+
+      await tx`
+        UPDATE interview_assignments
+        SET status = 'cancelled', updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND interview_session_id = ${input.sessionId}::uuid
+          AND interviewer_user_id <> ${input.interviewerUserId}::uuid
+          AND status <> 'cancelled'
+      `;
+
+      const rows = await tx`
+        INSERT INTO interview_assignments (
+          organization_id,
+          interview_session_id,
+          interviewer_user_id,
+          assigned_by_user_id,
+          status,
+          scheduled_for
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${input.sessionId}::uuid,
+          ${input.interviewerUserId}::uuid,
+          ${actorUserId}::uuid,
+          'assigned',
+          ${scheduledFor ?? null}
+        )
+        ON CONFLICT (organization_id, interview_session_id, interviewer_user_id)
+        DO UPDATE SET
+          assigned_by_user_id = EXCLUDED.assigned_by_user_id,
+          status = 'assigned',
+          scheduled_for = COALESCE(EXCLUDED.scheduled_for, interview_assignments.scheduled_for),
+          updated_at = now()
+        RETURNING id::text, status, scheduled_for, created_at, updated_at
+      `;
+      const row = rows[0];
+      if (!row) throw new ConflictException("Unable to assign interviewer");
+
+      if (scheduledFor) {
+        await tx`
+          UPDATE interview_sessions
+          SET status = CASE WHEN status = 'invited' THEN 'scheduled' ELSE status END,
+              checkpoint = checkpoint || ${this.database.sql.json({
+                interviewerUserId: input.interviewerUserId,
+                scheduledFor: scheduledFor.toISOString(),
+              } as never)}::jsonb,
+              updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${input.sessionId}::uuid
+        `;
+      }
+
+      const fromStage = String(session.pipeline_stage);
+      if (fromStage !== "interview") {
+        await tx`
+          INSERT INTO application_stage_transitions (
+            organization_id,
+            application_id,
+            from_stage,
+            to_stage,
+            reason,
+            actor_user_id
+          ) VALUES (
+            ${organizationId}::uuid,
+            ${String(session.application_id)}::uuid,
+            ${fromStage},
+            'interview',
+            'Interviewer assigned from interview operations',
+            ${actorUserId}::uuid
+          )
+        `;
+        await tx`
+          UPDATE applications
+          SET pipeline_stage = 'interview', updated_at = now()
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ${String(session.application_id)}::uuid
+        `;
+      }
+
+      return {
+        id: String(row.id),
+        sessionId: input.sessionId,
+        interviewerUserId: input.interviewerUserId,
+        status: String(row.status),
+        ...(asIso(row.scheduled_for) ? { scheduledFor: asIso(row.scheduled_for) } : {}),
+        createdAt: asIso(row.created_at),
+        updatedAt: asIso(row.updated_at),
+      };
+    });
 
     await this.audit.record({
       action: "interview.interviewer.assign",
@@ -97,17 +186,8 @@ export class InterviewerService {
       },
     });
 
-    return {
-      id: String(row.id),
-      sessionId: input.sessionId,
-      interviewerUserId: input.interviewerUserId,
-      status: String(row.status),
-      ...(asIso(row.scheduled_for) ? { scheduledFor: asIso(row.scheduled_for) } : {}),
-      createdAt: asIso(row.created_at),
-      updatedAt: asIso(row.updated_at),
-    };
+    return result;
   }
-
   async listMine() {
     const organizationId = this.tenantContext.require().organizationId;
     const userId = this.requireUserId();
