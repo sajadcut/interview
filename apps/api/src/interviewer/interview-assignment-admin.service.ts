@@ -354,6 +354,11 @@ export class InterviewAssignmentAdminService {
           a.id::text AS application_id,
           c.display_name AS candidate_name,
           j.title AS job_title,
+          CASE
+            WHEN latest_transition.reason = 'AI interviewer selected for the interview stage' THEN 'ai'
+            WHEN previous_assignment.interviewer_user_id IS NOT NULL THEN 'human'
+            ELSE NULL
+          END AS interviewer_mode,
           previous_assignment.interviewer_user_id::text,
           previous_assignment.interviewer_name,
           previous_assignment.interviewer_email
@@ -364,6 +369,16 @@ export class InterviewAssignmentAdminService {
         JOIN jobs j
           ON j.organization_id = a.organization_id
          AND j.id = a.job_id
+        LEFT JOIN LATERAL (
+          SELECT
+            ast.reason
+          FROM application_stage_transitions ast
+          WHERE ast.organization_id = a.organization_id
+            AND ast.application_id = a.id
+            AND ast.to_stage = 'interview'
+          ORDER BY ast.created_at DESC, ast.id DESC
+          LIMIT 1
+        ) latest_transition ON true
         LEFT JOIN LATERAL (
           SELECT
             ia.interviewer_user_id,
@@ -438,6 +453,7 @@ export class InterviewAssignmentAdminService {
       applicationId: String(row.application_id),
       candidateName: String(row.candidate_name),
       jobTitle: String(row.job_title),
+      ...(row.interviewer_mode ? { interviewerMode: String(row.interviewer_mode) as "ai" | "human" } : {}),
       ...(row.interviewer_user_id ? { interviewerUserId: String(row.interviewer_user_id) } : {}),
       ...(row.interviewer_name ? { interviewerName: String(row.interviewer_name) } : {}),
       ...(row.interviewer_email ? { interviewerEmail: String(row.interviewer_email) } : {}),
