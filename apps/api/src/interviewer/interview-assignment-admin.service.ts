@@ -53,15 +53,22 @@ export class InterviewAssignmentAdminService {
 
       const interviewers = await tx`
         SELECT m.id::text
-        FROM memberships m
+        FROM interviewer_profiles ip
+        JOIN users u
+          ON lower(u.email) = lower(ip.email)
+        JOIN memberships m
+          ON m.organization_id = ip.organization_id
+         AND m.user_id = u.id
         JOIN membership_roles mr
           ON mr.membership_id = m.id
          AND mr.organization_id = m.organization_id
         JOIN roles r
           ON r.id = mr.role_id
          AND r.organization_id = m.organization_id
-        WHERE m.organization_id = ${organizationId}::uuid
-          AND m.user_id = ${input.interviewerUserId}::uuid
+        WHERE ip.organization_id = ${organizationId}::uuid
+          AND ip.status = 'active'
+          AND u.id = ${input.interviewerUserId}::uuid
+          AND u.disabled_at IS NULL
           AND m.status = 'active'
           AND r.key = 'INTERVIEWER'
         LIMIT 1
@@ -318,17 +325,23 @@ export class InterviewAssignmentAdminService {
       `,
       this.database.sql`
         SELECT DISTINCT
+          ip.id::text AS profile_id,
           u.id::text AS user_id,
-          u.email,
-          u.display_name,
-          lower(u.email) AS email_sort_key
-        FROM memberships m
-        JOIN users u ON u.id = m.user_id
+          ip.email,
+          concat_ws(' ', ip.first_name, ip.last_name) AS display_name,
+          ip.specialties,
+          lower(ip.email) AS email_sort_key
+        FROM interviewer_profiles ip
+        JOIN users u ON lower(u.email) = lower(ip.email)
+        JOIN memberships m
+          ON m.organization_id = ip.organization_id
+         AND m.user_id = u.id
         JOIN membership_roles mr
           ON mr.membership_id = m.id AND mr.organization_id = m.organization_id
         JOIN roles r
           ON r.id = mr.role_id AND r.organization_id = m.organization_id
-        WHERE m.organization_id = ${organizationId}::uuid
+        WHERE ip.organization_id = ${organizationId}::uuid
+          AND ip.status = 'active'
           AND m.status = 'active'
           AND u.disabled_at IS NULL
           AND r.key = 'INTERVIEWER'
@@ -350,9 +363,13 @@ export class InterviewAssignmentAdminService {
         ...(row.scheduled_for ? { scheduledFor: new Date(String(row.scheduled_for)).toISOString() } : {}),
       })),
       interviewers: interviewers.map((row) => ({
+        profileId: String(row.profile_id),
         userId: String(row.user_id),
         email: String(row.email),
         ...(row.display_name ? { displayName: String(row.display_name) } : {}),
+        specialties: Array.isArray(row.specialties)
+          ? row.specialties.filter((value): value is string => typeof value === "string")
+          : [],
       })),
     };
   }
