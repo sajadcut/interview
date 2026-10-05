@@ -4,7 +4,6 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Venv = Join-Path $RepoRoot ".venv-ava-tts"
 $WheelUrl = "https://huggingface.co/xmanii/Ava-82M/resolve/24160e40cf970dc1b3dc245184e45d48e0fe89a9/ava_tts-0.2.0-py3-none-any.whl#sha256=eabc71ee86f1ffc78b763708523842490746c7b712f690269f519adacd73aad0"
 $PyPiIndex = "https://pypi.org/simple"
-$TorchCpuIndex = "https://download.pytorch.org/whl/cpu"
 
 Write-Host "== Ava-82M Persian CPU TTS setup =="
 
@@ -82,7 +81,7 @@ if (-not (Test-Path (Join-Path $Venv "Scripts\python.exe"))) {
 }
 
 $Python = Join-Path $Venv "Scripts\python.exe"
-Write-Host "Installing CPU-only PyTorch..."
+Write-Host "Installing PyTorch 2.6.0 for the CPU-forced Ava runtime..."
 & $Python -m pip install --index-url $PyPiIndex --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
 
@@ -91,22 +90,15 @@ if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
 & $Python -m pip install --index-url $PyPiIndex "pip-system-certs>=4,<6"
 if ($LASTEXITCODE -ne 0) { throw "Windows certificate-store bridge installation failed." }
 
-# The PyTorch CPU index intentionally does not mirror normal PyPI packages.
-# Install torch's generic Python dependencies from PyPI first, then install only
-# the CPU wheel itself from the PyTorch index. This prevents 403 errors for
-# packages such as setuptools on download.pytorch.org.
-& $Python -m pip install --index-url $PyPiIndex `
-    "filelock" `
-    "typing-extensions>=4.10.0" `
-    "networkx" `
-    "jinja2" `
-    "fsspec" `
-    "setuptools" `
-    "sympy==1.13.1"
-if ($LASTEXITCODE -ne 0) { throw "PyTorch dependency installation failed." }
+# Do not use download.pytorch.org here. Some managed networks allow PyPI but
+# block PyTorch's R2 download host with HTTP 403. PyPI publishes the official
+# CPython 3.13 Windows x64 torch==2.6.0 wheel required by Ava. The worker itself
+# still forces device="cpu", so a CUDA-capable GPU is neither required nor used.
+& $Python -m pip install --index-url $PyPiIndex --only-binary=:all: "torch==2.6.0"
+if ($LASTEXITCODE -ne 0) { throw "PyTorch 2.6.0 installation from PyPI failed." }
 
-& $Python -m pip install --no-deps --index-url $TorchCpuIndex "torch==2.6.0+cpu"
-if ($LASTEXITCODE -ne 0) { throw "CPU PyTorch installation failed." }
+& $Python -c "import torch; x=torch.ones(1, device='cpu'); print('torch', torch.__version__, 'device', x.device, 'cuda-available', torch.cuda.is_available()); assert x.device.type == 'cpu'"
+if ($LASTEXITCODE -ne 0) { throw "PyTorch CPU execution verification failed." }
 
 Write-Host "Installing Ava-82M and pinned Persian frontend dependencies..."
 & $Python -m pip install --index-url $PyPiIndex $WheelUrl
