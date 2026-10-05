@@ -1,3 +1,4 @@
+// Managed interviewer profile collection for human interviewer CRUD and assignment discovery.
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from "@nestjs/common";
 import { ApiNoContentResponse, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Permissions } from "../auth/permissions";
