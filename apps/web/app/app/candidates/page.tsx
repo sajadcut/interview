@@ -224,7 +224,6 @@ export default function CandidatesPage() {
                   <td className="whitespace-nowrap">{formatUpdatedAt(candidate.updatedAt)}</td>
                   <td className="whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <Link href={`/app/candidates/${candidate.id}`} className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-700">مشاهده</Link>
                       {access.can("candidate.resume_manage") ? (
                         <Link href={`/app/candidates/${candidate.id}/edit`} className="text-[10px] font-semibold text-slate-600 hover:text-slate-900">ویرایش</Link>
                       ) : null}
