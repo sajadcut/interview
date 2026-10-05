@@ -72,6 +72,7 @@ export class InterviewAssignmentSessionOptionDto {
   @ApiProperty({ format: "uuid" }) applicationId!: string;
   @ApiProperty() candidateName!: string;
   @ApiProperty() jobTitle!: string;
+  @ApiPropertyOptional({ enum: ["ai", "human"] }) interviewerMode?: "ai" | "human";
   @ApiPropertyOptional({ format: "uuid" }) interviewerUserId?: string;
   @ApiPropertyOptional() interviewerName?: string;
   @ApiPropertyOptional({ format: "email" }) interviewerEmail?: string;
