@@ -14747,11 +14747,11 @@
             "type": "string"
           },
           "phone": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "jobTitle": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "specialties": {
@@ -14761,7 +14761,7 @@
             }
           },
           "bio": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "status": {

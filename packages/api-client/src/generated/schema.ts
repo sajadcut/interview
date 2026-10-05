@@ -4180,10 +4180,10 @@ export interface components {
         UpdateInterviewerProfileDto: {
             firstName?: string;
             lastName?: string;
-            phone?: Record<string, never> | null;
-            jobTitle?: Record<string, never> | null;
+            phone?: string | null;
+            jobTitle?: string | null;
             specialties?: string[];
-            bio?: Record<string, never> | null;
+            bio?: string | null;
             /** @enum {string} */
             status?: "active" | "disabled";
         };
