@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from edge_tts_layer import edge_tts_status, validate_mp3_bytes  # noqa: E402
 from tts_layer import (  # noqa: E402
     CONTRACT_VERSION,
     MAX_AUDIO_BYTES,
@@ -43,6 +44,20 @@ class TTSLayerTests(unittest.TestCase):
             self.assertTrue(status["ready"])
             self.assertEqual(status["contractVersion"], CONTRACT_VERSION)
             self.assertEqual(status["independentOf"], ["llm", "whisper", "livekit", "ffmpeg"])
+
+    def test_edge_status_uses_farid_voice_without_gpu_dependency(self) -> None:
+        status = edge_tts_status(shared_secret="tts-test-secret", executable=sys.executable)
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["provider"], "edge-tts")
+        self.assertEqual(status["contentType"], "audio/mpeg")
+        self.assertEqual(status["voice"], "fa-IR-FaridNeural")
+        self.assertEqual(status["independentOf"], ["llm", "whisper", "livekit", "ffmpeg"])
+
+    def test_edge_mp3_validation_accepts_id3_and_rejects_garbage(self) -> None:
+        validate_mp3_bytes(b"ID3" + (b"\\x00" * 256))
+        with self.assertRaises(TTSError) as raised:
+            validate_mp3_bytes(b"not-an-mp3" * 20)
+        self.assertEqual(raised.exception.code, "invalid_audio_output")
 
     def test_builder_is_shell_free_and_text_uses_file_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
