@@ -183,6 +183,23 @@ test(
             'integration-test'
           )
       `;
+      await database.sql`
+        INSERT INTO application_stage_transitions (
+          organization_id,
+          application_id,
+          from_stage,
+          to_stage,
+          reason,
+          actor_user_id
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${pendingApplicationId}::uuid,
+          'screening',
+          'interview',
+          'AI interviewer selected for the interview stage',
+          ${actorUserId}::uuid
+        )
+      `;
 
       const scheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const scheduled = await tenantContext.run(organizationId, () =>
@@ -262,6 +279,7 @@ test(
       assert.ok(pendingOption);
       assert.equal(pendingOption.sessionId, undefined);
       assert.equal(pendingOption.sessionStatus, "needs_scheduling");
+      assert.equal(pendingOption.interviewerMode, "ai");
       assert.equal(pendingOption.candidateName, "Pending Interview Candidate");
     } finally {
       await database.sql`DELETE FROM organizations WHERE id = ${organizationId}::uuid`;
