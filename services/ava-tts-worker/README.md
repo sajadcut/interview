@@ -6,7 +6,7 @@ Ava-82M v0.2.0 is an Apache-2.0 Persian Kokoro fine-tune with a contextual Persi
 
 ## Windows setup
 
-Ava 0.2.0 officially declares Python 3.11–3.13. This project intentionally runs the Windows worker on 64-bit Python 3.13. Ava 0.2.0 pins `numpy==1.26.4` and `sentencepiece==0.2.0`; those two releases do not provide CPython 3.13 Windows wheels, so the setup uses `numpy==2.1.3` and `sentencepiece==0.2.2`. There is a second packaging mismatch: the published PyPI `misaki==0.9.4` metadata requires Python <3.13, while upstream Misaki commit `fba1236595f2d2bf21d414ba6e57d25256afada3` is specifically the Python 3.13 enablement commit and was tested with Kokoro. The setup pins that upstream Misaki revision and installs Ava's exact Kokoro revision with `--no-deps` so pip cannot replace it with incompatible PyPI metadata. These are explicit compatibility overrides and should be treated as experimental until representative synthesis tests pass.
+Ava 0.2.0 officially declares Python 3.11–3.13. This project intentionally runs the Windows worker on 64-bit Python 3.13. Ava 0.2.0 pins `numpy==1.26.4` and `sentencepiece==0.2.0`; those two releases do not provide CPython 3.13 Windows wheels, so the setup uses `numpy==2.1.3` and `sentencepiece==0.2.2`. There is a second packaging mismatch: the published PyPI `misaki==0.9.4` metadata requires Python <3.13, while upstream Misaki commit `fba1236595f2d2bf21d414ba6e57d25256afada3` is specifically the Python 3.13 enablement commit and was tested with Kokoro. The setup installs that Misaki revision without the heavy `[en]` extra. Kokoro imports `misaki.en` and `misaki.espeak` at module import time, so the setup separately pins only their required runtime imports: `spacy==3.8.16`, `num2words==0.5.14`, `phonemizer-fork==3.3.2`, and `espeakng-loader==0.2.4`. It intentionally omits `spacy-curated-transformers`, because Ava uses its own Persian frontend and never enables Misaki's transformer English G2P path. Ava's exact Kokoro revision is then installed with `--no-deps`. These are explicit compatibility overrides and should be treated as experimental until representative synthesis tests pass.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup-ava-tts-windows.ps1
@@ -33,7 +33,8 @@ The setup script:
 - creates `.venv-ava-tts`;
 - installs the official Windows `torch==2.6.0` wheel from PyPI and forces Ava inference to CPU;
 - installs CPython 3.13 binary wheels `numpy==2.1.3` and `sentencepiece==0.2.2` as compatibility overrides;
-- installs upstream Misaki commit `fba1236`, which explicitly enables Python 3.13, with the English extras Kokoro imports;
+- installs upstream Misaki commit `fba1236`, which explicitly enables Python 3.13, without the `[en]` transformer extra;
+- pins the minimal Kokoro import dependencies to CPython-3.13-compatible wheels and intentionally excludes `spacy-curated-transformers`;
 - installs Ava's pinned Kokoro revision with `--no-deps` to avoid PyPI's Python<3.13 Misaki resolver;
 - keeps Click, Hugging Face Hub, SoundFile, Transformers, Torch, and the Kokoro revision aligned with Ava v0.2.0;
 - installs the pinned Ava-82M v0.2.0 wheel with `--no-deps` so its stale native pins do not force source builds;
