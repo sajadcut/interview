@@ -16,9 +16,11 @@ $secret = $values["TTS_SHARED_SECRET"]
 if (-not $secret) { $secret = $values["MEDIA_WORKER_SHARED_SECRET"] }
 if (-not $secret) { throw "TTS_SHARED_SECRET or MEDIA_WORKER_SHARED_SECRET must be configured in .env." }
 
+$requestId = "tts:ava-ab-$([Guid]::NewGuid().ToString('N'))"
 $headers = @{
     "x-tts-secret" = $secret
     "x-tts-contract-version" = "tts-synthesis.v1"
+    "x-request-id" = $requestId
 }
 $body = @{
     spokenText = "لطفاً یک نمونه واقعی و مشخص از تجربه کاری خود درباره Backend تعریف کنید. بگویید خودتان چه تصمیمی گرفتید، شرایط فنی چه بود، چه API هایی طراحی کردید و نتیجه چه شد."
@@ -28,7 +30,8 @@ $out = Join-Path $RepoRoot ".local-data\ava-ab-test.wav"
 New-Item -ItemType Directory -Force -Path (Split-Path $out -Parent) | Out-Null
 
 $watch = [System.Diagnostics.Stopwatch]::StartNew()
-Invoke-WebRequest -Uri "http://127.0.0.1:9022/synthesize" -Method POST -Headers $headers -ContentType "application/json; charset=utf-8" -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -OutFile $out
+$avaBaseUrl = if ($env:AVA_TTS_BASE_URL) { $env:AVA_TTS_BASE_URL.TrimEnd("/") } else { "http://127.0.0.1:9022" }
+Invoke-WebRequest -Uri "$avaBaseUrl/synthesize" -Method POST -Headers $headers -ContentType "application/json; charset=utf-8" -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -OutFile $out
 $watch.Stop()
 
 Write-Host "Ava synthesis completed in $([math]::Round($watch.Elapsed.TotalSeconds, 2)) seconds"
