@@ -3078,8 +3078,13 @@ export interface components {
             location?: Record<string, never> | null;
             preferredLanguage?: Record<string, never> | null;
         };
-        BulkIdsDto: {
+        BulkCandidateDeleteDto: {
             ids: string[];
+            /**
+             * @description When true, permanently deletes linked applications and all cascade-owned recruiting records before deleting the candidate.
+             * @default false
+             */
+            cascadeApplications: boolean;
         };
         BulkDeleteResultDto: {
             deletedIds: string[];
@@ -3110,6 +3115,9 @@ export interface components {
             status: "open";
             rubricVersion?: number;
             rubricPublished: boolean;
+        };
+        BulkIdsDto: {
+            ids: string[];
         };
         SaveRubricDraftDto: {
             name: string;
@@ -5981,7 +5989,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkIdsDto"];
+                "application/json": components["schemas"]["BulkCandidateDeleteDto"];
             };
         };
         responses: {
