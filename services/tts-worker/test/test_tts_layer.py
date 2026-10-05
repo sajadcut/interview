@@ -12,7 +12,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from edge_tts_layer import edge_tts_status, validate_mp3_bytes  # noqa: E402
+import edge_tts_layer  # noqa: E402
+from edge_tts_layer import EdgeTTSRunner, edge_tts_status, validate_mp3_bytes  # noqa: E402
 from tts_layer import (  # noqa: E402
     CONTRACT_VERSION,
     MAX_AUDIO_BYTES,
@@ -46,12 +47,38 @@ class TTSLayerTests(unittest.TestCase):
             self.assertEqual(status["independentOf"], ["llm", "whisper", "livekit", "ffmpeg"])
 
     def test_edge_status_uses_farid_voice_without_gpu_dependency(self) -> None:
-        status = edge_tts_status(shared_secret="tts-test-secret", executable=sys.executable)
+        status = edge_tts_status(shared_secret="tts-test-secret", module_available=True)
         self.assertTrue(status["ready"])
         self.assertEqual(status["provider"], "edge-tts")
         self.assertEqual(status["contentType"], "audio/mpeg")
         self.assertEqual(status["voice"], "fa-IR-FaridNeural")
+        self.assertEqual(status["runtime"], "python-module")
         self.assertEqual(status["independentOf"], ["llm", "whisper", "livekit", "ffmpeg"])
+
+    def test_edge_runner_collects_mp3_in_process_without_cli(self) -> None:
+        original = edge_tts_layer.edge_tts_module
+
+        class FakeCommunicate:
+            def __init__(self, text, voice, **kwargs):
+                self.text = text
+                self.voice = voice
+                self.kwargs = kwargs
+
+            async def stream(self):
+                yield {"type": "SentenceBoundary", "offset": 0, "duration": 1, "text": "سلام"}
+                yield {"type": "audio", "data": b"ID3" + (b"\\x00" * 256)}
+
+        class FakeEdgeModule:
+            Communicate = FakeCommunicate
+
+        edge_tts_layer.edge_tts_module = FakeEdgeModule()
+        try:
+            audio = EdgeTTSRunner(timeout_seconds=2).synthesize("سلام")
+        finally:
+            edge_tts_layer.edge_tts_module = original
+
+        self.assertTrue(audio.startswith(b"ID3"))
+        self.assertGreater(len(audio), 128)
 
     def test_edge_mp3_validation_accepts_id3_and_rejects_garbage(self) -> None:
         validate_mp3_bytes(b"ID3" + (b"\\x00" * 256))
