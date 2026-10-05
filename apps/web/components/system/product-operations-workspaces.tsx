@@ -386,9 +386,22 @@ export function AutomationsWorkspace() {
 
 export function IntegrationsWorkspace() {
   const { identity, error } = useIdentity();
+  const access = useInternalAccess();
   const [rows, setRows] = useState<IntegrationRow[]>([]);
   const [message, setMessage] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    providerKey: "",
+    connectionType: "api",
+    credentialReference: "",
+    approvedForRecruitingUse: false,
+    privacyUseApproved: false,
+  });
 
   async function load(current: TenantIdentity) {
     const result = await api.GET("/v1/integrations", { headers: tenantHeaders(current) });
@@ -411,77 +424,115 @@ export function IntegrationsWorkspace() {
     };
   }, [identity]);
 
-  async function configure() {
-    if (!identity) return;
-    const providerKey = window.prompt("کلید ارائه‌دهنده (مثلاً greenhouse، google-calendar یا smtp)")?.trim();
-    if (!providerKey) return;
-    const connectionType = window.prompt("نوع اتصال", "api")?.trim();
-    if (!connectionType) return;
-    const credentialReference = window.prompt("فقط مرجع امن راز خارجی (مثلاً vault://interview/provider)")?.trim();
-    if (!credentialReference) return;
-    const result = await api.POST("/v1/integrations", {
-      headers: tenantHeaders(identity, true),
-      body: { providerKey, connectionType, credentialReference, config: {} },
+  const filteredRows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (!normalized) return true;
+      return [row.provider_key, row.connection_type, row.status, row.credential_reference, row.last_error]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalized));
     });
-    if (!result.response.ok) {
-      setMessage(apiErrorMessage(result, "پیکربندی ناموفق بود"));
-      return;
-    }
-    setMessage("پیکربندی یکپارچه‌سازی با مرجع امن ذخیره شد و هیچ اطلاعات احراز هویت خامی ثبت نشد.");
-    await load(identity);
+  }, [query, rows, statusFilter]);
+
+  const allVisibleSelected = filteredRows.length > 0 && filteredRows.every((row) => selectedIds.has(row.id));
+  const someVisibleSelected = filteredRows.some((row) => selectedIds.has(row.id)) && !allVisibleSelected;
+
+  function resetForm() {
+    setEditingId(undefined);
+    setForm({
+      providerKey: "",
+      connectionType: "api",
+      credentialReference: "",
+      approvedForRecruitingUse: false,
+      privacyUseApproved: false,
+    });
   }
 
-  async function configureCandidateSource(
-    providerKey: "people_data_labs" | "coresignal",
-    suggestedReference: string,
-  ) {
-    if (!identity) return;
-    const credentialReference = window.prompt(
-      "مرجع متغیر محیطی API Key را وارد کنید؛ خود API Key را اینجا وارد نکنید.",
-      suggestedReference,
-    )?.trim();
-    if (!credentialReference) return;
-    if (!/^env:\/\/[A-Z][A-Z0-9_]{2,100}$/.test(credentialReference)) {
-      setMessage("برای کاندیدیاب فعلاً مرجع باید به شکل env://PREFIX باشد؛ مثال: env://PEOPLE_DATA_LABS");
-      return;
-    }
-    const usageApproved = window.confirm(
-      "تأیید می‌کنید استفاده از این منبع برای Recruiting و پردازش داده کاندید طبق سیاست حریم خصوصی سازمان مجاز است؟",
-    );
-    if (!usageApproved) {
-      setMessage("اتصال کاندیدیاب ثبت نشد؛ تأیید صریح استفاده Recruiting/Privacy الزامی است.");
-      return;
-    }
-    const existingCandidateSources = rows.filter(
-      (row) =>
-        row.connection_type === "candidate_source" &&
-        row.status !== "disabled" &&
-        ["people_data_labs", "coresignal"].includes(row.provider_key),
-    );
-    const defaultForSourcing = existingCandidateSources.length === 0;
-    const result = await api.POST("/v1/integrations", {
-      headers: tenantHeaders(identity, true),
-      body: {
-        providerKey,
-        connectionType: "candidate_source",
-        credentialReference,
-        config: {
-          approvedForRecruitingUse: true,
-          privacyUseApproved: true,
-          defaultForSourcing,
-        },
-      },
+  function startEdit(row: IntegrationRow) {
+    setEditingId(row.id);
+    const config = (row.config ?? {}) as Record<string, unknown>;
+    setForm({
+      providerKey: row.provider_key,
+      connectionType: row.connection_type,
+      credentialReference: row.credential_reference ?? "",
+      approvedForRecruitingUse: config.approvedForRecruitingUse === true,
+      privacyUseApproved: config.privacyUseApproved === true,
     });
-    if (!result.response.ok) {
-      setMessage(apiErrorMessage(result, "پیکربندی منبع کاندیدیاب ناموفق بود"));
+    setMessage(undefined);
+  }
+
+  function prefillCandidateSource(providerKey: "people_data_labs" | "coresignal") {
+    setEditingId(undefined);
+    setForm({
+      providerKey,
+      connectionType: "candidate_source",
+      credentialReference: providerKey === "people_data_labs" ? "env://PEOPLE_DATA_LABS" : "env://CORESIGNAL",
+      approvedForRecruitingUse: true,
+      privacyUseApproved: true,
+    });
+    setMessage(undefined);
+  }
+
+  async function saveIntegration() {
+    if (!identity || saving) return;
+    const providerKey = form.providerKey.trim().toLowerCase();
+    const connectionType = form.connectionType.trim().toLowerCase();
+    const credentialReference = form.credentialReference.trim();
+    if (!providerKey || !connectionType || !credentialReference) {
+      setMessage("ارائه‌دهنده، نوع اتصال و مرجع امن راز الزامی است.");
       return;
     }
-    setMessage(
-      defaultForSourcing
-        ? "منبع کاندیدیاب با تأیید استفاده استخدامی/حریم خصوصی ثبت و به‌عنوان منبع پیش‌فرض فعال شد."
-        : "منبع کاندیدیاب ثبت شد. چون منبع دیگری از قبل فعال است، این اتصال به‌صورت پیش‌فرض انتخاب نشد.",
-    );
-    await load(identity);
+    if (connectionType === "candidate_source") {
+      if (!/^env:\/\/[A-Z][A-Z0-9_]{2,100}$/.test(credentialReference)) {
+        setMessage("برای کاندیدیاب مرجع باید به شکل env://PREFIX باشد؛ مثال: env://PEOPLE_DATA_LABS");
+        return;
+      }
+      if (!form.approvedForRecruitingUse || !form.privacyUseApproved) {
+        setMessage("ثبت منبع کاندیدیاب به تأیید صریح استفاده استخدامی و حریم خصوصی نیاز دارد.");
+        return;
+      }
+    }
+
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const existingCandidateSources = rows.filter(
+        (row) =>
+          row.connection_type === "candidate_source" &&
+          row.status !== "disabled" &&
+          ["people_data_labs", "coresignal"].includes(row.provider_key) &&
+          row.id !== editingId,
+      );
+      const config = connectionType === "candidate_source"
+        ? {
+            approvedForRecruitingUse: form.approvedForRecruitingUse,
+            privacyUseApproved: form.privacyUseApproved,
+            defaultForSourcing: existingCandidateSources.length === 0,
+          }
+        : {};
+
+      const result = editingId
+        ? await api.PATCH("/v1/integrations/{integrationId}", {
+            params: { path: { integrationId: editingId } },
+            headers: tenantHeaders(identity, true),
+            body: { credentialReference, config },
+          })
+        : await api.POST("/v1/integrations", {
+            headers: tenantHeaders(identity, true),
+            body: { providerKey, connectionType, credentialReference, config },
+          });
+
+      if (!result.response.ok) {
+        setMessage(apiErrorMessage(result, editingId ? "ویرایش اتصال ناموفق بود" : "پیکربندی اتصال ناموفق بود"));
+        return;
+      }
+      setMessage(editingId ? "تنظیمات اتصال به‌روزرسانی شد." : "یکپارچه‌سازی با مرجع امن ثبت شد؛ اطلاعات احراز هویت خام ذخیره نشد.");
+      resetForm();
+      await load(identity);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function setStatus(row: IntegrationRow, status: "configured" | "disabled") {
@@ -498,76 +549,158 @@ export function IntegrationsWorkspace() {
     await load(identity);
   }
 
+  function toggleSelected(id: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllVisible(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const row of filteredRows) {
+        if (checked) next.add(row.id);
+        else next.delete(row.id);
+      }
+      return next;
+    });
+  }
+
+  async function disableSelected() {
+    if (!identity || selectedIds.size === 0) return;
+    setSaving(true);
+    setMessage(undefined);
+    try {
+      const ids = [...selectedIds];
+      const results = await Promise.allSettled(ids.map(async (integrationId) => {
+        const result = await api.PATCH("/v1/integrations/{integrationId}", {
+          params: { path: { integrationId } },
+          headers: tenantHeaders(identity, true),
+          body: { status: "disabled" },
+        });
+        if (!result.response.ok) throw new Error(apiErrorMessage(result, "غیرفعال‌سازی ناموفق بود"));
+      }));
+      const successCount = results.filter((result) => result.status === "fulfilled").length;
+      const failedCount = results.length - successCount;
+      setMessage(
+        failedCount
+          ? `${successCount} اتصال غیرفعال شد؛ ${failedCount} اتصال تغییر نکرد.`
+          : `${successCount} اتصال غیرفعال شد.`,
+      );
+      setSelectedIds(new Set());
+      await load(identity);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <div className="text-[10px] font-medium text-indigo-600">مرز سازمانی مستقل از ارائه‌دهنده</div>
-          <h1 className="mt-2 text-[26px] font-semibold">یکپارچه‌سازی‌ها</h1>
-          <p className="mt-1 text-[11px] text-slate-500">ATS، تقویم، ایمیل و منابع خارجی مجاز با مرجع امن، وضعیت سلامت و حسابرسی مدیریت می‌شوند.</p>
-        </div>
-        <button onClick={() => void configure()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white">پیکربندی عمومی</button>
+      <div>
+        <div className="text-[10px] font-medium text-indigo-600">مرز سازمانی مستقل از ارائه‌دهنده</div>
+        <h1 className="mt-2 text-[26px] font-semibold">یکپارچه‌سازی‌ها</h1>
+        <p className="mt-1 text-[11px] text-slate-500">اتصال‌ها را ایجاد، جست‌وجو و ویرایش کنید. برای حفظ حسابرسی، حذف فیزیکی اتصال با غیرفعال‌سازی جایگزین شده است.</p>
       </div>
 
-      {error || message ? <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] text-indigo-800">{error || message}</div> : null}
+      {error || message ? <InlineFeedback tone={error ? "error" : "success"}>{error || message}</InlineFeedback> : null}
 
-      <Panel className="p-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="text-[11px] font-semibold text-slate-900">منابع کاندیدیاب</div>
-            <p className="mt-1 max-w-2xl text-[9px] leading-5 text-slate-500">
-              برای جستجوی بیرونی، فقط مرجع متغیر محیطی API Key ثبت می‌شود. خود کلید در دیتابیس یا UI ذخیره نمی‌شود و استفاده Recruiting/Privacy صریحاً تأیید می‌گردد.
-            </p>
+      {access.can("integration.manage") ? (
+        <Panel className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-[13px] font-semibold text-slate-900">{editingId ? "ویرایش اتصال" : "پیکربندی اتصال جدید"}</h2>
+              <p className="mt-1 max-w-2xl text-[9px] leading-5 text-slate-500">فقط مرجع راز خارجی مانند env:// یا vault:// ذخیره می‌شود؛ کلید یا رمز خام وارد نکنید.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => prefillCandidateSource("people_data_labs")} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700">People Data Labs</button>
+              <button type="button" onClick={() => prefillCandidateSource("coresignal")} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700">Coresignal</button>
+              {editingId ? <button type="button" onClick={resetForm} className="rounded-lg px-3 py-2 text-[9px] font-semibold text-slate-500">انصراف</button> : null}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void configureCandidateSource("people_data_labs", "env://PEOPLE_DATA_LABS")}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              اتصال People Data Labs
-            </button>
-            <button
-              type="button"
-              onClick={() => void configureCandidateSource("coresignal", "env://CORESIGNAL")}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              اتصال Coresignal
-            </button>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="text-[9px] font-semibold text-slate-600">ارائه‌دهنده
+              <input disabled={Boolean(editingId)} value={form.providerKey} onChange={(event) => setForm({ ...form, providerKey: event.target.value })} placeholder="greenhouse" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-[10px] disabled:bg-slate-50" />
+            </label>
+            <label className="text-[9px] font-semibold text-slate-600">نوع اتصال
+              <input disabled={Boolean(editingId)} value={form.connectionType} onChange={(event) => setForm({ ...form, connectionType: event.target.value })} placeholder="api" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-[10px] disabled:bg-slate-50" />
+            </label>
+            <label className="text-[9px] font-semibold text-slate-600 md:col-span-2">مرجع امن راز
+              <input value={form.credentialReference} onChange={(event) => setForm({ ...form, credentialReference: event.target.value })} placeholder="env://PROVIDER or vault://interview/provider" className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 font-mono text-[10px]" />
+            </label>
           </div>
-        </div>
-        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[8px] leading-4 text-amber-800">
-          قبل از اجرای API، متغیر محیطی متناظر را روی API process تنظیم کنید؛ مثلاً PEOPLE_DATA_LABS_API_KEY یا CORESIGNAL_API_KEY. جستجوی مستقیم/پنهان LinkedIn انجام نمی‌شود.
-        </div>
-      </Panel>
+
+          {form.connectionType === "candidate_source" ? (
+            <div className="mt-3 grid gap-2 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[9px] text-amber-900 md:grid-cols-2">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={form.approvedForRecruitingUse} onChange={(event) => setForm({ ...form, approvedForRecruitingUse: event.target.checked })} />استفاده برای جذب مورد تأیید سازمان است</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={form.privacyUseApproved} onChange={(event) => setForm({ ...form, privacyUseApproved: event.target.checked })} />پردازش داده طبق سیاست حریم خصوصی تأیید شده است</label>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex gap-2">
+            <button type="button" disabled={saving} onClick={() => void saveIntegration()} className="h-10 rounded-lg bg-indigo-600 px-4 text-[10px] font-semibold text-white disabled:opacity-50">{saving ? "در حال ذخیره…" : editingId ? "ذخیره تغییرات" : "ثبت اتصال"}</button>
+            {editingId ? <button type="button" onClick={resetForm} className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-[10px] font-semibold text-slate-600">انصراف</button> : null}
+          </div>
+        </Panel>
+      ) : null}
 
       <Panel className="overflow-hidden">
+        {selectedIds.size > 0 ? (
+          <BulkActionBar selectedCount={selectedIds.size} noun="اتصال" onClear={() => setSelectedIds(new Set())}>
+            <button type="button" disabled={saving} onClick={() => void disableSelected()} className="h-8 rounded-lg bg-slate-900 px-3 text-[10px] font-semibold text-white disabled:opacity-50">غیرفعال‌کردن انتخاب‌شده‌ها</button>
+          </BulkActionBar>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
+            <div className="relative min-w-[260px] flex-1">
+              <Icon name="search" size={14} className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="جست‌وجو در ارائه‌دهنده، نوع اتصال یا وضعیت..." className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none focus:border-indigo-300 focus:bg-white" />
+            </div>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="فیلتر وضعیت اتصال" className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[11px]">
+              <option value="all">همه وضعیت‌ها</option>
+              <option value="configured">پیکربندی‌شده</option>
+              <option value="verified">تأییدشده</option>
+              <option value="degraded">دارای اختلال</option>
+              <option value="disabled">غیرفعال</option>
+            </select>
+          </div>
+        )}
+
+        <div className="border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-700">
+            {access.can("integration.manage") ? <SelectionCheckbox label="انتخاب همه اتصال‌های این فهرست" checked={allVisibleSelected} indeterminate={someVisibleSelected} disabled={filteredRows.length === 0} onChange={toggleAllVisible} /> : null}
+            اتصال‌های ثبت‌شده
+          </div>
+        </div>
+
         <div className="divide-y divide-slate-100">
           {loading ? (
             <div className="p-5 text-[10px] text-slate-500">در حال بارگذاری یکپارچه‌سازی‌ها…</div>
-          ) : rows.length ? rows.map((row) => (
-            <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
+          ) : filteredRows.length ? filteredRows.map((row) => (
+            <div key={row.id} className="flex flex-wrap items-center gap-3 p-4">
+              {access.can("integration.manage") ? <SelectionCheckbox label={`انتخاب ${row.provider_key}`} checked={selectedIds.has(row.id)} onChange={(checked) => toggleSelected(row.id, checked)} /> : null}
+              <div className="min-w-[260px] flex-1">
                 <div className="text-[10px] font-semibold">{row.provider_key} · {faDomainLabel(row.connection_type)}</div>
-                <div className="mt-1 text-[9px] text-slate-500">
-                  مرجع امن: {row.credential_reference || "پیکربندی نشده"}
-                  {row.last_error ? ` · ${row.last_error}` : ""}
+                <div className="mt-1 text-[9px] text-slate-500">مرجع امن: {row.credential_reference || "پیکربندی نشده"}{row.last_error ? ` · ${row.last_error}` : ""}</div>
+              </div>
+              <Pill tone={row.status === "verified" ? "green" : row.status === "degraded" ? "amber" : "slate"}>{faDomainLabel(row.status)}</Pill>
+              {access.can("integration.manage") ? (
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => startEdit(row)} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px] font-semibold">ویرایش</button>
+                  <button type="button" onClick={() => void setStatus(row, row.status === "disabled" ? "configured" : "disabled")} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">{row.status === "disabled" ? "فعال‌کردن" : "غیرفعال‌کردن"}</button>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Pill tone={row.status === "verified" ? "green" : row.status === "degraded" ? "amber" : "slate"}>{faDomainLabel(row.status)}</Pill>
-                <button onClick={() => void setStatus(row, row.status === "disabled" ? "configured" : "disabled")} className="rounded-lg border border-slate-200 px-3 py-2 text-[9px]">
-                  {row.status === "disabled" ? "فعال‌کردن" : "غیرفعال‌کردن"}
-                </button>
-              </div>
+              ) : null}
             </div>
           )) : (
-            <div className="p-5 text-[10px] text-slate-500">هیچ یکپارچه‌سازی‌ای پیکربندی نشده است.</div>
+            <div className="p-5 text-[10px] text-slate-500">{rows.length ? "اتصالی با فیلترهای فعلی پیدا نشد." : "هیچ یکپارچه‌سازی‌ای پیکربندی نشده است."}</div>
           )}
         </div>
       </Panel>
+
       <Panel className="p-4 text-[10px] leading-5 text-slate-600">
-        اتصالی که فقط پیکربندی شده باشد تا زمان تأیید توسط مبدل واقعی ارائه‌دهنده، «تأییدشده» محسوب نمی‌شود. توکن و رمز خام طبق سیاست API پذیرفته نمی‌شوند.
+        اتصالی که فقط پیکربندی شده باشد تا زمان تأیید توسط مبدل واقعی ارائه‌دهنده، «تأییدشده» محسوب نمی‌شود. برای حفظ تاریخچه حسابرسی، حذف فیزیکی اتصال ارائه نمی‌شود و «غیرفعال‌کردن» عمل حذف ایمن است.
       </Panel>
     </div>
   );
