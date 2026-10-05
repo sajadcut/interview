@@ -292,6 +292,7 @@ export default function InterviewersPage() {
           {access.can("interview.assign") ? (
             <button
               type="button"
+              aria-label="ایجاد مصاحبه‌گر"
               onClick={openCreate}
               className="inline-flex h-10 items-center gap-2 rounded-[10px] bg-indigo-600 px-3.5 text-[11px] font-semibold text-white shadow-sm hover:bg-indigo-700"
             >
