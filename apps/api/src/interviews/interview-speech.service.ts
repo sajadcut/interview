@@ -260,19 +260,26 @@ export class InterviewSpeechService {
     }
 
     let ttsSpokenText = spokenText;
-    let pronunciationMode: "llm" | "fallback" | "not_needed" = "not_needed";
+    let pronunciationMode: "llm" | "native_g2p" | "fallback" | "not_needed" = "not_needed";
     if (/[\u0600-\u06FF]/u.test(spokenText)) {
-      try {
-        const pronunciation = await this.ai.pronouncePersianForTts({
-          spokenText,
-          turnId,
-        });
-        ttsSpokenText = pronunciation.ttsText;
-        pronunciationMode = "llm";
-      } catch {
-        // Pronunciation rendering improves TTS quality but must never block the interview.
-        // Fall back to the canonical finalized turn if the LLM sidecar is unavailable.
-        pronunciationMode = "fallback";
+      if (readiness.provider === "ava-82m-persian-cpu") {
+        // Ava has its own contextual Persian G2P + pronunciation correction frontend.
+        // Feed it the canonical finalized text so an extra layer of LLM diacritics does
+        // not distort the native frontend or add avoidable latency.
+        pronunciationMode = "native_g2p";
+      } else {
+        try {
+          const pronunciation = await this.ai.pronouncePersianForTts({
+            spokenText,
+            turnId,
+          });
+          ttsSpokenText = pronunciation.ttsText;
+          pronunciationMode = "llm";
+        } catch {
+          // Pronunciation rendering improves generic TTS quality but must never block the interview.
+          // Fall back to the canonical finalized turn if the LLM sidecar is unavailable.
+          pronunciationMode = "fallback";
+        }
       }
     }
 
