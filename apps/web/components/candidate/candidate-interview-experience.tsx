@@ -18,6 +18,7 @@ import type {
   CandidateRuntimeVoiceAnswer,
 } from "../../lib/candidate-realtime-runtime";
 import { getDefaultLocale } from "../../lib/i18n";
+import { localizeApiMessage } from "../../lib/api";
 import { formatFaNumber } from "../../lib/fa-numbers";
 
 const TARGET_SAMPLE_RATE = 16_000;
@@ -68,6 +69,12 @@ function mediaFailureCode(cause: unknown): MediaFailureCode {
     ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
     ? "permission_denied"
     : "device_unavailable";
+}
+
+function candidateFacingError(cause: unknown, fallback: string): string {
+  if (!(cause instanceof Error)) return fallback;
+  const localized = localizeApiMessage(cause.message);
+  return /[\u0600-\u06FF]/.test(localized) ? localized : fallback;
 }
 
 function connectionFailureCode(
@@ -364,7 +371,7 @@ export function CandidateInterviewExperience({
         audio.onerror = () => resolve();
       });
     } catch (cause) {
-      setLiveError(cause instanceof Error ? cause.message : copy.error.unexpected);
+      setLiveError(candidateFacingError(cause, copy.error.unexpected));
     } finally {
       if (state.phase !== "completed") setLiveStatus(liveCopy.yourTurn);
     }
@@ -394,7 +401,7 @@ export function CandidateInterviewExperience({
         await playTurn(snapshot.turn.id);
       }
     } catch (cause) {
-      setLiveError(cause instanceof Error ? cause.message : copy.error.unexpected);
+      setLiveError(candidateFacingError(cause, copy.error.unexpected));
       reduce({ type: "CONNECTION_FAILED", code: connectionFailureCode(cause) });
     } finally {
       setConnectionBusy(false);
@@ -453,7 +460,7 @@ export function CandidateInterviewExperience({
         await playTurn(result.turn.id);
       }
     } catch (cause) {
-      setLiveError(cause instanceof Error ? cause.message : copy.error.unexpected);
+      setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
     } finally {
       chunksRef.current = [];
@@ -550,7 +557,7 @@ export function CandidateInterviewExperience({
         await playTurn(result.turn.id);
       }
     } catch (cause) {
-      setLiveError(cause instanceof Error ? cause.message : copy.error.unexpected);
+      setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
     } finally {
       setAnswerBusy(false);
