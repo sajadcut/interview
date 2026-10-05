@@ -172,7 +172,7 @@ class Handler(BaseHTTPRequestHandler):
         if content_type != "application/json":
             write_error(self, 415, "unsupported_media_type", request_id, False)
             return
-        status = tts_status(shared_secret=shared_secret())
+        status = active_status()
         if not status["ready"]:
             write_error(self, 503, "provider_unavailable", request_id, True)
             return
@@ -206,6 +206,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             audio = synthesize_audio(spoken_text)
         except TTSError as exc:
+            print(
+                f"TTS synthesis failed · requestId={request_id} · provider={active_provider()} "
+                f"· code={exc.code} · diagnostic={exc.diagnostic[:240]}",
+                flush=True,
+            )
             mapping = {
                 "invalid_request": (400, False),
                 "not_configured": (503, True),
@@ -218,7 +223,12 @@ class Handler(BaseHTTPRequestHandler):
             code = "provider_unavailable" if exc.code == "not_configured" else exc.code
             write_error(self, http_status, code, request_id, retryable)
             return
-        except Exception:
+        except Exception as exc:
+            print(
+                f"TTS worker error · requestId={request_id} · provider={active_provider()} "
+                f"· type={type(exc).__name__}",
+                flush=True,
+            )
             write_error(self, 500, "worker_error", request_id, True)
             return
 
