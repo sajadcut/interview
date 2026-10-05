@@ -193,6 +193,13 @@
         "espeakngLoader": "0.2.4",
         "spacyCuratedTransformers": false
       }
+    },
+    "setupVerification": {
+      "importCheck": true,
+      "realPersianSynthesisByDefault": true,
+      "expectedSampleRate": 24000,
+      "minimumSamples": 2400,
+      "skipFlag": "-SkipRuntimeSmokeTest"
     }
   }
 }
