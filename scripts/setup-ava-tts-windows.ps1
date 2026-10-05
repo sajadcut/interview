@@ -134,8 +134,21 @@ Write-Host "Installing Ava's validated runtime versions..."
     "transformers==4.51.3"
 if ($LASTEXITCODE -ne 0) { throw "Ava runtime dependency installation failed." }
 
-Write-Host "Installing Ava's pinned Kokoro runtime..."
+# PyPI misaki 0.9.4 declares Python <3.13, while the upstream Misaki
+# repository contains a verified Python 3.13 enablement commit. Install that
+# exact revision with English extras because Kokoro imports misaki.en/espeak
+# at module import time even though Ava uses its own Persian frontend.
+Write-Host "Installing Python 3.13-enabled Misaki runtime..."
 & $Python -m pip install --index-url $PyPiIndex `
+    "misaki[en] @ git+https://github.com/hexgrad/misaki.git@fba1236595f2d2bf21d414ba6e57d25256afada3"
+if ($LASTEXITCODE -ne 0) { throw "Python 3.13 Misaki installation failed." }
+
+# Install Ava's exact Kokoro revision without dependency resolution. Its
+# metadata asks pip for misaki>=0.9.4 from PyPI, whose published 0.9.4 metadata
+# rejects Python 3.13. The pinned Git revision above is still version 0.9.4 and
+# is the upstream fix that explicitly enables Python 3.13.
+Write-Host "Installing Ava's pinned Kokoro runtime..."
+& $Python -m pip install --no-deps `
     "git+https://github.com/semidark/kokoro.git@b96fef95e6a746495f92443fac7c688f90fc57fc"
 if ($LASTEXITCODE -ne 0) { throw "Pinned Kokoro runtime installation failed." }
 
@@ -144,7 +157,7 @@ Write-Host "Installing Ava-82M package without stale binary pins..."
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
-& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
+& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile, misaki, kokoro; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__, 'misaki', m.version('misaki'), 'kokoro', m.version('kokoro')); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
 if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
@@ -156,5 +169,5 @@ Write-Host ""
 Write-Host "Next command:"
 Write-Host "powershell -ExecutionPolicy Bypass -File scripts/start-ava-tts-worker.ps1"
 Write-Host ""
-Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2."
+Write-Host "Python 3.13 compatibility override: numpy 2.1.3 + sentencepiece 0.2.2 + Misaki fba1236."
 Write-Host "The first worker start downloads the Ava model and Persian G2P files to the local Hugging Face cache."
