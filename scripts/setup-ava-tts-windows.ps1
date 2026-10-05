@@ -155,6 +155,7 @@ if ($LASTEXITCODE -ne 0) { throw "Python 3.13 Misaki core installation failed." 
 # spacy-curated-transformers because Ava never enables Misaki's trf=True path.
 Write-Host "Installing minimal Kokoro import dependencies..."
 & $Python -m pip install --index-url $PyPiIndex `
+    "loguru==0.7.3" `
     "num2words==0.5.14" `
     "spacy==3.8.16" `
     "phonemizer-fork==3.3.2" `
@@ -175,7 +176,7 @@ Write-Host "Installing Ava-82M package without stale binary pins..."
 if ($LASTEXITCODE -ne 0) { throw "Ava-82M installation failed." }
 
 Write-Host "Verifying CPU runtime..."
-& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile, misaki, spacy, phonemizer, kokoro; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__, 'misaki', m.version('misaki'), 'spacy', spacy.__version__, 'kokoro', m.version('kokoro')); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
+& $Python -c "import importlib.metadata as m, numpy, sentencepiece, torch, soundfile, loguru, misaki, spacy, phonemizer, kokoro; from ava_tts import Ava; print('python-compat override: numpy', numpy.__version__, 'sentencepiece', sentencepiece.__version__, 'loguru', m.version('loguru'), 'misaki', m.version('misaki'), 'spacy', spacy.__version__, 'kokoro', m.version('kokoro')); print('torch', torch.__version__, 'cuda-available', torch.cuda.is_available()); print('Ava', m.version('ava-tts'), 'import OK; worker forces device=cpu')"
 if ($LASTEXITCODE -ne 0) {
     throw "Ava CPU runtime verification failed."
 }
