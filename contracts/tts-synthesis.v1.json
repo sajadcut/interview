@@ -145,16 +145,18 @@
     "coversWavValidation": true,
     "coversHttpContract": true,
     "coversStandaloneApiPath": true,
-    "coversMp3Validation": true
+    "coversMp3Validation": true,
+    "coversInProcessEdgeSynthesis": true
   },
   "fallbackProvider": "local-command",
   "edgeAdapter": {
-    "executable": "edge-tts",
+    "pythonPackage": "edge-tts",
     "voiceDefault": "fa-IR-FaridNeural",
-    "textTransport": "utf8-temporary-file",
+    "textTransport": "in-process-python-module",
     "mediaFormat": "mp3",
     "localGpuRequired": false,
     "networkRequired": true,
-    "shell": false
+    "shell": false,
+    "temporaryFileRequired": false
   }
 }
