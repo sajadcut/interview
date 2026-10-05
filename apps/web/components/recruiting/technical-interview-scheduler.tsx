@@ -90,7 +90,7 @@ export function TechnicalInterviewScheduler({
           setMessage(apiErrorMessage(result, "ارجاع کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
           return;
         }
-        setMessage("کاندیدا به مرحله مصاحبه با هوش مصنوعی ارجاع شد. اجرای مصاحبه از پرتال امن کاندیدا و با Interview Plan منتشرشده انجام می‌شود.");
+        setMessage("مصاحبه‌گر هوش مصنوعی برای این پرونده ثبت شد. ادامه ارسال از صفحه «مصاحبه‌ها» انجام می‌شود.");
         await onScheduled();
         return;
       }
@@ -122,7 +122,7 @@ export function TechnicalInterviewScheduler({
         setMessage(apiErrorMessage(result, "زمان‌بندی مصاحبه فنی ناموفق بود"));
         return;
       }
-      setMessage("مصاحبه فنی زمان‌بندی و به مصاحبه‌گر انسانی تخصیص داده شد.");
+      setMessage("مصاحبه فنی برای مصاحبه‌گر انسانی زمان‌بندی و ثبت شد.");
       await onScheduled();
     } finally {
       setBusy(false);
@@ -244,7 +244,7 @@ export function TechnicalInterviewScheduler({
           disabled={busy || !interviewerSelection || (interviewerSelection !== "ai" && (!scheduledDate || !scheduledTime))}
           className="h-10 rounded-lg bg-slate-950 px-4 text-[10px] font-semibold text-white disabled:opacity-40"
         >
-          {busy ? "در حال ثبت…" : interviewerSelection === "ai" ? "ارجاع به مصاحبه AI" : "ثبت مصاحبه"}
+          {busy ? "در حال ارسال…" : "ارسال به مصاحبه"}
         </button>
         </div>
       </div>
