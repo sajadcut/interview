@@ -7,6 +7,7 @@ import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
+  BulkCandidateDeleteDto,
   BulkDeleteResultDto,
   BulkIdsDto,
   CreateApplicationDto,
@@ -63,8 +64,8 @@ export class RecruitingOperationsController {
   @RequirePermissions(Permissions.CandidateResumeManage)
   @AuditedAction("candidate.bulk_delete", "candidate")
   @ApiOkResponse({ type: BulkDeleteResultDto })
-  bulkDeleteCandidates(@Body() body: BulkIdsDto) {
-    return this.operations.bulkDeleteCandidates(body.ids);
+  bulkDeleteCandidates(@Body() body: BulkCandidateDeleteDto) {
+    return this.operations.bulkDeleteCandidates(body.ids, body.cascadeApplications ?? false);
   }
 
   @Post("jobs/:jobId/applications")
