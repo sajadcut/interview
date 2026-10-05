@@ -43,6 +43,7 @@ export class ScheduledTechnicalInterviewDto {
   @ApiProperty() pipelineStage!: string;
 }
 
+// AI interview preparation provisions a published plan before candidate invitation.
 export class PrepareAiInterviewDto {
   @ApiProperty({ format: "uuid" })
   @IsUUID()
