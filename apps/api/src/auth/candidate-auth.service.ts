@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -66,6 +67,8 @@ export function candidateInvitationState(
 
 @Injectable()
 export class CandidateAuthService {
+  private readonly logger = new Logger(CandidateAuthService.name);
+
   constructor(
     private readonly database: DatabaseService,
     private readonly tenantContext: TenantContextService,
@@ -214,6 +217,12 @@ export class CandidateAuthService {
 
       return { candidateIdentityId, magicInvitationId, otpChallengeId };
     });
+
+    if (getEnv().NODE_ENV !== "production") {
+      this.logger.log(
+        `[DEV ONLY] Candidate OTP application=${applicationId} email=${maskEmail(email)} otp=${otp}`,
+      );
+    }
 
     await this.audit.record({
       action: "candidate.invitation.create",
