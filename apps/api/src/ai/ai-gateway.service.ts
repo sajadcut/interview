@@ -64,6 +64,11 @@ export class RealtimeAiExecutionError extends Error {
 }
 
 const LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1";
+const PERSIAN_PRONUNCIATION_CONTRACT_VERSION = "speech-pronunciation.v1";
+const PERSIAN_PRONUNCIATION_CAPABILITY = "speech.persian_pronunciation";
+const PERSIAN_PRONUNCIATION_CAPABILITY_VERSION = "v1";
+const PERSIAN_PRONUNCIATION_PROMPT_ID = "speech.persian_pronunciation";
+const PERSIAN_PRONUNCIATION_PROMPT_VERSION = "v1";
 const MAX_REALTIME_RESPONSE_BYTES = 64 * 1024;
 
 function boundedInteger(value: string | undefined, fallback: number, minimum: number, maximum: number): number {
@@ -227,6 +232,94 @@ export class AiGatewayService {
     return {
       executionId: payload.executionId,
       output: payload.output as T,
+      provenance: {
+        provider: provenance.provider,
+        ...(typeof provenance.model === "string" ? { model: provenance.model } : {}),
+        promptId: provenance.promptId,
+        promptVersion: provenance.promptVersion,
+        ...(provenance.attempts !== undefined ? { attempts: provenance.attempts } : {}),
+        ...(provenance.usage !== undefined ? { usage: provenance.usage } : {}),
+      },
+    };
+  }
+
+  async pronouncePersianForTts(request: {
+    spokenText: string;
+    turnId: string;
+  }): Promise<{ ttsText: string; provenance: AiRealtimeProvenance }> {
+    const spokenText = request.spokenText.trim();
+    if (!spokenText || spokenText.length > 4000 || spokenText.includes("\0")) {
+      throw new RealtimeAiExecutionError("invalid_request", { retryable: false });
+    }
+
+    const config = realtimeConfiguration();
+    if (!config.sharedSecret) {
+      throw new RealtimeAiExecutionError("not_configured", { retryable: false });
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(`${config.baseUrl}/v1/speech/persian-pronunciation`, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "x-ai-worker-secret": config.sharedSecret,
+          "x-speech-pronunciation-contract-version": PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+        },
+        body: JSON.stringify({
+          contractVersion: PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+          capability: PERSIAN_PRONUNCIATION_CAPABILITY,
+          capabilityVersion: PERSIAN_PRONUNCIATION_CAPABILITY_VERSION,
+          promptId: PERSIAN_PRONUNCIATION_PROMPT_ID,
+          promptVersion: PERSIAN_PRONUNCIATION_PROMPT_VERSION,
+          structuredOutputSchemaVersion: PERSIAN_PRONUNCIATION_CONTRACT_VERSION,
+          input: { spokenText, language: "fa" },
+          inputReferences: { turnId: request.turnId },
+          idempotencyKey: `tts-pronunciation:${request.turnId}`,
+        }),
+        signal: AbortSignal.timeout(Math.min(config.timeoutMs, 8_000)),
+        cache: "no-store",
+        redirect: "manual",
+      });
+    } catch (cause) {
+      const timeout =
+        (cause instanceof DOMException && ["TimeoutError", "AbortError"].includes(cause.name)) ||
+        (cause instanceof Error && /timeout/i.test(cause.name));
+      throw new RealtimeAiExecutionError(timeout ? "PROVIDER_TIMEOUT" : "PROVIDER_UNAVAILABLE", {
+        retryable: true,
+      });
+    }
+
+    const payload = await boundedJson(response);
+    if (!response.ok) throw providerFailure(payload, response.status);
+    const output =
+      payload.output && typeof payload.output === "object" && !Array.isArray(payload.output)
+        ? (payload.output as Record<string, unknown>)
+        : {};
+    const provenance =
+      payload.provenance && typeof payload.provenance === "object" && !Array.isArray(payload.provenance)
+        ? (payload.provenance as Record<string, unknown>)
+        : {};
+    const ttsText = typeof output.ttsText === "string" ? output.ttsText.trim() : "";
+
+    if (
+      response.headers.get("x-speech-pronunciation-contract-version") !== PERSIAN_PRONUNCIATION_CONTRACT_VERSION ||
+      payload.contractVersion !== PERSIAN_PRONUNCIATION_CONTRACT_VERSION ||
+      !ttsText ||
+      ttsText.length > 4000 ||
+      typeof provenance.provider !== "string" ||
+      typeof provenance.promptId !== "string" ||
+      typeof provenance.promptVersion !== "string"
+    ) {
+      throw new RealtimeAiExecutionError("invalid_response", {
+        retryable: false,
+        httpStatus: response.status,
+      });
+    }
+
+    return {
+      ttsText,
       provenance: {
         provider: provenance.provider,
         ...(typeof provenance.model === "string" ? { model: provenance.model } : {}),
