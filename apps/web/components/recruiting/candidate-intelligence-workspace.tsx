@@ -203,6 +203,11 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
           <p className="mt-1 text-[11px] text-slate-500">{[candidate.currentRole, candidate.currentCompany, candidate.location].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {access.can("candidate.resume_manage") ? (
+            <Link href={`/app/candidates/${candidateId}/edit`} className="inline-flex h-10 items-center rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold text-slate-700 hover:bg-slate-50">
+              ویرایش پروفایل
+            </Link>
+          ) : null}
           {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void addEvidence()} className="h-10 rounded-[10px] border border-slate-200 bg-white px-4 text-[11px] font-semibold">افزودن شاهد</button> : null}
           {access.can("candidate.score") && selectedApplicationId ? <button type="button" onClick={() => void finalizeScorecard()} className="h-10 rounded-[10px] bg-indigo-600 px-4 text-[11px] font-semibold text-white">نهایی‌سازی امتیازنامه</button> : null}
         </div>
