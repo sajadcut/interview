@@ -1,5 +1,5 @@
 import {
-  ArrayMaxSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min,
+  ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Max, Min,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -13,6 +13,33 @@ export class CreateHiringRequestDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) employmentType?: string;
   @ApiProperty() @IsString() @Length(3, 4000) businessReason!: string;
   @ApiProperty({ type: [String] }) @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) requirements!: string[];
+}
+
+export class UpdateHiringRequestDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 240) title?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 160) hiringTeam?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 160) department?: string;
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 }) @IsOptional() @IsInt() @Min(1) @Max(100) headcount?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) seniority?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 240) location?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) employmentType?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(3, 4000) businessReason?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) requirements?: string[];
+}
+
+export class BulkHiringRequestIdsDto {
+  @ApiProperty({ type: [String], format: "uuid" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID(undefined, { each: true })
+  ids!: string[];
+}
+
+export class BulkHiringRequestDeleteResultDto {
+  @ApiProperty({ type: [String], format: "uuid" }) deletedIds!: string[];
+  @ApiProperty({ minimum: 0 }) deletedCount!: number;
+  @ApiProperty({ type: [String], format: "uuid" }) blockedIds!: string[];
 }
 
 export class ReviewHiringRequestDto {
