@@ -68,7 +68,7 @@ function serviceWithOutput(
           provider: "openai-compatible",
           model: "test-model",
           promptId: "interview.conversational_next_turn",
-          promptVersion: "v2",
+          promptVersion: "v3",
         },
       };
     },
@@ -98,7 +98,7 @@ test("LLM interviewer accepts a grounded Persian conversational follow-up with t
   assert.doesNotMatch(result.turn.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
   assert.equal(result.trace.mode, "llm");
   assert.equal(result.trace.provider, "openai-compatible");
-  assert.equal(result.trace.promptVersion, "v2");
+  assert.equal(result.trace.promptVersion, "v3");
 });
 
 test("LLM receives explicit previous question and persisted evidence coverage in its bounded context", async () => {
