@@ -53,14 +53,19 @@ def is_authorized(handler: BaseHTTPRequestHandler) -> bool:
 
 def write_json(handler: BaseHTTPRequestHandler, status: int, payload: Any) -> None:
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    handler.send_response(status)
-    handler.send_header("content-type", "application/json; charset=utf-8")
-    handler.send_header("content-length", str(len(data)))
-    handler.send_header("cache-control", "no-store")
-    handler.send_header("x-vad-contract-version", CONTRACT_VERSION)
-    handler.send_header("x-provider-version", CONTRACT_VERSION)
-    handler.end_headers()
-    handler.wfile.write(data)
+    try:
+        handler.send_response(status)
+        handler.send_header("content-type", "application/json; charset=utf-8")
+        handler.send_header("content-length", str(len(data)))
+        handler.send_header("cache-control", "no-store")
+        handler.send_header("x-vad-contract-version", CONTRACT_VERSION)
+        handler.send_header("x-provider-version", CONTRACT_VERSION)
+        handler.end_headers()
+        handler.wfile.write(data)
+    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+        # Health probes may time out and close the socket while Silero is warming.
+        # A disconnected client is not a worker failure and should not emit a traceback.
+        return
 
 
 def error_payload(code: str, request_id: str, retryable: bool) -> dict[str, object]:
@@ -184,6 +189,18 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     host = os.getenv("VAD_WORKER_HOST", "127.0.0.1").strip() or "127.0.0.1"
     port = int(os.getenv("VAD_WORKER_PORT", "9030"))
+
+    print("VAD worker warming Silero model...")
+    startup_status = vad_status(shared_secret=shared_secret())
+    if startup_status["ready"]:
+        engine_version = startup_status.get("engineVersion", "unknown")
+        print(f"VAD worker ready · Silero {engine_version}")
+    else:
+        reason = startup_status.get("reason", "unknown readiness failure")
+        print(f"VAD worker not ready: {reason}")
+
+    # Bind only after warm-up so API health probes never connect to a worker that is
+    # still loading the model and then time out while waiting for /health.
     server = ThreadingHTTPServer((host, port), Handler)
     print(f"VAD worker listening on http://{host}:{port}")
     server.serve_forever()
