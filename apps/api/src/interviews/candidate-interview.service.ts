@@ -373,7 +373,7 @@ export class CandidateInterviewService {
         FROM interview_sessions
         WHERE organization_id = ${scope.organizationId}::uuid
           AND application_id = ${scope.applicationId}::uuid
-          AND status IN ('invited', 'in_progress', 'reconnecting')
+          AND status IN ('invited', 'scheduled', 'in_progress', 'paused', 'disconnected')
         ORDER BY created_at DESC
       `;
       const existing = existingRows.find((row) => {
@@ -400,15 +400,21 @@ export class CandidateInterviewService {
         }
       }
 
-      const sessionRows = await this.database.sql`
-        SELECT status FROM interview_sessions
-        WHERE organization_id = ${scope.organizationId}::uuid AND id = ${sessionId}::uuid
-        LIMIT 1
-      `;
-      if (String(sessionRows[0]?.status) === "invited") {
+      const lifecycle = await this.state.getState(sessionId);
+      if (lifecycle.status === "invited" || lifecycle.status === "scheduled") {
         await this.state.transition(sessionId, {
           idempotencyKey: `candidate-start-${sessionId}`,
           action: "start",
+        });
+      } else if (lifecycle.status === "paused") {
+        await this.state.transition(sessionId, {
+          idempotencyKey: `candidate-resume-${sessionId}-${lifecycle.stateVersion}`,
+          action: "resume",
+        });
+      } else if (lifecycle.status === "disconnected") {
+        await this.state.transition(sessionId, {
+          idempotencyKey: `candidate-reconnect-${sessionId}-${lifecycle.stateVersion}`,
+          action: lifecycle.failure ? "recover" : "reconnect",
         });
       }
 

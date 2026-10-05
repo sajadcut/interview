@@ -33,3 +33,17 @@ COMMENT ON TABLE interview_integrity_events IS
   'Observable candidate-session integrity signals only. Events are decision-support evidence for human review and must never be treated as proof of cheating or used for automatic rejection.';
 COMMENT ON COLUMN interview_integrity_events.metadata IS
   'Bounded metadata only. Pasted text, clipboard contents, raw media, biometrics and inferred mental/personality traits are prohibited.';
+
+
+ALTER TABLE interview_session_state_events
+  DROP CONSTRAINT IF EXISTS interview_session_state_events_from_status_check;
+ALTER TABLE interview_session_state_events
+  DROP CONSTRAINT IF EXISTS interview_session_state_events_to_status_check;
+ALTER TABLE interview_session_state_events
+  ADD CONSTRAINT interview_session_state_events_from_status_check CHECK (
+    from_status IN ('invited', 'scheduled', 'in_progress', 'paused', 'disconnected', 'completed', 'failed', 'cancelled')
+  );
+ALTER TABLE interview_session_state_events
+  ADD CONSTRAINT interview_session_state_events_to_status_check CHECK (
+    to_status IN ('invited', 'scheduled', 'in_progress', 'paused', 'disconnected', 'completed', 'failed', 'cancelled')
+  );

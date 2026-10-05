@@ -10,6 +10,8 @@ import { AuditService } from "../audit/audit.service";
 import { AuthContextService } from "../auth/auth-context.service";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
+import { computeInterviewClock } from "../interviews/interview-clock";
+import { InterviewSessionStateService } from "../interviews/interview-session-state.service";
 import type {
   AssignInterviewerDto,
   InterviewerNoteInputDto,
@@ -28,6 +30,7 @@ export class InterviewerService {
     private readonly tenantContext: TenantContextService,
     private readonly authContext: AuthContextService,
     private readonly audit: AuditService,
+    private readonly sessionState: InterviewSessionStateService,
   ) {}
 
   async assign(input: AssignInterviewerDto) {
@@ -286,7 +289,18 @@ export class InterviewerService {
         status: String(row.session_status),
         ...(asIso(row.started_at) ? { startedAt: asIso(row.started_at) } : {}),
         ...(asIso(row.completed_at) ? { completedAt: asIso(row.completed_at) } : {}),
-        remainingSeconds: row.remaining_seconds == null ? null : Number(row.remaining_seconds),
+        remainingSeconds: computeInterviewClock({
+          status: String(row.session_status),
+          timeBudgetMinutes: Number(row.time_budget_minutes),
+          startedAt: asIso(row.started_at) ?? null,
+          completedAt: asIso(row.completed_at) ?? null,
+        }).remainingSeconds,
+        clock: computeInterviewClock({
+          status: String(row.session_status),
+          timeBudgetMinutes: Number(row.time_budget_minutes),
+          startedAt: asIso(row.started_at) ?? null,
+          completedAt: asIso(row.completed_at) ?? null,
+        }),
       },
       application: {
         id: String(row.application_id),
@@ -316,67 +330,56 @@ export class InterviewerService {
     }
     const organizationId = this.tenantContext.require().organizationId;
     const userId = this.requireUserId();
-
-    const result = await this.database.sql.begin(async (tx) => {
-      const rows = await tx`
-        UPDATE interview_sessions
-        SET status = 'in_progress',
-            started_at = COALESCE(started_at, now()),
-            updated_at = now()
-        WHERE organization_id = ${organizationId}::uuid
-          AND id = ${sessionId}::uuid
-          AND status IN ('invited', 'scheduled')
-        RETURNING id::text, status, started_at
-      `;
-      if (!rows[0]) {
-        const current = await tx`
-          SELECT status, started_at
-          FROM interview_sessions
-          WHERE organization_id = ${organizationId}::uuid AND id = ${sessionId}::uuid
-          LIMIT 1
-        `;
-        if (String(current[0]?.status) !== "in_progress") {
-          throw new ConflictException("Interview session cannot be started from its current state");
-        }
-        rows.push(current[0] as never);
+    const current = await this.sessionState.getState(sessionId);
+    if (current.status !== "in_progress") {
+      if (!["invited", "scheduled"].includes(current.status)) {
+        throw new ConflictException("Interview session cannot be started from its current state");
       }
-      await tx`
-        UPDATE interview_assignments
-        SET status = 'accepted', updated_at = now()
-        WHERE organization_id = ${organizationId}::uuid
-          AND interview_session_id = ${sessionId}::uuid
-          AND interviewer_user_id = ${userId}::uuid
-      `;
-      return rows[0];
-    });
-
+      await this.sessionState.transition(sessionId, {
+        idempotencyKey: `human-start:${sessionId}:${userId}`,
+        action: "start",
+        reason: "Assigned human interviewer started the interview",
+      });
+    }
+    await this.database.sql`
+      UPDATE interview_assignments
+      SET status = 'accepted', updated_at = now()
+      WHERE organization_id = ${organizationId}::uuid
+        AND interview_session_id = ${sessionId}::uuid
+        AND interviewer_user_id = ${userId}::uuid
+    `;
+    const updated = await this.sessionState.getState(sessionId);
     await this.audit.record({
       action: "interview.start",
       entityType: "interview_session",
       entityId: sessionId,
     });
-    return {
-      sessionId,
-      status: String(result?.status ?? "in_progress"),
-      ...(asIso(result?.started_at) ? { startedAt: asIso(result?.started_at) } : {}),
-    };
+    return { sessionId, status: updated.status, startedAt: updated.startedAt };
   }
 
   async complete(sessionId: string) {
     await this.requireAssignedSession(sessionId);
     const organizationId = this.tenantContext.require().organizationId;
     const userId = this.requireUserId();
-
-    const rows = await this.database.sql.begin(async (tx) => {
-      const updated = await tx`
-        UPDATE interview_sessions
-        SET status = 'completed', completed_at = COALESCE(completed_at, now()), updated_at = now()
-        WHERE organization_id = ${organizationId}::uuid
-          AND id = ${sessionId}::uuid
-          AND status = 'in_progress'
-        RETURNING application_id::text, completed_at
-      `;
-      if (!updated[0]) throw new ConflictException("Only an in-progress interview can be completed");
+    const current = await this.sessionState.getState(sessionId);
+    if (current.status !== "completed") {
+      if (!["in_progress", "paused"].includes(current.status)) {
+        throw new ConflictException("Only an active interview can be completed");
+      }
+      await this.sessionState.transition(sessionId, {
+        idempotencyKey: `human-finish:${sessionId}:${userId}`,
+        action: "finish",
+        reason: "Assigned human interviewer completed the interview",
+      });
+    }
+    const session = await this.database.sql`
+      SELECT application_id::text
+      FROM interview_sessions
+      WHERE organization_id = ${organizationId}::uuid AND id = ${sessionId}::uuid
+      LIMIT 1
+    `;
+    if (!session[0]) throw new NotFoundException("Interview session was not found");
+    await this.database.sql.begin(async (tx) => {
       await tx`
         UPDATE interview_assignments
         SET status = 'completed', updated_at = now()
@@ -388,17 +391,16 @@ export class InterviewerService {
         UPDATE applications
         SET pipeline_stage = 'review', updated_at = now()
         WHERE organization_id = ${organizationId}::uuid
-          AND id = ${String(updated[0].application_id)}::uuid
+          AND id = ${String(session[0].application_id)}::uuid
       `;
-      return updated[0];
     });
-
+    const updated = await this.sessionState.getState(sessionId);
     await this.audit.record({
       action: "interview.finish",
       entityType: "interview_session",
       entityId: sessionId,
     });
-    return { sessionId, status: "completed", completedAt: asIso(rows?.completed_at) };
+    return { sessionId, status: updated.status, completedAt: updated.completedAt };
   }
 
   async addNote(sessionId: string, input: InterviewerNoteInputDto) {

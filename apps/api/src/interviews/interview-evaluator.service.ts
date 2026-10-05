@@ -128,6 +128,55 @@ export class InterviewEvaluatorService {
     };
   }
 
+  async reconcileLatestQueuedResult(sessionId: string): Promise<Record<string, unknown>> {
+    const organizationId = this.tenantContext.require().organizationId;
+    const rows = await this.database.sql`
+      SELECT id::text, status, result, last_error_code
+      FROM ai_jobs
+      WHERE organization_id = ${organizationId}::uuid
+        AND capability = 'interview.evaluate'
+        AND payload->'input'->>'sessionId' = ${sessionId}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    const job = rows[0];
+    if (!job) return { status: "not_queued" };
+    const status = String(job.status);
+    if (status !== "succeeded") {
+      return {
+        status,
+        jobId: String(job.id),
+        ...(job.last_error_code ? { errorCode: String(job.last_error_code) } : {}),
+      };
+    }
+    const result = asObject(job.result);
+    if (result.capability !== "interview.evaluate") {
+      return { status: "invalid_result", jobId: String(job.id), errorCode: "CAPABILITY_MISMATCH" };
+    }
+    const draft = asObject(result.output);
+    if (!draft.schemaVersion) {
+      return { status: "invalid_result", jobId: String(job.id), errorCode: "MISSING_EVALUATOR_OUTPUT" };
+    }
+    try {
+      const persisted = await this.evaluateAndPersist(sessionId, draft);
+      return {
+        status: "persisted",
+        jobId: String(job.id),
+        evaluationId: persisted.evaluationId,
+        scorecardId: persisted.scorecardId,
+        idempotentReplay: persisted.idempotentReplay,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Evaluator result reconciliation failed";
+      return {
+        status: "invalid_result",
+        jobId: String(job.id),
+        errorCode: "EVALUATOR_VALIDATION_FAILED",
+        message: message.slice(0, 500),
+      };
+    }
+  }
+
   async evaluateAndPersist(
     sessionId: string,
     rawDraft: unknown,

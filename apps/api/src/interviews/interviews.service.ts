@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { computeInterviewClock } from "./interview-clock";
+import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { CandidateIntents, validateStructuredInterviewTurn, type CandidateIntent, type StructuredInterviewTurn } from "./interview-contracts";
 import { assertInterviewTurnPolicy } from "./interview-policy-firewall";
 import { evaluateInterviewRelease, type InterviewLifecycleStage } from "./interview-release.policy";
@@ -27,7 +28,11 @@ function approvalInput(row: Record<string, unknown>) {
 
 @Injectable()
 export class InterviewsService {
-  constructor(private readonly database: DatabaseService, private readonly tenantContext: TenantContextService) {}
+  constructor(
+    private readonly database: DatabaseService,
+    private readonly tenantContext: TenantContextService,
+    private readonly evaluator: InterviewEvaluatorService,
+  ) {}
 
   async createSession(body: unknown) {
     if (!body || typeof body !== "object") throw new Error("Interview session input is required");
@@ -180,6 +185,9 @@ export class InterviewsService {
       WHERE s.organization_id=${organizationId}::uuid AND s.id=${sessionId}::uuid LIMIT 1`;
     if (!sessions.length) return null;
     const session=sessions[0];
+    const evaluationReconciliation = String(session.status) === "completed"
+      ? await this.evaluator.reconcileLatestQueuedResult(sessionId)
+      : { status: "not_completed" };
     const transcript=await this.database.sql`SELECT id,speaker,start_ms,end_ms,text,is_final,stt_confidence FROM interview_transcript_segments WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY start_ms`;
     const evidence=await this.database.sql`SELECT id,criterion_id,turn_id,transcript_segment_ids,summary,confidence,source_kind,created_at FROM interview_evidence WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY created_at`;
     const evaluations=await this.database.sql`
@@ -212,6 +220,17 @@ export class InterviewsService {
         AND capability='interview.evaluate'
         AND payload->'input'->>'sessionId'=${sessionId}
       ORDER BY created_at DESC LIMIT 1`;
+    const resumeEvidence=await this.database.sql`
+      SELECT id::text,evidence_type,source_type,source_reference,excerpt,occurred_at,created_at
+      FROM evidence
+      WHERE organization_id=${organizationId}::uuid
+        AND candidate_id=${String(session.candidate_id)}::uuid
+        AND (
+          lower(source_type) LIKE '%resume%'
+          OR lower(evidence_type) IN ('resume_claim','resume','cv_claim')
+        )
+      ORDER BY created_at DESC
+      LIMIT 50`;
     const humanReviews=await this.database.sql`
       SELECT id::text,status,reason_codes,priority,human_override,override_rationale,
              evidence_references,criterion_comparison,created_at,completed_at
@@ -236,6 +255,8 @@ export class InterviewsService {
       evaluations,
       criteria,
       evaluationJob:evaluationJobs[0] ?? null,
+      evaluationReconciliation,
+      resumeEvidence,
       humanReview:humanReviews[0] ?? null,
       integrity:{
         interpretation:"observable_signals_only",

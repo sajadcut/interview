@@ -2,6 +2,7 @@ export const INTERVIEW_SESSION_STATE_CONTRACT_VERSION = "interview-session-state
 
 export const InterviewSessionStatuses = [
   "invited",
+  "scheduled",
   "in_progress",
   "paused",
   "disconnected",
@@ -106,6 +107,7 @@ export function allowedInterviewSessionActions(
 
   switch (state.status) {
     case "invited":
+    case "scheduled":
       return ["start", "fail", "cancel"];
     case "in_progress":
       return ["pause", "disconnect", "finish", "fail", "cancel"];
@@ -131,7 +133,7 @@ export function transitionInterviewSession(
 
   switch (command.action) {
     case "start":
-      assertStatus(state, command.action, ["invited"]);
+      assertStatus(state, command.action, ["invited", "scheduled"]);
       return {
         ...state,
         status: "in_progress",
@@ -264,7 +266,7 @@ export function transitionInterviewSession(
     }
 
     case "cancel":
-      assertStatus(state, command.action, ["invited", "in_progress", "paused", "disconnected"]);
+      assertStatus(state, command.action, ["invited", "scheduled", "in_progress", "paused", "disconnected"]);
       return {
         ...state,
         status: "cancelled",

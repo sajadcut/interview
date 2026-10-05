@@ -24,6 +24,20 @@ function actorId(auth: AuthContextService): string {
   return userId;
 }
 
+const SOFT_SKILL_PATTERN = /(communication|collaboration|teamwork|ownership|problem[_ -]?solving|ambiguity|stakeholder|leadership|ارتباط|همکاری|تیمی|مالکیت|مسئولیت|حل مسئله|ابهام)/i;
+
+function criterionEvidencePolicy(criterion: { criterionKey: string; label: string }) {
+  const category = SOFT_SKILL_PATTERN.test(`${criterion.criterionKey} ${criterion.label}`)
+    ? "soft_skill"
+    : "technical";
+  return {
+    category,
+    minimumEvidence: 1,
+    evidenceSource: "candidate_interview_transcript",
+    biometricInferenceAllowed: false,
+  };
+}
+
 function assertUniqueCriterionKeys(criteria: { criterionKey: string }[]): void {
   if (criteria.length === 0) throw new BadRequestException("At least one rubric criterion is required");
   const keys = criteria.map((criterion) => criterion.criterionKey.trim().toLowerCase());
@@ -129,7 +143,7 @@ export class RecruitingOperationsService {
             ${criterion.description?.trim() || null},
             ${criterion.weight},
             ${criterion.required},
-            '{}'::jsonb,
+            ${tx.json(criterionEvidencePolicy(criterion) as never)},
             ${criterion.displayOrder}
           )
         `;
@@ -794,7 +808,7 @@ export class RecruitingOperationsService {
             ${criterion.description?.trim() || null},
             ${criterion.weight},
             ${criterion.required},
-            '{}'::jsonb,
+            ${tx.json(criterionEvidencePolicy(criterion) as never)},
             ${criterion.displayOrder}
           )
         `;

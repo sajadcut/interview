@@ -114,3 +114,9 @@ test("invalid pause/resume ordering is rejected instead of coerced", () => {
     /Cannot resume/,
   );
 });
+
+
+test("scheduled human interview can start through the canonical state machine", () => {
+  const started = transitionInterviewSession(state("scheduled"), { action: "start" });
+  assert.equal(started.status, "in_progress");
+});
