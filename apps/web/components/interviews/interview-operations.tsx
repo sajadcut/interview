@@ -20,6 +20,7 @@ type SessionOption = {
   applicationId: string;
   candidateName: string;
   jobTitle: string;
+  interviewerMode?: "ai" | "human";
   interviewerUserId?: string;
   interviewerName?: string;
   interviewerEmail?: string;
@@ -94,7 +95,9 @@ export function InterviewOperations() {
     const nextTime: Record<string, string> = {};
     for (const session of data.sessions) {
       const key = operationKey(session);
-      if (session.interviewerUserId) {
+      if (session.interviewerMode === "ai") {
+        nextSelected[key] = "ai";
+      } else if (session.interviewerUserId) {
         nextSelected[key] = session.interviewerUserId;
       }
       if (session.scheduledFor) {
@@ -126,32 +129,36 @@ export function InterviewOperations() {
 
   async function scheduleOrAssign(session: SessionOption) {
     if (TERMINAL_SESSION_STATUSES.has(session.sessionStatus)) {
-      setError("مصاحبه تکمیل‌شده یا لغوشده قابل تخصیص مجدد نیست.");
+      setError("مصاحبه تکمیل‌شده یا لغوشده قابل ارسال مجدد نیست.");
       return;
     }
 
     const key = operationKey(session);
-    const interviewerUserId = selected[key];
-    if (!interviewerUserId) {
+    const interviewerSelection = selected[key];
+    if (!interviewerSelection) {
       setError("ابتدا یک مصاحبه‌گر انتخاب کنید.");
       return;
     }
 
+    const isAi = interviewerSelection === "ai";
     const date = scheduledDate[key];
     const time = scheduledTime[key];
-    if (!date || !time) {
-      setError("برای مصاحبه، تاریخ و ساعت را مشخص کنید.");
-      return;
-    }
 
-    const scheduled = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(scheduled.getTime())) {
-      setError("تاریخ یا ساعت مصاحبه معتبر نیست.");
-      return;
-    }
-    if (scheduled.getTime() <= Date.now()) {
-      setError("زمان مصاحبه باید در آینده باشد.");
-      return;
+    let scheduled: Date | undefined;
+    if (!isAi) {
+      if (!date || !time) {
+        setError("برای مصاحبه‌گر انسانی، تاریخ و ساعت را مشخص کنید.");
+        return;
+      }
+      scheduled = new Date(`${date}T${time}:00`);
+      if (Number.isNaN(scheduled.getTime())) {
+        setError("تاریخ یا ساعت مصاحبه معتبر نیست.");
+        return;
+      }
+      if (scheduled.getTime() <= Date.now()) {
+        setError("زمان مصاحبه باید در آینده باشد.");
+        return;
+      }
     }
 
     const current = identity ?? (await resolveTenantIdentity());
@@ -160,43 +167,59 @@ export function InterviewOperations() {
     setNotice(null);
 
     try {
-      if (session.sessionId) {
+      if (isAi) {
+        const invitationResult = await api.POST("/v1/candidate-auth/invitations", {
+          headers: tenantHeaders(current),
+          body: { applicationId: session.applicationId },
+        });
+        if (invitationResult.error || !invitationResult.data) {
+          throw new Error(apiErrorMessage(invitationResult, "ارسال کاندیدا به مصاحبه هوش مصنوعی ناموفق بود"));
+        }
+
+        const invitation = invitationResult.data as {
+          developmentToken?: string;
+          developmentOtp?: string;
+          maskedEmail?: string;
+        };
+        const devLink = invitation.developmentToken
+          ? ` لینک تست: /candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`
+          : "";
+        setNotice(
+          `دعوت مصاحبه هوش مصنوعی برای «${session.candidateName}» ایجاد شد و برای ${invitation.maskedEmail ?? "کاندیدا"} آماده ارسال است.${devLink}`,
+        );
+      } else if (session.sessionId) {
         const result = await api.POST("/v1/interviewer/assignments", {
           headers: tenantHeaders(current),
           body: {
             sessionId: session.sessionId,
-            interviewerUserId,
-            scheduledFor: scheduled.toISOString(),
+            interviewerUserId: interviewerSelection,
+            scheduledFor: scheduled!.toISOString(),
           },
         });
         if (!result.response.ok) {
-          throw new Error(apiErrorMessage(result, "به‌روزرسانی تخصیص مصاحبه‌گر ناموفق بود"));
+          throw new Error(apiErrorMessage(result, "به‌روزرسانی مصاحبه‌گر ناموفق بود"));
         }
-        setNotice(
-          `تخصیص «${session.candidateName}» به‌روزرسانی شد؛ مصاحبه‌گر می‌تواند آن را از «مصاحبه‌های من» شروع کند.`,
-        );
+        setNotice(`«${session.candidateName}» برای مصاحبه انسانی ارسال شد.`);
       } else {
         const result = await api.POST("/v1/interview-operations/technical-interviews", {
           headers: tenantHeaders(current),
           body: {
             applicationId: session.applicationId,
-            interviewerUserId,
-            scheduledFor: scheduled.toISOString(),
+            interviewerUserId: interviewerSelection,
+            scheduledFor: scheduled!.toISOString(),
             durationMinutes: 60,
             language: "fa",
           },
         });
         if (result.error) {
-          throw new Error(apiErrorMessage(result, "ساخت و زمان‌بندی مصاحبه فنی ناموفق بود"));
+          throw new Error(apiErrorMessage(result, "ارسال کاندیدا به مصاحبه فنی ناموفق بود"));
         }
-        setNotice(
-          `برای «${session.candidateName}» Session واقعی مصاحبه ساخته و به مصاحبه‌گر انتخاب‌شده تخصیص داده شد.`,
-        );
+        setNotice(`«${session.candidateName}» برای مصاحبه انسانی ارسال شد.`);
       }
 
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "ثبت مصاحبه ناموفق بود");
+      setError(cause instanceof Error ? cause.message : "ارسال به مصاحبه ناموفق بود");
     } finally {
       setBusyKey(null);
     }
@@ -389,6 +412,7 @@ export function InterviewOperations() {
                               className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px]"
                             >
                               <option value="">انتخاب مصاحبه‌گر</option>
+                              <option value="ai">✨ مصاحبه‌گر هوش مصنوعی</option>
                               {options.interviewers.map((interviewer) => (
                                 <option key={interviewer.userId} value={interviewer.userId}>
                                   {interviewer.displayName || interviewer.email}
@@ -396,7 +420,11 @@ export function InterviewOperations() {
                               ))}
                             </select>
 
-                            {session.interviewerUserId ? (
+                            {session.interviewerMode === "ai" ? (
+                              <div className="mt-1 text-[9px] text-emerald-600">
+                                مصاحبه‌گر مرحله قبل: هوش مصنوعی
+                              </div>
+                            ) : session.interviewerUserId ? (
                               <div className="mt-1 text-[9px] text-emerald-600">
                                 {needsScheduling ? "آخرین مصاحبه‌گر ثبت‌شده" : "مصاحبه‌گر مرحله قبل"}:{" "}
                                 {session.interviewerName || session.interviewerEmail}
@@ -413,18 +441,16 @@ export function InterviewOperations() {
                           <span className="text-[10px] text-slate-400">این مصاحبه پایان یافته است</span>
                         ) : (
                           <button
-                            disabled={busyKey === key || !selected[key] || !scheduledDate[key] || !scheduledTime[key]}
+                            disabled={
+                              busyKey === key ||
+                              !selected[key] ||
+                              (selected[key] !== "ai" && (!scheduledDate[key] || !scheduledTime[key]))
+                            }
                             onClick={() => void scheduleOrAssign(session)}
                             className="rounded-lg bg-slate-950 px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-40"
                             type="button"
                           >
-                            {busyKey === key
-                              ? "در حال ثبت…"
-                              : needsScheduling
-                                ? "ساخت Session و ارسال به مصاحبه"
-                                : session.interviewerUserId
-                                  ? "ذخیره تخصیص"
-                                  : "تخصیص و ارسال به مصاحبه"}
+                            {busyKey === key ? "در حال ارسال…" : "ارسال به مصاحبه"}
                           </button>
                         )}
                       </td>
