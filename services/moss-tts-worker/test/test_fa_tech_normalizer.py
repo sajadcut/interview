@@ -27,6 +27,22 @@ class PersianTechnicalNormalizerTest(unittest.TestCase):
     def test_embedded_ascii_identifiers_are_not_rewritten(self) -> None:
         self.assertEqual(normalize_technical_terms("backendService"), "backendService")
 
+    def test_dotnet_interview_terms_are_spoken_phonetically(self) -> None:
+        normalized = normalize_technical_terms(
+            "ASP.NET با Entity Framework و SQL و dependency injection و RabbitMQ"
+        )
+        self.assertIn("اِی اِس پی دات‌نِت", normalized)
+        self.assertIn("اِنتیتی فِریم‌وِرک", normalized)
+        self.assertIn("اِس‌کیو‌اِل", normalized)
+        self.assertIn("دِپِندِنسی اینجِکشن", normalized)
+        self.assertIn("رَبیت اِم‌کیو", normalized)
+
+    def test_reported_persian_pronunciation_ambiguities_are_marked(self) -> None:
+        self.assertEqual(
+            normalize_technical_terms("تخصیص منابع و تخصص فنی"),
+            "تَخصیص منابع و تَخَصُّص فنی",
+        )
+
     def test_dotnet_and_language_names_are_normalized(self) -> None:
         normalized = normalize_technical_terms(".NET, C#, C++ و TypeScript")
         self.assertEqual(normalized, "دات‌نِت, سی شارپ, سی پلاس پلاس و تایپ‌اسکریپت")
