@@ -36,7 +36,8 @@ function operationKey(session: SessionOption): string {
   return session.sessionId ?? `application:${session.applicationId}`;
 }
 
-function statusLabel(status: string): string {
+function statusLabel(status: string, interviewerMode?: "ai" | "human"): string {
+  if (status === "needs_scheduling" && interviewerMode === "ai") return "آماده ارسال";
   if (status === "needs_scheduling") return "نیازمند برنامه‌ریزی";
   return faDomainLabel(status);
 }
@@ -236,7 +237,7 @@ export function InterviewOperations() {
         session.jobTitle,
         session.interviewerName,
         session.interviewerEmail,
-        statusLabel(session.sessionStatus),
+        statusLabel(session.sessionStatus, session.interviewerMode),
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
@@ -249,7 +250,7 @@ export function InterviewOperations() {
         <div>
           <h1 className="text-[24px] font-semibold tracking-[-.03em] text-slate-950">مصاحبه‌ها</h1>
           <p className="mt-1 text-[11px] text-slate-500">
-            پرونده‌های واردشده به مرحله مصاحبه حتی اگر Session نداشته باشند اینجا نمایش داده می‌شوند؛ انتخاب مصاحبه‌گر و زمان، Session واقعی را می‌سازد.
+            انتخاب مصاحبه‌گر مرحله قبل اینجا حفظ می‌شود؛ برای مصاحبه انسانی زمان‌بندی و Session ثبت می‌شود و برای AI دعوت امن کاندیدا ساخته می‌شود.
           </p>
         </div>
         <Link
@@ -324,25 +325,32 @@ export function InterviewOperations() {
                   const key = operationKey(session);
                   const terminal = TERMINAL_SESSION_STATUSES.has(session.sessionStatus);
                   const needsScheduling = session.sessionStatus === "needs_scheduling";
+                  const aiReady = needsScheduling && session.interviewerMode === "ai";
 
                   return (
-                    <tr key={key} className={needsScheduling ? "bg-amber-50/30" : undefined}>
+                    <tr key={key} className={needsScheduling && !aiReady ? "bg-amber-50/30" : undefined}>
                       <td className="px-5 py-4 font-semibold text-slate-800">{session.candidateName}</td>
                       <td className="px-3 py-4 text-slate-600">{session.jobTitle}</td>
 
                       <td className="px-3 py-4">
                         <span
                           className={
-                            needsScheduling
-                              ? "rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800"
-                              : "rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600"
+                            aiReady
+                              ? "rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-semibold text-indigo-700"
+                              : needsScheduling
+                                ? "rounded-full bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800"
+                                : "rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600"
                           }
                         >
-                          {statusLabel(session.sessionStatus)}
+                          {statusLabel(session.sessionStatus, session.interviewerMode)}
                         </span>
-                        {needsScheduling ? (
+                        {aiReady ? (
+                          <div className="mt-1 max-w-44 text-[9px] leading-4 text-indigo-600">
+                            مصاحبه‌گر AI ثبت شده؛ با «ارسال به مصاحبه» دعوت امن کاندیدا ساخته می‌شود.
+                          </div>
+                        ) : needsScheduling ? (
                           <div className="mt-1 max-w-44 text-[9px] leading-4 text-amber-700">
-                            پرونده در مرحله مصاحبه است ولی Session فعال ندارد.
+                            پرونده در مرحله مصاحبه است ولی Session انسانی فعال ندارد.
                           </div>
                         ) : session.assignmentStatus && !terminal ? (
                           <div className="mt-1 text-[9px] font-medium text-emerald-600">تخصیص ثبت‌شده</div>
