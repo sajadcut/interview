@@ -208,6 +208,7 @@ function permissionForPath(pathname: string): UiPermission | undefined {
   if (pathname.startsWith("/app/automations")) return "automation.manage";
   if (pathname.startsWith("/app/analytics")) return "analytics.read";
   if (pathname.startsWith("/app/inbox")) return "candidate.contact";
+  if (pathname.startsWith("/app/interviewers")) return "interview.assign";
   if (pathname.startsWith("/app/interviews")) return "interview.read";
   if (pathname.startsWith("/app/talent")) return "candidate.read";
   if (pathname.startsWith("/app/candidates")) return "candidate.read";
