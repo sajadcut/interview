@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { Panel } from "../product/recruiting-ui";
 
-type InterviewerOption = { userId: string; email: string; displayName?: string };
+type InterviewerOption = { userId: string; email: string; displayName?: string; specialties?: string[] };
 type AssignmentOptions = { interviewers: InterviewerOption[] };
 
 export function TechnicalInterviewScheduler({
@@ -22,10 +22,31 @@ export function TechnicalInterviewScheduler({
   const [identity, setIdentity] = useState<TenantIdentity>();
   const [interviewers, setInterviewers] = useState<InterviewerOption[]>([]);
   const [interviewerSelection, setInterviewerSelection] = useState("");
-  const [scheduledFor, setScheduledFor] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("60");
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+
+  const minDate = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  const selectedDatePreview = useMemo(() => {
+    if (!scheduledDate || !scheduledTime) return undefined;
+    const value = new Date(`${scheduledDate}T${scheduledTime}:00`);
+    if (Number.isNaN(value.getTime())) return undefined;
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+      dateStyle: "full",
+      timeStyle: "short",
+    }).format(value);
+  }, [scheduledDate, scheduledTime]);
 
   useEffect(() => {
     let active = true;
@@ -74,13 +95,17 @@ export function TechnicalInterviewScheduler({
         return;
       }
 
-      if (!scheduledFor) {
+      if (!scheduledDate || !scheduledTime) {
         setMessage("برای مصاحبه‌گر انسانی، تاریخ و ساعت مصاحبه را مشخص کنید.");
         return;
       }
-      const date = new Date(scheduledFor);
+      const date = new Date(`${scheduledDate}T${scheduledTime}:00`);
       if (Number.isNaN(date.getTime())) {
-        setMessage("تاریخ و ساعت مصاحبه معتبر نیست.");
+        setMessage("تاریخ یا ساعت مصاحبه معتبر نیست.");
+        return;
+      }
+      if (date.getTime() <= Date.now()) {
+        setMessage("زمان مصاحبه باید در آینده باشد.");
         return;
       }
       const result = await api.POST("/v1/interview-operations/technical-interviews", {
@@ -118,7 +143,7 @@ export function TechnicalInterviewScheduler({
 
       {message ? <div className="mt-3 rounded-lg bg-white px-3 py-2 text-[9px] text-indigo-800">{message}</div> : null}
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_140px_auto]">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.15fr_1fr_180px_140px_auto]">
         <select
           value={interviewerSelection}
           onChange={(event) => setInterviewerSelection(event.target.value)}
@@ -132,14 +157,76 @@ export function TechnicalInterviewScheduler({
             </option>
           ))}
         </select>
-        <input
-          type="datetime-local"
-          disabled={interviewerSelection === "ai"}
-          value={scheduledFor}
-          onChange={(event) => setScheduledFor(event.target.value)}
-          className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[10px]"
-        />
-        <select
+        <label className="relative">
+          <span className="mb-1 block text-[9px] font-semibold text-slate-500">تاریخ مصاحبه</span>
+          <div className="relative">
+            <input
+              ref={dateInputRef}
+              type="date"
+              min={minDate}
+              disabled={!interviewerSelection || interviewerSelection === "ai"}
+              value={scheduledDate}
+              onChange={(event) => {
+                setScheduledDate(event.target.value);
+                setMessage(undefined);
+              }}
+              dir="ltr"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pe-10 text-[10px] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            />
+            <button
+              type="button"
+              aria-label="باز کردن انتخاب تاریخ"
+              disabled={!interviewerSelection || interviewerSelection === "ai"}
+              onClick={() => {
+                const input = dateInputRef.current;
+                if (!input) return;
+                const picker = input as HTMLInputElement & { showPicker?: () => void };
+                picker.showPicker?.();
+                input.focus();
+              }}
+              className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"
+            >
+              📅
+            </button>
+          </div>
+        </label>
+
+        <label className="relative">
+          <span className="mb-1 block text-[9px] font-semibold text-slate-500">ساعت</span>
+          <div className="relative">
+            <input
+              ref={timeInputRef}
+              type="time"
+              step="300"
+              disabled={!interviewerSelection || interviewerSelection === "ai"}
+              value={scheduledTime}
+              onChange={(event) => {
+                setScheduledTime(event.target.value);
+                setMessage(undefined);
+              }}
+              dir="ltr"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pe-10 text-[10px] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            />
+            <button
+              type="button"
+              aria-label="باز کردن انتخاب ساعت"
+              disabled={!interviewerSelection || interviewerSelection === "ai"}
+              onClick={() => {
+                const input = timeInputRef.current;
+                if (!input) return;
+                const picker = input as HTMLInputElement & { showPicker?: () => void };
+                picker.showPicker?.();
+                input.focus();
+              }}
+              className="absolute end-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300"
+            >
+              🕒
+            </button>
+          </div>
+        </label>
+        <label>
+          <span className="mb-1 block text-[9px] font-semibold text-slate-500">مدت مصاحبه</span>
+          <select
           value={durationMinutes}
           onChange={(event) => setDurationMinutes(event.target.value)}
           className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[10px]"
@@ -148,19 +235,29 @@ export function TechnicalInterviewScheduler({
           <option value="45">۴۵ دقیقه</option>
           <option value="60">۶۰ دقیقه</option>
           <option value="90">۹۰ دقیقه</option>
-        </select>
+          </select>
+        </label>
+        <div className="flex items-end">
         <button
           type="button"
           onClick={() => void schedule()}
-          disabled={busy || !interviewerSelection || (interviewerSelection !== "ai" && !scheduledFor)}
+          disabled={busy || !interviewerSelection || (interviewerSelection !== "ai" && (!scheduledDate || !scheduledTime))}
           className="h-10 rounded-lg bg-slate-950 px-4 text-[10px] font-semibold text-white disabled:opacity-40"
         >
           {busy ? "در حال ثبت…" : interviewerSelection === "ai" ? "ارجاع به مصاحبه AI" : "ثبت مصاحبه"}
         </button>
+        </div>
       </div>
+      {interviewerSelection && interviewerSelection !== "ai" ? (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] leading-5 text-slate-600">
+          {selectedDatePreview
+            ? <>زمان انتخاب‌شده: <strong className="text-slate-800">{selectedDatePreview}</strong></>
+            : "تاریخ و ساعت را جداگانه انتخاب کنید. زمان انتخاب‌شده قبل از ثبت به وقت محلی شما نمایش داده می‌شود."}
+        </div>
+      ) : null}
       {interviewerSelection === "ai" ? (
         <div className="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-[9px] leading-5 text-indigo-800">
-          در حالت AI، مصاحبه‌گر یک actor سیستمی است و کاربر سازمانی ساخته نمی‌شود. شروع واقعی مصاحبه از پرتال امن کاندیدا، پس از رضایت و بررسی آمادگی دستگاه انجام می‌شود.
+          در حالت AI فعلاً زمان‌بندی تقویمی لازم نیست؛ با ثبت، پرونده مستقیماً به مرحله مصاحبه AI منتقل می‌شود. برای زمان‌بندی با تاریخ و ساعت، یک مصاحبه‌گر انسانی انتخاب کنید.
         </div>
       ) : null}
       {interviewers.length === 0 ? (
