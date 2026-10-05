@@ -47,6 +47,8 @@ test(
     const rubricVersionId = randomUUID();
     const candidateId = randomUUID();
     const applicationId = randomUUID();
+    const pendingCandidateId = randomUUID();
+    const pendingApplicationId = randomUUID();
     const suffix = randomUUID();
 
     try {
@@ -142,26 +144,44 @@ test(
       `;
       await database.sql`
         INSERT INTO candidates (id, organization_id, display_name, primary_email)
-        VALUES (
-          ${candidateId}::uuid,
-          ${organizationId}::uuid,
-          'Technical Candidate',
-          ${`candidate-${suffix}@example.invalid`}
-        )
+        VALUES
+          (
+            ${candidateId}::uuid,
+            ${organizationId}::uuid,
+            'Technical Candidate',
+            ${`candidate-${suffix}@example.invalid`}
+          ),
+          (
+            ${pendingCandidateId}::uuid,
+            ${organizationId}::uuid,
+            'Pending Interview Candidate',
+            ${`pending-candidate-${suffix}@example.invalid`}
+          )
       `;
       await database.sql`
         INSERT INTO applications (
           id, organization_id, job_id, candidate_id, rubric_version_id, status, pipeline_stage, source
-        ) VALUES (
-          ${applicationId}::uuid,
-          ${organizationId}::uuid,
-          ${jobId}::uuid,
-          ${candidateId}::uuid,
-          ${rubricVersionId}::uuid,
-          'active',
-          'screening',
-          'integration-test'
-        )
+        ) VALUES
+          (
+            ${applicationId}::uuid,
+            ${organizationId}::uuid,
+            ${jobId}::uuid,
+            ${candidateId}::uuid,
+            ${rubricVersionId}::uuid,
+            'active',
+            'screening',
+            'integration-test'
+          ),
+          (
+            ${pendingApplicationId}::uuid,
+            ${organizationId}::uuid,
+            ${jobId}::uuid,
+            ${pendingCandidateId}::uuid,
+            ${rubricVersionId}::uuid,
+            'active',
+            'interview',
+            'integration-test'
+          )
       `;
 
       const scheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -235,6 +255,14 @@ test(
       assert.equal(scheduledOption.assignmentStatus, "assigned");
       assert.equal(scheduledOption.sessionStatus, "scheduled");
       assert.equal(scheduledOption.scheduledFor, scheduledFor);
+
+      const pendingOption = options.sessions.find(
+        (item) => item.applicationId === pendingApplicationId,
+      );
+      assert.ok(pendingOption);
+      assert.equal(pendingOption.sessionId, undefined);
+      assert.equal(pendingOption.sessionStatus, "needs_scheduling");
+      assert.equal(pendingOption.candidateName, "Pending Interview Candidate");
     } finally {
       await database.sql`DELETE FROM organizations WHERE id = ${organizationId}::uuid`;
       await database.sql`
