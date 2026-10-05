@@ -5,6 +5,7 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import type {
   CreateHiringRequestDto,
   LinkHiringRequestJobDto,
+  UpdateHiringRequestDto,
   ReviewHiringRequestDto,
   SubmitTechnicalApprovalDto,
 } from "./hiring-requests.dto";
@@ -98,6 +99,87 @@ export class HiringRequestsService {
       status: String(rows[0]?.status),
       createdAt: new Date(String(rows[0]?.created_at)).toISOString(),
     };
+  }
+
+  async updateHiringRequest(hiringRequestId: string, input: UpdateHiringRequestDto) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const userId = actorId(this.authContext);
+    const requirements = input.requirements?.map((value) => value.trim()).filter(Boolean);
+
+    const rows = await this.database.sql`
+      UPDATE hiring_requests
+      SET title = COALESCE(${input.title?.trim() || null}, title),
+          hiring_team = COALESCE(${input.hiringTeam?.trim() || null}, hiring_team),
+          department = COALESCE(${input.department?.trim() || null}, department),
+          headcount = COALESCE(${input.headcount ?? null}, headcount),
+          seniority = COALESCE(${input.seniority?.trim() || null}, seniority),
+          location = COALESCE(${input.location?.trim() || null}, location),
+          employment_type = COALESCE(${input.employmentType?.trim() || null}, employment_type),
+          business_reason = COALESCE(${input.businessReason?.trim() || null}, business_reason),
+          requirements = COALESCE(${requirements ? JSON.stringify(requirements) : null}::jsonb, requirements),
+          updated_at = now()
+      WHERE organization_id = ${organizationId}::uuid
+        AND id = ${hiringRequestId}::uuid
+        AND requester_user_id = ${userId}::uuid
+        AND status = 'draft'
+      RETURNING id::text, title, hiring_team, department, headcount, seniority, location,
+                employment_type, business_reason, requirements, status, updated_at
+    `;
+    if (!rows[0]) throw new BadRequestException("Only the requester can edit a draft hiring request");
+    const row = rows[0];
+    return {
+      id: String(row.id),
+      title: String(row.title),
+      hiringTeam: String(row.hiring_team),
+      ...(row.department ? { department: String(row.department) } : {}),
+      headcount: Number(row.headcount),
+      ...(row.seniority ? { seniority: String(row.seniority) } : {}),
+      ...(row.location ? { location: String(row.location) } : {}),
+      ...(row.employment_type ? { employmentType: String(row.employment_type) } : {}),
+      businessReason: String(row.business_reason),
+      requirements: Array.isArray(row.requirements) ? row.requirements.map(String) : [],
+      status: String(row.status),
+      updatedAt: new Date(String(row.updated_at)).toISOString(),
+    };
+  }
+
+  async deleteHiringRequest(hiringRequestId: string) {
+    const result = await this.bulkDeleteHiringRequests([hiringRequestId]);
+    if (result.deletedCount === 0) {
+      throw new BadRequestException("Only the requester can delete an unlinked draft hiring request");
+    }
+    return { id: hiringRequestId, deleted: true as const };
+  }
+
+  async bulkDeleteHiringRequests(hiringRequestIds: string[]) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const userId = actorId(this.authContext);
+    const uniqueIds = [...new Set(hiringRequestIds)];
+
+    return this.database.sql.begin(async (tx) => {
+      const deletable = await tx`
+        SELECT id::text
+        FROM hiring_requests
+        WHERE organization_id = ${organizationId}::uuid
+          AND requester_user_id = ${userId}::uuid
+          AND id = ANY(${uniqueIds}::uuid[])
+          AND status = 'draft'
+          AND linked_job_id IS NULL
+        FOR UPDATE
+      `;
+      const deletedIds = deletable.map((row) => String(row.id));
+
+      if (deletedIds.length > 0) {
+        await tx`
+          DELETE FROM hiring_requests
+          WHERE organization_id = ${organizationId}::uuid
+            AND id = ANY(${deletedIds}::uuid[])
+        `;
+      }
+
+      const blockedIds = uniqueIds.filter((id) => !deletedIds.includes(id));
+      return { deletedIds, deletedCount: deletedIds.length, blockedIds };
+    });
   }
 
   async submitHiringRequest(hiringRequestId: string) {
