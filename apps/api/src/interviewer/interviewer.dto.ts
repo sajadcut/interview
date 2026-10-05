@@ -74,9 +74,11 @@ export class InterviewAssignmentSessionOptionDto {
 }
 
 export class InterviewerOptionDto {
+  @ApiProperty({ format: "uuid" }) profileId!: string;
   @ApiProperty({ format: "uuid" }) userId!: string;
   @ApiProperty({ format: "email" }) email!: string;
   @ApiPropertyOptional() displayName?: string;
+  @ApiProperty({ type: [String] }) specialties!: string[];
 }
 
 export class InterviewAssignmentOptionsDto {
