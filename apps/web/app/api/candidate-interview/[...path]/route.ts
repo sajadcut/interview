@@ -29,17 +29,13 @@ function getApiTarget(): URL {
 }
 
 function buildTargetUrl(request: Request, path: string[]): URL {
-  const target = getApiTarget();
-  const basePath = target.pathname.replace(/\/+$/, "");
+  const configured = getApiTarget();
+  const target = new URL(configured.origin);
   const requestedSegments = ["v1", "candidate-interview", ...path].map(encodeURIComponent);
 
-  // API_INTERNAL_URL/NEXT_PUBLIC_API_URL may be configured either at the API origin
-  // (http://127.0.0.1:4100) or at its /v1 base. Avoid generating /v1/v1/... in the latter case.
-  if (basePath.endsWith("/v1") && requestedSegments[0] === "v1") {
-    requestedSegments.shift();
-  }
-
-  target.pathname = `${basePath}/${requestedSegments.join("/")}`;
+  // The API routes are rooted at /v1. Ignore any pathname accidentally configured
+  // in API_INTERNAL_URL/NEXT_PUBLIC_API_URL so proxying can never produce /v1/v1 or /api/v1.
+  target.pathname = `/${requestedSegments.join("/")}`;
   target.search = new URL(request.url).search;
   return target;
 }
@@ -71,6 +67,7 @@ async function proxy(request: Request, context: { params: Promise<{ path: string
       const value = response.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
+    responseHeaders.set("x-interview-api-origin", target.origin);
     responseHeaders.set("x-interview-api-path", target.pathname);
 
     return new Response(response.body, {
