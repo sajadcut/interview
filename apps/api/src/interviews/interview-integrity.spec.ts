@@ -141,7 +141,7 @@ test("concurrent candidate session is a strong signal but not an automatic verdi
   const result = analyzeInterviewIntegrity([event("e1", "concurrent_session_detected")]);
   assert.equal(result.integrityConcernScore, 30);
   assert.equal(result.riskLevel, "low");
-  assert.equal(result.requiresHumanReview, false);
+  assert.equal(result.requiresHumanReview, true);
   assert.doesNotMatch(result.summary, /تقلب کرده|cheated/i);
 });
 
