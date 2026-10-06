@@ -6,7 +6,7 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewOrchestrationService } from "../interviews/interview-orchestration.service";
 import type { PrepareAiInterviewDto, ScheduleTechnicalInterviewDto } from "./interviewer.dto";
 
-interface InterviewAssignmentOption {
+export interface InterviewAssignmentOption {
   sessionId?: string;
   sessionStatus: string;
   applicationId: string;
