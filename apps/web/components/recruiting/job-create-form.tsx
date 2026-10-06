@@ -8,6 +8,8 @@ import { resolveTenantIdentity, tenantHeaders } from "../../lib/tenant-client";
 import {
   DEFAULT_SOFT_SKILL_LABELS,
   appendDefaultSoftSkills,
+  buildInterviewCoverage,
+  coverageSummary,
   criterionKeyForLabel,
 } from "../../lib/rubric-criteria";
 import { Panel } from "../product/recruiting-ui";
@@ -66,6 +68,7 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
   const [mustHave, setMustHave] = useState("");
   const [niceToHave, setNiceToHave] = useState("");
   const [criteriaText, setCriteriaText] = useState(DEFAULT_SOFT_SKILL_LABELS.join("\n"));
+  const [optionalCriteriaText, setOptionalCriteriaText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingSource, setLoadingSource] = useState(Boolean(hiringRequestId));
   const [sourceRequest, setSourceRequest] = useState<HiringRequestSource>();
@@ -78,17 +81,37 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
     ],
     [mustHave, niceToHave],
   );
-  const criteria = useMemo<DraftCriterion[]>(
-    () =>
-      lines(criteriaText).map((label, index) => ({
+  const criteria = useMemo<DraftCriterion[]>(() => {
+    const requiredLabels = lines(criteriaText);
+    const optionalLabels = lines(optionalCriteriaText);
+    return [
+      ...requiredLabels.map((label, index) => ({
         criterionKey: keyFor(label, index),
         label,
         weight: 1,
         required: true,
         displayOrder: index,
       })),
-    [criteriaText],
+      ...optionalLabels.map((label, index) => ({
+        criterionKey: keyFor(label, requiredLabels.length + index),
+        label,
+        weight: 0.5,
+        required: false,
+        displayOrder: requiredLabels.length + index,
+      })),
+    ];
+  }, [criteriaText, optionalCriteriaText]);
+  const coverage = useMemo(
+    () => buildInterviewCoverage({
+      title,
+      seniority,
+      summary,
+      requirements,
+      criteria,
+    }),
+    [title, seniority, summary, requirements, criteria],
   );
+  const coverageCounts = useMemo(() => coverageSummary(coverage), [coverage]);
 
   useEffect(() => {
     if (!hiringRequestId) {
@@ -227,10 +250,15 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
               <textarea className={`${textarea} min-h-36`} value={niceToHave} onChange={(event) => setNiceToHave(event.target.value)} placeholder={"Azure\nKafka"} />
             </label>
           </div>
-          <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای چارچوب ارزیابی — هر خط یک معیار
-            <textarea className={`${textarea} min-h-40`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش بک‌اند\nوضوح و ساختار ارتباط\nهمکاری و کار تیمی"} />
-            <span className="block text-[9px] font-normal leading-4 text-slate-400">معیارهای نرم استاندارد به‌صورت پیش‌فرض اضافه شده‌اند و فقط از پاسخ و شواهد شغلی امتیاز می‌گیرند؛ هیچ تحلیل چهره، لهجه یا شخصیت انجام نمی‌شود.</span>
-          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای الزامی — هر خط یک معیار
+              <textarea className={`${textarea} min-h-44`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} placeholder={"طراحی سیستم\nعمق دانش بک‌اند\nوضوح و ساختار ارتباط"} />
+            </label>
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای اختیاری — هر خط یک معیار
+              <textarea className={`${textarea} min-h-44`} value={optionalCriteriaText} onChange={(event) => setOptionalCriteriaText(event.target.value)} placeholder={"CI/CD و DevOps\nKafka"} />
+            </label>
+          </div>
+          <span className="block text-[9px] font-normal leading-4 text-slate-400">معیارهای نرم فقط از رفتار و پاسخ قابل مشاهده در متن مصاحبه ارزیابی می‌شوند؛ چهره، صدا، لهجه، eye contact و biometrics وارد امتیاز نمی‌شوند.</span>
         </Panel>
 
         <Panel className="h-fit p-5">
@@ -241,6 +269,25 @@ export function JobCreateForm({ hiringRequestId }: { hiringRequestId?: string })
           </div>
           <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-[10px] leading-5 text-indigo-800">
             امتیاز نهایی فقط از چارچوب ارزیابی نسخه‌دار و ارزیابی مبتنی بر شواهد محاسبه می‌شود. ایجاد موقعیت شغلی هیچ امتیاز استخدامی ساختگی تولید نمی‌کند.
+          </div>
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[11px] font-semibold text-slate-800">پوشش مصاحبه</h3>
+              <div className="text-[9px] text-slate-400">
+                الزامی {formatFaNumber(coverageCounts.required)} · اختیاری {formatFaNumber(coverageCounts.optional)} · بدون پوشش {formatFaNumber(coverageCounts.missing)}
+              </div>
+            </div>
+            <div className="mt-3 max-h-80 space-y-1.5 overflow-y-auto">
+              {coverage.map((area) => (
+                <div key={area.key} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-[9px]">
+                  <span className="text-slate-700">{area.label}</span>
+                  <span className={area.status === "required" ? "font-semibold text-emerald-700" : area.status === "optional" ? "font-semibold text-indigo-700" : "font-semibold text-rose-700"}>
+                    {area.status === "required" ? "الزامی" : area.status === "optional" ? "اختیاری" : "فاقد پوشش"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {coverageCounts.missing > 0 ? <p className="mt-2 text-[9px] leading-4 text-rose-600">حوزه‌های «فاقد پوشش» قبل از انتشار مرور شوند؛ وجود نیازمندی شغلی به‌تنهایی به معنی پوشش ارزیابی نیست.</p> : null}
           </div>
           {error ? <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 p-3 text-[10px] text-rose-700">{error}</div> : null}
           <button type="button" onClick={() => void submit()} disabled={submitting || loadingSource} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-indigo-600 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
