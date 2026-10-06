@@ -904,7 +904,7 @@ export class CandidateInterviewService {
     const scope = await this.scope(rawToken);
     await this.requireReadyConsent(rawToken);
     return this.tenantContext.run(scope.organizationId, async () => {
-      let runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+      const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
       let turn = await this.currentOrFirstTurn(sessionId);
 
       const shouldEnterWrapUp =
