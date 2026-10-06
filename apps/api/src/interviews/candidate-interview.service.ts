@@ -596,8 +596,8 @@ export class CandidateInterviewService {
       await this.integrity.registerCandidateConnection({
         sessionId,
         mediaSessionId: activeMediaSessionId,
-        clientInstanceId: input.clientInstanceId,
-        userAgent: input.userAgent,
+        ...(input.clientInstanceId ? { clientInstanceId: input.clientInstanceId } : {}),
+        ...(input.userAgent ? { userAgent: input.userAgent } : {}),
       });
       const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
       const introduction = await this.ensureIntroductionTurn(scope, sessionId);
