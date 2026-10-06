@@ -88,7 +88,7 @@ export class InterviewsController {
   }
 
   @Get("interviews/:sessionId/review")
-  @RequirePermissions(Permissions.InterviewRead)
+  @RequirePermissions(Permissions.InterviewRead, Permissions.InterviewIntegrityView)
   getReview(@Param("sessionId") sessionId: string) {
     return this.interviews.getReview(sessionId);
   }
