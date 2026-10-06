@@ -24,6 +24,11 @@ function harness(options: {
   const brainCalls: Array<{ sessionId: string; body: Record<string, unknown> }> = [];
   const mediaEvents: Array<Record<string, unknown>> = [];
   const speechCalls: string[] = [];
+  const stateTransitions: Array<Record<string, unknown>> = [];
+  const evaluatorBuildStatuses: string[] = [];
+  const queuedJobs: Array<Record<string, unknown>> = [];
+  let runtimeStatus = "in_progress";
+  let mediaStatus = "active";
   let introductionTurn: { id: string; action: string; spoken_text: string } | null = null;
 
   const transaction = Object.assign(
@@ -59,9 +64,9 @@ function harness(options: {
       const query = strings.join(" ");
       if (query.includes("FROM interview_sessions s") && query.includes("JOIN interview_media_sessions")) {
         return [{
-          status: "in_progress",
+          status: runtimeStatus,
           started_at: new Date(Date.now() - 60_000).toISOString(),
-          completed_at: null,
+          completed_at: runtimeStatus === "completed" ? new Date().toISOString() : null,
           time_budget_minutes: 20,
           checkpoint: {
             candidateIsRealCustomerCandidate: options.realCandidate === true,
@@ -71,6 +76,14 @@ function harness(options: {
         }];
       }
       if (query.includes("UPDATE interview_sessions") && query.includes("remaining_seconds")) return [];
+      if (query.includes("SELECT action, turn_kind, finalized") && query.includes("FROM interview_turns")) {
+        return [{
+          action: options.brainAction ?? "close",
+          turn_kind: options.brainTurnKind ?? "closing",
+          finalized: true,
+        }];
+      }
+      if (query.includes("UPDATE interview_sessions")) return [];
       if (query.includes("interview_turn_id") && query.includes("FROM interview_transcript_segments")) {
         const turnId = values.length > 2 ? String(values[2]) : "";
         return appended.some((segment) => String(segment.turnId ?? "") === turnId)
@@ -151,9 +164,38 @@ function harness(options: {
     },
   };
   const media = {
+    getLatestMediaSession: async () => ({
+      id: mediaSessionId,
+      status: mediaStatus,
+    }),
     appendEvent: async (_sessionId: string, _mediaSessionId: string, event: Record<string, unknown>) => {
       mediaEvents.push(event);
+      if (event.eventType === "ended") mediaStatus = "ended";
       return event;
+    },
+  };
+  const state = {
+    transition: async (_sessionId: string, input: Record<string, unknown>) => {
+      stateTransitions.push(input);
+      if (input.action === "finish") runtimeStatus = "completed";
+      return { status: runtimeStatus };
+    },
+  };
+  const evaluator = {
+    buildInput: async () => {
+      evaluatorBuildStatuses.push(runtimeStatus);
+      return {
+        sessionId: interviewSessionId,
+        applicationId,
+        rubricVersionId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        evaluatorVersion: "evidence-evaluator-v1",
+      };
+    },
+  };
+  const aiJobs = {
+    enqueue: async (input: Record<string, unknown>) => {
+      queuedJobs.push(input);
+      return { id: "job-1", status: "queued" };
     },
   };
   const speech = {
@@ -185,19 +227,29 @@ function harness(options: {
 
   const service = new CandidateInterviewService(
     database,
-    { enqueue: async () => ({ id: "job-1", status: "queued" }) } as never,
+    aiJobs as never,
     candidateSessions as never,
     candidateConsent as never,
     tenantContext as never,
     interviews as never,
-    {} as never,
+    state as never,
     brain as never,
-    { buildInput: async () => ({}) } as never,
+    evaluator as never,
     media as never,
     speech as never,
   );
 
-  return { service, appended, recordedEvidence, brainCalls, mediaEvents, speechCalls };
+  return {
+    service,
+    appended,
+    recordedEvidence,
+    brainCalls,
+    mediaEvents,
+    speechCalls,
+    stateTransitions,
+    evaluatorBuildStatuses,
+    queuedJobs,
+  };
 }
 
 test("introduction is deterministic, transcript-only, and idempotent before the first real question", async () => {
@@ -302,6 +354,43 @@ test("candidate-question opportunity is not scored as interview evidence", async
   assert.equal(brainCalls[0]?.body.candidateIntent, "CANDIDATE_QUESTION");
   assert.equal(appended[0]?.lifecycleRole, "candidate_question");
   assert.equal(appended[1]?.lifecycleRole, "closing");
+});
+
+test("closing playback acknowledgement performs canonical finish before evaluator enqueue", async () => {
+  const {
+    service,
+    stateTransitions,
+    evaluatorBuildStatuses,
+    queuedJobs,
+  } = harness({
+    questionAction: "escalate",
+    questionTurnKind: "candidate_question",
+    brainAction: "close",
+    brainTurnKind: "closing",
+  });
+
+  const answer = await service.answerText("candidate-token", {
+    sessionId: interviewSessionId,
+    mediaSessionId,
+    text: "خیر، ممنون",
+  });
+  assert.equal(answer.turn.action, "close");
+  assert.equal(answer.completed, false);
+  assert.equal(stateTransitions.length, 0);
+  assert.equal(evaluatorBuildStatuses.length, 0);
+  assert.equal(queuedJobs.length, 0);
+
+  const completion = await service.acknowledgeTurnPlayed(
+    "candidate-token",
+    interviewSessionId,
+    mediaSessionId,
+    answer.turn.id,
+  );
+
+  assert.equal(completion.status, "completed");
+  assert.deepEqual(stateTransitions.map((item) => item.action), ["finish"]);
+  assert.deepEqual(evaluatorBuildStatuses, ["completed"]);
+  assert.equal(queuedJobs.length, 1);
 });
 
 test("candidate audio uses Whisper transcript then the exact same conversational brain path", async () => {
