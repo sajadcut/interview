@@ -397,6 +397,23 @@ test("closing playback acknowledgement performs canonical finish before evaluato
   assert.equal(queuedJobs.length, 1);
 });
 
+
+test("transition turns stay in interview transcript while exposing a transition lifecycle phase", async () => {
+  const { service, appended } = harness({
+    brainAction: "clarify",
+    brainTurnKind: "transition",
+  });
+
+  const result = await service.answerText("candidate-token", {
+    sessionId: interviewSessionId,
+    mediaSessionId,
+    text: "لطفاً سؤال را کمی روشن‌تر توضیح بدهید",
+  });
+
+  assert.equal(result.lifecyclePhase, "transition");
+  assert.equal(appended[1]?.lifecycleRole, "interview");
+});
+
 test("candidate audio uses Whisper transcript then the exact same conversational brain path", async () => {
   const { service, brainCalls, speechCalls, appended } = harness({
     transcriptText: "Latency پایین نیومد، Redis اضافه کردیم",
