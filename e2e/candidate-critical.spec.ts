@@ -75,6 +75,13 @@ test.describe("critical candidate flows", () => {
     await page.evaluate(() => window.localStorage.clear());
     await verifyCandidateInvitation(page, candidateIdentity, invitation.developmentToken, invitation.developmentOtp);
 
+    // Candidate authentication is intentionally isolated from the internal recruiter surface.
+    // A valid candidate cookie must never authorize integrity reports, even when the route shape is known.
+    const integrityReport = await context.request.get(
+      `${BASE_URL}/api/backend/v1/interviews/${candidateIdentity.applicationId}/integrity`,
+    );
+    expect([401, 403]).toContain(integrityReport.status());
+
     // Consent is application/candidate state, not invitation state. Reset it after authentication so
     // CI retries and repeated local runs always exercise the pre-consent gate deterministically.
     await setCandidateConsents(page, false);
