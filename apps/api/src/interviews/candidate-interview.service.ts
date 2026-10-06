@@ -590,19 +590,11 @@ export class CandidateInterviewService {
       const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
       const introduction = await this.ensureIntroductionTurn(scope, sessionId);
       const turn = await this.currentOrFirstTurn(sessionId);
-      let runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
-      if (turn.action === "close") {
-        runtime = await this.finishCandidateInterview(
-          scope,
-          sessionId,
-          activeMediaSessionId,
-          "brain_close",
-        );
-      }
+      const runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
       const messages = await this.transcript(sessionId);
 
       return {
-        status: runtime.status === "completed" || turn.action === "close" ? "completed" : "active",
+        status: runtime.status === "completed" ? "completed" : "active",
         lifecyclePhase: turn.turnKind === "candidate_question"
           ? "candidate_question"
           : turn.turnKind === "closing"
@@ -723,7 +715,7 @@ export class CandidateInterviewService {
     scope: ResolvedCandidateSession,
     sessionId: string,
     mediaSessionId: string,
-    reason: "brain_close" | "time_budget_expired",
+    reason: "brain_close" | "time_budget_expired" | "closing_played",
   ) {
     const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
     if (!["completed", "failed", "cancelled"].includes(runtime.status)) {
@@ -812,15 +804,13 @@ export class CandidateInterviewService {
       },
     });
 
-    const finalRuntime = nextTurn.action === "close"
-      ? await this.finishCandidateInterview(scope, sessionId, mediaSessionId, "brain_close")
-      : await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+    const finalRuntime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
 
     return {
       candidateText,
       remainingSeconds: finalRuntime.remainingSeconds,
       clock: finalRuntime.clock,
-      completed: nextTurn.action === "close" || finalRuntime.status === "completed",
+      completed: finalRuntime.status === "completed",
       lifecyclePhase: nextTurn.turnKind === "candidate_question"
         ? "candidate_question"
         : nextTurn.turnKind === "closing"
@@ -934,18 +924,10 @@ export class CandidateInterviewService {
           elapsedSeconds: 0,
         });
         await this.ensureInterviewerTranscript(sessionId, turn);
-        if (turn.action === "close") {
-          runtime = await this.finishCandidateInterview(
-            scope,
-            sessionId,
-            mediaSessionId,
-            "time_budget_expired",
-          );
-        }
       }
 
       return {
-        status: ["completed", "failed", "cancelled"].includes(runtime.status) || turn.action === "close"
+        status: ["completed", "failed", "cancelled"].includes(runtime.status)
           ? "completed" as const
           : "active" as const,
         lifecyclePhase: turn.turnKind === "candidate_question"
@@ -961,6 +943,65 @@ export class CandidateInterviewService {
           action: turn.action,
           spokenText: turn.spokenText,
         },
+      };
+    });
+  }
+
+  async acknowledgeTurnPlayed(
+    rawToken: string | undefined,
+    sessionId: string,
+    mediaSessionId: string,
+    turnId: string,
+  ) {
+    const scope = await this.scope(rawToken);
+    await this.requireReadyConsent(rawToken);
+    return this.tenantContext.run(scope.organizationId, async () => {
+      const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+      const rows = await this.database.sql`
+        SELECT action, turn_kind, finalized
+        FROM interview_turns
+        WHERE organization_id = ${scope.organizationId}::uuid
+          AND interview_session_id = ${sessionId}::uuid
+          AND id = ${turnId}::uuid
+        LIMIT 1
+      `;
+      const turn = rows[0];
+      if (!turn || turn.finalized !== true) {
+        throw new NotFoundException("Finalized interview turn not found");
+      }
+      if (String(turn.action) !== "close" || String(turn.turn_kind) !== "closing") {
+        throw new BadRequestException("Only the final closing turn completes the interview");
+      }
+
+      const playedAt = new Date().toISOString();
+      await this.database.sql`
+        UPDATE interview_sessions
+        SET checkpoint = checkpoint || ${this.database.sql.json({
+          lifecycle: {
+            phase: "closing",
+            closingTurnId: turnId,
+            closingPlayedAt: playedAt,
+          },
+        } as never)}::jsonb,
+            updated_at = now()
+        WHERE organization_id = ${scope.organizationId}::uuid
+          AND id = ${sessionId}::uuid
+      `;
+
+      const finished = runtime.status === "completed"
+        ? runtime
+        : await this.finishCandidateInterview(
+            scope,
+            sessionId,
+            mediaSessionId,
+            "closing_played",
+          );
+      return {
+        status: "completed" as const,
+        lifecyclePhase: "completed" as const,
+        sessionId,
+        remainingSeconds: finished.remainingSeconds,
+        clock: finished.clock,
       };
     });
   }
