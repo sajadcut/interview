@@ -73,12 +73,20 @@ export class InterviewEvaluatorService {
       ORDER BY start_ms, id
     `;
     const evidenceRows = await this.database.sql`
-      SELECT id::text, criterion_id::text, turn_id::text, transcript_segment_ids,
-             summary, confidence
-      FROM interview_evidence
-      WHERE organization_id = ${organizationId}::uuid
-        AND interview_session_id = ${sessionId}::uuid
-      ORDER BY created_at, id
+      SELECT e.id::text, e.criterion_id::text, e.turn_id::text, e.transcript_segment_ids,
+             e.summary, e.confidence
+      FROM interview_evidence e
+      WHERE e.organization_id = ${organizationId}::uuid
+        AND e.interview_session_id = ${sessionId}::uuid
+        AND NOT EXISTS (
+          SELECT 1
+          FROM interview_transcript_segments ts
+          WHERE ts.organization_id = e.organization_id
+            AND ts.interview_session_id = e.interview_session_id
+            AND ts.id = ANY(e.transcript_segment_ids)
+            AND ts.lifecycle_role <> 'interview'
+        )
+      ORDER BY e.created_at, e.id
     `;
 
     return {
