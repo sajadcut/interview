@@ -144,6 +144,68 @@ function isCovered(state: InterviewBrainState, criterion: InterviewBrainCriterio
   return evidenceCount(state, criterion) >= criterion.minimumEvidence;
 }
 
+type AdaptiveProbeFocus = "ownership" | "choice_rationale" | "tradeoff" | "outcome";
+
+function adaptiveProbeFocus(text: string): AdaptiveProbeFocus | null {
+  const normalized = text.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  if (!normalized) return null;
+
+  const hasPersonalOwnership =
+    /(?:^|\s)(?:i|i'm|i’ve|i've|my)(?:\s|$)|(?:^|\s)(?:من|خودم|شخصاً|مسئولیت من|تصمیم من)(?:\s|$)/iu.test(normalized);
+  const hasCollectiveOwnership =
+    /(?:^|\s)(?:we|our|team)(?:\s|$)|(?:^|\s)(?:ما|تیم|گروه)(?:\s|$)|(?:کردیم|داشتیم|گرفتیم|پیاده کردیم)/iu.test(normalized);
+  if (hasCollectiveOwnership && !hasPersonalOwnership) return "ownership";
+
+  const mentionsTechnicalChoice =
+    /redis|cache|queue|kafka|rabbit|sql|database|postgres|oracle|microservice|docker|kubernetes|retry|circuit breaker|index|shard|replica|رِدیس|ردیس|کش|صف|دیتابیس|پایگاه داده|مایکروسرویس|داکر|کوبرنتیز|ایندکس|شارد|رپلیکا|انتخاب|استفاده|پیاده/iu.test(normalized);
+  const hasRationale =
+    /because|reason|bottleneck|constraint|so that|in order to|چون|به خاطر|دلیل|گلوگاه|محدودیت|مشکل اولیه|برای اینکه|تا بتوان/iu.test(normalized);
+  if (mentionsTechnicalChoice && !hasRationale) return "choice_rationale";
+
+  const hasTradeoff =
+    /trade.?off|alternative|instead|versus|compared|cost|drawback|گزینه|جایگزین|به جای|در مقایسه|بده.?بستان|موازنه|هزینه|عیب|نقطه ضعف/iu.test(normalized);
+  if (mentionsTechnicalChoice && !hasTradeoff) return "tradeoff";
+
+  const hasObservableOutcome =
+    /\d|%|ms\b|rps\b|tps\b|p\d{2}\b|improv|reduc|increas|decreas|result|outcome|failed|failure|stabil|نتیجه|بهبود|کاهش|افزایش|بدتر|شکست|پایدار|موفق|تغییر کرد|نشد/iu.test(normalized);
+  if (!hasObservableOutcome) return "outcome";
+
+  return null;
+}
+
+function adaptiveProbeText(
+  language: InterviewSpokenLanguage,
+  criterionLabel: string,
+  focus: AdaptiveProbeFocus,
+): string {
+  if (focus === "ownership") {
+    return localized(
+      language,
+      "On " + criterionLabel + ", what did you personally decide or implement, and where did your responsibility end versus the team's?",
+      "درباره " + criterionLabel + "، شما شخصاً چه تصمیمی گرفتید یا چه بخشی را پیاده کردید و مرز مسئولیت خودتان با تیم دقیقاً کجا بود؟",
+    );
+  }
+  if (focus === "choice_rationale") {
+    return localized(
+      language,
+      "What concrete bottleneck or constraint led to that choice in " + criterionLabel + ", and why was it preferable to the closest alternative?",
+      "در " + criterionLabel + " چه گلوگاه یا محدودیت مشخصی باعث آن انتخاب شد و چرا آن را به نزدیک‌ترین گزینهٔ جایگزین ترجیح دادید؟",
+    );
+  }
+  if (focus === "tradeoff") {
+    return localized(
+      language,
+      "What trade-off did you accept with that decision in " + criterionLabel + ", and which realistic alternative did you reject?",
+      "در آن تصمیم درباره " + criterionLabel + " چه بده‌بستانی را پذیرفتید و کدام گزینهٔ واقعیِ جایگزین را کنار گذاشتید؟",
+    );
+  }
+  return localized(
+    language,
+    "What changed after that decision in " + criterionLabel + "? Give the most concrete outcome you actually observed; if no metric was recorded, describe the observable consequence.",
+    "بعد از آن تصمیم در " + criterionLabel + " چه چیزی تغییر کرد؟ مشخص‌ترین نتیجه‌ای را که واقعاً مشاهده کردید بگویید؛ اگر عددی ثبت نشده بود، پیامد قابل مشاهده را توضیح دهید.",
+  );
+}
+
 function claimImportanceForCriterion(
   state: InterviewBrainState,
   criterion: InterviewBrainCriterion,
@@ -401,13 +463,30 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
     );
   }
 
+  const currentQuestionCount = input.state.currentCriterion
+    ? input.state.questionCountByCriterion?.[input.state.currentCriterion] ?? 0
+    : 0;
+  const activeCriterion = criteria.find(
+    (criterion) =>
+      criterion.key === input.state.currentCriterion &&
+      !(remainingSeconds <= 300 && criterion.required === false),
+  ) ?? null;
+  const probeFocus =
+    input.candidateIntent === "ANSWER" &&
+    currentQuestionCount === 1 &&
+    activeCriterion &&
+    input.latestCandidateText
+      ? adaptiveProbeFocus(input.latestCandidateText)
+      : null;
   const current =
-    criteria.find(
-      (criterion) =>
-        criterion.key === input.state.currentCriterion &&
-        !isCovered(input.state, criterion) &&
-        !(remainingSeconds <= 300 && criterion.required === false),
-    ) ?? selectIncompleteCriterion(criteria, input.state, remainingSeconds);
+    probeFocus && activeCriterion
+      ? activeCriterion
+      : criteria.find(
+          (criterion) =>
+            criterion.key === input.state.currentCriterion &&
+            !isCovered(input.state, criterion) &&
+            !(remainingSeconds <= 300 && criterion.required === false),
+        ) ?? selectIncompleteCriterion(criteria, input.state, remainingSeconds);
 
   if (!current) {
     return candidateQuestionOpportunity(
@@ -545,6 +624,22 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
   }
 
   const questionCount = input.state.questionCountByCriterion?.[current.key] ?? 0;
+  if (probeFocus && current.key === activeCriterion?.key && questionCount === 1) {
+    const remainingEvidence = Math.max(1, current.minimumEvidence - evidenceCount(input.state, current));
+    return finalize(
+      input,
+      {
+        action: "probe",
+        criterion: current.key,
+        objective: current.objective,
+        spokenText: adaptiveProbeText(language, criterionSpokenLabel(language, current), probeFocus),
+        expectedEvidence: current.expectedEvidence.slice(0, Math.max(1, remainingEvidence)),
+      },
+      "The first answer left a focused " + probeFocus + " gap, so one adaptive probe is allowed before moving on.",
+      current.key,
+      { turnKind: "adaptive_follow_up", questionSource: "adaptive_follow_up" },
+    );
+  }
   if (questionCount >= 2) {
     const next = selectIncompleteCriterion(criteria, input.state, remainingSeconds, current.key);
     if (next && next.key !== current.key) {
