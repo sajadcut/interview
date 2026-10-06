@@ -13,6 +13,9 @@ type Evidence={id:string;criterion_id?:string|null;transcript_segment_ids?:strin
 type Transcript={id:string;speaker:string;start_ms:number;end_ms:number;text:string};
 type Evaluation={id:string;evaluator_version:string;status:string;criterion_results:CriterionResult[];recommendation?:string|null;human_review_state?:string;evidence_complete?:boolean;overall_confidence?:number|null;weighted_score?:number|null;validation_report?:{criterionCoverage?:number;requiredCriterionCoverage?:number};requires_human_review?:boolean;created_at?:string};
 type ResumeClaimValidation={id:string;claimType:string;text:string;sourceReference:string;status:"supported"|"insufficient_evidence"|"contradicted"|"unverified";interviewEvidenceIds:string[];transcriptSegmentIds:string[];score?:number;confidence?:number};
+type IntegritySignal={code:string;severity:"low"|"medium"|"high";description:string;evidenceEventIds:string[];scoreContribution:number};
+type IntegrityEvent={id:string;sequence:number;event_type:string;server_occurred_at?:string;client_occurred_at?:string|null;duration_ms?:number|null;metadata?:Record<string,unknown>;source?:string;severity?:string;interpretation?:string};
+type IntegrityReviewCase={id:string;status:"pending_review"|"reviewed_no_concern"|"reviewed_concern"|"inconclusive";comment?:string|null;reviewerUserId?:string|null;reviewedAt?:string|null};
 type Review={
   session:{id:string;status:string;started_at?:string|null;completed_at?:string|null;interview_type:string;time_budget_minutes:number;candidate_id:string;job_id:string};
   clock:{durationSeconds:number;elapsedSeconds:number;remainingSeconds:number};
@@ -22,7 +25,7 @@ type Review={
   resumeEvidence?:Array<{id:string;evidence_type:string;source_type:string;source_reference:string;excerpt?:string|null;occurred_at?:string|null;created_at?:string}>;
   resumeClaimValidations?:ResumeClaimValidation[];
   humanReview?:{status?:string;reason_codes?:string[];human_override?:unknown;override_rationale?:string|null;created_at?:string;completed_at?:string|null}|null;
-  integrity:{status:"review_recommended"|"no_observed_concern";automaticCheatingDecision:false;automaticScorePenalty:false;hiddenDurationMs:number;counts:Record<string,number>;events:Array<{id:string;sequence:number;event_type:string;duration_ms?:number|null;created_at?:string}>};
+  integrity:{status:"analyzed"|"not_analyzed";automaticCheatingDecision:false;automaticScorePenalty:false;integrityConcernScore:number|null;riskLevel:"none"|"low"|"medium"|"high";confidence:"low"|"medium"|"high";requiresHumanReview:boolean;signals:IntegritySignal[];summary:string;analyzerVersion?:string|null;analyzedAt?:string|null;reviewCase:IntegrityReviewCase|null;hiddenDurationMs:number;counts:Record<string,number>;events:IntegrityEvent[]};
   safetyNotice:string;
 };
 
@@ -31,6 +34,11 @@ function resumeClaimStatus(value:ResumeClaimValidation["status"]){const x:Record
 function resumeClaimTone(value:ResumeClaimValidation["status"]){return value==="supported"?"bg-emerald-50 text-emerald-700":value==="contradicted"?"bg-rose-50 text-rose-700":value==="insufficient_evidence"?"bg-amber-50 text-amber-800":"bg-slate-100 text-slate-600";}
 function resumeClaimType(value:string){const x:Record<string,string>={skill:"مهارت",seniority:"ارشدیت",project:"پروژه",architecture:"معماری",leadership_ownership:"رهبری و مالکیت",technology:"فناوری",scale_performance:"مقیاس و کارایی",security:"امنیت",database:"پایگاه داده",cloud_devops:"ابر و دواپس",measurable_achievement:"دستاورد قابل اندازه‌گیری"};return x[value]??"ادعای رزومه";}
 function evaluationStatus(data:Review,ai:Evaluation|null){if(ai)return"ارزیابی آماده";const status=data.evaluationJob?.status??data.evaluationReconciliation?.status;if(status==="failed"||status==="invalid_result")return"نیازمند بررسی";return"ارزیابی در حال پردازش";}
+function integrityRiskLabel(value:Review["integrity"]["riskLevel"]){return value==="high"?"نشانه‌های قابل توجه؛ بررسی انسانی توصیه می‌شود":value==="medium"?"نیازمند بررسی":value==="low"?"نشانه‌های محدود":"نشانه قابل توجهی مشاهده نشد";}
+function integrityConfidenceLabel(value:Review["integrity"]["confidence"]){return value==="high"?"بالا":value==="medium"?"متوسط":"پایین";}
+function integrityReviewLabel(value:IntegrityReviewCase["status"]|undefined){return value==="reviewed_no_concern"?"بررسی شد؛ نگرانی تأیید نشد":value==="reviewed_concern"?"وجود نگرانی تأیید شد":value==="inconclusive"?"نتیجه نامشخص":value==="pending_review"?"در انتظار بررسی":"بدون پرونده بررسی";}
+function integrityEventLabel(value:string){const labels:Record<string,string>={visibility_hidden:"خروج از صفحه",visibility_visible:"بازگشت به صفحه",window_blur:"از دست رفتن فوکوس",window_focus:"بازگشت فوکوس",large_paste:"Paste بزرگ",reconnect:"اتصال مجدد",network_disconnect:"قطع شبکه",network_reconnect:"بازگشت شبکه",media_device_changed:"تغییر دستگاه رسانه",microphone_disabled:"خاموش شدن میکروفن",microphone_enabled:"روشن شدن میکروفن",camera_disabled:"خاموش شدن دوربین",camera_enabled:"روشن شدن دوربین",concurrent_session_detected:"نشست همزمان کاندیدا",unexpected_room_participant:"شرکت‌کننده غیرمنتظره در اتاق",candidate_session_replaced:"جایگزینی نشست کاندیدا",answer_submission_spike:"ارسال سریع پاسخ بزرگ",repeated_large_paste:"Paste بزرگ تکرارشونده"};return labels[value]??value;}
+function integritySeverityLabel(value:string|undefined){return value==="high"?"بالا":value==="medium"?"متوسط":value==="low"?"کم":"اطلاعاتی";}
 
 function timecode(ms:number){const s=Math.max(0,Math.floor(ms/1000));return formatFaDigits(`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`);}
 function tone(score?:number|null){if(score==null)return"bg-slate-100 text-slate-600";if(score>=80)return"bg-emerald-50 text-emerald-700";if(score>=60)return"bg-amber-50 text-amber-800";return"bg-rose-50 text-rose-700";}
@@ -39,6 +47,8 @@ export function InterviewReview({sessionId}:{sessionId:string}){
   const [identity,setIdentity]=useState<TenantIdentity|null>(null);
   const [data,setData]=useState<Review|null>(null);
   const [error,setError]=useState<string|null>(null);
+  const [integrityComment,setIntegrityComment]=useState("");
+  const [integrityReviewBusy,setIntegrityReviewBusy]=useState(false);
   const load=useCallback(async()=>{
     const current=identity??await resolveTenantIdentity(); if(!identity)setIdentity(current);
     const request=await api.GET("/v1/interviews/{sessionId}/review",{
@@ -52,6 +62,25 @@ export function InterviewReview({sessionId}:{sessionId:string}){
   },[identity,sessionId]);
   useEffect(()=>{void load().catch(c=>setError(c instanceof Error?c.message:"نتیجه مصاحبه بارگذاری نشد"))},[load]);
   useEffect(()=>{if(!data||data.evaluations.some(x=>!x.evaluator_version.startsWith("human:")))return;const t=window.setInterval(()=>void load().catch(()=>undefined),5000);return()=>window.clearInterval(t)},[data,load]);
+
+  const submitIntegrityReview=useCallback(async(status:"reviewed_no_concern"|"reviewed_concern"|"inconclusive")=>{
+    const comment=integrityComment.trim();
+    if(!comment){setError("برای ثبت بررسی یکپارچگی، توضیح انسانی لازم است.");return}
+    const current=identity??await resolveTenantIdentity(); if(!identity)setIdentity(current);
+    setIntegrityReviewBusy(true); setError(null);
+    try{
+      const response=await fetch(`/api/backend/v1/interviews/${encodeURIComponent(sessionId)}/integrity/review`,{
+        method:"POST",
+        headers:tenantHeaders(current,true),
+        credentials:"same-origin",
+        body:JSON.stringify({status,comment}),
+      });
+      if(response.status===401){window.location.replace("/login");return}
+      if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(typeof body.message==="string"?body.message:"ثبت بررسی یکپارچگی ناموفق بود")}
+      setIntegrityComment("");
+      await load();
+    }finally{setIntegrityReviewBusy(false)}
+  },[identity,integrityComment,load,sessionId]);
 
   const ai=useMemo(()=>data?.evaluations.find(x=>!x.evaluator_version.startsWith("human:"))??null,[data]);
   const byCriterion=useMemo(()=>{const m=new Map<string,CriterionResult>();for(const x of ai?.criterion_results??[]){if(x.criterionId)m.set(x.criterionId,x);if(x.criterionKey)m.set(x.criterionKey,x)}return m},[ai]);
@@ -81,8 +110,22 @@ export function InterviewReview({sessionId}:{sessionId:string}){
       </div>
 
       <aside className="space-y-5">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-slate-900">یکپارچگی جلسه</h2><span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${data.integrity.status==="review_recommended"?"bg-amber-100 text-amber-800":"bg-emerald-50 text-emerald-700"}`}>{data.integrity.status==="review_recommended"?"نیازمند بررسی":"بدون نگرانی مشاهده‌شده"}</span></div><p className="mt-2 text-[10px] leading-5 text-slate-500">فقط رخدادهای قابل مشاهده مرورگر ثبت شده‌اند. استفاده از دستگاه دوم یا ابزار AI خارج از مرورگر با قطعیت قابل تشخیص نیست.</p><div className="mt-4 space-y-2 text-xs"><IntegrityRow label="خروج از صفحه" value={data.integrity.counts.visibility_hidden??0}/><IntegrityRow label="مدت خارج از صفحه" value={`${formatFaNumber(Math.round(data.integrity.hiddenDurationMs/1000))} ثانیه`}/><IntegrityRow label="از دست رفتن فوکوس" value={data.integrity.counts.window_blur??0}/><IntegrityRow label="Paste بزرگ" value={data.integrity.counts.large_paste??0}/><IntegrityRow label="اتصال مجدد" value={data.integrity.counts.reconnect??0}/></div><div className="mt-4 rounded-xl bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">هیچ‌کدام از این موارد امتیاز فنی یا مهارت نرم را خودکار کاهش نمی‌دهند و باعث رد خودکار نمی‌شوند.</div></section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">بررسی انسانی</h2>{data.humanReview?<div className="mt-3 space-y-2 text-xs text-slate-600"><div>وضعیت: <strong>{data.humanReview.status}</strong></div>{data.humanReview.human_override!=null?<div>اعمال تصمیم انسانی: <strong>ثبت شده</strong></div>:null}{data.humanReview.override_rationale?<div className="rounded-xl bg-indigo-50 p-3 text-indigo-900"><div className="text-[9px] font-semibold">دلیل تصمیم/بازنگری انسانی</div><div className="mt-1">{data.humanReview.override_rationale}</div></div>:null}{data.humanReview.completed_at?<div className="text-[10px] text-slate-400">{formatFaDateTime(data.humanReview.completed_at)}</div>:null}</div>:<p className="mt-3 text-xs leading-5 text-slate-500">هنوز بررسی انسانی ثبت نشده است. تصمیم نهایی استخدام همچنان انسانی است.</p>}</section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold text-slate-900">یکپارچگی مصاحبه</h2><span className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${data.integrity.riskLevel==="high"||data.integrity.riskLevel==="medium"?"bg-amber-100 text-amber-800":data.integrity.riskLevel==="low"?"bg-indigo-50 text-indigo-700":"bg-emerald-50 text-emerald-700"}`}>{integrityRiskLabel(data.integrity.riskLevel)}</span></div>
+          <p className="mt-2 text-[10px] leading-5 text-slate-500">این تحلیل فقط از سیگنال‌های فنی و رفتاری قابل مشاهده استفاده می‌کند؛ eye tracking، تحلیل چهره، احساسات، لهجه، استرس صوتی یا biometrics در آن استفاده نمی‌شود.</p>
+          <div className="mt-4 space-y-2 text-xs">
+            <IntegrityRow label="احتمال وجود مسئله در یکپارچگی" value={data.integrity.integrityConcernScore==null?"پس از پایان تحلیل می‌شود":`${formatFaNumber(data.integrity.integrityConcernScore)} از ۱۰۰`}/>
+            <IntegrityRow label="سطح" value={integrityRiskLabel(data.integrity.riskLevel)}/>
+            <IntegrityRow label="اطمینان تحلیل" value={integrityConfidenceLabel(data.integrity.confidence)}/>
+            <IntegrityRow label="نیازمند بررسی انسانی" value={data.integrity.requiresHumanReview?"بله":"خیر"}/>
+            <IntegrityRow label="تعداد رویدادها" value={data.integrity.events.length}/>
+          </div>
+          <p className="mt-3 rounded-xl bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">{data.integrity.summary}</p>
+          {data.integrity.signals.length?<div className="mt-4 space-y-2">{data.integrity.signals.slice(0,5).map(signal=><div key={signal.code} className="rounded-xl border border-slate-100 p-3 text-[10px] leading-5 text-slate-600"><div className="flex justify-between gap-3"><strong className="text-slate-800">{signal.code.replaceAll("_"," ")}</strong><span>{integritySeverityLabel(signal.severity)}</span></div><p className="mt-1">{signal.description}</p></div>)}</div>:null}
+          <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 p-3 text-[10px] leading-5 text-amber-900">این شاخص به‌تنهایی اثبات تقلب نیست و نباید مبنای تصمیم استخدام باشد. امتیاز فنی و پیشنهاد استخدام به‌صورت خودکار از این گزارش تغییر نمی‌کنند.</div>
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">رویدادهای یکپارچگی مصاحبه</h2><div className="mt-3 max-h-80 space-y-2 overflow-y-auto">{data.integrity.events.length?data.integrity.events.map(event=><div key={event.id} className="rounded-xl border border-slate-100 p-3 text-[10px] leading-5"><div className="flex items-center justify-between gap-2"><strong className="text-slate-800">{integrityEventLabel(event.event_type)}</strong><span className="text-slate-400">{event.server_occurred_at?formatFaDateTime(event.server_occurred_at):"—"}</span></div><div className="mt-1 text-slate-500">شدت: {integritySeverityLabel(event.severity)}{event.duration_ms!=null?` · مدت: ${formatFaNumber(Math.round(event.duration_ms/1000))} ثانیه`:""}{typeof event.metadata?.characterCount==="number"?` · ${formatFaNumber(event.metadata.characterCount)} کاراکتر`:""}</div></div>):<div className="rounded-xl bg-slate-50 p-3 text-[10px] text-slate-500">رویداد قابل مشاهده‌ای ثبت نشده است.</div>}</div></section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">بررسی انسانی</h2>{data.humanReview?<div className="mt-3 space-y-2 text-xs text-slate-600"><div>وضعیت: <strong>{data.humanReview.status}</strong></div>{data.humanReview.human_override!=null?<div>اعمال تصمیم انسانی: <strong>ثبت شده</strong></div>:null}{data.humanReview.override_rationale?<div className="rounded-xl bg-indigo-50 p-3 text-indigo-900"><div className="text-[9px] font-semibold">دلیل تصمیم/بازنگری انسانی</div><div className="mt-1">{data.humanReview.override_rationale}</div></div>:null}{data.humanReview.completed_at?<div className="text-[10px] text-slate-400">{formatFaDateTime(data.humanReview.completed_at)}</div>:null}</div>:<p className="mt-3 text-xs leading-5 text-slate-500">هنوز بررسی انسانی ثبت نشده است. تصمیم نهایی استخدام همچنان انسانی است.</p>}</section><section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">بررسی انسانی یکپارچگی</h2><p className="mt-2 text-xs text-slate-600">وضعیت: <strong>{integrityReviewLabel(data.integrity.reviewCase?.status)}</strong></p>{data.integrity.reviewCase?.comment?<p className="mt-2 rounded-xl bg-slate-50 p-3 text-[10px] leading-5 text-slate-600">{data.integrity.reviewCase.comment}</p>:null}{data.integrity.reviewCase?.status==="pending_review"?<div className="mt-3 space-y-2"><textarea value={integrityComment} onChange={event=>setIntegrityComment(event.target.value)} rows={3} placeholder="توضیح بررسی انسانی…" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-indigo-400"/><div className="grid gap-2 sm:grid-cols-3"><button disabled={integrityReviewBusy} onClick={()=>void submitIntegrityReview("reviewed_no_concern").catch(cause=>setError(cause instanceof Error?cause.message:"ثبت بررسی ناموفق بود"))} className="rounded-lg bg-emerald-50 px-2 py-2 text-[9px] font-semibold text-emerald-700 disabled:opacity-50">نگرانی تأیید نشد</button><button disabled={integrityReviewBusy} onClick={()=>void submitIntegrityReview("reviewed_concern").catch(cause=>setError(cause instanceof Error?cause.message:"ثبت بررسی ناموفق بود"))} className="rounded-lg bg-amber-50 px-2 py-2 text-[9px] font-semibold text-amber-800 disabled:opacity-50">وجود نگرانی تأیید شد</button><button disabled={integrityReviewBusy} onClick={()=>void submitIntegrityReview("inconclusive").catch(cause=>setError(cause instanceof Error?cause.message:"ثبت بررسی ناموفق بود"))} className="rounded-lg bg-slate-100 px-2 py-2 text-[9px] font-semibold text-slate-700 disabled:opacity-50">نتیجه نامشخص</button></div></div>:data.integrity.requiresHumanReview&&!data.integrity.reviewCase?<p className="mt-2 text-[10px] text-amber-700">پرونده بررسی در حال ایجاد است.</p>:null}</section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-sm font-semibold text-slate-900">لحظه‌های کلیدی</h2><div className="mt-3 max-h-[480px] space-y-2 overflow-y-auto">{data.evidence.map(x=>{const a=x.transcript_segment_ids?.[0]?transcriptById.get(x.transcript_segment_ids[0]):undefined;return <div key={x.id} className="rounded-xl border border-slate-100 p-3 text-xs leading-5 text-slate-700"><div>{x.summary}</div>{a?<div className="mt-1 text-[9px] text-indigo-600">{timecode(a.start_ms)} · {a.speaker==="candidate"?"کاندیدا":"مصاحبه‌گر"}</div>:null}</div>})}</div></section>
       </aside>
     </div>
