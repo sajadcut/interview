@@ -3078,21 +3078,21 @@ export interface components {
         };
         CreateCandidateDto: {
             displayName: string;
-            primaryEmail?: Record<string, never> | null;
-            primaryPhone?: Record<string, never> | null;
-            currentRole?: Record<string, never> | null;
-            currentCompany?: Record<string, never> | null;
+            primaryEmail?: string | null;
+            primaryPhone?: string | null;
+            currentRole?: string | null;
+            currentCompany?: string | null;
             location?: string;
             preferredLanguage?: string;
         };
         UpdateCandidateDto: {
             displayName?: string;
-            primaryEmail?: string;
-            primaryPhone?: string;
-            currentRole?: string;
-            currentCompany?: string;
-            location?: Record<string, never> | null;
-            preferredLanguage?: Record<string, never> | null;
+            primaryEmail?: string | null;
+            primaryPhone?: string | null;
+            currentRole?: string | null;
+            currentCompany?: string | null;
+            location?: string | null;
+            preferredLanguage?: string | null;
         };
         BulkCandidateDeleteDto: {
             ids: string[];
@@ -3117,10 +3117,10 @@ export interface components {
             title?: string;
             /** @enum {string} */
             status?: "draft" | "open" | "paused" | "closed" | "archived";
-            department?: Record<string, never> | null;
-            location?: Record<string, never> | null;
-            seniority?: Record<string, never> | null;
-            summary?: Record<string, never> | null;
+            department?: string | null;
+            location?: string | null;
+            seniority?: string | null;
+            summary?: string | null;
             requirements?: components["schemas"]["CreateJobRequirementDto"][];
         };
         PublishJobResponseDto: {
@@ -3216,11 +3216,11 @@ export interface components {
         UpdateHiringRequestDto: {
             title?: string;
             hiringTeam?: string;
-            department?: Record<string, never> | null;
+            department?: string | null;
             headcount?: number;
-            seniority?: Record<string, never> | null;
-            location?: Record<string, never> | null;
-            employmentType?: Record<string, never> | null;
+            seniority?: string | null;
+            location?: string | null;
+            employmentType?: string | null;
             businessReason?: string;
             requirements?: string[];
         };
