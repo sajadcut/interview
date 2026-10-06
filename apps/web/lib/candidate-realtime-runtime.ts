@@ -108,6 +108,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 class CandidateBrowserRealtimeRuntime {
   private room: Room | null = null;
+  private readonly clientInstanceId = crypto.randomUUID();
   private snapshot: CandidateRuntimeSnapshot | null = null;
   private readonly listeners = new Set<(event: CandidateRuntimeEvent) => void>();
 
@@ -138,6 +139,16 @@ class CandidateBrowserRealtimeRuntime {
     room.on(RoomEvent.Reconnecting, () => this.emit({ type: "reconnecting" }));
     room.on(RoomEvent.Reconnected, () => this.emit({ type: "reconnected" }));
     room.on(RoomEvent.Disconnected, () => this.emit({ type: "disconnected" }));
+    room.on(RoomEvent.ParticipantConnected, () => {
+      const participantCount = room.remoteParticipants.size;
+      if (participantCount > 1) {
+        void this.reportIntegrity({
+          eventType: "unexpected_room_participant",
+          clientOccurredAt: new Date().toISOString(),
+          metadata: { participantCount },
+        }).catch(() => undefined);
+      }
+    });
   }
 
   private async startServerRuntime(): Promise<StartResponse> {
@@ -146,7 +157,10 @@ class CandidateBrowserRealtimeRuntime {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ developmentPreview: this.developmentPreview }),
+        body: JSON.stringify({
+          developmentPreview: this.developmentPreview,
+          clientInstanceId: this.clientInstanceId,
+        }),
       }),
     );
   }
@@ -297,10 +311,36 @@ class CandidateBrowserRealtimeRuntime {
   }
 
   async reportIntegrity(input: {
-    eventType: "visibility_hidden" | "visibility_visible" | "window_blur" | "window_focus" | "large_paste" | "reconnect";
+    eventType:
+      | "visibility_hidden"
+      | "visibility_visible"
+      | "window_blur"
+      | "window_focus"
+      | "large_paste"
+      | "reconnect"
+      | "network_disconnect"
+      | "network_reconnect"
+      | "media_device_changed"
+      | "microphone_disabled"
+      | "microphone_enabled"
+      | "camera_disabled"
+      | "camera_enabled"
+      | "unexpected_room_participant"
+      | "answer_submission_spike";
     clientOccurredAt?: string;
     durationMs?: number;
-    metadata?: { field?: string; characterCount?: number };
+    metadata?: {
+      field?: string;
+      characterCount?: number;
+      answerLength?: number;
+      phase?: string;
+      currentTurnId?: string;
+      remainingSeconds?: number;
+      participantCount?: number;
+      reconnectCount?: number;
+      duringAnswer?: boolean;
+      deviceKind?: string;
+    };
   }): Promise<void> {
     const snapshot = this.snapshot;
     if (!snapshot) return;
