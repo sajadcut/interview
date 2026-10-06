@@ -42,8 +42,16 @@ function transcriptRoleForTurnKind(
   if (turnKind === "introduction") return "introduction";
   if (turnKind === "candidate_question") return "candidate_question";
   if (turnKind === "closing") return "closing";
-  if (turnKind === "transition") return "wrap_up";
   return "interview";
+}
+
+function candidateLifecyclePhaseForTurnKind(
+  turnKind: string | null | undefined,
+): "active" | "transition" | "candidate_question" | "closing" {
+  if (turnKind === "transition") return "transition";
+  if (turnKind === "candidate_question") return "candidate_question";
+  if (turnKind === "closing") return "closing";
+  return "active";
 }
 
 function detectCandidateIntent(text: string, turnKind?: string | null): CandidateIntent {
@@ -607,13 +615,9 @@ export class CandidateInterviewService {
 
       return {
         status: runtime.status === "completed" ? "completed" : "active",
-        lifecyclePhase: turn.turnKind === "candidate_question"
-          ? "candidate_question"
-          : turn.turnKind === "closing"
-            ? "closing"
-            : introduction.created
-              ? "introduction"
-              : "active",
+        lifecyclePhase: introduction.created
+          ? "introduction"
+          : candidateLifecyclePhaseForTurnKind(turn.turnKind),
         sessionId,
         mediaSessionId: activeMediaSessionId,
         remainingSeconds: runtime.remainingSeconds,
@@ -831,11 +835,7 @@ export class CandidateInterviewService {
       remainingSeconds: finalRuntime.remainingSeconds,
       clock: finalRuntime.clock,
       completed: finalRuntime.status === "completed",
-      lifecyclePhase: nextTurn.turnKind === "candidate_question"
-        ? "candidate_question"
-        : nextTurn.turnKind === "closing"
-          ? "closing"
-          : "active",
+      lifecyclePhase: candidateLifecyclePhaseForTurnKind(nextTurn.turnKind),
       turn: {
         id: nextTurn.id,
         action: nextTurn.action,
@@ -950,11 +950,7 @@ export class CandidateInterviewService {
         status: ["completed", "failed", "cancelled"].includes(runtime.status)
           ? "completed" as const
           : "active" as const,
-        lifecyclePhase: turn.turnKind === "candidate_question"
-          ? "candidate_question" as const
-          : turn.turnKind === "closing"
-            ? "closing" as const
-            : "active" as const,
+        lifecyclePhase: candidateLifecyclePhaseForTurnKind(turn.turnKind),
         sessionId,
         remainingSeconds: runtime.remainingSeconds,
         clock: runtime.clock,
