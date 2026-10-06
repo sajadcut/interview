@@ -1,6 +1,7 @@
 export const DEFAULT_SOFT_SKILL_LABELS = [
   "وضوح و ساختار ارتباط",
-  "حل مسئله و مدیریت ابهام",
+  "حل مسئله",
+  "مدیریت ابهام",
   "همکاری و کار تیمی",
   "ارتباط با ذی‌نفعان",
   "مالکیت و مسئولیت‌پذیری",
@@ -8,13 +9,19 @@ export const DEFAULT_SOFT_SKILL_LABELS = [
   "استدلال درباره بده‌بستان‌ها",
 ] as const;
 
-const stableKeys: Array<[RegExp, string]> = [
-  [/وضوح|ارتباط|communication/i, "communication"],
-  [/حل مسئله|ابهام|problem/i, "problem_solving"],
+const softSkillStableKeys: Array<[RegExp, string]> = [
+  [/stakeholder|ذی.?نفع/i, "stakeholder_communication"],
+  [/ابهام|ambigu/i, "ambiguity_management"],
+  [/حل مسئله|problem/i, "problem_solving"],
+  [/وضوح|ساختار.*ارتباط|communication/i, "communication"],
   [/همکاری|تیمی|collaboration|teamwork/i, "collaboration"],
   [/مالکیت|مسئولیت|ownership/i, "ownership"],
   [/تصمیم|decision/i, "decision_making"],
   [/trade.?off|بده.?بستان|موازنه/i, "tradeoff_reasoning"],
+];
+
+const stableKeys: Array<[RegExp, string]> = [
+  ...softSkillStableKeys,
   [/طراحی سیستم|system design/i, "system_design"],
   [/معماری|architecture/i, "architecture"],
   [/asp.?net|web api|وب.*api|وب.*ای.?پی.?آی/i, "aspnet_core"],
@@ -80,9 +87,11 @@ const COVERAGE_DEFINITIONS: ReadonlyArray<{
   { key: "debugging", label: "Debugging / Production Troubleshooting", group: "technical", pattern: /debug|troubleshoot|incident|عیب.?یابی|اشکال.?زدایی|محیط تولید/i },
   { key: "observability", label: "Observability", group: "technical", pattern: /observability|monitor|trace|metric|مشاهده.?پذیری/i },
   { key: "devops", label: "CI/CD / DevOps", group: "technical", pattern: /ci.?cd|devops|pipeline|docker|kubernetes|دواپس/i },
-  { key: "communication", label: "وضوح و ساختار ارتباط", group: "soft_skill", pattern: /communication|ارتباط|وضوح/i },
-  { key: "problem_solving", label: "حل مسئله / مدیریت ابهام", group: "soft_skill", pattern: /problem|ambigu|حل مسئله|ابهام/i },
-  { key: "collaboration", label: "همکاری تیمی / ارتباط با ذی‌نفع", group: "soft_skill", pattern: /collaboration|teamwork|stakeholder|همکاری|تیمی|ذی.?نفع/i },
+  { key: "communication", label: "وضوح و ساختار ارتباط", group: "soft_skill", pattern: /communication|وضوح|ساختار.*ارتباط/i },
+  { key: "problem_solving", label: "حل مسئله", group: "soft_skill", pattern: /problem|حل مسئله/i },
+  { key: "ambiguity_management", label: "مدیریت ابهام", group: "soft_skill", pattern: /ambigu|ابهام/i },
+  { key: "collaboration", label: "همکاری تیمی", group: "soft_skill", pattern: /collaboration|teamwork|همکاری|تیمی/i },
+  { key: "stakeholder_communication", label: "ارتباط با ذی‌نفعان", group: "soft_skill", pattern: /stakeholder|ذی.?نفع/i },
   { key: "ownership", label: "Ownership", group: "soft_skill", pattern: /ownership|مالکیت|مسئولیت/i },
   { key: "decision_making", label: "تصمیم‌گیری", group: "soft_skill", pattern: /decision|تصمیم/i },
   { key: "tradeoff_reasoning", label: "استدلال درباره trade-off", group: "soft_skill", pattern: /trade.?off|بده.?بستان|موازنه/i },
@@ -113,7 +122,7 @@ export function isSoftSkillCriterion(input: {
   evidencePolicy?: Record<string, unknown>;
 }): boolean {
   if (input.evidencePolicy?.category === "soft_skill") return true;
-  return stableKeys.slice(0, 6).some(([pattern]) =>
+  return softSkillStableKeys.some(([pattern]) =>
     pattern.test(`${input.criterionKey ?? ""} ${input.label ?? ""}`),
   );
 }
