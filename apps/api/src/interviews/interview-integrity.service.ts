@@ -152,7 +152,7 @@ export class InterviewIntegrityService {
     const classification = classifyIntegrityEvent({ eventType, durationMs, metadata });
     const source = eventSource(eventType);
 
-    return this.database.sql.begin(async (tx) => {
+    const recorded = await this.database.sql.begin(async (tx) => {
       const mediaRows = await tx`
         SELECT id
         FROM interview_media_sessions
@@ -200,6 +200,32 @@ export class InterviewIntegrityService {
       };
     });
   }
+
+    if (
+      eventType === "large_paste" &&
+      Number(metadata.characterCount ?? 0) >= 300
+    ) {
+      const counts = await this.database.sql`
+        SELECT
+          count(*) FILTER (WHERE event_type='large_paste' AND COALESCE((metadata->>'characterCount')::int, 0) >= 300)::int AS large_paste_count,
+          count(*) FILTER (WHERE event_type='repeated_large_paste')::int AS repeated_marker_count
+        FROM interview_integrity_events
+        WHERE organization_id=${organizationId}::uuid
+          AND interview_session_id=${sessionId}::uuid
+      `;
+      if (
+        Number(counts[0]?.large_paste_count ?? 0) >= 2 &&
+        Number(counts[0]?.repeated_marker_count ?? 0) === 0
+      ) {
+        await this.recordServerEvent({
+          sessionId,
+          mediaSessionId,
+          eventType: "repeated_large_paste",
+          metadata: { reason: "multiple_large_paste_events" },
+        });
+      }
+    }
+    return recorded;
 
   async recordServerEvent(input: {
     sessionId: string;
