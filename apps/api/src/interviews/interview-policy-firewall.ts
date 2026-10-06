@@ -168,7 +168,7 @@ function intentViolations(intent: CandidateIntent | null, turn: StructuredInterv
       return turn.action === "close" ? [] : ["candidate_end_request_not_respected"];
     case "SKIP_REQUEST":
     case "POLICY_REFUSAL":
-      return turn.action === "transition" || turn.action === "close"
+      return turn.action === "ask" || turn.action === "transition" || turn.action === "close"
         ? []
         : ["candidate_skip_or_refusal_not_respected"];
     case "CLARIFICATION_REQUEST":
