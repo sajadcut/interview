@@ -13,6 +13,7 @@ const softSkillStableKeys: Array<[RegExp, string]> = [
   [/stakeholder|ذی.?نفع/i, "stakeholder_communication"],
   [/ابهام|ambigu/i, "ambiguity_management"],
   [/حل مسئله|problem/i, "problem_solving"],
+  [/stakeholder|ذی.?نفع/i, "stakeholder_communication"],
   [/وضوح|ساختار.*ارتباط|communication/i, "communication"],
   [/همکاری|تیمی|collaboration|teamwork/i, "collaboration"],
   [/مالکیت|مسئولیت|ownership/i, "ownership"],
@@ -37,7 +38,7 @@ const stableKeys: Array<[RegExp, string]> = [
   [/testing|تست/i, "testing"],
   [/security|امنیت|auth/i, "security"],
   [/production troubleshooting|production incident|incident response|عیب.?یابی محیط تولید|رخداد محیط تولید/i, "production_troubleshooting"],
-  [/debug|اشکال.?زدایی|عیب.?یابی/i, "debugging"],
+  [/debug|اشکال.?زدایی|عیب.?یابی(?! محیط تولید)/i, "debugging"],
   [/observability|monitor|trace|metric|مشاهده.?پذیری/i, "observability"],
   [/ci.?cd|devops|دواپس|pipeline/i, "devops"],
   [/بک.?اند|backend/i, "backend_depth"],
@@ -85,11 +86,11 @@ const COVERAGE_DEFINITIONS: ReadonlyArray<{
   { key: "performance", label: "Performance / Scalability", group: "technical", pattern: /performance|scalab|latency|throughput|کارایی|مقیاس/i },
   { key: "testing", label: "Testing", group: "technical", pattern: /test|تست/i },
   { key: "security", label: "Security", group: "technical", pattern: /security|oauth|oidc|auth|امنیت/i },
-  { key: "debugging", label: "Debugging", group: "technical", pattern: /debug|اشکال.?زدایی|عیب.?یابی/i },
+  { key: "debugging", label: "Debugging", group: "technical", pattern: /debug|اشکال.?زدایی|عیب.?یابی(?! محیط تولید)/i },
   { key: "production_troubleshooting", label: "Production Troubleshooting", group: "technical", pattern: /production troubleshooting|production incident|incident response|عیب.?یابی محیط تولید|رخداد محیط تولید|محیط تولید/i },
   { key: "observability", label: "Observability", group: "technical", pattern: /observability|monitor|trace|metric|مشاهده.?پذیری/i },
   { key: "devops", label: "CI/CD / DevOps", group: "technical", pattern: /ci.?cd|devops|pipeline|docker|kubernetes|دواپس/i },
-  { key: "communication", label: "وضوح و ساختار ارتباط", group: "soft_skill", pattern: /communication|وضوح|ساختار.*ارتباط/i },
+  { key: "communication", label: "وضوح و ساختار ارتباط", group: "soft_skill", pattern: /communication clarity|clear communication|structured communication|وضوح|ساختار.*ارتباط/i },
   { key: "problem_solving", label: "حل مسئله", group: "soft_skill", pattern: /problem|حل مسئله/i },
   { key: "ambiguity_management", label: "مدیریت ابهام", group: "soft_skill", pattern: /ambigu|ابهام/i },
   { key: "collaboration", label: "همکاری تیمی", group: "soft_skill", pattern: /collaboration|teamwork|همکاری|تیمی/i },
@@ -98,6 +99,14 @@ const COVERAGE_DEFINITIONS: ReadonlyArray<{
   { key: "decision_making", label: "تصمیم‌گیری", group: "soft_skill", pattern: /decision|تصمیم/i },
   { key: "tradeoff_reasoning", label: "استدلال درباره trade-off", group: "soft_skill", pattern: /trade.?off|بده.?بستان|موازنه/i },
 ];
+
+function criterionMatchesCoverageDefinition(
+  definition: (typeof COVERAGE_DEFINITIONS)[number],
+  criterion: InterviewCoverageCriterion,
+): boolean {
+  const criterionKey = criterion.criterionKey?.trim().toLowerCase();
+  return criterionKey === definition.key || definition.pattern.test(criterion.label);
+}
 
 export function criterionKeyForLabel(value: string, index: number): string {
   for (const [pattern, key] of stableKeys) {
@@ -152,12 +161,12 @@ export function buildInterviewCoverage(input: {
       definition.group === "soft_skill" ||
       definition.pattern.test(jobText) ||
       input.criteria.some((criterion) =>
-        definition.pattern.test(`${criterion.criterionKey ?? ""} ${criterion.label}`),
+        criterionMatchesCoverageDefinition(definition, criterion),
       ),
     )
     .map((definition) => {
       const matched = input.criteria.filter((criterion) =>
-        definition.pattern.test(`${criterion.criterionKey ?? ""} ${criterion.label}`),
+        criterionMatchesCoverageDefinition(definition, criterion),
       );
       const relevantFromJob = definition.pattern.test(jobText);
       const status: InterviewCoverageStatus = matched.some((criterion) => criterion.required)
