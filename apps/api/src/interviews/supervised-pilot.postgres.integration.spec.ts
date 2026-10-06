@@ -233,7 +233,12 @@ test(
       assert.equal(summary.readiness.humanReviewRequired, true);
       assert.equal(summary.readiness.aiFinalDecisionProhibited, true);
 
-      const interviews = new SupervisedPilotAwareInterviewsService(database, tenant, creatorPilot);
+      const interviews = new SupervisedPilotAwareInterviewsService(
+        database,
+        tenant,
+        creatorPilot,
+        {} as never,
+      );
       const firstSession = await interviews.createSession({
         applicationId: seeded.applicationId,
         interviewPlanId: seeded.planId,
