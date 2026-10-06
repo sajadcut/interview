@@ -91,7 +91,7 @@ test("regression: درباره تجربه backend توضیح بده -> نتیج�
   assert.notEqual(result.output.spokenText, "درباره تجربه backend توضیح بده");
   assert.equal(result.provenance.provider, "scripted-openai-compatible");
   assert.equal(result.provenance.promptId, "interview.conversational_next_turn");
-  assert.equal(result.provenance.promptVersion, "v3");
+  assert.equal(result.provenance.promptVersion, "v4");
 });
 
 test("technical follow-up can stay anchored on a concrete Redis choice", async () => {
@@ -174,6 +174,12 @@ test("provider timeout remains a safe typed failure for deterministic fallback",
     }),
     (error) => error instanceof LLMProviderError && error.code === "PROVIDER_TIMEOUT",
   );
+});
+
+test("prompt treats resume claims as unverified and deterministic metadata as server-owned", () => {
+  assert.match(interviewerPromptDefinition.system, /deterministicRecommendation is authoritative/);
+  assert.match(interviewerPromptDefinition.system, /resumeClaim is present/);
+  assert.match(interviewerPromptDefinition.system, /never invent, strengthen, merge, or treat the claim itself as positive evidence/);
 });
 
 test("interviewer input rejects secret-bearing keys before prompt rendering", () => {
