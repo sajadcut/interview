@@ -96,7 +96,8 @@ const PERSIAN_CRITERION_LABELS: Readonly<Record<string, string>> = {
   performance: "کارایی و مقیاس‌پذیری",
   testing: "تست",
   security: "امنیت",
-  debugging: "اشکال‌زدایی و عیب‌یابی محیط تولید",
+  debugging: "اشکال‌زدایی",
+  production_troubleshooting: "عیب‌یابی محیط تولید",
   observability: "مشاهده‌پذیری",
   devops: "سی‌آی/سی‌دی و دواپس",
 };
