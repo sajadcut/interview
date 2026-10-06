@@ -6,6 +6,8 @@ import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import { InterviewBrainService } from "./interview-brain.service";
 import { InterviewEvaluatorService } from "./interview-evaluator.service";
+import { InterviewIntegrityReviewInputDto } from "./interview-integrity.dto";
+import { InterviewIntegrityService } from "./interview-integrity.service";
 import {
   AppendInterviewTurnDto,
   CreateInterviewSessionDto,
@@ -28,6 +30,7 @@ export class InterviewsController {
     private readonly interviews: InterviewsService,
     private readonly interviewBrain: InterviewBrainService,
     private readonly evaluator: InterviewEvaluatorService,
+    private readonly integrity: InterviewIntegrityService,
   ) {}
 
   @Post("interviews/sessions")
@@ -88,6 +91,28 @@ export class InterviewsController {
   @RequirePermissions(Permissions.InterviewRead)
   getReview(@Param("sessionId") sessionId: string) {
     return this.interviews.getReview(sessionId);
+  }
+
+  @Get("interviews/:sessionId/integrity")
+  @RequirePermissions(Permissions.InterviewIntegrityView)
+  getIntegrity(@Param("sessionId") sessionId: string) {
+    return this.integrity.getAssessment(sessionId);
+  }
+
+  @Get("interviews/:sessionId/integrity/events")
+  @RequirePermissions(Permissions.InterviewIntegrityView)
+  getIntegrityEvents(@Param("sessionId") sessionId: string) {
+    return this.integrity.listEvents(sessionId);
+  }
+
+  @Post("interviews/:sessionId/integrity/review")
+  @RequirePermissions(Permissions.InterviewIntegrityReview)
+  @AuditedAction("interview.integrity.review.request", "interview_integrity_review_case")
+  reviewIntegrity(
+    @Param("sessionId") sessionId: string,
+    @Body() body: InterviewIntegrityReviewInputDto,
+  ) {
+    return this.integrity.review(sessionId, body);
   }
 
   @Post("interview-release-units/:releaseUnitId/preflight")
