@@ -13,6 +13,7 @@ import {
 import { candidateInterviewUiCopy } from "../../lib/candidate-interview-copy";
 import type {
   CandidateRuntimeAnswer,
+  CandidateRuntimeCompletion,
   CandidateRuntimeEvent,
   CandidateRuntimeSnapshot,
   CandidateRuntimeVoiceAnswer,
@@ -37,6 +38,7 @@ export interface CandidateInterviewRuntime {
   turnAudio?(turnId: string): Promise<Blob>;
   submitText?(text: string): Promise<CandidateRuntimeAnswer>;
   submitVoice?(audio: Blob): Promise<CandidateRuntimeVoiceAnswer>;
+  acknowledgeTurnPlayed?(turnId: string): Promise<CandidateRuntimeCompletion>;
   sync?(): Promise<{
     status: "active" | "completed";
     lifecyclePhase: CandidateRuntimeSnapshot["lifecyclePhase"];
@@ -435,6 +437,18 @@ export function CandidateInterviewExperience({
       closeTurnPlayedRef.current = turnId;
       await playTurn(turnId);
     }
+    if (!runtime?.acknowledgeTurnPlayed) {
+      throw new Error("Closing acknowledgement is unavailable");
+    }
+    const completion = await runtime.acknowledgeTurnPlayed(turnId);
+    setDisplayRemainingSeconds(completion.clock.remainingSeconds);
+    setRuntimeSnapshot((current) => current ? {
+      ...current,
+      status: "completed",
+      lifecyclePhase: "completed",
+      remainingSeconds: completion.remainingSeconds,
+      clock: completion.clock,
+    } : current);
     reduce({ type: "COMPLETE" });
     setLiveStatus(liveCopy.completed);
   };
@@ -524,8 +538,11 @@ export function CandidateInterviewExperience({
         return;
       }
       setDisplayRemainingSeconds(result.clock?.remainingSeconds ?? result.remainingSeconds ?? displayRemainingSeconds);
-      if (result.completed) await finishAfterCloseTurn(result.turn.id);
-      else await playTurn(result.turn.id);
+      if (result.completed || result.turn.action === "close") {
+        await finishAfterCloseTurn(result.turn.id);
+      } else {
+        await playTurn(result.turn.id);
+      }
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
@@ -618,8 +635,11 @@ export function CandidateInterviewExperience({
       const result = await runtime.submitText(text);
       setTypedAnswer("");
       setDisplayRemainingSeconds(result.clock?.remainingSeconds ?? result.remainingSeconds);
-      if (result.completed) await finishAfterCloseTurn(result.turn.id);
-      else await playTurn(result.turn.id);
+      if (result.completed || result.turn.action === "close") {
+        await finishAfterCloseTurn(result.turn.id);
+      } else {
+        await playTurn(result.turn.id);
+      }
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
       setLiveStatus(liveCopy.yourTurn);
