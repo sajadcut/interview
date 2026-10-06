@@ -188,6 +188,9 @@ export class InterviewsService {
       if (segments.some((row)=>String(row.lifecycle_role ?? "interview")!=="interview")) {
         throw new Error("Only active interview transcript segments may anchor evaluation evidence");
       }
+      if (!segments.some((row)=>String(row.speaker)==="candidate")) {
+        throw new Error("Evaluation evidence must include candidate-authored transcript");
+      }
       if (typeof value.turnId === "string") {
         const turn=await tx`SELECT id FROM interview_turns WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid AND id=${value.turnId}::uuid LIMIT 1`;
         if (!turn[0]) throw new Error("turnId does not belong to the interview session");
