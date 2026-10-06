@@ -240,10 +240,23 @@ export class InterviewsService {
       WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid
       GROUP BY event_type ORDER BY event_type`;
     const integrityEvents=await this.database.sql`
-      SELECT id::text,sequence,event_type,client_occurred_at,duration_ms,metadata,created_at
+      SELECT id::text,sequence,event_type,client_occurred_at,server_occurred_at,
+             duration_ms,metadata,source,severity,interpretation,created_at
       FROM interview_integrity_events
       WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid
       ORDER BY sequence`;
+    const integrityAssessments=await this.database.sql`
+      SELECT a.id::text,a.integrity_concern_score,a.risk_level,a.confidence,
+             a.requires_human_review,a.signals,a.summary,a.analyzer_version,a.analyzed_at,
+             c.id::text AS review_case_id,c.status AS review_status,c.review_comment,
+             c.reviewer_user_id::text,c.reviewed_at
+      FROM interview_integrity_assessments a
+      LEFT JOIN interview_integrity_review_cases c
+        ON c.organization_id=a.organization_id
+       AND c.interview_session_id=a.interview_session_id
+      WHERE a.organization_id=${organizationId}::uuid
+        AND a.interview_session_id=${sessionId}::uuid
+      LIMIT 1`;
     const evaluationJobs=await this.database.sql`
       SELECT id::text,status,last_error_code,last_error_message,created_at,completed_at
       FROM ai_jobs
@@ -330,7 +343,7 @@ export class InterviewsService {
       ORDER BY created_at DESC LIMIT 1`;
     const counts = Object.fromEntries(integrityRows.map((row) => [String(row.event_type), Number(row.event_count)]));
     const hiddenDurationMs = Number(integrityRows.find((row) => String(row.event_type)==="visibility_visible")?.duration_ms ?? 0);
-    const reviewRecommended = Number(counts.large_paste ?? 0) > 0 || hiddenDurationMs > 20_000 || Number(counts.window_blur ?? 0) >= 4;
+    const integrityAssessment = integrityAssessments[0];
     const clock = computeInterviewClock({
       status: String(session.status),
       timeBudgetMinutes: Number(session.time_budget_minutes),
@@ -353,7 +366,22 @@ export class InterviewsService {
         interpretation:"observable_signals_only",
         automaticCheatingDecision:false,
         automaticScorePenalty:false,
-        status:reviewRecommended ? "review_recommended" : "no_observed_concern",
+        status:integrityAssessment ? "analyzed" : "not_analyzed",
+        integrityConcernScore:integrityAssessment ? Number(integrityAssessment.integrity_concern_score) : null,
+        riskLevel:integrityAssessment ? String(integrityAssessment.risk_level) : "none",
+        confidence:integrityAssessment ? String(integrityAssessment.confidence) : "low",
+        requiresHumanReview:integrityAssessment ? Boolean(integrityAssessment.requires_human_review) : false,
+        signals:integrityAssessment && Array.isArray(integrityAssessment.signals) ? integrityAssessment.signals : [],
+        summary:integrityAssessment ? String(integrityAssessment.summary) : "تحلیل یکپارچگی پس از Finish اجرا می‌شود.",
+        analyzerVersion:integrityAssessment ? String(integrityAssessment.analyzer_version) : null,
+        analyzedAt:integrityAssessment?.analyzed_at ? new Date(String(integrityAssessment.analyzed_at)).toISOString() : null,
+        reviewCase:integrityAssessment?.review_case_id ? {
+          id:String(integrityAssessment.review_case_id),
+          status:String(integrityAssessment.review_status),
+          comment:integrityAssessment.review_comment ? String(integrityAssessment.review_comment) : null,
+          reviewerUserId:integrityAssessment.reviewer_user_id ? String(integrityAssessment.reviewer_user_id) : null,
+          reviewedAt:integrityAssessment.reviewed_at ? new Date(String(integrityAssessment.reviewed_at)).toISOString() : null,
+        } : null,
         hiddenDurationMs,
         counts,
         events:integrityEvents,
