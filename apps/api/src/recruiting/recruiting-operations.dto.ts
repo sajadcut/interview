@@ -28,7 +28,7 @@ export class CreateJobRequirementDto {
   @Length(1, 240)
   name!: string;
 
-  @ApiPropertyOptional({ type: String, nullable: true })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
@@ -56,7 +56,7 @@ export class CreateRubricCriterionDto {
   @Length(1, 240)
   label!: string;
 
-  @ApiPropertyOptional({ type: String, nullable: true })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description?: string;
@@ -87,13 +87,13 @@ export class CreateJobDto {
   @Length(1, 240)
   title!: string;
 
-  @ApiPropertyOptional({ type: String, nullable: true })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @Length(1, 160)
   department?: string;
 
-  @ApiPropertyOptional({ type: String, nullable: true })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @Length(1, 240)
@@ -134,7 +134,7 @@ export class CreateCandidateDto {
   @Length(1, 240)
   displayName!: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsEmail()
   @Length(3, 320)
@@ -178,25 +178,25 @@ export class UpdateCandidateDto {
   @Length(1, 240)
   displayName?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsEmail()
   @Length(3, 320)
   primaryEmail?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 80)
   primaryPhone?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
   currentRole?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @Length(1, 240)
