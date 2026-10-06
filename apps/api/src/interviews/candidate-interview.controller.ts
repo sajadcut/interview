@@ -128,6 +128,21 @@ export class CandidateInterviewController {
     );
   }
 
+  @Post("sessions/:sessionId/media/:mediaSessionId/turns/:turnId/played")
+  acknowledgeTurnPlayed(
+    @Req() request: Request,
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+    @Param("turnId") turnId: string,
+  ) {
+    return this.candidateInterview.acknowledgeTurnPlayed(
+      candidateToken(request),
+      sessionId,
+      mediaSessionId,
+      turnId,
+    );
+  }
+
   @Post("sessions/:sessionId/media/:mediaSessionId/turns/:turnId/audio")
   async turnAudio(
     @Req() request: Request,
