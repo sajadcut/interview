@@ -8,7 +8,12 @@ import { api, apiErrorMessage } from "../../lib/api";
 import { formatFaNumber } from "../../lib/fa-numbers";
 import { faDomainLabel } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
-import { appendDefaultSoftSkills, criterionKeyForLabel } from "../../lib/rubric-criteria";
+import {
+  appendDefaultSoftSkills,
+  buildInterviewCoverage,
+  coverageSummary,
+  criterionKeyForLabel,
+} from "../../lib/rubric-criteria";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
 
@@ -43,7 +48,9 @@ export function JobEditForm({ jobId }: { jobId: string }) {
   const [mustHave, setMustHave] = useState("");
   const [niceToHave, setNiceToHave] = useState("");
   const [criteriaText, setCriteriaText] = useState("");
+  const [optionalCriteriaText, setOptionalCriteriaText] = useState("");
   const [initialCriteriaText, setInitialCriteriaText] = useState("");
+  const [initialOptionalCriteriaText, setInitialOptionalCriteriaText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<"save" | "publish">();
   const [error, setError] = useState<string>();
@@ -62,7 +69,8 @@ export function JobEditForm({ jobId }: { jobId: string }) {
         }
         if (!active) return;
         const loaded = result.data;
-        const criterionLines = loaded.rubricCriteria.map((criterion) => criterion.label).join("\n");
+        const criterionLines = loaded.rubricCriteria.filter((criterion) => criterion.required).map((criterion) => criterion.label).join("\n");
+        const optionalCriterionLines = loaded.rubricCriteria.filter((criterion) => !criterion.required).map((criterion) => criterion.label).join("\n");
         setIdentity(resolved);
         setJob(loaded);
         setTitle(loaded.title);
@@ -73,7 +81,9 @@ export function JobEditForm({ jobId }: { jobId: string }) {
         setMustHave(loaded.requirements.filter((item) => item.requirementType === "must_have").map((item) => item.name).join("\n"));
         setNiceToHave(loaded.requirements.filter((item) => item.requirementType === "nice_to_have").map((item) => item.name).join("\n"));
         setCriteriaText(criterionLines);
+        setOptionalCriteriaText(optionalCriterionLines);
         setInitialCriteriaText(criterionLines);
+        setInitialOptionalCriteriaText(optionalCriterionLines);
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : "موقعیت شغلی بارگذاری نشد");
       } finally {
@@ -107,17 +117,42 @@ export function JobEditForm({ jobId }: { jobId: string }) {
     const existingByLabel = new Map(
       (job?.rubricCriteria ?? []).map((item) => [item.label.trim().toLowerCase(), item] as const),
     );
-    return lines(criteriaText).map((label, index) => {
-      const previous = existingByLabel.get(label.toLowerCase());
-      return {
-        criterionKey: previous?.criterionKey ?? keyFor(label, index),
-        label,
-        weight: previous?.weight ?? 1,
-        required: previous?.required ?? true,
-        displayOrder: index,
-      };
-    });
-  }, [criteriaText, job?.rubricCriteria]);
+    const requiredLabels = lines(criteriaText);
+    const optionalLabels = lines(optionalCriteriaText);
+    return [
+      ...requiredLabels.map((label, index) => {
+        const previous = existingByLabel.get(label.toLowerCase());
+        return {
+          criterionKey: previous?.criterionKey ?? keyFor(label, index),
+          label,
+          weight: previous?.weight ?? 1,
+          required: true,
+          displayOrder: index,
+        };
+      }),
+      ...optionalLabels.map((label, index) => {
+        const previous = existingByLabel.get(label.toLowerCase());
+        return {
+          criterionKey: previous?.criterionKey ?? keyFor(label, requiredLabels.length + index),
+          label,
+          weight: previous?.weight ?? 0.5,
+          required: false,
+          displayOrder: requiredLabels.length + index,
+        };
+      }),
+    ];
+  }, [criteriaText, optionalCriteriaText, job?.rubricCriteria]);
+  const coverage = useMemo(
+    () => buildInterviewCoverage({
+      title,
+      seniority,
+      summary,
+      requirements,
+      criteria,
+    }),
+    [title, seniority, summary, requirements, criteria],
+  );
+  const coverageCounts = useMemo(() => coverageSummary(coverage), [coverage]);
 
   async function submit(mode: "save" | "publish") {
     if (!identity || !job || submitting) return;
@@ -154,7 +189,10 @@ export function JobEditForm({ jobId }: { jobId: string }) {
         throw new Error(apiErrorMessage(updated, "ذخیره تغییرات موقعیت ناموفق بود"));
       }
 
-      if (criteriaText.trim() !== initialCriteriaText.trim()) {
+      if (
+        criteriaText.trim() !== initialCriteriaText.trim() ||
+        optionalCriteriaText.trim() !== initialOptionalCriteriaText.trim()
+      ) {
         const rubric = await api.PUT("/v1/jobs/{jobId}/rubric/draft", {
           params: { path: { jobId } },
           headers,
@@ -242,13 +280,18 @@ export function JobEditForm({ jobId }: { jobId: string }) {
             </label>
           </div>
 
-          <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای ارزیابی — هر خط یک معیار
-            <textarea className={`${textarea} min-h-44`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} />
-            <span className="block text-[9px] font-normal text-slate-400">وزن و وضعیت اجباری معیارهای موجود تا زمانی که نامشان تغییر نکند حفظ می‌شود.</span>
-            <button type="button" onClick={() => setCriteriaText(appendDefaultSoftSkills(lines(criteriaText)).join("\n"))} className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100">
-              افزودن معیارهای نرم استاندارد
-            </button>
-          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای الزامی — هر خط یک معیار
+              <textarea className={`${textarea} min-h-44`} value={criteriaText} onChange={(event) => setCriteriaText(event.target.value)} />
+              <button type="button" onClick={() => setCriteriaText(appendDefaultSoftSkills(lines(criteriaText)).join("\n"))} className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100">
+                افزودن معیارهای نرم استاندارد
+              </button>
+            </label>
+            <label className="block space-y-1.5 text-[10px] font-semibold text-slate-600">معیارهای اختیاری — هر خط یک معیار
+              <textarea className={`${textarea} min-h-44`} value={optionalCriteriaText} onChange={(event) => setOptionalCriteriaText(event.target.value)} />
+            </label>
+          </div>
+          <span className="block text-[9px] font-normal leading-4 text-slate-400">مهارت نرم فقط از پاسخ و رفتار قابل مشاهده در متن ارزیابی می‌شود؛ سیگنال چهره، صدا، لهجه یا biometrics وارد امتیاز نمی‌شود.</span>
         </Panel>
 
         <Panel className="h-fit p-5">
@@ -256,6 +299,26 @@ export function JobEditForm({ jobId }: { jobId: string }) {
           <div className="mt-4 grid grid-cols-2 gap-3 text-center">
             <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{formatFaNumber(requirements.length)}</div><div className="text-[9px] text-slate-500">نیازمندی</div></div>
             <div className="rounded-xl bg-slate-50 p-3"><div className="text-xl font-semibold">{formatFaNumber(criteria.length)}</div><div className="text-[9px] text-slate-500">معیار ارزیابی</div></div>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[11px] font-semibold text-slate-800">پوشش مصاحبه</h3>
+              <div className="text-[9px] text-slate-400">
+                الزامی {formatFaNumber(coverageCounts.required)} · اختیاری {formatFaNumber(coverageCounts.optional)} · بدون پوشش {formatFaNumber(coverageCounts.missing)}
+              </div>
+            </div>
+            <div className="mt-3 max-h-80 space-y-1.5 overflow-y-auto">
+              {coverage.map((area) => (
+                <div key={area.key} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-[9px]">
+                  <span className="text-slate-700">{area.label}</span>
+                  <span className={area.status === "required" ? "font-semibold text-emerald-700" : area.status === "optional" ? "font-semibold text-indigo-700" : "font-semibold text-rose-700"}>
+                    {area.status === "required" ? "الزامی" : area.status === "optional" ? "اختیاری" : "فاقد پوشش"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {coverageCounts.missing > 0 ? <p className="mt-2 text-[9px] leading-4 text-rose-600">قبل از انتشار، حوزه‌های فاقد پوشش را آگاهانه بررسی کنید.</p> : null}
           </div>
 
           {job.status === "draft" ? (
