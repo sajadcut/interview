@@ -30,6 +30,8 @@ test("Senior .NET coverage exposes required optional and missing areas", () => {
   assert.equal(areas.find((area) => area.key === "caching")?.status, "optional");
   assert.equal(areas.find((area) => area.key === "system_design")?.status, "missing");
   assert.ok(areas.some((area) => area.key === "security"));
+  assert.ok(areas.some((area) => area.key === "debugging"));
+  assert.ok(areas.some((area) => area.key === "production_troubleshooting"));
   assert.ok(areas.some((area) => area.key === "observability"));
   assert.ok(coverageSummary(areas).missing > 0);
 });
