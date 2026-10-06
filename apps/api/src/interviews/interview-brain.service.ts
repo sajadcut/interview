@@ -297,6 +297,7 @@ export class InterviewBrainService {
           s.checkpoint,
           s.application_id,
           a.candidate_id,
+          c.display_name AS candidate_name,
           p.job_id,
           p.rubric_version_id,
           p.version AS plan_version,
@@ -317,6 +318,8 @@ export class InterviewBrainService {
           ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
         JOIN applications a
           ON a.organization_id = s.organization_id AND a.id = s.application_id
+        JOIN candidates c
+          ON c.organization_id = a.organization_id AND c.id = a.candidate_id
         JOIN jobs j
           ON j.organization_id = p.organization_id AND j.id = p.job_id
         JOIN interview_release_units r
@@ -510,6 +513,7 @@ export class InterviewBrainService {
           jobSummary: session?.job_summary,
           requirements,
         }),
+        ...(session?.candidate_name ? { candidateName: String(session.candidate_name) } : {}),
       });
       const sequence = priorTurnRows.length
         ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
