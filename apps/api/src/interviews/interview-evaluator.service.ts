@@ -86,6 +86,15 @@ export class InterviewEvaluatorService {
             AND ts.id = ANY(e.transcript_segment_ids)
             AND ts.lifecycle_role <> 'interview'
         )
+        AND EXISTS (
+          SELECT 1
+          FROM interview_transcript_segments ts
+          WHERE ts.organization_id = e.organization_id
+            AND ts.interview_session_id = e.interview_session_id
+            AND ts.id = ANY(e.transcript_segment_ids)
+            AND ts.lifecycle_role = 'interview'
+            AND ts.speaker = 'candidate'
+        )
       ORDER BY e.created_at, e.id
     `;
 
