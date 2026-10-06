@@ -77,3 +77,38 @@ test("coverage keeps collaboration, stakeholder communication, problem solving a
     assert.equal(areas.find((area) => area.key === key)?.status, "required", key);
   }
 });
+
+
+test("coverage does not let stakeholder communication fill general communication", () => {
+  const areas = buildInterviewCoverage({
+    title: "Senior .NET Developer",
+    seniority: "Senior",
+    summary: "Backend platform",
+    requirements: [],
+    criteria: [{
+      criterionKey: "stakeholder_communication",
+      label: "Stakeholder communication",
+      required: true,
+    }],
+  });
+
+  assert.equal(areas.find((area) => area.key === "stakeholder_communication")?.status, "required");
+  assert.equal(areas.find((area) => area.key === "communication")?.status, "missing");
+});
+
+test("coverage keeps production troubleshooting separate from debugging", () => {
+  const areas = buildInterviewCoverage({
+    title: "Senior .NET Developer",
+    seniority: "Senior",
+    summary: "Backend platform",
+    requirements: [],
+    criteria: [{
+      criterionKey: "production_troubleshooting",
+      label: "عیب‌یابی محیط تولید",
+      required: true,
+    }],
+  });
+
+  assert.equal(areas.find((area) => area.key === "production_troubleshooting")?.status, "required");
+  assert.equal(areas.find((area) => area.key === "debugging")?.status, "missing");
+});
