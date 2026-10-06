@@ -39,6 +39,7 @@ export interface CandidateInterviewRuntime {
   submitVoice?(audio: Blob): Promise<CandidateRuntimeVoiceAnswer>;
   sync?(): Promise<{
     status: "active" | "completed";
+    lifecyclePhase: CandidateRuntimeSnapshot["lifecyclePhase"];
     sessionId: string;
     remainingSeconds: number;
     clock: CandidateRuntimeSnapshot["clock"];
@@ -223,6 +224,13 @@ function roomCopy(locale: string) {
         endingSoon: "کمتر از ۵ دقیقه تا پایان",
         finalMinute: "مصاحبه در حال جمع‌بندی است",
         integrity: "فقط رخدادهای قابل مشاهده مانند خروج از صفحه، بازگشت، قطع اتصال و paste بزرگ ثبت می‌شوند. محتوای Clipboard ذخیره نمی‌شود و این سیگنال‌ها به‌تنهایی اثبات تقلب یا دلیل رد خودکار نیستند.",
+        lifecycle: {
+          introduction: "معرفی مصاحبه",
+          active: "مصاحبه فعال",
+          candidate_question: "فرصت سؤال شما",
+          closing: "خداحافظی",
+          completed: "پایان",
+        },
       }
     : {
         interviewer: "AI Interviewer",
@@ -251,6 +259,13 @@ function roomCopy(locale: string) {
         endingSoon: "Less than 5 minutes remaining",
         finalMinute: "The interview is wrapping up",
         integrity: "Only observable session-integrity events are recorded. Clipboard contents are not stored and signals are never automatic proof of cheating.",
+        lifecycle: {
+          introduction: "Interview introduction",
+          active: "Interview active",
+          candidate_question: "Your question",
+          closing: "Closing",
+          completed: "Finished",
+        },
       };
 }
 
@@ -448,8 +463,12 @@ export function CandidateInterviewExperience({
         void runtime.reportIntegrity?.({ eventType: "reconnect", clientOccurredAt: new Date().toISOString() }).catch(() => undefined);
       }
       if (snapshot) {
-        if (snapshot.status === "completed" || snapshot.turn.action === "close") await finishAfterCloseTurn(snapshot.turn.id);
-        else await playTurn(snapshot.turn.id);
+        if (snapshot.openingTurn) await playTurn(snapshot.openingTurn.id);
+        if (snapshot.status === "completed" || snapshot.turn.action === "close") {
+          await finishAfterCloseTurn(snapshot.turn.id);
+        } else {
+          await playTurn(snapshot.turn.id);
+        }
       }
     } catch (cause) {
       setLiveError(candidateFacingError(cause, copy.error.unexpected));
@@ -658,11 +677,23 @@ export function CandidateInterviewExperience({
     let active = true;
     const synchronize = async () => {
       try {
+        const previousTurnId = runtimeSnapshot.turn.id;
         const synced = await runtime.sync!();
         if (!active) return;
         setDisplayRemainingSeconds(synced.clock.remainingSeconds);
-        setRuntimeSnapshot((current) => current ? { ...current, status: synced.status, remainingSeconds: synced.remainingSeconds, clock: synced.clock, turn: synced.turn } : current);
-        if (synced.status === "completed" || synced.turn.action === "close") await finishAfterCloseTurn(synced.turn.id);
+        setRuntimeSnapshot((current) => current ? {
+          ...current,
+          status: synced.status,
+          lifecyclePhase: synced.status === "completed" ? "completed" : synced.lifecyclePhase,
+          remainingSeconds: synced.remainingSeconds,
+          clock: synced.clock,
+          turn: synced.turn,
+        } : current);
+        if (synced.status === "completed" || synced.turn.action === "close") {
+          await finishAfterCloseTurn(synced.turn.id);
+        } else if (synced.turn.id !== previousTurnId) {
+          await playTurn(synced.turn.id);
+        }
       } catch {
         // Transport recovery owns connection errors; clock resync must not terminate the interview.
       }
@@ -670,7 +701,7 @@ export function CandidateInterviewExperience({
     void synchronize();
     const timer = window.setInterval(() => void synchronize(), 10_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [runtime, runtimeSnapshot?.sessionId, state.phase]);
+  }, [runtime, runtimeSnapshot?.sessionId, runtimeSnapshot?.turn.id, state.phase]);
 
   useEffect(() => {
     if (!runtimeSnapshot || !runtime?.reportIntegrity || state.phase !== "live") return;
@@ -804,6 +835,9 @@ export function CandidateInterviewExperience({
             <div className="flex flex-wrap items-center gap-2">
               <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold tabular-nums ${displayRemainingSeconds <= 60 ? "bg-rose-400/15 text-rose-200" : displayRemainingSeconds <= 300 ? "bg-amber-400/15 text-amber-200" : "bg-white/10 text-slate-100"}`}>
                 {liveCopy.remaining}: {formatCountdown(displayRemainingSeconds, locale)}
+              </div>
+              <div className="rounded-full bg-indigo-400/10 px-3 py-1.5 text-[10px] font-semibold text-indigo-200">
+                {liveCopy.lifecycle[runtimeSnapshot.lifecyclePhase]}
               </div>
               <div className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${state.phase === "live" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-200"}`}>
                 {copy.stage[state.phase]}
