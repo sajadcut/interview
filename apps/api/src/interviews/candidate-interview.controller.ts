@@ -72,7 +72,11 @@ export class CandidateInterviewController {
 
   @Post("start")
   start(@Req() request: Request, @Body() body: CandidateInterviewStartDto) {
-    return this.candidateInterview.start(candidateToken(request), body.developmentPreview === true);
+    return this.candidateInterview.start(candidateToken(request), {
+      developmentPreview: body.developmentPreview === true,
+      clientInstanceId: body.clientInstanceId,
+      userAgent: request.header("user-agent"),
+    });
   }
 
   @Post("answers/text")
