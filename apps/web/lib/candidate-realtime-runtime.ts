@@ -204,6 +204,13 @@ class CandidateBrowserRealtimeRuntime {
     void _preview;
     this.snapshot = snapshot;
     this.emit({ type: "snapshot", snapshot });
+    if (room.remoteParticipants.size > 1) {
+      void this.reportIntegrity({
+        eventType: "unexpected_room_participant",
+        clientOccurredAt: new Date().toISOString(),
+        metadata: { participantCount: room.remoteParticipants.size },
+      }).catch(() => undefined);
+    }
     return snapshot;
   }
 
