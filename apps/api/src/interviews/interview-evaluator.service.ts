@@ -69,6 +69,7 @@ export class InterviewEvaluatorService {
       WHERE organization_id = ${organizationId}::uuid
         AND interview_session_id = ${sessionId}::uuid
         AND is_final = true
+        AND lifecycle_role = 'interview'
       ORDER BY start_ms, id
     `;
     const evidenceRows = await this.database.sql`
