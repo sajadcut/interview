@@ -132,7 +132,7 @@ function harness(options: {
     provider: "openai-compatible",
     model: "test-model",
     promptId: "interview.conversational_next_turn",
-    promptVersion: "v2",
+    promptVersion: "v4",
     reason: String((options.llmTurn ?? defaultTurn).reason ?? "grounded follow-up"),
     executionId: "execution-1",
   };
@@ -158,7 +158,7 @@ function harness(options: {
       ready: true,
       provider: "openai-compatible",
       promptId: "interview.conversational_next_turn",
-      promptVersion: "v2",
+      promptVersion: "v4",
       fallbackAvailable: true,
     }),
   };
@@ -192,7 +192,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.match(inserted.query, /interviewer_trace_reference, finalized/);
   assert.match(inserted.query, /true/);
   const traceReference = inserted.values.find(
-    (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v2:"),
+    (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v4:"),
   );
   assert.ok(traceReference);
   assert.match(traceReference, /\|promptId=interview\.conversational_next_turn\|reason=/);
@@ -205,28 +205,19 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.deepEqual(brain.evidenceCoverage, {});
 });
 
-test("LLM supplies natural close wording only after deterministic evidence state authorizes closing", async () => {
-  const testHarness = harness({
-    evidenceCount: 1,
-    llmTurn: {
-      action: "close",
-      criterion: null,
-      objective: "complete_evidence_coverage",
-      spokenText: "ممنون از توضیحاتتون. بخش‌های لازم را پوشش دادیم و مصاحبه را همین‌جا به پایان می‌رسونیم.",
-      expectedEvidence: [],
-      reason: "Persisted evidence coverage is complete, so close naturally without changing evaluation state.",
-    },
-  });
+test("complete evidence enters deterministic candidate-question wrap-up before final goodbye", async () => {
+  const testHarness = harness({ evidenceCount: 1 });
   const result = await testHarness.service.nextTurn(sessionId, {
     latestCandidateText: "آخرش latency حدود بیست درصد بهتر شد.",
     candidateIntent: "ANSWER",
     elapsedSeconds: 4,
   });
 
-  assert.equal(result.brainMode, "llm");
-  assert.equal(result.action, "close");
+  assert.equal(result.brainMode, "deterministic_fallback");
+  assert.equal(result.action, "escalate");
   assert.equal(result.criterion, null);
-  assert.equal(result.objective, "complete_evidence_coverage");
+  assert.equal(result.objective, "candidate_question_opportunity");
+  assert.equal(result.turnKind, "candidate_question");
   assert.equal(result.finalized, true);
   assert.deepEqual(result.evidenceCoverage, { backend_depth: 1 });
 });
