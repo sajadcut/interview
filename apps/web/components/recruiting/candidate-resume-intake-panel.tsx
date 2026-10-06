@@ -396,10 +396,10 @@ export function CandidateResumeIntakePanel({
           <ResumeProcessingStatus
             uploading={uploading}
             resultReady={Boolean(result)}
-            analysisJobId={result?.analysisJobId}
-            analysisStatus={analysis?.status}
-            attemptCount={analysis?.attemptCount}
-            maxAttempts={analysis?.maxAttempts}
+            {...(result?.analysisJobId ? { analysisJobId: result.analysisJobId } : {})}
+            {...(analysis?.status ? { analysisStatus: analysis.status } : {})}
+            {...(analysis?.attemptCount !== undefined ? { attemptCount: analysis.attemptCount } : {})}
+            {...(analysis?.maxAttempts !== undefined ? { maxAttempts: analysis.maxAttempts } : {})}
           />
         </div>
 
