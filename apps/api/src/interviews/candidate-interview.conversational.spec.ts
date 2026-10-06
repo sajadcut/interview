@@ -18,6 +18,9 @@ function harness(options: {
   questionTurnKind?: string;
   brainAction?: string;
   brainTurnKind?: string;
+  startedAtOffsetMs?: number;
+  timeBudgetMinutes?: number;
+  existingTurn?: boolean;
 } = {}) {
   const appended: Array<Record<string, unknown>> = [];
   const recordedEvidence: Array<Record<string, unknown>> = [];
@@ -65,9 +68,9 @@ function harness(options: {
       if (query.includes("FROM interview_sessions s") && query.includes("JOIN interview_media_sessions")) {
         return [{
           status: runtimeStatus,
-          started_at: new Date(Date.now() - 60_000).toISOString(),
+          started_at: new Date(Date.now() - (options.startedAtOffsetMs ?? 60_000)).toISOString(),
           completed_at: runtimeStatus === "completed" ? new Date().toISOString() : null,
-          time_budget_minutes: 20,
+          time_budget_minutes: options.timeBudgetMinutes ?? 20,
           checkpoint: {
             candidateIsRealCustomerCandidate: options.realCandidate === true,
             releaseMode: "development",
@@ -92,7 +95,21 @@ function harness(options: {
       }
       if (query.includes("AS last_end_ms")) return [{ last_end_ms: 1000 }];
       if (query.includes("COALESCE(max(end_ms), 0)")) return [{ elapsed_ms: 1000 }];
-      if (query.includes("FROM interview_turns") && query.includes("turn_kind <> 'introduction'")) return [];
+      if (query.includes("FROM interview_turns") && query.includes("turn_kind <> 'introduction'")) {
+        return options.existingTurn
+          ? [{
+              id: "12121212-1212-4212-8212-121212121212",
+              action: "ask",
+              criterion_key: "backend_depth",
+              objective: "validate production backend depth",
+              spoken_text: "یک نمونه واقعی از تصمیم فنی خود توضیح دهید.",
+              finalized: true,
+              turn_kind: "planned_criterion",
+              question_source: "rubric",
+              resume_claim_id: null,
+            }]
+          : [];
+      }
       if (query.includes("FROM interview_turns t") && query.includes("criterion_id")) {
         return [{
           turn_id: "99999999-9999-4999-8999-999999999999",
@@ -395,8 +412,59 @@ test("closing playback acknowledgement performs canonical finish before evaluato
   assert.deepEqual(stateTransitions.map((item) => item.action), ["finish"]);
   assert.deepEqual(evaluatorBuildStatuses, ["completed"]);
   assert.equal(queuedJobs.length, 1);
+
+  const replay = await service.acknowledgeTurnPlayed(
+    "candidate-token",
+    interviewSessionId,
+    mediaSessionId,
+    answer.turn.id,
+  );
+  assert.equal(replay.status, "completed");
+  assert.deepEqual(stateTransitions.map((item) => item.action), ["finish"]);
+  assert.deepEqual(evaluatorBuildStatuses, ["completed"]);
+  assert.equal(queuedJobs.length, 1);
 });
 
+
+test("timeout enters deterministic closing and completes only after closing playback", async () => {
+  const {
+    service,
+    brainCalls,
+    stateTransitions,
+    evaluatorBuildStatuses,
+    queuedJobs,
+  } = harness({
+    startedAtOffsetMs: 21 * 60_000,
+    timeBudgetMinutes: 20,
+    existingTurn: true,
+    brainAction: "close",
+    brainTurnKind: "closing",
+  });
+
+  const synced = await service.sync(
+    "candidate-token",
+    interviewSessionId,
+    mediaSessionId,
+  );
+
+  assert.equal(synced.lifecyclePhase, "closing");
+  assert.equal(synced.turn.action, "close");
+  assert.equal(stateTransitions.length, 0);
+  assert.equal(queuedJobs.length, 0);
+  assert.equal(brainCalls.at(-1)?.body.candidateIntent, "SILENCE_TIMEOUT");
+
+  const completion = await service.acknowledgeTurnPlayed(
+    "candidate-token",
+    interviewSessionId,
+    mediaSessionId,
+    synced.turn.id,
+  );
+
+  assert.equal(completion.status, "completed");
+  assert.deepEqual(stateTransitions.map((item) => item.action), ["finish"]);
+  assert.deepEqual(evaluatorBuildStatuses, ["completed"]);
+  assert.equal(queuedJobs.length, 1);
+});
 
 test("transition turns stay in interview transcript while exposing a transition lifecycle phase", async () => {
   const { service, appended } = harness({
