@@ -136,11 +136,11 @@ export class InterviewIntegrityService {
       throw new BadRequestException("Unsupported candidate integrity event");
     }
 
-    const durationMs = value.durationMs === undefined
-      ? null
-      : boundedNumber(value.durationMs, 0, 86_400_000);
-    if (value.durationMs !== undefined && durationMs === undefined) {
-      throw new BadRequestException("durationMs is invalid");
+    let durationMs: number | null = null;
+    if (value.durationMs !== undefined) {
+      const parsedDuration = boundedNumber(value.durationMs, 0, 86_400_000);
+      if (parsedDuration === undefined) throw new BadRequestException("durationMs is invalid");
+      durationMs = parsedDuration;
     }
     const metadata = sanitizeMetadata(value.metadata);
     const clientOccurredAt = typeof value.clientOccurredAt === "string"
@@ -243,9 +243,10 @@ export class InterviewIntegrityService {
     await this.assertSession(input.sessionId);
     const organizationId = this.organizationId();
     const metadata = sanitizeMetadata(input.metadata);
+    const durationMs = input.durationMs ?? null;
     const classification = classifyIntegrityEvent({
       eventType: input.eventType,
-      durationMs: input.durationMs,
+      durationMs,
       metadata,
     });
 
@@ -268,7 +269,7 @@ export class InterviewIntegrityService {
           ${input.mediaSessionId ?? null}::uuid,
           ${sequence},
           ${input.eventType},
-          ${input.durationMs ?? null},
+          ${durationMs},
           ${this.database.sql.json(metadata as never)},
           now(),
           'server',
@@ -401,11 +402,11 @@ export class InterviewIntegrityService {
       sequence: Number(row.sequence),
       eventType: String(row.event_type) as IntegrityEventType,
       serverOccurredAt: new Date(String(row.server_occurred_at)).toISOString(),
-      clientOccurredAt: row.client_occurred_at ? new Date(String(row.client_occurred_at)).toISOString() : null,
-      durationMs: row.duration_ms === null ? null : Number(row.duration_ms),
+      ...(row.client_occurred_at ? { clientOccurredAt: new Date(String(row.client_occurred_at)).toISOString() } : {}),
+      ...(row.duration_ms !== null ? { durationMs: Number(row.duration_ms) } : {}),
       metadata: asRecord(row.metadata),
-      source: String(row.source) as IntegrityEvent["source"],
-      severity: String(row.severity) as IntegrityEvent["severity"],
+      source: String(row.source) as NonNullable<IntegrityEvent["source"]>,
+      severity: String(row.severity) as NonNullable<IntegrityEvent["severity"]>,
       interpretation: String(row.interpretation),
     }));
     const assessment = analyzeInterviewIntegrity(events);
