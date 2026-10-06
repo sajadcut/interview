@@ -659,7 +659,6 @@ export class RecruitingOperationsService {
       `;
 
       let rubricVersion: number | undefined;
-      let rubricPublished = false;
       const draft = drafts[0];
 
       if (draft?.id) {
@@ -686,7 +685,6 @@ export class RecruitingOperationsService {
             AND id = ${String(draft.rubric_id)}::uuid
         `;
         rubricVersion = Number(draft.version);
-        rubricPublished = true;
       } else {
         const published = await tx`
           SELECT rv.version
@@ -704,7 +702,6 @@ export class RecruitingOperationsService {
           throw new BadRequestException("Publish an evaluation framework before publishing the job");
         }
         rubricVersion = Number(published[0].version);
-        rubricPublished = true;
       }
 
       const opened = await tx`
@@ -720,7 +717,7 @@ export class RecruitingOperationsService {
         title: String(opened[0]?.title),
         status: "open" as const,
         ...(rubricVersion !== undefined ? { rubricVersion } : {}),
-        rubricPublished,
+        rubricPublished: true,
       };
     });
   }
