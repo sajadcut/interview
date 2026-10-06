@@ -153,6 +153,16 @@ export class InterviewIntegrityService {
     const source = eventSource(eventType);
 
     const recorded = await this.database.sql.begin(async (tx) => {
+      // Serialize sequence allocation per interview session. Integrity events can arrive
+      // concurrently from visibility/network/media listeners; max(sequence)+1 without
+      // this lock can allocate the same sequence to two requests.
+      await tx`
+        SELECT id
+        FROM interview_sessions
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${sessionId}::uuid
+        FOR UPDATE
+      `;
       const mediaRows = await tx`
         SELECT id
         FROM interview_media_sessions
@@ -251,6 +261,15 @@ export class InterviewIntegrityService {
     });
 
     return this.database.sql.begin(async (tx) => {
+      // Use the interview session row as the sequence-allocation mutex for all
+      // server-originated integrity events as well.
+      await tx`
+        SELECT id
+        FROM interview_sessions
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${input.sessionId}::uuid
+        FOR UPDATE
+      `;
       const sequenceRows = await tx`
         SELECT COALESCE(max(sequence), -1)::int + 1 AS next_sequence
         FROM interview_integrity_events
