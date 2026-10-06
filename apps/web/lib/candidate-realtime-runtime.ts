@@ -63,6 +63,14 @@ export type CandidateRuntimeVoiceAnswer = Partial<CandidateRuntimeAnswer> & {
   transcript: null | { text: string; language: string; provider: string };
 };
 
+export type CandidateRuntimeCompletion = {
+  status: "completed";
+  lifecyclePhase: "completed";
+  sessionId: string;
+  remainingSeconds: number;
+  clock: CandidateRuntimeClock;
+};
+
 export type CandidateRuntimeEvent =
   | { type: "snapshot"; snapshot: CandidateRuntimeSnapshot }
   | { type: "remote_video"; track: MediaStreamTrack | null }
@@ -209,6 +217,28 @@ class CandidateBrowserRealtimeRuntime {
     const blob = await response.blob();
     if (!blob.type.startsWith("audio/")) throw new Error("Interview audio response was invalid");
     return blob;
+  }
+
+  async acknowledgeTurnPlayed(turnId: string): Promise<CandidateRuntimeCompletion> {
+    const snapshot = this.snapshot;
+    if (!snapshot) throw new Error("Candidate interview runtime is not connected");
+    const result = await readJson<CandidateRuntimeCompletion>(
+      await fetch(
+        `${candidateApi}/sessions/${encodeURIComponent(snapshot.sessionId)}/media/${encodeURIComponent(snapshot.mediaSessionId)}/turns/${encodeURIComponent(turnId)}/played`,
+        { method: "POST", credentials: "same-origin" },
+      ),
+    );
+    const nextSnapshot: CandidateRuntimeSnapshot = {
+      ...snapshot,
+      status: "completed",
+      lifecyclePhase: "completed",
+      openingTurn: undefined,
+      remainingSeconds: result.remainingSeconds,
+      clock: result.clock,
+    };
+    this.snapshot = nextSnapshot;
+    this.emit({ type: "snapshot", snapshot: nextSnapshot });
+    return result;
   }
 
   async submitText(text: string): Promise<CandidateRuntimeAnswer> {
