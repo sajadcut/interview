@@ -18,6 +18,7 @@ import { InterviewBrainService } from "./interview-brain.service";
 import type { CandidateIntent } from "./interview-contracts";
 import { computeInterviewClock } from "./interview-clock";
 import { InterviewEvaluatorService } from "./interview-evaluator.service";
+import { InterviewIntegrityService } from "./interview-integrity.service";
 import { InterviewMediaService } from "./interview-media.service";
 import { InterviewSessionStateService } from "./interview-session-state.service";
 import { InterviewSpeechService } from "./interview-speech.service";
@@ -81,6 +82,7 @@ export class CandidateInterviewService {
     private readonly state: InterviewSessionStateService,
     private readonly brain: InterviewBrainService,
     private readonly evaluator: InterviewEvaluatorService,
+    private readonly integrity: InterviewIntegrityService,
     private readonly media: InterviewMediaService,
     private readonly speech: InterviewSpeechService,
   ) {}
@@ -520,8 +522,12 @@ export class CandidateInterviewService {
     });
   }
 
-  async start(rawToken: string | undefined, developmentPreview = false) {
+  async start(
+    rawToken: string | undefined,
+    input: { developmentPreview?: boolean; clientInstanceId?: string; userAgent?: string } = {},
+  ) {
     const scope = await this.scope(rawToken);
+    const developmentPreview = input.developmentPreview === true;
     if (developmentPreview && getEnv().NODE_ENV !== "development") {
       throw new BadRequestException("Development preview is only available in development");
     }
@@ -587,6 +593,12 @@ export class CandidateInterviewService {
         latestMediaSession && !["ended", "failed"].includes(latestMediaSession.status)
           ? latestMediaSession.id
           : (await this.media.createMediaSession(sessionId, "audio")).id;
+      await this.integrity.registerCandidateConnection({
+        sessionId,
+        mediaSessionId: activeMediaSessionId,
+        clientInstanceId: input.clientInstanceId,
+        userAgent: input.userAgent,
+      });
       const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
       const introduction = await this.ensureIntroductionTurn(scope, sessionId);
       const turn = await this.currentOrFirstTurn(sessionId);
@@ -735,8 +747,9 @@ export class CandidateInterviewService {
       });
     }
     const evaluationJob = await this.queueEvaluation(scope, sessionId);
+    const integrityAssessment = await this.integrity.analyzeAndPersist(sessionId);
     const finalRuntime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
-    return { ...finalRuntime, evaluationJob };
+    return { ...finalRuntime, evaluationJob, integrityAssessment };
   }
 
   private async processCandidateText(
@@ -1016,72 +1029,7 @@ export class CandidateInterviewService {
     await this.requireReadyConsent(rawToken);
     return this.tenantContext.run(scope.organizationId, async () => {
       await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
-      const value = asRecord(body);
-      const eventType = String(value.eventType ?? "");
-      const allowed = new Set([
-        "visibility_hidden",
-        "visibility_visible",
-        "window_blur",
-        "window_focus",
-        "large_paste",
-        "reconnect",
-      ]);
-      if (!allowed.has(eventType)) throw new BadRequestException("Unsupported integrity event");
-      const durationMs = value.durationMs === undefined ? null : Number(value.durationMs);
-      if (durationMs !== null && (!Number.isFinite(durationMs) || durationMs < 0 || durationMs > 86_400_000)) {
-        throw new BadRequestException("durationMs is invalid");
-      }
-      const metadataInput = asRecord(value.metadata);
-      const metadata: Record<string, unknown> = {};
-      if (typeof metadataInput.field === "string") metadata.field = metadataInput.field.slice(0, 40);
-      if (typeof metadataInput.characterCount === "number" && Number.isFinite(metadataInput.characterCount)) {
-        metadata.characterCount = Math.max(0, Math.min(100_000, Math.trunc(metadataInput.characterCount)));
-      }
-      const clientOccurredAt = typeof value.clientOccurredAt === "string"
-        ? new Date(value.clientOccurredAt)
-        : null;
-      if (clientOccurredAt && Number.isNaN(clientOccurredAt.valueOf())) {
-        throw new BadRequestException("clientOccurredAt is invalid");
-      }
-      return this.database.sql.begin(async (tx) => {
-        await tx`
-          SELECT id
-          FROM interview_sessions
-          WHERE organization_id = ${scope.organizationId}::uuid
-            AND id = ${sessionId}::uuid
-          FOR UPDATE
-        `;
-        const sequenceRows = await tx`
-          SELECT COALESCE(max(sequence), -1)::int + 1 AS next_sequence
-          FROM interview_integrity_events
-          WHERE organization_id = ${scope.organizationId}::uuid
-            AND interview_session_id = ${sessionId}::uuid
-        `;
-        const sequence = Number(sequenceRows[0]?.next_sequence ?? 0);
-        const rows = await tx`
-          INSERT INTO interview_integrity_events (
-            organization_id, interview_session_id, media_session_id, sequence,
-            event_type, client_occurred_at, duration_ms, metadata
-          ) VALUES (
-            ${scope.organizationId}::uuid,
-            ${sessionId}::uuid,
-            ${mediaSessionId}::uuid,
-            ${sequence},
-            ${eventType},
-            ${clientOccurredAt},
-            ${durationMs},
-            ${this.database.sql.json(metadata as never)}
-          )
-          RETURNING id::text, created_at
-        `;
-        return {
-          id: String(rows[0]?.id),
-          sequence,
-          eventType,
-          createdAt: new Date(String(rows[0]?.created_at)).toISOString(),
-          interpretation: "observable_signal_only" as const,
-        };
-      });
+      return this.integrity.recordCandidateEvent(sessionId, mediaSessionId, body);
     });
   }
 
