@@ -238,7 +238,8 @@ function roomCopy(locale: string) {
         lifecycle: {
           introduction: "معرفی مصاحبه",
           active: "مصاحبه فعال",
-          candidate_question: "فرصت سؤال شما",
+          transition: "تغییر موضوع / روشن‌سازی",
+          candidate_question: "جمع‌بندی و فرصت سؤال شما",
           closing: "خداحافظی",
           completed: "پایان",
         },
@@ -273,7 +274,8 @@ function roomCopy(locale: string) {
         lifecycle: {
           introduction: "Interview introduction",
           active: "Interview active",
-          candidate_question: "Your question",
+          transition: "Topic transition / clarification",
+          candidate_question: "Wrap-up and your question",
           closing: "Closing",
           completed: "Finished",
         },
@@ -489,11 +491,33 @@ export function CandidateInterviewExperience({
         void runtime.reportIntegrity?.({ eventType: "reconnect", clientOccurredAt: new Date().toISOString() }).catch(() => undefined);
       }
       if (snapshot) {
-        if (snapshot.openingTurn) await playTurn(snapshot.openingTurn.id);
-        if (snapshot.status === "completed" || snapshot.turn.action === "close") {
-          await finishAfterCloseTurn(snapshot.turn.id);
+        let currentSnapshot = snapshot;
+        if (snapshot.openingTurn) {
+          await playTurn(snapshot.openingTurn.id);
+          if (runtime.sync) {
+            const synced = await runtime.sync();
+            currentSnapshot = {
+              ...snapshot,
+              status: synced.status,
+              lifecyclePhase: synced.status === "completed" ? "completed" : synced.lifecyclePhase,
+              openingTurn: undefined,
+              remainingSeconds: synced.remainingSeconds,
+              clock: synced.clock,
+              turn: synced.turn,
+            };
+          } else {
+            currentSnapshot = {
+              ...snapshot,
+              lifecyclePhase: snapshot.turn.action === "close" ? "closing" : "active",
+              openingTurn: undefined,
+            };
+          }
+          applySnapshot(currentSnapshot);
+        }
+        if (currentSnapshot.status === "completed" || currentSnapshot.turn.action === "close") {
+          await finishAfterCloseTurn(currentSnapshot.turn.id);
         } else {
-          await playTurn(snapshot.turn.id);
+          await playTurn(currentSnapshot.turn.id);
         }
       }
     } catch (cause) {
