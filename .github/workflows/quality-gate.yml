@@ -72,6 +72,8 @@ jobs:
         run: npm ci
 
       - name: Audit production dependencies
+        id: production_audit
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
@@ -158,3 +160,9 @@ jobs:
             test-results
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Enforce production dependency audit
+        if: always() && steps.production_audit.outcome == 'failure'
+        run: |
+          echo "::error::Production dependency audit failed. Feature validation was allowed to run, but the quality gate remains blocked until the dependency vulnerabilities are resolved."
+          exit 1
