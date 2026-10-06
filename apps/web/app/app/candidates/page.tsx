@@ -97,7 +97,7 @@ export default function CandidatesPage() {
       const identity = await resolveTenantIdentity();
       const result = await api.POST("/v1/candidates/bulk-delete", {
         headers: tenantHeaders(identity),
-        body: { ids: deleteIds },
+        body: { ids: deleteIds, cascadeApplications: false },
       });
       if (result.error || !result.data) throw new Error("حذف کاندیداهای انتخاب‌شده ناموفق بود");
       const deletedIds = new Set(result.data.deletedIds);
