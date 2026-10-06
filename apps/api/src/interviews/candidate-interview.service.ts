@@ -746,6 +746,13 @@ export class CandidateInterviewService {
         payload: { reason },
       });
     }
+    await this.database.sql`
+      UPDATE interview_candidate_connections
+      SET status='disconnected', last_seen_at=now()
+      WHERE organization_id=${scope.organizationId}::uuid
+        AND interview_session_id=${sessionId}::uuid
+        AND status='active'
+    `;
     const evaluationJob = await this.queueEvaluation(scope, sessionId);
     const integrityAssessment = await this.integrity.analyzeAndPersist(sessionId);
     const finalRuntime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
