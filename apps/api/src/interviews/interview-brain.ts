@@ -513,19 +513,19 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       return finalize(
         input,
         {
-          action: "transition",
+          action: "ask",
           criterion: next.key,
           objective: next.objective,
           spokenText: localized(
             language,
-            `Understood. We will leave that gap visible and move to ${nextLabel}.`,
-            `متوجه شدم. این بخش بدون شواهد کافی باقی می‌ماند و به ${nextLabel} می‌رویم.`,
+            `Understood. We will leave that gap visible and move to ${nextLabel}. Please give one concrete example from your own work and focus on the decision you made and its outcome.`,
+            `متوجه شدم. این بخش بدون شواهد کافی باقی می‌ماند و به ${nextLabel} می‌رویم. لطفاً یک نمونهٔ واقعی از کار خودتان بگویید و روی تصمیمی که گرفتید و نتیجهٔ آن تمرکز کنید.`,
           ),
-          expectedEvidence: [],
+          expectedEvidence: next.expectedEvidence.slice(0, 1),
         },
-        "Candidate requested to skip/refuse the current topic; the brain transitions without fabricating coverage.",
+        "Candidate requested to skip/refuse the current topic; the brain moves to the next criterion without fabricating coverage.",
         next.key,
-        { turnKind: "transition", questionSource: "lifecycle" },
+        { turnKind: "planned_criterion", questionSource: next.baseSource ?? "rubric" },
       );
     }
     default:
@@ -540,19 +540,19 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       return finalize(
         input,
         {
-          action: "transition",
+          action: "ask",
           criterion: next.key,
           objective: next.objective,
           spokenText: localized(
             language,
-            `Let's move to ${nextLabel}. Please use a concrete example from your own work.`,
-            `برای اینکه زمان مصاحبه متعادل بماند، به ${nextLabel} می‌رویم. لطفاً یک نمونه واقعی از کار خودتان بگویید.`,
+            `Let's move to ${nextLabel}. Please give one concrete example from your own work and focus on your decision and the observed outcome.`,
+            `برای اینکه زمان مصاحبه متعادل بماند، به ${nextLabel} می‌رویم. لطفاً یک نمونهٔ واقعی از کار خودتان بگویید و روی تصمیم و نتیجهٔ قابل مشاهده تمرکز کنید.`,
           ),
-          expectedEvidence: [],
+          expectedEvidence: next.expectedEvidence.slice(0, 1),
         },
-        "Topic dwell limit reached; preserve the evidence gap and move to the next priority.",
+        "Topic dwell limit reached; preserve the evidence gap and ask the next priority criterion.",
         next.key,
-        { turnKind: "transition", questionSource: "lifecycle" },
+        { turnKind: "planned_criterion", questionSource: next.baseSource ?? "rubric" },
       );
     }
   }
