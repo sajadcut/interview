@@ -49,7 +49,7 @@ function detectCandidateIntent(text: string, turnKind?: string | null): Candidat
   if (turnKind === "candidate_question") return "CANDIDATE_QUESTION";
   const normalized = text.trim().toLocaleLowerCase();
   if (
-    /(?:پایان (?:مصاحبه|جلسه)|مصاحبه را تمام|نمی.?خواهم ادامه|تمامش کنیم|end (?:the )?interview|stop (?:the )?interview)/i.test(normalized)
+    /(?:پایان (?:مصاحبه|جلسه)|مصاحبه را (?:تمام|پایان)|نمی.?خواهم ادامه|تمامش کنیم|end (?:the )?interview|stop (?:the )?interview)/i.test(normalized)
   ) return "END_INTERVIEW_REQUEST";
   if (/(?:از این (?:سؤال|موضوع) (?:بگذریم|عبور)|نمی.?خواهم پاسخ|skip (?:this|question|topic)|prefer not to answer)/i.test(normalized)) {
     return "SKIP_REQUEST";
