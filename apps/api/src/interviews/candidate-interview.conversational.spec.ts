@@ -51,10 +51,7 @@ function harness(options: {
       if (query.includes("UPDATE interview_sessions")) return [];
       throw new Error(`Unexpected candidate introduction SQL in unit test: ${query.replace(/\s+/g, " ").trim()}`);
     },
-    {
-      json: (value: unknown) => value,
-      begin: async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction),
-    },
+    { json: (value: unknown) => value },
   );
 
   const sql = Object.assign(
@@ -82,6 +79,7 @@ function harness(options: {
       }
       if (query.includes("AS last_end_ms")) return [{ last_end_ms: 1000 }];
       if (query.includes("COALESCE(max(end_ms), 0)")) return [{ elapsed_ms: 1000 }];
+      if (query.includes("FROM interview_turns") && query.includes("turn_kind <> 'introduction'")) return [];
       if (query.includes("FROM interview_turns t") && query.includes("criterion_id")) {
         return [{
           turn_id: "99999999-9999-4999-8999-999999999999",
@@ -95,7 +93,10 @@ function harness(options: {
       }
       throw new Error(`Unexpected candidate interview SQL in unit test: ${query.replace(/\s+/g, " ").trim()}`);
     },
-    { json: (value: unknown) => value },
+    {
+      json: (value: unknown) => value,
+      begin: async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction),
+    },
   );
   const database = { sql } as unknown as DatabaseService;
 
