@@ -68,7 +68,7 @@ function serviceWithOutput(
           provider: "openai-compatible",
           model: "test-model",
           promptId: "interview.conversational_next_turn",
-          promptVersion: "v3",
+          promptVersion: "v4",
         },
       };
     },
@@ -98,7 +98,7 @@ test("LLM interviewer accepts a grounded Persian conversational follow-up with t
   assert.doesNotMatch(result.turn.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
   assert.equal(result.trace.mode, "llm");
   assert.equal(result.trace.provider, "openai-compatible");
-  assert.equal(result.trace.promptVersion, "v3");
+  assert.equal(result.trace.promptVersion, "v4");
 });
 
 test("LLM receives explicit previous question and persisted evidence coverage in its bounded context", async () => {
@@ -162,11 +162,11 @@ test("LLM interviewer cannot transition away from a criterion before persisted e
   });
   await assert.rejects(
     () => service.generateTurn(context()),
-    (error) => error instanceof LlmInterviewerFailure && error.code === "progression_outside_evidence_state",
+    (error) => error instanceof LlmInterviewerFailure && error.code === "deterministic_metadata_mismatch",
   );
 });
 
-test("LLM interviewer accepts a transition only when deterministic evidence state recommends the next criterion", async () => {
+test("LLM interviewer cannot change a server-selected ask into a transition", async () => {
   const input = context();
   input.criteria[0]!.evidenceCount = 1;
   input.deterministicRecommendation = {
@@ -179,13 +179,14 @@ test("LLM interviewer accepts a transition only when deterministic evidence stat
     action: "transition",
     criterion: "system_design",
     objective: "validate system design",
-    spokenText: "خوبه، حالا روی طراحی سیستم تمرکز کنیم: در یکی از سیستم‌هایی که طراحی کردید مهم‌ترین محدودیت چه بود؟",
+    spokenText: "حالا روی طراحی سیستم تمرکز کنیم.",
     expectedEvidence: [],
-    reason: "Persisted evidence covers the previous criterion, so transition to the next gap.",
+    reason: "Attempt to change server-selected metadata.",
   });
-  const result = await service.generateTurn(input);
-  assert.equal(result.turn.action, "transition");
-  assert.equal(result.turn.criterion, "system_design");
+  await assert.rejects(
+    () => service.generateTurn(input),
+    (error) => error instanceof LlmInterviewerFailure && error.code === "deterministic_metadata_mismatch",
+  );
 });
 
 test("LLM interviewer may close conversationally only after deterministic state authorizes closing", async () => {
