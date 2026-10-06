@@ -107,5 +107,6 @@ test("permission guard audits access-resolution failures when actor context exis
 test("high-risk reads and all state changes require grant audit", () => {
   assert.equal(shouldAuditPermissionGrant("GET", [Permissions.JobRead]), false);
   assert.equal(shouldAuditPermissionGrant("GET", [Permissions.AuditRead]), true);
+  assert.equal(shouldAuditPermissionGrant("GET", [Permissions.InterviewIntegrityView]), true);
   assert.equal(shouldAuditPermissionGrant("POST", [Permissions.CandidateContact]), true);
 });
