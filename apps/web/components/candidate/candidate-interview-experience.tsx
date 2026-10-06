@@ -48,10 +48,19 @@ export interface CandidateInterviewRuntime {
     turn: CandidateRuntimeSnapshot["turn"];
   }>;
   reportIntegrity?(input: {
-    eventType: "visibility_hidden" | "visibility_visible" | "window_blur" | "window_focus" | "large_paste" | "reconnect";
+    eventType:
+      | "visibility_hidden" | "visibility_visible" | "window_blur" | "window_focus"
+      | "large_paste" | "reconnect" | "network_disconnect" | "network_reconnect"
+      | "media_device_changed" | "microphone_disabled" | "microphone_enabled"
+      | "camera_disabled" | "camera_enabled" | "unexpected_room_participant"
+      | "answer_submission_spike";
     clientOccurredAt?: string;
     durationMs?: number;
-    metadata?: { field?: string; characterCount?: number };
+    metadata?: {
+      field?: string; characterCount?: number; answerLength?: number; phase?: string;
+      currentTurnId?: string; remainingSeconds?: number; participantCount?: number;
+      reconnectCount?: number; duringAnswer?: boolean; deviceKind?: string;
+    };
   }): Promise<void>;
 }
 
@@ -324,6 +333,9 @@ export function CandidateInterviewExperience({
   const voiceStartedRef = useRef(0);
   const maxVoiceTimerRef = useRef<number | null>(null);
   const hiddenAtRef = useRef<number | null>(null);
+  const blurAtRef = useRef<number | null>(null);
+  const networkDownAtRef = useRef<number | null>(null);
+  const lastLargePasteAtRef = useRef<number | null>(null);
   const closeTurnPlayedRef = useRef<string | null>(null);
 
   const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) =>
@@ -628,6 +640,19 @@ export function CandidateInterviewExperience({
   const submitTypedAnswer = async () => {
     const text = typedAnswer.trim();
     if (!text || !runtime?.submitText || answerBusy || state.phase !== "live") return;
+    const now = Date.now();
+    if (text.length >= 300 && lastLargePasteAtRef.current && now - lastLargePasteAtRef.current <= 5_000) {
+      void runtime.reportIntegrity?.({
+        eventType: "answer_submission_spike",
+        clientOccurredAt: new Date(now).toISOString(),
+        metadata: {
+          answerLength: text.length,
+          phase: state.phase,
+          currentTurnId: runtimeSnapshot?.turn.id,
+          remainingSeconds: displayRemainingSeconds,
+        },
+      }).catch(() => undefined);
+    }
     setAnswerBusy(true);
     setLiveStatus(liveCopy.processing);
     setLiveError(null);
@@ -652,12 +677,28 @@ export function CandidateInterviewExperience({
     reduce({ type: "BOOTSTRAP", online: navigator.onLine, runtimeAvailable: Boolean(runtime) });
     void inspectPermissions();
     const onOffline = () => {
+      const now = Date.now();
+      networkDownAtRef.current = now;
       setNetworkRestored(false);
       reduce({ type: "NETWORK_OFFLINE" });
+      void runtime?.reportIntegrity?.({
+        eventType: "network_disconnect",
+        clientOccurredAt: new Date(now).toISOString(),
+        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+      }).catch(() => undefined);
     };
     const onOnline = () => {
+      const now = Date.now();
+      const disconnectedAt = networkDownAtRef.current;
+      networkDownAtRef.current = null;
       setNetworkRestored(true);
       reduce({ type: "NETWORK_ONLINE" });
+      void runtime?.reportIntegrity?.({
+        eventType: "network_reconnect",
+        clientOccurredAt: new Date(now).toISOString(),
+        ...(disconnectedAt ? { durationMs: Math.max(0, now - disconnectedAt) } : {}),
+        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+      }).catch(() => undefined);
     };
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
@@ -731,15 +772,52 @@ export function CandidateInterviewExperience({
       const now = Date.now();
       if (document.visibilityState === "hidden") {
         hiddenAtRef.current = now;
-        report({ eventType: "visibility_hidden", clientOccurredAt: new Date(now).toISOString() });
+        report({
+          eventType: "visibility_hidden",
+          clientOccurredAt: new Date(now).toISOString(),
+          metadata: {
+            phase: state.phase,
+            currentTurnId: runtimeSnapshot.turn.id,
+            remainingSeconds: displayRemainingSeconds,
+            duringAnswer: answerBusy || listening,
+          },
+        });
       } else {
         const hiddenAt = hiddenAtRef.current;
         hiddenAtRef.current = null;
-        report({ eventType: "visibility_visible", clientOccurredAt: new Date(now).toISOString(), ...(hiddenAt ? { durationMs: Math.max(0, now - hiddenAt) } : {}) });
+        report({
+          eventType: "visibility_visible",
+          clientOccurredAt: new Date(now).toISOString(),
+          ...(hiddenAt ? { durationMs: Math.max(0, now - hiddenAt) } : {}),
+          metadata: {
+            phase: state.phase,
+            currentTurnId: runtimeSnapshot.turn.id,
+            remainingSeconds: displayRemainingSeconds,
+            duringAnswer: answerBusy || listening,
+          },
+        });
       }
     };
-    const onBlur = () => report({ eventType: "window_blur", clientOccurredAt: new Date().toISOString() });
-    const onFocus = () => report({ eventType: "window_focus", clientOccurredAt: new Date().toISOString() });
+    const onBlur = () => {
+      const now = Date.now();
+      blurAtRef.current = now;
+      report({
+        eventType: "window_blur",
+        clientOccurredAt: new Date(now).toISOString(),
+        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot.turn.id, remainingSeconds: displayRemainingSeconds, duringAnswer: answerBusy || listening },
+      });
+    };
+    const onFocus = () => {
+      const now = Date.now();
+      const blurredAt = blurAtRef.current;
+      blurAtRef.current = null;
+      report({
+        eventType: "window_focus",
+        clientOccurredAt: new Date(now).toISOString(),
+        ...(blurredAt ? { durationMs: Math.max(0, now - blurredAt) } : {}),
+        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot.turn.id, remainingSeconds: displayRemainingSeconds, duringAnswer: answerBusy || listening },
+      });
+    };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
@@ -749,6 +827,19 @@ export function CandidateInterviewExperience({
       window.removeEventListener("focus", onFocus);
     };
   }, [runtime, runtimeSnapshot?.sessionId, state.phase]);
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.addEventListener || !runtimeSnapshot || state.phase === "completed") return;
+    const onDeviceChange = () => {
+      void runtime?.reportIntegrity?.({
+        eventType: "media_device_changed",
+        clientOccurredAt: new Date().toISOString(),
+        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot.turn.id, remainingSeconds: displayRemainingSeconds },
+      }).catch(() => undefined);
+    };
+    navigator.mediaDevices.addEventListener("devicechange", onDeviceChange);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", onDeviceChange);
+  }, [runtime, runtimeSnapshot?.sessionId, runtimeSnapshot?.turn.id, state.phase, displayRemainingSeconds]);
 
   useEffect(() => {
     const expiresAt = new Date(sessionExpiresAt).getTime();
@@ -817,6 +908,11 @@ export function CandidateInterviewExperience({
       track.enabled = next;
     });
     setMicrophoneEnabled(next);
+    void runtime?.reportIntegrity?.({
+      eventType: next ? "microphone_enabled" : "microphone_disabled",
+      clientOccurredAt: new Date().toISOString(),
+      metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+    }).catch(() => undefined);
   };
 
   const toggleCamera = () => {
@@ -825,6 +921,11 @@ export function CandidateInterviewExperience({
       track.enabled = next;
     });
     setCameraEnabled(next);
+    void runtime?.reportIntegrity?.({
+      eventType: next ? "camera_enabled" : "camera_disabled",
+      clientOccurredAt: new Date().toISOString(),
+      metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+    }).catch(() => undefined);
   };
 
   if (state.phase === "completed" && runtimeSnapshot) {
@@ -915,7 +1016,22 @@ export function CandidateInterviewExperience({
                     onChange={(event) => setTypedAnswer(event.target.value)}
                     onPaste={(event) => {
                       const characterCount = event.clipboardData.getData("text").length;
-                      if (characterCount >= 80) void runtime?.reportIntegrity?.({ eventType: "large_paste", clientOccurredAt: new Date().toISOString(), metadata: { field: "typed_answer", characterCount } }).catch(() => undefined);
+                      if (characterCount >= 80) {
+                        const now = Date.now();
+                        lastLargePasteAtRef.current = now;
+                        void runtime?.reportIntegrity?.({
+                          eventType: "large_paste",
+                          clientOccurredAt: new Date(now).toISOString(),
+                          metadata: {
+                            field: "typed_answer",
+                            characterCount,
+                            phase: state.phase,
+                            currentTurnId: runtimeSnapshot.turn.id,
+                            remainingSeconds: displayRemainingSeconds,
+                            duringAnswer: true,
+                          },
+                        }).catch(() => undefined);
+                      }
                     }}
                     disabled={!canAnswer}
                     rows={2}
