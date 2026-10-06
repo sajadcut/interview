@@ -173,6 +173,17 @@ test("five-minute strategy prioritizes required weighted gaps over optional crit
   assert.match(decision.reason, /Final-five-minute strategy/i);
 });
 
+test("deterministic goodbye addresses the candidate by name when available", () => {
+  const input = persianInput();
+  input.candidateName = "علی رضایی";
+  input.candidateIntent = "END_INTERVIEW_REQUEST";
+
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.action, "close");
+  assert.equal(decision.turnKind, "closing");
+  assert.match(decision.turn.spokenText, /ممنون علی رضایی/);
+});
+
 test("candidate end request skips new questions and goes straight to deterministic goodbye", () => {
   const input = baseInput();
   input.candidateIntent = "END_INTERVIEW_REQUEST";
