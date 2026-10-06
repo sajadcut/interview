@@ -297,12 +297,15 @@ test("candidate text answers use the shared conversational brain path", async ()
   const result = await service.answerText("candidate-token", {
     sessionId: interviewSessionId,
     mediaSessionId,
-    text: "نتیجه هیچی نشد",
+    text: "در محیط تولید latency بالا رفت؛ من bottleneck را بررسی کردم و بعد Redis را با TTL مشخص اضافه کردم.",
   });
 
   assert.equal(brainCalls.length, 1);
   assert.equal(brainCalls[0]?.sessionId, interviewSessionId);
-  assert.equal(brainCalls[0]?.body.latestCandidateText, "نتیجه هیچی نشد");
+  assert.equal(
+    brainCalls[0]?.body.latestCandidateText,
+    "در محیط تولید latency بالا رفت؛ من bottleneck را بررسی کردم و بعد Redis را با TTL مشخص اضافه کردم.",
+  );
   assert.equal(brainCalls[0]?.body.candidateIntent, "ANSWER");
   assert.equal(appended.length, 2);
   assert.equal(appended[0]?.speaker, "candidate");
