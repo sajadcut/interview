@@ -6,5 +6,5 @@ export default async function NewJobPage({
   searchParams: Promise<{ hiringRequestId?: string }>;
 }) {
   const params = await searchParams;
-  return <JobCreateForm hiringRequestId={params.hiringRequestId} />;
+  return <JobCreateForm {...(params.hiringRequestId ? { hiringRequestId: params.hiringRequestId } : {})} />;
 }
