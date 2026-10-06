@@ -6,6 +6,20 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewOrchestrationService } from "../interviews/interview-orchestration.service";
 import type { PrepareAiInterviewDto, ScheduleTechnicalInterviewDto } from "./interviewer.dto";
 
+interface InterviewAssignmentOption {
+  sessionId?: string;
+  sessionStatus: string;
+  applicationId: string;
+  candidateName: string;
+  jobTitle: string;
+  interviewerMode?: "ai" | "human";
+  interviewerUserId?: string;
+  interviewerName?: string;
+  interviewerEmail?: string;
+  assignmentStatus?: string;
+  scheduledFor?: string;
+}
+
 @Injectable()
 export class InterviewAssignmentAdminService {
   constructor(
@@ -570,7 +584,7 @@ export class InterviewAssignmentAdminService {
       `,
     ]);
 
-    const scheduledSessions = sessions.map((row) => ({
+    const scheduledSessions: InterviewAssignmentOption[] = sessions.map((row) => ({
       sessionId: String(row.session_id),
       sessionStatus: String(row.session_status),
       applicationId: String(row.application_id),
@@ -583,7 +597,7 @@ export class InterviewAssignmentAdminService {
       ...(row.scheduled_for ? { scheduledFor: new Date(String(row.scheduled_for)).toISOString() } : {}),
     }));
 
-    const unscheduledApplications = pendingApplications.map((row) => ({
+    const unscheduledApplications: InterviewAssignmentOption[] = pendingApplications.map((row) => ({
       sessionStatus: "needs_scheduling",
       applicationId: String(row.application_id),
       candidateName: String(row.candidate_name),
