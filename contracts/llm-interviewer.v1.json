@@ -6,7 +6,7 @@
   },
   "prompt": {
     "id": "interview.conversational_next_turn",
-    "version": "v3"
+    "version": "v4"
   },
   "transport": {
     "path": "/v1/interview/next-turn",
@@ -38,7 +38,13 @@
       "expectedEvidence",
       "reason"
     ],
-    "actions": ["ask", "probe", "clarify", "transition", "close"],
+    "actions": [
+      "ask",
+      "probe",
+      "clarify",
+      "transition",
+      "close"
+    ],
     "criterionNullable": true,
     "maxSpokenTextChars": 1200,
     "maxReasonChars": 500
@@ -58,7 +64,8 @@
       "language",
       "job",
       "plan",
-      "deterministicRecommendation"
+      "deterministicRecommendation",
+      "resumeClaim"
     ]
   },
   "safety": {
@@ -68,7 +75,9 @@
     "scoringSeparated": true,
     "rawPromptLoggingForbidden": true,
     "duplicateQuestionGuardRequired": true,
-    "nearDuplicateQuestionGuardRequired": true
+    "nearDuplicateQuestionGuardRequired": true,
+    "brainMetadataAuthoritative": true,
+    "resumeClaimIsNotEvidence": true
   },
   "fallback": {
     "mode": "deterministic_fallback",
