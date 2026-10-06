@@ -130,12 +130,22 @@ export class InterviewsService {
     if (typeof value.endMs !== "number" || value.endMs < value.startMs) throw new Error("endMs must be >= startMs");
     if (typeof value.text !== "string" || !value.text.trim()) throw new Error("text is required");
     if (value.sttConfidence !== undefined && (typeof value.sttConfidence !== "number" || value.sttConfidence<0 || value.sttConfidence>1)) throw new Error("sttConfidence must be between 0 and 1");
+    const lifecycleRole = typeof value.lifecycleRole === "string" ? value.lifecycleRole : "interview";
+    if (!["introduction","interview","wrap_up","candidate_question","closing"].includes(lifecycleRole)) throw new Error("Unsupported transcript lifecycle role");
+    const interviewTurnId = typeof value.turnId === "string" && value.turnId.trim() ? value.turnId.trim() : null;
     const organizationId=this.tenantContext.require().organizationId;
     const rows=await this.database.sql`
-      INSERT INTO interview_transcript_segments(organization_id,interview_session_id,speaker,start_ms,end_ms,text,is_final,stt_confidence)
-      VALUES(${organizationId}::uuid,${sessionId}::uuid,${String(value.speaker)},${value.startMs},${value.endMs},${value.text.trim()},${value.isFinal!==false},${typeof value.sttConfidence === "number" ? value.sttConfidence : null})
-      RETURNING id,speaker,start_ms,end_ms,text,is_final,stt_confidence,created_at`;
-    const row=rows[0]; return { id:String(row?.id),speaker:String(row?.speaker),startMs:Number(row?.start_ms),endMs:Number(row?.end_ms),text:String(row?.text),isFinal:Boolean(row?.is_final),...(row?.stt_confidence!==null?{sttConfidence:Number(row?.stt_confidence)}:{}),createdAt:new Date(String(row?.created_at)).toISOString() };
+      INSERT INTO interview_transcript_segments(
+        organization_id,interview_session_id,speaker,start_ms,end_ms,text,is_final,stt_confidence,
+        lifecycle_role,interview_turn_id
+      )
+      VALUES(
+        ${organizationId}::uuid,${sessionId}::uuid,${String(value.speaker)},${value.startMs},${value.endMs},
+        ${value.text.trim()},${value.isFinal!==false},${typeof value.sttConfidence === "number" ? value.sttConfidence : null},
+        ${lifecycleRole},${interviewTurnId}::uuid
+      )
+      RETURNING id,speaker,start_ms,end_ms,text,is_final,stt_confidence,lifecycle_role,interview_turn_id,created_at`;
+    const row=rows[0]; return { id:String(row?.id),speaker:String(row?.speaker),startMs:Number(row?.start_ms),endMs:Number(row?.end_ms),text:String(row?.text),isFinal:Boolean(row?.is_final),lifecycleRole:String(row?.lifecycle_role??"interview"),...(row?.interview_turn_id?{turnId:String(row.interview_turn_id)}:{}),...(row?.stt_confidence!==null?{sttConfidence:Number(row?.stt_confidence)}:{}),createdAt:new Date(String(row?.created_at)).toISOString() };
   }
 
   async recordEvidence(sessionId: string, body: unknown) {
@@ -188,7 +198,7 @@ export class InterviewsService {
     const evaluationReconciliation = String(session.status) === "completed"
       ? await this.evaluator.reconcileLatestQueuedResult(sessionId)
       : { status: "not_completed" };
-    const transcript=await this.database.sql`SELECT id,speaker,start_ms,end_ms,text,is_final,stt_confidence FROM interview_transcript_segments WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY start_ms`;
+    const transcript=await this.database.sql`SELECT id,speaker,start_ms,end_ms,text,is_final,stt_confidence,lifecycle_role,interview_turn_id FROM interview_transcript_segments WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY start_ms`;
     const evidence=await this.database.sql`SELECT id,criterion_id,turn_id,transcript_segment_ids,summary,confidence,source_kind,created_at FROM interview_evidence WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid ORDER BY created_at`;
     const evaluations=await this.database.sql`
       SELECT id,rubric_version_id,evaluator_version,status,criterion_results,recommendation,
