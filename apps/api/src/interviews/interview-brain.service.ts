@@ -369,7 +369,7 @@ export class InterviewBrainService {
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
-        .map((row) => {
+        .map((row): InterviewBrainCriterion => {
           const key = String(row.criterion_key);
           const strategy = strategyForCriterion(questionStrategy, key);
           const evidencePolicy = asRecord(row.evidence_policy);
@@ -403,11 +403,11 @@ export class InterviewBrainService {
             baseSource: "rubric",
           };
         })
-        .map((criterion) => ({
+        .map((criterion): InterviewBrainCriterion => ({
           ...criterion,
           baseSource: criterionUsesJobRequirement(criterion, requirements)
-            ? "job_requirement" as const
-            : "rubric" as const,
+            ? "job_requirement"
+            : "rubric",
         }));
 
       const resumeClaimRows = await transaction`
@@ -527,7 +527,7 @@ export class InterviewBrainService {
         candidateIntent,
         latestCandidateText,
         language,
-        seniority: session?.job_seniority ? String(session.job_seniority) : undefined,
+        ...(session?.job_seniority ? { seniority: String(session.job_seniority) } : {}),
       };
 
       let selectedTurn = deterministic.turn;
