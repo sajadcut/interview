@@ -18,11 +18,11 @@ export class CreateHiringRequestDto {
 export class UpdateHiringRequestDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 240) title?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 160) hiringTeam?: string;
-  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @Length(1, 160) department?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) @IsOptional() @IsString() @Length(1, 160) department?: string | null;
   @ApiPropertyOptional({ minimum: 1, maximum: 100 }) @IsOptional() @IsInt() @Min(1) @Max(100) headcount?: number;
-  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @Length(1, 80) seniority?: string | null;
-  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @Length(1, 240) location?: string | null;
-  @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @Length(1, 80) employmentType?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) @IsOptional() @IsString() @Length(1, 80) seniority?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) @IsOptional() @IsString() @Length(1, 240) location?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) @IsOptional() @IsString() @Length(1, 80) employmentType?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(3, 4000) businessReason?: string;
   @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) requirements?: string[];
 }
