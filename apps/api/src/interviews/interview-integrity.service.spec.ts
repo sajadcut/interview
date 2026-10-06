@@ -18,6 +18,7 @@ function harness(options: { sessionStatus?: string; sessionExists?: boolean } = 
   const transaction = Object.assign(
     async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const query = strings.join(" ");
+      if (query.includes("FROM interview_sessions") && query.includes("FOR UPDATE")) return [{ id: sessionId }];
       if (query.includes("FROM interview_media_sessions")) return [{ id: mediaSessionId }];
       if (query.includes("COALESCE(max(sequence)")) return [{ next_sequence: 0 }];
       if (query.includes("INSERT INTO interview_integrity_events")) {
