@@ -10536,19 +10536,19 @@
             "type": "string"
           },
           "primaryEmail": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "primaryPhone": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "currentRole": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "currentCompany": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "location": {
@@ -10569,23 +10569,27 @@
             "type": "string"
           },
           "primaryEmail": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "primaryPhone": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "currentRole": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "currentCompany": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "location": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "preferredLanguage": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           }
         }
@@ -10673,19 +10677,19 @@
             ]
           },
           "department": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "location": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "seniority": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "summary": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "requirements": {
@@ -11054,7 +11058,7 @@
             "type": "string"
           },
           "department": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "headcount": {
@@ -11063,15 +11067,15 @@
             "maximum": 100
           },
           "seniority": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "location": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "employmentType": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "businessReason": {
