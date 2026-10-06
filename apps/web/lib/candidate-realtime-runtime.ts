@@ -28,7 +28,7 @@ export type CandidateRuntimeClock = {
 export type CandidateRuntimeSnapshot = {
   status: "active" | "completed";
   lifecyclePhase: "introduction" | "active" | "candidate_question" | "closing" | "completed";
-  openingTurn?: CandidateRuntimeTurn;
+  openingTurn?: CandidateRuntimeTurn | undefined;
   sessionId: string;
   mediaSessionId: string;
   remainingSeconds: number;
@@ -226,7 +226,7 @@ class CandidateBrowserRealtimeRuntime {
         }),
       }),
     );
-    this.snapshot = {
+    const nextSnapshot: CandidateRuntimeSnapshot = {
       ...snapshot,
       status: result.completed ? "completed" : "active",
       lifecyclePhase: result.completed ? "completed" : result.lifecyclePhase,
@@ -240,7 +240,8 @@ class CandidateBrowserRealtimeRuntime {
         { speaker: "interviewer", text: result.turn.spokenText },
       ],
     };
-    this.emit({ type: "snapshot", snapshot: this.snapshot });
+    this.snapshot = nextSnapshot;
+    this.emit({ type: "snapshot", snapshot: nextSnapshot });
     return result;
   }
 
@@ -301,7 +302,7 @@ class CandidateBrowserRealtimeRuntime {
       ),
     );
     if (result.transcript?.text && result.turn && result.remainingSeconds !== undefined) {
-      this.snapshot = {
+      const nextSnapshot: CandidateRuntimeSnapshot = {
         ...snapshot,
         status: result.completed ? "completed" : "active",
         lifecyclePhase: result.completed ? "completed" : result.lifecyclePhase!,
@@ -315,7 +316,8 @@ class CandidateBrowserRealtimeRuntime {
           { speaker: "interviewer", text: result.turn.spokenText },
         ],
       };
-      this.emit({ type: "snapshot", snapshot: this.snapshot });
+      this.snapshot = nextSnapshot;
+      this.emit({ type: "snapshot", snapshot: nextSnapshot });
     }
     return result;
   }
