@@ -6,7 +6,7 @@ const organizationId = "11111111-1111-4111-8111-111111111111";
 const sessionId = "22222222-2222-4222-8222-222222222222";
 const segmentId = "33333333-3333-4333-8333-333333333333";
 
-function harness(lifecycleRole: string) {
+function harness(lifecycleRole: string, speaker: "candidate" | "interviewer" = "candidate") {
   let evidenceInserted = false;
 
   const transaction = async (strings: TemplateStringsArray) => {
@@ -14,7 +14,7 @@ function harness(lifecycleRole: string) {
     if (query.includes("FROM interview_transcript_segments")) {
       return [{
         id: segmentId,
-        speaker: "candidate",
+        speaker,
         is_final: true,
         lifecycle_role: lifecycleRole,
       }];
@@ -77,4 +77,19 @@ test("recordEvidence still accepts finalized active interview transcript anchors
 
   assert.equal(fixture.evidenceInserted(), true);
   assert.deepEqual(result.transcriptSegmentIds, [segmentId]);
+});
+
+
+test("recordEvidence rejects interviewer-only active transcript anchors", async () => {
+  const fixture = harness("interview", "interviewer");
+
+  await assert.rejects(
+    fixture.service.recordEvidence(sessionId, {
+      transcriptSegmentIds: [segmentId],
+      summary: "the interviewer question cannot score the candidate",
+    }),
+    /Evaluation evidence must include candidate-authored transcript/,
+  );
+
+  assert.equal(fixture.evidenceInserted(), false);
 });
