@@ -67,6 +67,7 @@ export interface InterviewBrainInput {
   elapsedSeconds: number;
   language?: InterviewSpokenLanguage;
   approvedCandidateQuestionAnswer?: string | null;
+  candidateName?: string;
 }
 
 export interface InterviewBrainDecision {
@@ -263,10 +264,15 @@ function finalGoodbye(
   reason: string,
 ): InterviewBrainDecision {
   const approvedAnswer = input.approvedCandidateQuestionAnswer?.trim();
+  const candidateName = input.candidateName?.trim();
   const goodbye = localized(
     language,
-    "Thank you. The questions for this stage are complete. The recorded answers and evidence will be evaluated independently, and the hiring team retains final decision authority. Thank you for your time, and best of luck.",
-    "ممنون. سؤال‌های این مرحله به پایان رسید. پاسخ‌ها و شواهد ثبت‌شده به‌صورت مستقل ارزیابی می‌شوند و تصمیم نهایی توسط تیم استخدام بررسی خواهد شد. از وقتی که برای این مصاحبه گذاشتید متشکرم. موفق باشید.",
+    candidateName
+      ? `Thank you, ${candidateName}. The questions for this stage are complete. The recorded answers and evidence will be evaluated independently, and the hiring team retains final decision authority. Thank you for your time, and best of luck.`
+      : "Thank you. The questions for this stage are complete. The recorded answers and evidence will be evaluated independently, and the hiring team retains final decision authority. Thank you for your time, and best of luck.",
+    candidateName
+      ? `ممنون ${candidateName}. سؤال‌های این مرحله به پایان رسید. پاسخ‌ها و شواهد ثبت‌شده به‌صورت مستقل ارزیابی می‌شوند و تصمیم نهایی توسط تیم استخدام بررسی خواهد شد. از وقتی که برای این مصاحبه گذاشتید متشکرم. موفق باشید.`
+      : "ممنون. سؤال‌های این مرحله به پایان رسید. پاسخ‌ها و شواهد ثبت‌شده به‌صورت مستقل ارزیابی می‌شوند و تصمیم نهایی توسط تیم استخدام بررسی خواهد شد. از وقتی که برای این مصاحبه گذاشتید متشکرم. موفق باشید.",
   );
   return finalize(
     input,
