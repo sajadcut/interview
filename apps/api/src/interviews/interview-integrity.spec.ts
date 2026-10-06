@@ -13,7 +13,7 @@ function event(
 ): IntegrityEvent {
   return {
     id,
-    sequence: options.sequence ?? Number(id.replace(/\D/g, "")) || 0,
+    sequence: (options.sequence ?? Number(id.replace(/\D/g, ""))) || 0,
     eventType,
     serverOccurredAt: options.serverOccurredAt ?? "2026-10-06T08:00:00.000Z",
     ...(options.clientOccurredAt !== undefined ? { clientOccurredAt: options.clientOccurredAt } : {}),
