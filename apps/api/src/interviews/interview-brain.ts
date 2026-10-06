@@ -9,6 +9,22 @@ import {
   type InterviewSpokenLanguage,
 } from "./interview-language";
 
+export type InterviewQuestionSource =
+  | "lifecycle"
+  | "rubric"
+  | "job_requirement"
+  | "resume_claim"
+  | "adaptive_follow_up";
+
+export type InterviewTurnKind =
+  | "introduction"
+  | "planned_criterion"
+  | "resume_validation"
+  | "adaptive_follow_up"
+  | "transition"
+  | "candidate_question"
+  | "closing";
+
 export interface InterviewBrainCriterion {
   key: string;
   label: string;
@@ -16,6 +32,19 @@ export interface InterviewBrainCriterion {
   objective: string;
   expectedEvidence: string[];
   minimumEvidence: number;
+  required?: boolean;
+  weight?: number;
+  priority?: number;
+  baseSource?: "rubric" | "job_requirement";
+}
+
+export interface InterviewBrainResumeClaim {
+  id: string;
+  claimType: string;
+  text: string;
+  importance: number;
+  status: "unverified" | "supported" | "contradicted" | "insufficient_evidence";
+  matchedCriterionKey: string | null;
 }
 
 export interface InterviewBrainState {
@@ -24,6 +53,10 @@ export interface InterviewBrainState {
   evidenceCoverage: Record<string, number>;
   remainingSeconds: number;
   reconnectCount: number;
+  questionCountByCriterion?: Record<string, number>;
+  askedResumeClaimIds?: string[];
+  resumeClaims?: InterviewBrainResumeClaim[];
+  closingStage?: "interview" | "candidate_question";
 }
 
 export interface InterviewBrainInput {
@@ -33,11 +66,15 @@ export interface InterviewBrainInput {
   candidateIntent: CandidateIntent | null;
   elapsedSeconds: number;
   language?: InterviewSpokenLanguage;
+  approvedCandidateQuestionAnswer?: string | null;
 }
 
 export interface InterviewBrainDecision {
   questionId: string;
   turn: StructuredInterviewTurn;
+  turnKind: InterviewTurnKind;
+  questionSource: InterviewQuestionSource;
+  resumeClaimId: string | null;
   nextState: InterviewBrainState;
   reason: string;
 }
@@ -45,6 +82,22 @@ export interface InterviewBrainDecision {
 const PERSIAN_CRITERION_LABELS: Readonly<Record<string, string>> = {
   backend_depth: "مهندسی بک‌اند",
   system_design: "طراحی سیستم",
+  dotnet_fundamentals: "مبانی سی‌شارپ و دات‌نت",
+  aspnet_core: "اِی‌اِس‌پی دات‌نِت کور و وب اِی‌پی‌آی",
+  architecture: "معماری نرم‌افزار",
+  database: "پایگاه داده و مدل‌سازی داده",
+  sql: "اِس‌کیو‌اِل و بهینه‌سازی کوئری",
+  ef_core: "اِنتیتی فریم‌ورک کور",
+  concurrency: "پردازش ناهمگام و هم‌روندی",
+  caching: "کش و رِدیس",
+  distributed_systems: "سیستم‌های توزیع‌شده",
+  messaging: "پیام‌رسانی",
+  performance: "کارایی و مقیاس‌پذیری",
+  testing: "تست",
+  security: "امنیت",
+  debugging: "اشکال‌زدایی و عیب‌یابی محیط تولید",
+  observability: "مشاهده‌پذیری",
+  devops: "سی‌آی/سی‌دی و دواپس",
 };
 
 function localized(language: InterviewSpokenLanguage, english: string, persian: string): string {
@@ -60,8 +113,14 @@ function normalizeCriterion(criterion: InterviewBrainCriterion): InterviewBrainC
     label: criterion.label.trim(),
     ...(spokenLabel ? { spokenLabel } : {}),
     objective: criterion.objective.trim(),
-    expectedEvidence: expectedEvidence.length > 0 ? expectedEvidence : [`Evidence for ${criterion.label.trim()}`],
+    expectedEvidence: expectedEvidence.length > 0
+      ? expectedEvidence
+      : [`Concrete job-relevant evidence for ${criterion.label.trim()}`],
     minimumEvidence: Math.max(1, Math.trunc(criterion.minimumEvidence || 1)),
+    required: criterion.required !== false,
+    weight: Number.isFinite(criterion.weight) ? Math.max(0, Number(criterion.weight)) : 1,
+    priority: Number.isFinite(criterion.priority) ? Number(criterion.priority) : 0,
+    baseSource: criterion.baseSource === "job_requirement" ? "job_requirement" : "rubric",
   };
 }
 
@@ -83,17 +142,76 @@ function isCovered(state: InterviewBrainState, criterion: InterviewBrainCriterio
   return evidenceCount(state, criterion) >= criterion.minimumEvidence;
 }
 
-function firstIncompleteCriterion(
-  criteria: InterviewBrainCriterion[],
+function claimImportanceForCriterion(
   state: InterviewBrainState,
-  afterKey?: string | null,
-): InterviewBrainCriterion | null {
-  const startIndex = afterKey ? criteria.findIndex((criterion) => criterion.key === afterKey) + 1 : 0;
-  const ordered = [...criteria.slice(Math.max(0, startIndex)), ...criteria.slice(0, Math.max(0, startIndex))];
-  return ordered.find((criterion) => !isCovered(state, criterion)) ?? null;
+  criterion: InterviewBrainCriterion,
+): number {
+  return Math.max(
+    0,
+    ...(state.resumeClaims ?? [])
+      .filter((claim) => claim.matchedCriterionKey === criterion.key && claim.status !== "supported")
+      .map((claim) => claim.importance),
+  );
 }
 
-function buildQuestionId(criterion: string | null, action: StructuredInterviewTurn["action"], count: number): string {
+function criterionScore(
+  state: InterviewBrainState,
+  criterion: InterviewBrainCriterion,
+  endingSoon: boolean,
+): number {
+  const requiredBoost = criterion.required === false ? 0 : 10_000;
+  const priority = Number(criterion.priority ?? 0) * 100;
+  const weight = Number(criterion.weight ?? 1) * 25;
+  const resume = claimImportanceForCriterion(state, criterion) * 20;
+  const current = state.currentCriterion === criterion.key && !endingSoon ? 12 : 0;
+  const coverageGap = Math.max(0, criterion.minimumEvidence - evidenceCount(state, criterion)) * 8;
+  return requiredBoost + priority + weight + resume + current + coverageGap;
+}
+
+function selectIncompleteCriterion(
+  criteria: InterviewBrainCriterion[],
+  state: InterviewBrainState,
+  remainingSeconds: number,
+  afterKey?: string | null,
+): InterviewBrainCriterion | null {
+  const endingSoon = remainingSeconds <= 300;
+  const candidates = criteria.filter((criterion) => {
+    if (isCovered(state, criterion)) return false;
+    if (endingSoon && criterion.required === false) return false;
+    return true;
+  });
+  if (candidates.length === 0) return null;
+
+  const questionCount = state.questionCountByCriterion ?? {};
+  const current = candidates.find((criterion) => criterion.key === state.currentCriterion);
+  if (
+    current &&
+    !endingSoon &&
+    (questionCount[current.key] ?? 0) < 2 &&
+    (!afterKey || afterKey !== current.key)
+  ) {
+    return current;
+  }
+
+  const rotated = afterKey
+    ? [
+        ...candidates.filter((criterion) => criterion.key !== afterKey),
+        ...candidates.filter((criterion) => criterion.key === afterKey),
+      ]
+    : candidates;
+
+  return [...rotated].sort((left, right) => {
+    const scoreDelta = criterionScore(state, right, endingSoon) - criterionScore(state, left, endingSoon);
+    if (scoreDelta !== 0) return scoreDelta;
+    return criteria.indexOf(left) - criteria.indexOf(right);
+  })[0] ?? null;
+}
+
+function buildQuestionId(
+  criterion: string | null,
+  action: StructuredInterviewTurn["action"],
+  count: number,
+): string {
   return `${criterion ?? "session"}:${action}:${count + 1}`;
 }
 
@@ -102,12 +220,21 @@ function finalize(
   turn: StructuredInterviewTurn,
   reason: string,
   nextCriterion: string | null,
+  metadata: {
+    turnKind: InterviewTurnKind;
+    questionSource: InterviewQuestionSource;
+    resumeClaimId?: string | null;
+    closingStage?: InterviewBrainState["closingStage"];
+  },
 ): InterviewBrainDecision {
   validateStructuredInterviewTurn(turn);
   const questionId = buildQuestionId(nextCriterion, turn.action, input.state.askedQuestionIds.length);
   return {
     questionId,
     turn,
+    turnKind: metadata.turnKind,
+    questionSource: metadata.questionSource,
+    resumeClaimId: metadata.resumeClaimId ?? null,
     reason,
     nextState: {
       ...input.state,
@@ -118,8 +245,85 @@ function finalize(
         input.candidateIntent === "RECONNECT"
           ? input.state.reconnectCount + 1
           : input.state.reconnectCount,
+      closingStage: metadata.closingStage ?? input.state.closingStage ?? "interview",
+      ...(metadata.resumeClaimId
+        ? {
+            askedResumeClaimIds: [
+              ...new Set([...(input.state.askedResumeClaimIds ?? []), metadata.resumeClaimId]),
+            ],
+          }
+        : {}),
     },
   };
+}
+
+function finalGoodbye(
+  input: InterviewBrainInput,
+  language: InterviewSpokenLanguage,
+  reason: string,
+): InterviewBrainDecision {
+  const approvedAnswer = input.approvedCandidateQuestionAnswer?.trim();
+  const goodbye = localized(
+    language,
+    "Thank you. The questions for this stage are complete. The recorded answers and evidence will be evaluated independently, and the hiring team retains final decision authority. Thank you for your time, and best of luck.",
+    "ممنون. سؤال‌های این مرحله به پایان رسید. پاسخ‌ها و شواهد ثبت‌شده به‌صورت مستقل ارزیابی می‌شوند و تصمیم نهایی توسط تیم استخدام بررسی خواهد شد. از وقتی که برای این مصاحبه گذاشتید متشکرم. موفق باشید.",
+  );
+  return finalize(
+    input,
+    {
+      action: "close",
+      criterion: null,
+      objective: "final_goodbye",
+      spokenText: approvedAnswer ? `${approvedAnswer} ${goodbye}` : goodbye,
+      expectedEvidence: [],
+    },
+    reason,
+    null,
+    { turnKind: "closing", questionSource: "lifecycle", closingStage: "candidate_question" },
+  );
+}
+
+function candidateQuestionOpportunity(
+  input: InterviewBrainInput,
+  language: InterviewSpokenLanguage,
+  reason: string,
+): InterviewBrainDecision {
+  return finalize(
+    input,
+    {
+      action: "escalate",
+      criterion: null,
+      objective: "candidate_question_opportunity",
+      spokenText: localized(
+        language,
+        "We have finished the main interview questions. Before we close, if you have a short question about the interview process or this role, you can ask it now.",
+        "سؤال‌های اصلی مصاحبه تمام شد. قبل از پایان، اگر درباره فرایند مصاحبه یا این موقعیت شغلی سؤال کوتاهی دارید، مطرح کنید.",
+      ),
+      expectedEvidence: [],
+    },
+    reason,
+    input.state.currentCriterion,
+    {
+      turnKind: "candidate_question",
+      questionSource: "lifecycle",
+      closingStage: "candidate_question",
+    },
+  );
+}
+
+function availableResumeClaim(
+  state: InterviewBrainState,
+  criterion: InterviewBrainCriterion,
+): InterviewBrainResumeClaim | null {
+  const asked = new Set(state.askedResumeClaimIds ?? []);
+  return [...(state.resumeClaims ?? [])]
+    .filter(
+      (claim) =>
+        claim.matchedCriterionKey === criterion.key &&
+        claim.status !== "supported" &&
+        !asked.has(claim.id),
+    )
+    .sort((left, right) => right.importance - left.importance)[0] ?? null;
 }
 
 export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBrainDecision {
@@ -131,7 +335,27 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
     criteria,
     latestCandidateText: rawInput.latestCandidateText.trim(),
     elapsedSeconds: Math.max(0, Math.trunc(rawInput.elapsedSeconds)),
+    state: {
+      ...rawInput.state,
+      closingStage: rawInput.state.closingStage ?? "interview",
+      questionCountByCriterion: rawInput.state.questionCountByCriterion ?? {},
+      askedResumeClaimIds: rawInput.state.askedResumeClaimIds ?? [],
+      resumeClaims: rawInput.state.resumeClaims ?? [],
+    },
   };
+  const remainingSeconds = Math.max(0, input.state.remainingSeconds - input.elapsedSeconds);
+
+  if (input.state.closingStage === "candidate_question") {
+    return finalGoodbye(
+      input,
+      language,
+      "The candidate-question opportunity is complete; deterministic closing is required.",
+    );
+  }
+
+  if (input.candidateIntent === "END_INTERVIEW_REQUEST") {
+    return finalGoodbye(input, language, "Candidate requested to end the interview.");
+  }
 
   if (criteria.length === 0) {
     return finalize(
@@ -149,71 +373,41 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       },
       "No configured criteria are available.",
       null,
+      { turnKind: "closing", questionSource: "lifecycle" },
     );
   }
 
-  if (input.state.remainingSeconds - input.elapsedSeconds <= 60) {
-    return finalize(
+  if (remainingSeconds <= 0) {
+    return finalGoodbye(input, language, "The interview time budget is exhausted.");
+  }
+
+  if (remainingSeconds <= 60) {
+    return candidateQuestionOpportunity(
       input,
-      {
-        action: "close",
-        criterion: input.state.currentCriterion,
-        objective: "respect_time_budget",
-        spokenText: localized(
-          language,
-          "We are at the end of the interview time. I will stop here and preserve the evidence collected so far for review.",
-          "زمان مصاحبه به پایان رسیده است. جلسه را همین‌جا متوقف می‌کنم و شواهد ثبت‌شده برای بررسی حفظ می‌شوند.",
-        ),
-        expectedEvidence: [],
-      },
-      "The interview time budget is exhausted.",
-      input.state.currentCriterion,
+      language,
+      "The final minute prohibits new assessment questions and enters wrap-up.",
     );
   }
 
   const current =
-    criteria.find((criterion) => criterion.key === input.state.currentCriterion && !isCovered(input.state, criterion)) ??
-    firstIncompleteCriterion(criteria, input.state);
+    criteria.find(
+      (criterion) =>
+        criterion.key === input.state.currentCriterion &&
+        !isCovered(input.state, criterion) &&
+        !(remainingSeconds <= 300 && criterion.required === false),
+    ) ?? selectIncompleteCriterion(criteria, input.state, remainingSeconds);
 
   if (!current) {
-    return finalize(
+    return candidateQuestionOpportunity(
       input,
-      {
-        action: "close",
-        criterion: null,
-        objective: "complete_evidence_coverage",
-        spokenText: localized(
-          language,
-          "We have covered the required interview criteria. I will end the interview and preserve the evidence for independent evaluation.",
-          "همه معیارهای لازم را پوشش دادیم. مصاحبه را به پایان می‌رسانم و شواهد ثبت‌شده برای ارزیابی مستقل حفظ می‌شوند.",
-        ),
-        expectedEvidence: [],
-      },
-      "All configured criteria reached minimum evidence coverage.",
-      null,
+      language,
+      "All eligible criteria reached minimum evidence coverage.",
     );
   }
 
   const currentLabel = criterionSpokenLabel(language, current);
 
   switch (input.candidateIntent) {
-    case "END_INTERVIEW_REQUEST":
-      return finalize(
-        input,
-        {
-          action: "close",
-          criterion: current.key,
-          objective: "respect_candidate_end_request",
-          spokenText: localized(
-            language,
-            "Understood. I will end the interview now and preserve the evidence collected so far for review.",
-            "متوجه شدم. مصاحبه را همین حالا به پایان می‌رسانم و شواهد ثبت‌شده تا اینجا برای بررسی حفظ می‌شوند.",
-          ),
-          expectedEvidence: [],
-        },
-        "Candidate requested to end the interview.",
-        current.key,
-      );
     case "ABUSIVE_INPUT":
       return finalize(
         input,
@@ -230,6 +424,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         },
         "Abusive input receives a deterministic job-focused boundary without becoming evidence.",
         current.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
       );
     case "RECONNECT":
       return finalize(
@@ -247,6 +442,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         },
         "Reconnect recovery keeps the same criterion and does not invent new evidence.",
         current.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
       );
     case "CLARIFICATION_REQUEST":
     case "INTERRUPTION":
@@ -258,13 +454,14 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           objective: current.objective,
           spokenText: localized(
             language,
-            `Sure. For ${currentLabel}, I am looking for a concrete job-relevant example, what you personally did, the trade-offs you considered, and the outcome.`,
-            `حتماً. درباره ${currentLabel} یک نمونه واقعی و مرتبط با کار می‌خواهم. بگویید خودتان چه کاری انجام دادید، چه گزینه‌هایی داشتید و نتیجه چه شد.`,
+            `Sure. For ${currentLabel}, please use one concrete job-relevant example and focus on the decision you personally made and its outcome.`,
+            `حتماً. درباره ${currentLabel} یک نمونه واقعی و مرتبط با کار بگویید و روی تصمیمی که شخصاً گرفتید و نتیجهٔ آن تمرکز کنید.`,
           ),
           expectedEvidence: [],
         },
         "Candidate requested clarification or interrupted the previous turn.",
         current.key,
+        { turnKind: "adaptive_follow_up", questionSource: "adaptive_follow_up" },
       );
     case "SILENCE_TIMEOUT":
       return finalize(
@@ -282,6 +479,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         },
         "Silence timeout uses a recoverable prompt instead of treating silence as evidence.",
         current.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
       );
     case "CANDIDATE_QUESTION":
       return finalize(
@@ -292,33 +490,23 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           objective: "route_candidate_factual_question",
           spokenText: localized(
             language,
-            "I can pause the interview. Job or company facts should be answered from approved recruiting knowledge, so I will route that question through the supported candidate-information flow.",
-            "می‌توانم مصاحبه را موقتاً متوقف کنم. اطلاعات مربوط به شغل یا شرکت باید از منابع تأییدشده پاسخ داده شود؛ سؤال شما را از مسیر اطلاعات کاندیدا پیگیری می‌کنم.",
+            "I can pause the assessment question. Job or company facts must come from approved recruiting information, so I will only answer from that source.",
+            "می‌توانم سؤال ارزیابی را موقتاً نگه دارم. اطلاعات مربوط به شغل یا شرکت فقط باید از اطلاعات تأییدشده جذب پاسخ داده شود.",
           ),
           expectedEvidence: [],
         },
-        "Candidate factual questions must use approved knowledge rather than interview-model improvisation.",
+        "Candidate factual questions must use approved knowledge rather than interviewer-model improvisation.",
         current.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
       );
     case "SKIP_REQUEST":
     case "POLICY_REFUSAL": {
-      const next = firstIncompleteCriterion(criteria, input.state, current.key);
+      const next = selectIncompleteCriterion(criteria, input.state, remainingSeconds, current.key);
       if (!next || next.key === current.key) {
-        return finalize(
+        return candidateQuestionOpportunity(
           input,
-          {
-            action: "close",
-            criterion: current.key,
-            objective: "respect_candidate_skip_or_refusal",
-            spokenText: localized(
-              language,
-              "Understood. I will not pressure you to answer that topic. We have no additional required topic to continue with, so I will end the interview for review.",
-              "متوجه شدم. برای پاسخ به این موضوع به شما فشار نمی‌آورم. موضوع الزامی دیگری باقی نمانده است، بنابراین مصاحبه را برای بررسی به پایان می‌رسانم.",
-            ),
-            expectedEvidence: [],
-          },
-          "Candidate skip/refusal is respected and the unavailable evidence remains visible to reviewers.",
-          current.key,
+          language,
+          "Candidate skip/refusal leaves the remaining gap visible and no other eligible topic remains.",
         );
       }
       const nextLabel = criterionSpokenLabel(language, next);
@@ -330,24 +518,51 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           objective: next.objective,
           spokenText: localized(
             language,
-            `Understood. We will leave that evidence gap visible and move to ${nextLabel}.`,
-            `متوجه شدم. این بخش بدون شواهد باقی می‌ماند و به ${nextLabel} می‌رویم.`,
+            `Understood. We will leave that gap visible and move to ${nextLabel}.`,
+            `متوجه شدم. این بخش بدون شواهد کافی باقی می‌ماند و به ${nextLabel} می‌رویم.`,
           ),
           expectedEvidence: [],
         },
         "Candidate requested to skip/refuse the current topic; the brain transitions without fabricating coverage.",
         next.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
       );
     }
     default:
       break;
   }
 
-  const alreadyAskedCurrent = input.state.askedQuestionIds.some((id) => id.startsWith(`${current.key}:`));
+  const questionCount = input.state.questionCountByCriterion?.[current.key] ?? 0;
+  if (questionCount >= 2) {
+    const next = selectIncompleteCriterion(criteria, input.state, remainingSeconds, current.key);
+    if (next && next.key !== current.key) {
+      const nextLabel = criterionSpokenLabel(language, next);
+      return finalize(
+        input,
+        {
+          action: "transition",
+          criterion: next.key,
+          objective: next.objective,
+          spokenText: localized(
+            language,
+            `Let's move to ${nextLabel}. Please use a concrete example from your own work.`,
+            `برای اینکه زمان مصاحبه متعادل بماند، به ${nextLabel} می‌رویم. لطفاً یک نمونه واقعی از کار خودتان بگویید.`,
+          ),
+          expectedEvidence: [],
+        },
+        "Topic dwell limit reached; preserve the evidence gap and move to the next priority.",
+        next.key,
+        { turnKind: "transition", questionSource: "lifecycle" },
+      );
+    }
+  }
+
   const remainingEvidence = Math.max(1, current.minimumEvidence - evidenceCount(input.state, current));
   const expectedEvidence = current.expectedEvidence.slice(0, Math.max(1, remainingEvidence));
+  const resumeClaim = availableResumeClaim(input.state, current);
 
-  if (!alreadyAskedCurrent) {
+  if (resumeClaim) {
+    const boundedClaim = resumeClaim.text.replace(/\s+/g, " ").trim().slice(0, 280);
     return finalize(
       input,
       {
@@ -356,13 +571,43 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
         objective: current.objective,
         spokenText: localized(
           language,
-          `Tell me about a concrete example that demonstrates ${currentLabel}. Focus on your own decisions, the technical context, trade-offs, and outcome.`,
-          `لطفاً یک نمونه واقعی و مشخص از تجربه کاری خود درباره ${currentLabel} تعریف کنید. بگویید خودتان چه تصمیمی گرفتید، شرایط فنی چه بود، چه گزینه‌هایی را بررسی کردید و نتیجه چه شد.`,
+          `Your resume mentions “${boundedClaim}”. Please walk me through one concrete example that makes your personal role, main decision, and observed outcome clear.`,
+          `در رزومه به «${boundedClaim}» اشاره کرده‌اید. لطفاً یک نمونهٔ مشخص توضیح دهید که نقش شخصی شما، تصمیم اصلی و نتیجهٔ قابل مشاهده را روشن کند.`,
         ),
         expectedEvidence,
       },
-      "The current criterion has insufficient evidence and has not yet received a primary question.",
+      "A high-value resume claim maps to the current rubric criterion and is still unverified.",
       current.key,
+      {
+        turnKind: "resume_validation",
+        questionSource: "resume_claim",
+        resumeClaimId: resumeClaim.id,
+      },
+    );
+  }
+
+  if (questionCount === 0) {
+    return finalize(
+      input,
+      {
+        action: "ask",
+        criterion: current.key,
+        objective: current.objective,
+        spokenText: localized(
+          language,
+          `Tell me about a concrete example that demonstrates ${currentLabel}. Focus on a decision you personally made, a relevant trade-off, and the observed outcome.`,
+          `لطفاً یک نمونهٔ واقعی از تجربهٔ کاری خود درباره ${currentLabel} تعریف کنید. روی تصمیمی که شخصاً گرفتید، یک ملاحظه یا بده‌بستان مهم و نتیجهٔ قابل مشاهده تمرکز کنید.`,
+        ),
+        expectedEvidence,
+      },
+      remainingSeconds <= 300
+        ? "Final-five-minute strategy selected the highest-priority required evidence gap."
+        : "The selected criterion has insufficient evidence and needs a primary question.",
+      current.key,
+      {
+        turnKind: "planned_criterion",
+        questionSource: current.baseSource ?? "rubric",
+      },
     );
   }
 
@@ -374,14 +619,15 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       objective: current.objective,
       spokenText: localized(
         language,
-        `Thanks. I still need stronger evidence for ${currentLabel}. Please go deeper on ${expectedEvidence.join(", ")}.`,
-        `ممنون. برای ارزیابی دقیق‌تر ${currentLabel} به جزئیات بیشتری نیاز دارم. لطفاً نقش خودتان، تصمیم فنی، گزینه‌های بررسی‌شده و نتیجه را روشن‌تر توضیح دهید.`,
+        `Based on your last answer about ${currentLabel}, go one level deeper on the most important missing point: the decision, trade-off, failure mode, ownership, debugging detail, scale, or observable outcome.`,
+        `بر اساس پاسخ قبلی‌تان درباره ${currentLabel}، فقط روی مهم‌ترین بخشِ هنوز نامشخص عمیق‌تر شویم؛ مثلاً تصمیم، بده‌بستان، حالت شکست، نقش شخصی، جزئیات عیب‌یابی، مقیاس یا نتیجهٔ قابل مشاهده.`,
       ),
       expectedEvidence,
     },
     input.latestCandidateText
-      ? "Candidate answered but criterion evidence coverage remains below the configured minimum."
-      : "Criterion evidence coverage remains below the configured minimum.",
+      ? "The previous answer is relevant but the selected criterion still has an evidence gap."
+      : "The selected criterion still has an evidence gap.",
     current.key,
+    { turnKind: "adaptive_follow_up", questionSource: "adaptive_follow_up" },
   );
 }
