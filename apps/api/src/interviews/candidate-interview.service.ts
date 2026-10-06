@@ -15,6 +15,7 @@ import { getEnv } from "../config/env";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { InterviewBrainService } from "./interview-brain.service";
+import type { CandidateIntent } from "./interview-contracts";
 import { computeInterviewClock } from "./interview-clock";
 import { InterviewEvaluatorService } from "./interview-evaluator.service";
 import { InterviewMediaService } from "./interview-media.service";
@@ -32,6 +33,40 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function estimateSpeechDurationMs(text: string): number {
   return Math.min(90_000, Math.max(1_500, Math.round(text.trim().length * 55)));
+}
+
+function transcriptRoleForTurnKind(
+  turnKind: string | null | undefined,
+): "introduction" | "interview" | "wrap_up" | "candidate_question" | "closing" {
+  if (turnKind === "introduction") return "introduction";
+  if (turnKind === "candidate_question") return "candidate_question";
+  if (turnKind === "closing") return "closing";
+  if (turnKind === "transition") return "wrap_up";
+  return "interview";
+}
+
+function detectCandidateIntent(text: string, turnKind?: string | null): CandidateIntent {
+  if (turnKind === "candidate_question") return "CANDIDATE_QUESTION";
+  const normalized = text.trim().toLocaleLowerCase();
+  if (
+    /(?:پایان (?:مصاحبه|جلسه)|مصاحبه را تمام|نمی.?خواهم ادامه|تمامش کنیم|end (?:the )?interview|stop (?:the )?interview)/i.test(normalized)
+  ) return "END_INTERVIEW_REQUEST";
+  if (/(?:از این (?:سؤال|موضوع) (?:بگذریم|عبور)|نمی.?خواهم پاسخ|skip (?:this|question|topic)|prefer not to answer)/i.test(normalized)) {
+    return "SKIP_REQUEST";
+  }
+  if (/(?:سؤال را توضیح|منظورتان چیست|متوجه سؤال نشدم|clarify|what do you mean)/i.test(normalized)) {
+    return "CLARIFICATION_REQUEST";
+  }
+  if (/[?؟]$/.test(normalized) && /(?:موقعیت|شرکت|تیم|فرایند|استخدام|role|company|team|process|position)/i.test(normalized)) {
+    return "CANDIDATE_QUESTION";
+  }
+  return "ANSWER";
+}
+
+function isSubstantiveCandidateEvidence(text: string): boolean {
+  const normalized = text.trim();
+  if (normalized.length < 24 || normalized.split(/\s+/).filter(Boolean).length < 4) return false;
+  return !/^(?:نمی.?دانم|نمی.?دونم|یادم نیست|اطلاعی ندارم|نه|خیر|نمی.?خواهم پاسخ بدهم|i don'?t know|no idea|prefer not to answer)[.!؟?\s]*$/i.test(normalized);
 }
 
 @Injectable()
@@ -227,35 +262,157 @@ export class CandidateInterviewService {
     return Number(rows[0]?.elapsed_ms ?? 0);
   }
 
+  private async ensureInterviewerTranscript(
+    sessionId: string,
+    turn: { id: string; spokenText: string; turnKind?: string | null },
+  ) {
+    const organizationId = this.tenantContext.require().organizationId;
+    const existing = await this.database.sql`
+      SELECT id::text
+      FROM interview_transcript_segments
+      WHERE organization_id = ${organizationId}::uuid
+        AND interview_session_id = ${sessionId}::uuid
+        AND interview_turn_id = ${turn.id}::uuid
+      LIMIT 1
+    `;
+    if (existing[0]) return;
+    const startMs = await this.elapsedMs(sessionId);
+    const durationMs = estimateSpeechDurationMs(turn.spokenText);
+    await this.interviews.appendTranscriptSegment(sessionId, {
+      speaker: "interviewer",
+      startMs,
+      endMs: startMs + durationMs,
+      text: turn.spokenText,
+      isFinal: true,
+      lifecycleRole: transcriptRoleForTurnKind(turn.turnKind),
+      turnId: turn.id,
+    });
+  }
+
+  private async ensureIntroductionTurn(
+    scope: ResolvedCandidateSession,
+    sessionId: string,
+  ): Promise<{
+    created: boolean;
+    turn: { id: string; action: string; spokenText: string; turnKind: "introduction" };
+  }> {
+    const organizationId = scope.organizationId;
+    const result = await this.database.sql.begin(async (tx) => {
+      const sessionRows = await tx`
+        SELECT c.display_name, j.title AS job_title, p.time_budget_minutes
+        FROM interview_sessions s
+        JOIN applications a
+          ON a.organization_id = s.organization_id AND a.id = s.application_id
+        JOIN candidates c
+          ON c.organization_id = a.organization_id AND c.id = a.candidate_id
+        JOIN interview_plans p
+          ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+        JOIN jobs j
+          ON j.organization_id = a.organization_id AND j.id = a.job_id
+        WHERE s.organization_id = ${organizationId}::uuid
+          AND s.id = ${sessionId}::uuid
+        FOR UPDATE OF s
+      `;
+      const session = sessionRows[0];
+      if (!session) throw new NotFoundException("Candidate interview runtime not found");
+
+      const existing = await tx`
+        SELECT id::text, action, spoken_text
+        FROM interview_turns
+        WHERE organization_id = ${organizationId}::uuid
+          AND interview_session_id = ${sessionId}::uuid
+          AND turn_kind = 'introduction'
+        LIMIT 1
+      `;
+      if (existing[0]) {
+        return {
+          created: false,
+          turn: {
+            id: String(existing[0].id),
+            action: String(existing[0].action),
+            spokenText: String(existing[0].spoken_text),
+            turnKind: "introduction" as const,
+          },
+        };
+      }
+
+      const sequenceRows = await tx`
+        SELECT COALESCE(max(sequence), -1)::int + 1 AS next_sequence
+        FROM interview_turns
+        WHERE organization_id = ${organizationId}::uuid
+          AND interview_session_id = ${sessionId}::uuid
+      `;
+      const sequence = Number(sequenceRows[0]?.next_sequence ?? 0);
+      const candidateName = String(session.display_name ?? "").trim() || "دوست عزیز";
+      const jobTitle = String(session.job_title ?? "").trim() || "این موقعیت";
+      const duration = Math.max(1, Number(session.time_budget_minutes ?? 0));
+      const spokenText =
+        `سلام ${candidateName}، خوش آمدید. من مصاحبه‌گر هوشمند این مرحله هستم. این مصاحبه حدود ${duration.toLocaleString("fa-IR")} دقیقه زمان دارد و درباره تجربه‌های مرتبط با موقعیت ${jobTitle} صحبت می‌کنیم. ممکن است برای روشن‌تر شدن پاسخ‌ها سؤال تکمیلی بپرسم. اگر سؤالی را متوجه نشدید می‌توانید درخواست توضیح کنید و در صورت نیاز می‌توانید از یک موضوع عبور کنید. اگر آماده‌اید شروع کنیم.`;
+      const inserted = await tx`
+        INSERT INTO interview_turns (
+          organization_id, interview_session_id, sequence, action, criterion_key,
+          objective, spoken_text, expected_evidence, interviewer_trace_reference,
+          finalized, turn_kind, question_source, resume_claim_id
+        ) VALUES (
+          ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, 'transition', NULL,
+          'interview_introduction', ${spokenText}, ${tx.json([] as never)},
+          'deterministic-lifecycle:introduction:v1', true, 'introduction', 'lifecycle', NULL
+        )
+        RETURNING id::text, action, spoken_text
+      `;
+      await tx`
+        UPDATE interview_sessions
+        SET checkpoint = checkpoint || ${tx.json({
+          lifecycle: { phase: "introduction", introductionRecorded: true },
+        } as never)}::jsonb,
+            updated_at = now()
+        WHERE organization_id = ${organizationId}::uuid
+          AND id = ${sessionId}::uuid
+      `;
+      return {
+        created: true,
+        turn: {
+          id: String(inserted[0]?.id),
+          action: String(inserted[0]?.action),
+          spokenText: String(inserted[0]?.spoken_text),
+          turnKind: "introduction" as const,
+        },
+      };
+    });
+    await this.ensureInterviewerTranscript(sessionId, result.turn);
+    return result;
+  }
+
   private async currentOrFirstTurn(sessionId: string) {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
-      SELECT id::text, action, criterion_key, spoken_text, finalized
+      SELECT id::text, action, criterion_key, objective, spoken_text, finalized,
+             turn_kind, question_source, resume_claim_id::text
       FROM interview_turns
       WHERE organization_id = ${organizationId}::uuid
         AND interview_session_id = ${sessionId}::uuid
         AND finalized = true
+        AND turn_kind <> 'introduction'
       ORDER BY sequence DESC
       LIMIT 1
     `;
     if (rows[0]) {
-      return {
+      const turn = {
         id: String(rows[0].id),
         action: String(rows[0].action),
         criterion: rows[0].criterion_key ? String(rows[0].criterion_key) : null,
+        objective: String(rows[0].objective ?? ""),
         spokenText: String(rows[0].spoken_text),
+        turnKind: String(rows[0].turn_kind ?? "planned_criterion"),
+        questionSource: String(rows[0].question_source ?? "rubric"),
+        resumeClaimId: rows[0].resume_claim_id ? String(rows[0].resume_claim_id) : null,
       };
+      await this.ensureInterviewerTranscript(sessionId, turn);
+      return turn;
     }
 
     const turn = await this.brain.nextTurn(sessionId, { elapsedSeconds: 0 });
-    const durationMs = estimateSpeechDurationMs(turn.spokenText);
-    await this.interviews.appendTranscriptSegment(sessionId, {
-      speaker: "interviewer",
-      startMs: 0,
-      endMs: durationMs,
-      text: turn.spokenText,
-      isFinal: true,
-    });
+    await this.ensureInterviewerTranscript(sessionId, turn);
     return turn;
   }
 
@@ -473,7 +630,8 @@ export class CandidateInterviewService {
   private async currentQuestionContext(sessionId: string) {
     const organizationId = this.tenantContext.require().organizationId;
     const rows = await this.database.sql`
-      SELECT t.id::text AS turn_id, t.action, t.criterion_key, rc.id::text AS criterion_id
+      SELECT t.id::text AS turn_id, t.action, t.criterion_key, t.objective,
+             t.turn_kind, t.resume_claim_id::text, rc.id::text AS criterion_id
       FROM interview_turns t
       JOIN interview_sessions s
         ON s.organization_id = t.organization_id AND s.id = t.interview_session_id
@@ -496,6 +654,9 @@ export class CandidateInterviewService {
           action: String(row.action),
           criterionKey: row.criterion_key ? String(row.criterion_key) : null,
           criterionId: row.criterion_id ? String(row.criterion_id) : null,
+          objective: row.objective ? String(row.objective) : null,
+          turnKind: String(row.turn_kind ?? "planned_criterion"),
+          resumeClaimId: row.resume_claim_id ? String(row.resume_claim_id) : null,
         }
       : null;
   }
