@@ -276,7 +276,14 @@ export class CandidateInterviewService {
       LIMIT 1
     `;
     if (existing[0]) return;
-    const startMs = await this.elapsedMs(sessionId);
+    const elapsedMs = await this.elapsedMs(sessionId);
+    const lastEndRows = await this.database.sql`
+      SELECT COALESCE(max(end_ms), 0)::int AS last_end_ms
+      FROM interview_transcript_segments
+      WHERE organization_id = ${organizationId}::uuid
+        AND interview_session_id = ${sessionId}::uuid
+    `;
+    const startMs = Math.max(elapsedMs, Number(lastEndRows[0]?.last_end_ms ?? 0));
     const durationMs = estimateSpeechDurationMs(turn.spokenText);
     await this.interviews.appendTranscriptSegment(sessionId, {
       speaker: "interviewer",
