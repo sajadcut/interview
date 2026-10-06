@@ -235,6 +235,7 @@ function harness(options: {
     state as never,
     brain as never,
     evaluator as never,
+    { analyzeAndPersist: async () => ({ status: "analyzed" }), recordCandidateEvent: async () => ({ id: "event", sequence: 0 }), registerCandidateConnection: async () => ({ concurrentSessionDetected: false, clientInstanceHash: null }) } as never,
     media as never,
     speech as never,
   );
