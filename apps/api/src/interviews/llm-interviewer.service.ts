@@ -61,6 +61,14 @@ export interface ConversationalInterviewerContext {
     expectedEvidence: string[];
   };
   closeObjectives: string[];
+  resumeClaim?: {
+    id: string;
+    claimType: string;
+    text: string;
+    importance: number;
+    status: string;
+    matchedCriterionKey: string | null;
+  } | null;
 }
 
 interface ConversationalInterviewerModelContext extends ConversationalInterviewerContext {
@@ -183,26 +191,20 @@ function validateAgainstContext(turn: StructuredInterviewTurn, context: Conversa
   }
 
   const recommended = context.deterministicRecommendation;
-  const current = context.currentCriterion
-    ? context.criteria.find((item) => item.key === context.currentCriterion)
-    : undefined;
-  const currentCovered = Boolean(current && current.evidenceCount >= current.minimumEvidence);
-  if (recommended.action === "probe") {
-    if (!["probe", "clarify"].includes(turn.action) || turn.criterion !== recommended.criterion) {
-      throw new LlmInterviewerFailure("progression_outside_evidence_state");
-    }
-  } else if (recommended.action === "ask") {
-    const movingToNextCriterion = Boolean(
-      context.currentCriterion && recommended.criterion !== context.currentCriterion,
-    );
-    const allowed = movingToNextCriterion && currentCovered ? ["ask", "transition"] : ["ask", "clarify"];
-    if (!allowed.includes(turn.action) || turn.criterion !== recommended.criterion) {
-      throw new LlmInterviewerFailure("progression_outside_evidence_state");
-    }
-  } else if (recommended.action === "close") {
-    if (turn.action !== "close") throw new LlmInterviewerFailure("close_required");
-  } else if (turn.action !== recommended.action || turn.criterion !== recommended.criterion) {
-    throw new LlmInterviewerFailure("progression_outside_evidence_state");
+  if (
+    turn.action !== recommended.action ||
+    turn.criterion !== recommended.criterion ||
+    turn.objective !== recommended.objective
+  ) {
+    throw new LlmInterviewerFailure("deterministic_metadata_mismatch");
+  }
+  const normalizedExpected = turn.expectedEvidence.map(normalizedText);
+  const normalizedRecommended = recommended.expectedEvidence.map(normalizedText);
+  if (
+    normalizedExpected.length !== normalizedRecommended.length ||
+    normalizedExpected.some((item, index) => item !== normalizedRecommended[index])
+  ) {
+    throw new LlmInterviewerFailure("deterministic_metadata_mismatch");
   }
 
   if (turn.action === "close" && !context.closeObjectives.includes(turn.objective)) {
