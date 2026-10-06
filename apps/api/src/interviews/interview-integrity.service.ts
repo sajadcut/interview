@@ -199,7 +199,6 @@ export class InterviewIntegrityService {
         interpretation: "observable_signal_recorded" as const,
       };
     });
-  }
 
     if (
       eventType === "large_paste" &&
@@ -207,7 +206,10 @@ export class InterviewIntegrityService {
     ) {
       const counts = await this.database.sql`
         SELECT
-          count(*) FILTER (WHERE event_type='large_paste' AND COALESCE((metadata->>'characterCount')::int, 0) >= 300)::int AS large_paste_count,
+          count(*) FILTER (
+            WHERE event_type='large_paste'
+              AND COALESCE((metadata->>'characterCount')::int, 0) >= 300
+          )::int AS large_paste_count,
           count(*) FILTER (WHERE event_type='repeated_large_paste')::int AS repeated_marker_count
         FROM interview_integrity_events
         WHERE organization_id=${organizationId}::uuid
@@ -226,6 +228,7 @@ export class InterviewIntegrityService {
       }
     }
     return recorded;
+  }
 
   async recordServerEvent(input: {
     sessionId: string;
