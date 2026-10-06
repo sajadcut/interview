@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, apiErrorMessage } from "../../lib/api";
 import { formatFaDateTime } from "../../lib/i18n";
 import { formatFaDigits, formatFaNumber, formatFaPercent } from "../../lib/fa-numbers";
 import { isSoftSkillCriterion } from "../../lib/rubric-criteria";
@@ -33,10 +34,14 @@ export function InterviewReview({sessionId}:{sessionId:string}){
   const [error,setError]=useState<string|null>(null);
   const load=useCallback(async()=>{
     const current=identity??await resolveTenantIdentity(); if(!identity)setIdentity(current);
-    const response=await fetch(`/api/backend/v1/interviews/${encodeURIComponent(sessionId)}/review`,{credentials:"same-origin",cache:"no-store",headers:tenantHeaders(current)});
-    if(response.status===401){window.location.replace("/login");return}
-    if(!response.ok)throw new Error("نتیجه مصاحبه بارگذاری نشد");
-    setData(await response.json() as Review);
+    const request=await api.GET("/v1/interviews/{sessionId}/review",{
+      headers:tenantHeaders(current),
+      params:{path:{sessionId}},
+    });
+    const result=request as unknown as {data?:unknown;error?:unknown;response:Response};
+    if(result.response.status===401){window.location.replace("/login");return}
+    if(result.error||!result.data)throw new Error(apiErrorMessage(result,"نتیجه مصاحبه بارگذاری نشد"));
+    setData(result.data as Review);
   },[identity,sessionId]);
   useEffect(()=>{void load().catch(c=>setError(c instanceof Error?c.message:"نتیجه مصاحبه بارگذاری نشد"))},[load]);
   useEffect(()=>{if(!data||data.evaluations.some(x=>!x.evaluator_version.startsWith("human:")))return;const t=window.setInterval(()=>void load().catch(()=>undefined),5000);return()=>window.clearInterval(t)},[data,load]);
