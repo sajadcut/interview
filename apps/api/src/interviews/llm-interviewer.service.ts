@@ -13,7 +13,7 @@ import {
 export const LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1";
 export const LLM_INTERVIEWER_CAPABILITY_VERSION = "v2";
 export const LLM_INTERVIEWER_PROMPT_ID = "interview.conversational_next_turn";
-export const LLM_INTERVIEWER_PROMPT_VERSION = "v3";
+export const LLM_INTERVIEWER_PROMPT_VERSION = "v4";
 export const LLM_INTERVIEWER_SCHEMA_VERSION = "llm-interviewer.v1";
 
 export interface ConversationalCriterionContext {
