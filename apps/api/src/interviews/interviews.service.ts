@@ -213,7 +213,7 @@ export class InterviewsService {
   async getReview(sessionId: string) {
     const organizationId=this.tenantContext.require().organizationId;
     const sessions=await this.database.sql`
-      SELECT s.id,s.status,s.current_criterion_key,s.remaining_seconds,s.reconnect_count,s.started_at,s.completed_at,
+      SELECT s.id,s.status,s.application_id,s.current_criterion_key,s.remaining_seconds,s.reconnect_count,s.started_at,s.completed_at,
         p.id AS plan_id,p.version AS plan_version,p.language,p.interview_type,p.time_budget_minutes,p.rubric_version_id,
         r.lifecycle_stage,r.interviewer_policy_version,r.speech_avatar_stack_version,r.evaluator_version,a.candidate_id,a.job_id
       FROM interview_sessions s JOIN interview_plans p ON p.organization_id=s.organization_id AND p.id=s.interview_plan_id
@@ -275,6 +275,10 @@ export class InterviewsService {
       FROM evidence
       WHERE organization_id=${organizationId}::uuid
         AND candidate_id=${String(session.candidate_id)}::uuid
+        AND (
+          application_id IS NULL
+          OR application_id=${String(session.application_id)}::uuid
+        )
         AND (
           lower(source_type) LIKE '%resume%'
           OR lower(evidence_type) IN ('resume_claim','resume','cv_claim')
