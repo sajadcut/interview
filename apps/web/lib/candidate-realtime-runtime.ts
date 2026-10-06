@@ -27,7 +27,7 @@ export type CandidateRuntimeClock = {
 
 export type CandidateRuntimeSnapshot = {
   status: "active" | "completed";
-  lifecyclePhase: "introduction" | "active" | "candidate_question" | "closing" | "completed";
+  lifecyclePhase: "introduction" | "active" | "transition" | "candidate_question" | "closing" | "completed";
   openingTurn?: CandidateRuntimeTurn | undefined;
   sessionId: string;
   mediaSessionId: string;
@@ -50,7 +50,7 @@ export type CandidateRuntimeSnapshot = {
 
 export type CandidateRuntimeAnswer = {
   candidateText: string;
-  lifecyclePhase: "active" | "candidate_question" | "closing";
+  lifecyclePhase: "active" | "transition" | "candidate_question" | "closing";
   remainingSeconds: number;
   clock: CandidateRuntimeClock;
   completed: boolean;
