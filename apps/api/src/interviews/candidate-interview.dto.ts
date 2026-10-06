@@ -4,6 +4,10 @@ export class CandidateInterviewStartDto {
   @IsOptional()
   @IsBoolean()
   developmentPreview?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  clientInstanceId?: string;
 }
 
 export class CandidateInterviewTextAnswerDto {
