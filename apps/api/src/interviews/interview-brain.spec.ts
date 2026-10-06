@@ -56,12 +56,28 @@ test("brain starts with the first uncovered criterion and evidence-seeking turn"
   assert.match(decision.turn.spokenText, /Backend engineering/);
 });
 
-test("brain moves to the next criterion once evidence minimum is covered", () => {
+test("brain probes a first answer when evidence count is met but a concrete detail gap remains", () => {
   const input = baseInput();
   input.state.currentCriterion = "backend_depth";
   input.state.evidenceCoverage.backend_depth = 1;
   input.state.askedQuestionIds = ["backend_depth:ask:1"];
   input.latestCandidateText = "I diagnosed queue backpressure and changed retry behavior.";
+  input.candidateIntent = "ANSWER";
+
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.action, "probe");
+  assert.equal(decision.turn.criterion, "backend_depth");
+  assert.equal(decision.turnKind, "adaptive_follow_up");
+  assert.match(decision.reason, /choice_rationale/);
+});
+
+test("brain moves on when the first answer already contains ownership rationale trade-off and outcome", () => {
+  const input = baseInput();
+  input.state.currentCriterion = "backend_depth";
+  input.state.evidenceCoverage.backend_depth = 1;
+  input.state.askedQuestionIds = ["backend_depth:ask:1"];
+  input.latestCandidateText =
+    "I diagnosed queue backpressure, chose bounded retries instead of unbounded retries because duplicate load amplified failures, and p95 latency dropped from 420ms to 260ms.";
   input.candidateIntent = "ANSWER";
 
   const decision = decideInterviewTurn(input);
@@ -130,6 +146,22 @@ test("brain asks no new assessment question in the final minute", () => {
   assert.equal(decision.turnKind, "candidate_question");
   assert.equal(decision.nextState.remainingSeconds, 55);
   assert.match(decision.reason, /final minute/i);
+});
+
+test("brain turns a team-level Redis answer into an ownership probe", () => {
+  const input = baseInput();
+  input.state.currentCriterion = "backend_depth";
+  input.state.evidenceCoverage.backend_depth = 1;
+  input.state.askedQuestionIds = ["backend_depth:ask:1"];
+  input.latestCandidateText = "برای performance از Redis استفاده کردیم.";
+  input.candidateIntent = "ANSWER";
+  input.language = "fa";
+
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.action, "probe");
+  assert.equal(decision.turnKind, "adaptive_follow_up");
+  assert.match(decision.reason, /ownership/);
+  assert.match(decision.turn.spokenText, /شما شخصاً/);
 });
 
 test("brain validates an actual mapped resume claim instead of treating it as evidence", () => {
