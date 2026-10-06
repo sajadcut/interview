@@ -18,6 +18,7 @@ const HIGH_RISK_READ_PERMISSIONS = new Set<Permission>([
   Permissions.OrganizationManage,
   Permissions.OrganizationManageUsers,
   Permissions.IntegrationManage,
+  Permissions.InterviewIntegrityView,
 ]);
 
 export function shouldAuditPermissionGrant(
