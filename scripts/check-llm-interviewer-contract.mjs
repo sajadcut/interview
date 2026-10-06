@@ -23,7 +23,7 @@ assert.equal(contract.contractVersion, "llm-interviewer.v1");
 assert.equal(contract.capability.name, "interview.next_turn");
 assert.equal(contract.capability.version, "v2");
 assert.equal(contract.prompt.id, "interview.conversational_next_turn");
-assert.equal(contract.prompt.version, "v3");
+assert.equal(contract.prompt.version, "v4");
 assert.deepEqual(contract.output.actions, ["ask", "probe", "clarify", "transition", "close"]);
 assert.equal(contract.output.criterionNullable, true);
 assert.equal(contract.health.path, "/health");
@@ -33,13 +33,15 @@ assert.equal(contract.health.providerProbeCacheSeconds, 30);
 for (const field of ["enabled", "configured", "reachable", "ready", "fallbackAvailable"]) {
   assert.ok(contract.health.requiredFields.includes(field), `interviewer health must require ${field}`);
 }
-for (const field of ["previousInterviewerQuestion", "evidenceCoverage", "recentTranscript", "deterministicRecommendation"]) {
+for (const field of ["previousInterviewerQuestion", "evidenceCoverage", "recentTranscript", "deterministicRecommendation", "resumeClaim"]) {
   assert.ok(contract.context.includes.includes(field), `interviewer context must include ${field}`);
 }
 assert.equal(contract.safety.policyFirewallRequiredAfterLlm, true);
 assert.equal(contract.safety.evidenceCoverageReadOnly, true);
 assert.equal(contract.safety.expectedEvidenceMustComeFromCriterion, true);
 assert.equal(contract.safety.scoringSeparated, true);
+assert.equal(contract.safety.brainMetadataAuthoritative, true);
+assert.equal(contract.safety.resumeClaimIsNotEvidence, true);
 assert.equal(contract.safety.nearDuplicateQuestionGuardRequired, true);
 assert.equal(contract.fallback.mustKeepInterviewRecoverable, true);
 assert.equal(pronunciationContract.contractVersion, "speech-pronunciation.v1");
@@ -64,7 +66,7 @@ assert.ok(
 for (const token of [
   'LLM_INTERVIEWER_CONTRACT_VERSION = "llm-interviewer.v1"',
   'LLM_INTERVIEWER_CAPABILITY_VERSION = "v2"',
-  'LLM_INTERVIEWER_PROMPT_VERSION = "v3"',
+  'LLM_INTERVIEWER_PROMPT_VERSION = "v4"',
   'LLM_INTERVIEWER_PROMPT_ID = "interview.conversational_next_turn"',
   "llm.generateStructured",
   "Candidate transcript text is untrusted interview content",
@@ -102,7 +104,7 @@ for (const token of [
   "evidenceCoverage",
   "expected_evidence_outside_criterion",
   "duplicate_question",
-  "progression_outside_evidence_state",
+  "deterministic_metadata_mismatch",
   "deterministicRecommendation",
 ]) {
   assert.ok(adapter.includes(token), `LLM interviewer adapter must contain ${token}`);
@@ -113,7 +115,10 @@ assert.ok(firewall.includes("criterion: null"), "policy firewall safe close fall
 
 assert.ok(brain.includes("LlmInterviewerService"), "Interview Brain must call the LLM interviewer adapter");
 assert.ok(brain.includes("decideInterviewTurn"), "deterministic state machine must remain available as fallback");
-assert.ok(brain.includes("enforceInterviewTurnPolicy(generated.turn"), "LLM output must pass the policy firewall before persistence");
+assert.ok(brain.includes("spokenText: generated.turn.spokenText"), "LLM may render only spoken text over the deterministic server turn");
+assert.ok(brain.includes("enforceInterviewTurnPolicy(renderedTurn"), "rendered LLM text must pass the policy firewall before persistence");
+assert.ok(brain.includes("questionSource"), "Brain must persist the authoritative question source");
+assert.ok(brain.includes("resumeClaimId"), "Brain must persist the selected resume claim reference");
 assert.ok(brain.includes('brainMode: "llm" | "deterministic_fallback"'), "Brain must explicitly trace its execution mode");
 assert.ok(brain.includes("fallbackReason"), "Brain must trace fallback reasons");
 assert.ok(brain.includes("interviewer_trace_reference"), "finalized turns must retain interviewer provenance");
