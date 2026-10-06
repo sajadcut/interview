@@ -146,6 +146,7 @@ test("TTS readiness touches only the configured TTS endpoint even when other rea
           reachable: true,
           ready: true,
           contractVersion: TTS_CONTRACT_VERSION,
+          provider: "local-command",
         });
         assert.deepEqual(urls, ["http://127.0.0.1:9020/health"]);
       } finally {
