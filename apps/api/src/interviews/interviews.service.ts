@@ -181,10 +181,13 @@ export class InterviewsService {
     const organizationId=this.tenantContext.require().organizationId;
     return this.database.sql.begin(async (tx) => {
       const segments=await tx`
-        SELECT id::text,speaker,is_final FROM interview_transcript_segments
+        SELECT id::text,speaker,is_final,lifecycle_role FROM interview_transcript_segments
         WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid AND id=ANY(${segmentIds}::uuid[])`;
       if (segments.length!==segmentIds.length) throw new Error("All transcript anchors must belong to the same tenant and interview session");
       if (segments.some((row)=>row.is_final!==true)) throw new Error("Only finalized transcript segments may anchor evaluation evidence");
+      if (segments.some((row)=>String(row.lifecycle_role ?? "interview")!=="interview")) {
+        throw new Error("Only active interview transcript segments may anchor evaluation evidence");
+      }
       if (typeof value.turnId === "string") {
         const turn=await tx`SELECT id FROM interview_turns WHERE organization_id=${organizationId}::uuid AND interview_session_id=${sessionId}::uuid AND id=${value.turnId}::uuid LIMIT 1`;
         if (!turn[0]) throw new Error("turnId does not belong to the interview session");
