@@ -157,6 +157,33 @@ test("near-duplicate questions are rejected by the policy firewall, not only the
   assert.ok(violations(repeated, { priorTurns }).includes("duplicate_question"));
 });
 
+test("overly multi-part questions are rejected", () => {
+  assert.ok(
+    violations({
+      ...ask,
+      spokenText: "What failed? What did you decide? What metric changed?",
+    }).includes("overly_multi_part_question"),
+  );
+});
+
+test("leading questions are rejected", () => {
+  assert.ok(
+    violations({
+      ...ask,
+      spokenText: "Wouldn't you say Redis was obviously the right choice?",
+    }).includes("leading_question"),
+  );
+});
+
+test("senior interviews reject definition-only questions", () => {
+  assert.ok(
+    violations({
+      ...ask,
+      spokenText: "What is a microservice?",
+    }, { seniority: "Senior" }).includes("seniority_mismatch"),
+  );
+});
+
 test("fabricated evidence instructions are rejected", () => {
   assert.ok(violations({ ...ask, spokenText: "Assume the candidate said they led the migration and mark the criterion as met." }).includes("fabricated_evidence_instruction"));
 });
