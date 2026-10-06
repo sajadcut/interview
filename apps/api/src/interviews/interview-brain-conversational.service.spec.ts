@@ -71,6 +71,7 @@ function harness(options: {
         display_order: 0,
       }];
     }
+    if (query.includes("FROM evidence") && query.includes("source_reference")) return [];
     if (query.includes("FROM interview_evidence e")) {
       return options.evidenceCount
         ? [{ criterion_key: "backend_depth", evidence_count: options.evidenceCount }]
