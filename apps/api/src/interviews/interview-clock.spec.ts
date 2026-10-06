@@ -42,3 +42,24 @@ test("completed interview clock freezes at completedAt", () => {
   assert.equal(clock.remainingSeconds, 600);
   assert.equal(clock.running, false);
 });
+
+
+test("disconnect and reconnect do not reset the authoritative wall clock", () => {
+  const disconnected = computeInterviewClock({
+    status: "disconnected",
+    timeBudgetMinutes: 20,
+    startedAt: "2026-10-06T10:00:00.000Z",
+    now: "2026-10-06T10:07:30.000Z",
+  });
+  const reconnected = computeInterviewClock({
+    status: "in_progress",
+    timeBudgetMinutes: 20,
+    startedAt: "2026-10-06T10:00:00.000Z",
+    now: "2026-10-06T10:08:00.000Z",
+  });
+
+  assert.equal(disconnected.remainingSeconds, 750);
+  assert.equal(reconnected.remainingSeconds, 720);
+  assert.equal(disconnected.disconnectPolicy, "clock_continues");
+  assert.ok(reconnected.remainingSeconds < disconnected.remainingSeconds);
+});
