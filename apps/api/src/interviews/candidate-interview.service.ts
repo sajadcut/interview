@@ -778,7 +778,9 @@ export class CandidateInterviewService {
       isFinal: true,
       lifecycleRole: candidateLifecycleRole,
     });
+    const candidateIntent = detectCandidateIntent(candidateText, question?.turnKind);
     if (
+      candidateIntent === "ANSWER" &&
       question?.criterionId &&
       question.criterionKey &&
       ["planned_criterion", "resume_validation", "adaptive_follow_up"].includes(question.turnKind) &&
@@ -793,7 +795,6 @@ export class CandidateInterviewService {
       });
     }
 
-    const candidateIntent = detectCandidateIntent(candidateText, question?.turnKind);
     const nextTurn = await this.brain.nextTurn(sessionId, {
       latestCandidateText: candidateText,
       candidateIntent,
