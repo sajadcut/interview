@@ -119,6 +119,8 @@ for (const marker of [
   "SILENCE_TO_SUBMIT_MS",
   "encodePcm16Wav",
   "playTurn",
+  "تغییر موضوع / روشن‌سازی",
+  "جمع‌بندی و فرصت سؤال شما",
   "Replay question",
   "Answer by voice",
   "Or type your answer here",
@@ -141,6 +143,7 @@ for (const marker of [
 
 for (const marker of [
   'from "livekit-client"',
+  '"transition"',
   'const candidateApi = "/api/candidate-interview"',
   "RoomEvent.TrackSubscribed",
   "Track.Source.Microphone",
@@ -184,6 +187,7 @@ for (const marker of [
 for (const marker of [
   "CandidateSessionService",
   "CandidateConsentService",
+  "candidateLifecyclePhaseForTurnKind",
   "transcribeAuthenticatedCandidateAudio",
   "synthesizeAuthenticatedCandidateTurn",
   "candidateIsRealCustomerCandidate",
