@@ -425,11 +425,22 @@ export class CandidateInterviewService {
           : (await this.media.createMediaSession(sessionId, "audio")).id;
       const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
       const turn = await this.currentOrFirstTurn(sessionId);
-      const runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
+      let runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
+      let evaluationJob: { id: string; status: string } | undefined;
+      if (turn.action === "close") {
+        const finished = await this.finishCandidateInterview(
+          scope,
+          sessionId,
+          activeMediaSessionId,
+          "brain_close",
+        );
+        runtime = finished;
+        evaluationJob = finished.evaluationJob;
+      }
       const messages = await this.transcript(sessionId);
 
       return {
-        status: turn.action === "close" ? "completed" : "active",
+        status: runtime.status === "completed" || turn.action === "close" ? "completed" : "active",
         sessionId,
         mediaSessionId: activeMediaSessionId,
         remainingSeconds: runtime.remainingSeconds,
@@ -449,6 +460,7 @@ export class CandidateInterviewService {
         },
         transcript: messages,
         connection,
+        ...(evaluationJob ? { evaluationJob } : {}),
         privacy: {
           rawMediaPersisted: false,
           candidateVideoAnalysis: "none",
@@ -805,6 +817,13 @@ export class CandidateInterviewService {
         throw new BadRequestException("clientOccurredAt is invalid");
       }
       return this.database.sql.begin(async (tx) => {
+        await tx`
+          SELECT id
+          FROM interview_sessions
+          WHERE organization_id = ${scope.organizationId}::uuid
+            AND id = ${sessionId}::uuid
+          FOR UPDATE
+        `;
         const sequenceRows = await tx`
           SELECT COALESCE(max(sequence), -1)::int + 1 AS next_sequence
           FROM interview_integrity_events

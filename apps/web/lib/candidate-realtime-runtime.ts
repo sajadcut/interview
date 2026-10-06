@@ -144,6 +144,16 @@ class CandidateBrowserRealtimeRuntime {
   async connect(input: { stream: MediaStream; audioOnly: boolean }): Promise<CandidateRuntimeSnapshot> {
     const started = await this.startServerRuntime();
     await this.room?.disconnect().catch(() => undefined);
+    this.room = null;
+
+    if (started.status === "completed") {
+      const { connection: _connection, developmentPreview: _preview, ...snapshot } = started;
+      void _connection;
+      void _preview;
+      this.snapshot = snapshot;
+      this.emit({ type: "snapshot", snapshot });
+      return snapshot;
+    }
 
     const room = new Room({ adaptiveStream: true, dynacast: true });
     this.attachRoomEvents(room);
