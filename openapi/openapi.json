@@ -3804,6 +3804,85 @@
         ]
       }
     },
+    "/v1/interviews/{sessionId}/integrity": {
+      "get": {
+        "operationId": "InterviewsController_getIntegrity",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/integrity/events": {
+      "get": {
+        "operationId": "InterviewsController_getIntegrityEvents",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
+    "/v1/interviews/{sessionId}/integrity/review": {
+      "post": {
+        "operationId": "InterviewsController_reviewIntegrity",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InterviewIntegrityReviewInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
     "/v1/interview-release-units/{releaseUnitId}/preflight": {
       "post": {
         "operationId": "InterviewsController_preflightRelease",
@@ -11668,6 +11747,28 @@
           "id",
           "sourceKind",
           "createdAt"
+        ]
+      },
+      "InterviewIntegrityReviewInputDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "reviewed_no_concern",
+              "reviewed_concern",
+              "inconclusive"
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "status",
+          "comment"
         ]
       },
       "InterviewReviewTaskDto": {
