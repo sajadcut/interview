@@ -9,7 +9,6 @@ type CandidateSpeaker = "candidate" | "interviewer";
 export type CandidateRuntimeTurn = {
   id: string;
   action: string;
-  criterion: string | null;
   spokenText: string;
 };
 
@@ -28,6 +27,8 @@ export type CandidateRuntimeClock = {
 
 export type CandidateRuntimeSnapshot = {
   status: "active" | "completed";
+  lifecyclePhase: "introduction" | "active" | "candidate_question" | "closing" | "completed";
+  openingTurn?: CandidateRuntimeTurn;
   sessionId: string;
   mediaSessionId: string;
   remainingSeconds: number;
@@ -49,6 +50,7 @@ export type CandidateRuntimeSnapshot = {
 
 export type CandidateRuntimeAnswer = {
   candidateText: string;
+  lifecyclePhase: "active" | "candidate_question" | "closing";
   remainingSeconds: number;
   clock: CandidateRuntimeClock;
   completed: boolean;
@@ -227,6 +229,8 @@ class CandidateBrowserRealtimeRuntime {
     this.snapshot = {
       ...snapshot,
       status: result.completed ? "completed" : "active",
+      lifecyclePhase: result.completed ? "completed" : result.lifecyclePhase,
+      openingTurn: undefined,
       remainingSeconds: result.remainingSeconds,
       clock: result.clock,
       turn: result.turn,
@@ -240,10 +244,10 @@ class CandidateBrowserRealtimeRuntime {
     return result;
   }
 
-  async sync(): Promise<Pick<CandidateRuntimeSnapshot, "status" | "sessionId" | "remainingSeconds" | "clock" | "turn">> {
+  async sync(): Promise<Pick<CandidateRuntimeSnapshot, "status" | "lifecyclePhase" | "sessionId" | "remainingSeconds" | "clock" | "turn">> {
     const snapshot = this.snapshot;
     if (!snapshot) throw new Error("Candidate interview runtime is not connected");
-    const result = await readJson<Pick<CandidateRuntimeSnapshot, "status" | "sessionId" | "remainingSeconds" | "clock" | "turn">>(
+    const result = await readJson<Pick<CandidateRuntimeSnapshot, "status" | "lifecyclePhase" | "sessionId" | "remainingSeconds" | "clock" | "turn">>(
       await fetch(
         `${candidateApi}/sessions/${encodeURIComponent(snapshot.sessionId)}/media/${encodeURIComponent(snapshot.mediaSessionId)}/status`,
         { method: "GET", credentials: "same-origin", cache: "no-store" },
@@ -252,6 +256,8 @@ class CandidateBrowserRealtimeRuntime {
     this.snapshot = {
       ...snapshot,
       status: result.status,
+      lifecyclePhase: result.status === "completed" ? "completed" : result.lifecyclePhase,
+      openingTurn: undefined,
       remainingSeconds: result.remainingSeconds,
       clock: result.clock,
       turn: result.turn,
@@ -298,6 +304,8 @@ class CandidateBrowserRealtimeRuntime {
       this.snapshot = {
         ...snapshot,
         status: result.completed ? "completed" : "active",
+        lifecyclePhase: result.completed ? "completed" : result.lifecyclePhase!,
+        openingTurn: undefined,
         remainingSeconds: result.remainingSeconds,
         clock: result.clock!,
         turn: result.turn,
