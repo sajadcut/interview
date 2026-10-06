@@ -24,7 +24,7 @@ function actorId(auth: AuthContextService): string {
   return userId;
 }
 
-const SOFT_SKILL_PATTERN = /(communication|collaboration|teamwork|ownership|problem[_ -]?solving|ambiguity|stakeholder|leadership|ارتباط|همکاری|تیمی|مالکیت|مسئولیت|حل مسئله|ابهام)/i;
+const SOFT_SKILL_PATTERN = /(communication|collaboration|teamwork|ownership|problem[_ -]?solving|ambiguity|stakeholder|leadership|decision[_ -]?making|trade[_ -]?off|reasoning|ارتباط|ذی.?نفع|همکاری|تیمی|مالکیت|مسئولیت|حل مسئله|ابهام|تصمیم|بده.?بستان|موازنه)/i;
 
 function criterionEvidencePolicy(criterion: { criterionKey: string; label: string }) {
   const category = SOFT_SKILL_PATTERN.test(`${criterion.criterionKey} ${criterion.label}`)
