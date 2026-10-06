@@ -407,7 +407,7 @@ test("transition turns stay in interview transcript while exposing a transition 
   const result = await service.answerText("candidate-token", {
     sessionId: interviewSessionId,
     mediaSessionId,
-    text: "لطفاً سؤال را کمی روشن‌تر توضیح بدهید",
+    text: "لطفاً سؤال را توضیح دهید",
   });
 
   assert.equal(result.lifecyclePhase, "transition");
