@@ -316,7 +316,10 @@ export function analyzeInterviewIntegrity(events: IntegrityEvent[]): IntegrityAs
       : materialSignals.length >= 2
         ? "medium"
         : "low";
-  const requiresHumanReview = riskLevel === "medium" || riskLevel === "high";
+  const requiresHumanReview =
+    riskLevel === "medium" ||
+    riskLevel === "high" ||
+    materialSignals.some((signal) => signal.severity === "high");
 
   const summary =
     riskLevel === "none"
