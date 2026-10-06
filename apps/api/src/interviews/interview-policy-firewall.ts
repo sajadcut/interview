@@ -11,7 +11,7 @@ import {
   type InterviewSpokenLanguage,
 } from "./interview-language";
 
-export const INTERVIEW_POLICY_FIREWALL_VERSION = "interview-policy-firewall-v2";
+export const INTERVIEW_POLICY_FIREWALL_VERSION = "interview-policy-firewall-v3";
 
 export interface InterviewPolicyCriterion {
   key: string;
@@ -33,6 +33,7 @@ export interface InterviewPolicyContext {
   candidateIntent: CandidateIntent | null;
   latestCandidateText?: string;
   language?: InterviewSpokenLanguage;
+  seniority?: string;
 }
 
 export interface InterviewPolicyResult {
@@ -63,6 +64,10 @@ const OPERATIONAL_OBJECTIVES = new Set([
   "end_session_without_configured_criteria",
   "enforce_abuse_boundary",
   "policy_violation_human_review",
+  "candidate_question_opportunity",
+  "final_goodbye",
+  "interview_introduction",
+  "approved_candidate_question_answer",
 ]);
 
 const CONTROL_LEAK_PATTERNS = [
@@ -226,8 +231,34 @@ export function interviewTurnPolicyViolations(
     violations.push("objective_outside_interview_plan");
   }
 
-  if (context.remainingSeconds <= 60 && turn.action !== "close") {
+  if (
+    context.remainingSeconds <= 60 &&
+    turn.action !== "close" &&
+    !(turn.action === "escalate" && turn.objective === "candidate_question_opportunity")
+  ) {
     violations.push("time_budget_exhausted");
+  }
+
+  if (evidenceSeeking) {
+    const questionMarks = (turn.spokenText.match(/[?؟]/g) ?? []).length;
+    if (questionMarks > 2) violations.push("overly_multi_part_question");
+    if (
+      /\b(?:tell me about yourself|what is|define|give me the definition of)\b/i.test(turn.spokenText) ||
+      /(?:درباره خودتان بگویید|تعریف(?: کنید| چیست)|چیست[؟?]?$)/i.test(turn.spokenText)
+    ) {
+      violations.push("overly_general_question");
+    }
+    if (
+      /\b(?:don't you agree|wouldn't you say|isn't it true|obviously)\b/i.test(turn.spokenText) ||
+      /(?:موافق نیستید که|درست است که|واضح است که|پس حتما)/i.test(turn.spokenText)
+    ) {
+      violations.push("leading_question");
+    }
+    const senior = /senior|lead|staff|principal|ارشد|لید|رهبر/i.test(context.seniority ?? "");
+    const concrete = /decision|trade.?off|production|incident|scale|failure|debug|outcome|تصمیم|بده.?بستان|محیط تولید|رخداد|مقیاس|شکست|عیب.?یابی|نتیجه/i.test(turn.spokenText);
+    if (senior && /\b(?:what is|define|explain the definition)\b|(?:چیست|تعریف کنید)/i.test(turn.spokenText) && !concrete) {
+      violations.push("seniority_mismatch");
+    }
   }
 
   const spoken = normalizedText(turn.spokenText);
