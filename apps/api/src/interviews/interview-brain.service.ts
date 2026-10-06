@@ -5,6 +5,7 @@ import { CandidateIntents, type CandidateIntent, type StructuredInterviewTurn } 
 import {
   decideInterviewTurn,
   type InterviewBrainCriterion,
+  type InterviewBrainResumeClaim,
   type InterviewBrainState,
 } from "./interview-brain";
 import { computeInterviewClock } from "./interview-clock";
@@ -23,8 +24,8 @@ import {
 } from "./interview-policy-firewall";
 import { evaluateInterviewRelease, parseInterviewLifecycleStage } from "./interview-release.policy";
 
-const BRAIN_VERSION = "llm-conversational-orchestrator-v1";
-const DETERMINISTIC_FALLBACK_VERSION = "deterministic-state-machine-v1";
+const BRAIN_VERSION = "llm-conversational-orchestrator-v2";
+const DETERMINISTIC_FALLBACK_VERSION = "deterministic-state-machine-v2";
 const DEFAULT_HISTORY_TURNS = 8;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -53,6 +54,147 @@ function boundedInteger(value: string | undefined, fallback: number, minimum: nu
 function boundedText(value: unknown, maximum: number): string {
   const text = typeof value === "string" ? value.trim() : "";
   return text.length <= maximum ? text : `${text.slice(0, Math.max(0, maximum - 1))}…`;
+}
+
+function normalizedTerms(value: unknown): Set<string> {
+  const text = typeof value === "string" ? value : "";
+  return new Set(
+    text
+      .toLocaleLowerCase()
+      .normalize("NFKC")
+      .replace(/[^\p{L}\p{N}+#.]+/gu, " ")
+      .split(/\s+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 2),
+  );
+}
+
+function termOverlap(left: unknown, right: unknown): number {
+  const a = normalizedTerms(left);
+  const b = normalizedTerms(right);
+  let score = 0;
+  for (const token of a) if (b.has(token)) score += 1;
+  return score;
+}
+
+function resumeClaimType(text: string, metadata: Record<string, unknown>): string {
+  const sourceType = typeof metadata.claimType === "string" ? metadata.claimType : "";
+  const value = `${sourceType} ${text}`;
+  if (/security|oauth|oidc|auth|امنیت|احراز هویت/i.test(value)) return "security";
+  if (/database|sql|postgres|oracle|entity framework|ef core|دیتابیس|پایگاه داده/i.test(value)) return "database";
+  if (/aws|azure|cloud|kubernetes|docker|devops|ci\/?cd|ابر|دواپس/i.test(value)) return "cloud_devops";
+  if (/architect|microservice|distributed|معماری|مایکروسرویس|توزیع/i.test(value)) return "architecture";
+  if (/performance|latency|throughput|scale|traffic|cache|redis|کارایی|مقیاس|ترافیک/i.test(value)) return "scale_performance";
+  if (/lead|mentor|owner|manager|رهبری|منتور|مالکیت|مسئول/i.test(value)) return "leadership_ownership";
+  if (/\b(?:senior|staff|principal|lead)\b|ارشد/i.test(value)) return "seniority";
+  if (/\d+(?:[.,]\d+)?\s*(?:%|x|ms|s|sec|rps|tps|k|m|میلیون|هزار)/i.test(value)) return "measurable_achievement";
+  if (sourceType === "experience" || /project|پروژه/i.test(value)) return "project";
+  if (sourceType === "skill") return "skill";
+  return "technology";
+}
+
+function resumeClaimImportance(claimType: string, text: string): number {
+  const base: Record<string, number> = {
+    measurable_achievement: 10,
+    architecture: 9,
+    scale_performance: 9,
+    security: 8,
+    leadership_ownership: 8,
+    database: 7,
+    cloud_devops: 7,
+    seniority: 7,
+    project: 6,
+    technology: 5,
+    skill: 5,
+  };
+  return Math.min(
+    10,
+    (base[claimType] ?? 5) + (/\d+(?:[.,]\d+)?\s*(?:%|x|ms|rps|tps|k|m)/i.test(text) ? 1 : 0),
+  );
+}
+
+function criterionCategoryMatch(claimType: string, criterion: InterviewBrainCriterion): number {
+  const value = `${criterion.key} ${criterion.label} ${criterion.objective}`;
+  const patterns: Record<string, RegExp> = {
+    architecture: /architect|system.?design|distributed|معماری|طراحی سیستم|توزیع/i,
+    scale_performance: /performance|scale|cache|redis|کارایی|مقیاس|کش/i,
+    security: /security|auth|امنیت|احراز/i,
+    database: /database|sql|data|ef|orm|دیتابیس|پایگاه داده|داده/i,
+    cloud_devops: /cloud|devops|ci|cd|docker|kubernetes|ابر|دواپس/i,
+    leadership_ownership: /ownership|lead|collaboration|team|مالکیت|رهبری|همکاری|تیم/i,
+    seniority: /senior|ownership|decision|ارشد|مالکیت|تصمیم/i,
+    project: /backend|delivery|system|project|بک.?اند|سیستم|پروژه/i,
+    technology: /backend|technical|technology|بک.?اند|فنی|تکنولوژی/i,
+    skill: /backend|technical|technology|dotnet|c#|asp|بک.?اند|فنی|دات.?نت/i,
+    measurable_achievement: /performance|scale|delivery|ownership|کارایی|مقیاس|نتیجه|مالکیت/i,
+  };
+  return patterns[claimType]?.test(value) ? 4 : 0;
+}
+
+function matchResumeClaim(
+  claimType: string,
+  text: string,
+  criteria: InterviewBrainCriterion[],
+): string | null {
+  let best: { key: string; score: number } | null = null;
+  for (const criterion of criteria) {
+    const haystack = [
+      criterion.key,
+      criterion.label,
+      criterion.objective,
+      ...criterion.expectedEvidence,
+    ].join(" ");
+    const score = termOverlap(text, haystack) + criterionCategoryMatch(claimType, criterion);
+    if (!best || score > best.score) best = { key: criterion.key, score };
+  }
+  return best && best.score > 0 ? best.key : null;
+}
+
+function criterionUsesJobRequirement(
+  criterion: InterviewBrainCriterion,
+  requirements: Array<Record<string, unknown>>,
+): boolean {
+  const criterionText = [criterion.key, criterion.label, criterion.objective, ...criterion.expectedEvidence].join(" ");
+  return requirements.some((row) =>
+    termOverlap(criterionText, `${String(row.name ?? "")} ${String(row.description ?? "")}`) > 0,
+  );
+}
+
+function approvedCandidateQuestionAnswer(input: {
+  language: string;
+  text: string;
+  jobTitle: unknown;
+  jobDepartment: unknown;
+  jobSummary: unknown;
+  requirements: Array<Record<string, unknown>>;
+}): string | null {
+  const text = input.text.trim();
+  if (!text || !/[?؟]|\b(?:what|which|how|where|when)\b|(?:چی|چه|چطور|کجا|کی|آیا)/i.test(text)) return null;
+  const fa = normalizeInterviewSpokenLanguage(input.language) === "fa";
+  const title = boundedText(input.jobTitle, 240);
+  const department = boundedText(input.jobDepartment, 160);
+  const summary = boundedText(input.jobSummary, 700);
+  const requirementNames = input.requirements.slice(0, 8).map((row) => boundedText(row.name, 120)).filter(Boolean);
+
+  if (/role|position|job|responsibilit|موقعیت|نقش|شغل|مسئولیت/i.test(text)) {
+    const details = [title, summary].filter(Boolean).join(" — ");
+    return fa
+      ? `بر اساس اطلاعات تأییدشدهٔ همین موقعیت، این مصاحبه برای «${details || title}» است.`
+      : `Based on the approved job information, this interview is for “${details || title}”.`;
+  }
+  if (/requirement|skill|technology|tech stack|نیازمندی|مهارت|تکنولوژی|فناوری/i.test(text) && requirementNames.length) {
+    return fa
+      ? `نیازمندی‌های ثبت‌شدهٔ این موقعیت شامل ${requirementNames.join("، ")} است.`
+      : `The approved job requirements include ${requirementNames.join(", ")}.`;
+  }
+  if (/department|team|دپارتمان|تیم/i.test(text) && department) {
+    return fa
+      ? `دپارتمان ثبت‌شده برای این موقعیت «${department}» است.`
+      : `The approved department for this role is “${department}”.`;
+  }
+  return fa
+    ? "برای پاسخ دقیق به این سؤال، اطلاعات تأییدشدهٔ کافی در پروندهٔ این موقعیت ندارم؛ تیم استخدام می‌تواند جزئیات را اعلام کند."
+    : "I do not have enough approved recruiting information to answer that accurately; the hiring team can provide the details.";
 }
 
 function strategyForCriterion(
@@ -153,6 +295,8 @@ export class InterviewBrainService {
           s.completed_at,
           s.reconnect_count,
           s.checkpoint,
+          s.application_id,
+          a.candidate_id,
           p.job_id,
           p.rubric_version_id,
           p.version AS plan_version,
@@ -171,6 +315,8 @@ export class InterviewBrainService {
         FROM interview_sessions s
         JOIN interview_plans p
           ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+        JOIN applications a
+          ON a.organization_id = s.organization_id AND a.id = s.application_id
         JOIN jobs j
           ON j.organization_id = p.organization_id AND j.id = p.job_id
         JOIN interview_release_units r
@@ -205,18 +351,24 @@ export class InterviewBrainService {
         );
       }
 
+      const requirements = await transaction`
+        SELECT requirement_type, name, description, weight
+        FROM job_requirements
+        WHERE organization_id = ${organizationId}::uuid
+          AND job_id = ${String(session?.job_id)}::uuid
+        ORDER BY weight DESC, created_at
+        LIMIT 24
+      `;
       const criterionRows = await transaction`
-        SELECT criterion_key, label, description, evidence_policy, display_order
+        SELECT criterion_key, label, description, evidence_policy, display_order, weight, required
         FROM rubric_criteria
         WHERE organization_id = ${organizationId}::uuid
           AND rubric_version_id = ${String(session?.rubric_version_id)}::uuid
-          AND required = true
         ORDER BY display_order, criterion_key
       `;
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
-        .filter((row) => requiredKeys.size === 0 || requiredKeys.has(String(row.criterion_key)))
         .map((row) => {
           const key = String(row.criterion_key);
           const strategy = strategyForCriterion(questionStrategy, key);
@@ -241,8 +393,54 @@ export class InterviewBrainService {
                 ? expectedEvidence
                 : [description || `Concrete job-relevant evidence for ${label}`],
             minimumEvidence: positiveInteger(evidencePolicy.minimumEvidence, 1),
+            required: requiredKeys.size > 0
+              ? requiredKeys.has(key) || Boolean(row.required)
+              : Boolean(row.required),
+            weight: Math.max(0, Number(row.weight ?? 1)),
+            priority: typeof strategy.priority === "number" && Number.isFinite(strategy.priority)
+              ? Number(strategy.priority)
+              : 0,
+            baseSource: "rubric",
           };
-        });
+        })
+        .map((criterion) => ({
+          ...criterion,
+          baseSource: criterionUsesJobRequirement(criterion, requirements)
+            ? "job_requirement" as const
+            : "rubric" as const,
+        }));
+
+      const resumeClaimRows = await transaction`
+        SELECT id::text, source_reference, excerpt, metadata
+        FROM evidence
+        WHERE organization_id = ${organizationId}::uuid
+          AND candidate_id = ${String(session?.candidate_id)}::uuid
+          AND (
+            application_id IS NULL
+            OR application_id = ${String(session?.application_id)}::uuid
+          )
+          AND (
+            lower(source_type) LIKE '%resume%'
+            OR lower(evidence_type) IN ('resume_claim', 'resume', 'cv_claim')
+          )
+        ORDER BY created_at DESC
+        LIMIT 60
+      `;
+      const resumeClaims: InterviewBrainResumeClaim[] = resumeClaimRows
+        .map((row) => {
+          const text = boundedText(row.excerpt, 1200);
+          const metadata = asRecord(row.metadata);
+          const claimType = resumeClaimType(text, metadata);
+          return {
+            id: String(row.id),
+            claimType,
+            text,
+            importance: resumeClaimImportance(claimType, text),
+            status: "unverified" as const,
+            matchedCriterionKey: matchResumeClaim(claimType, text, criteria),
+          };
+        })
+        .filter((claim) => claim.text && claim.matchedCriterionKey);
 
       const evidenceRows = await transaction`
         SELECT rc.criterion_key, count(*)::int AS evidence_count
@@ -257,7 +455,8 @@ export class InterviewBrainService {
       for (const row of evidenceRows) evidenceCoverage[String(row.criterion_key)] = Number(row.evidence_count ?? 0);
 
       const priorTurnRows = await transaction`
-        SELECT sequence, criterion_key, action, objective, spoken_text
+        SELECT sequence, criterion_key, action, objective, spoken_text,
+               turn_kind, question_source, resume_claim_id::text
         FROM interview_turns
         WHERE organization_id = ${organizationId}::uuid
           AND interview_session_id = ${sessionId}::uuid
@@ -272,12 +471,28 @@ export class InterviewBrainService {
         startedAt: session?.started_at ? String(session.started_at) : null,
         completedAt: session?.completed_at ? String(session.completed_at) : null,
       });
+      const questionCountByCriterion: Record<string, number> = {};
+      const askedResumeClaimIds: string[] = [];
+      for (const row of priorTurnRows) {
+        const key = row.criterion_key ? String(row.criterion_key) : null;
+        if (key && ["ask", "probe"].includes(String(row.action))) {
+          questionCountByCriterion[key] = (questionCountByCriterion[key] ?? 0) + 1;
+        }
+        if (row.resume_claim_id) askedResumeClaimIds.push(String(row.resume_claim_id));
+      }
+      const lastTurn = priorTurnRows[priorTurnRows.length - 1];
       const state: InterviewBrainState = {
         currentCriterion: session?.current_criterion_key ? String(session.current_criterion_key) : null,
         askedQuestionIds,
         evidenceCoverage,
         remainingSeconds: clock.remainingSeconds,
         reconnectCount: Math.max(0, Number(session?.reconnect_count ?? 0)),
+        questionCountByCriterion,
+        askedResumeClaimIds,
+        resumeClaims,
+        closingStage: String(lastTurn?.turn_kind ?? "") === "candidate_question"
+          ? "candidate_question"
+          : "interview",
       };
 
       const deterministic = decideInterviewTurn({
@@ -287,6 +502,14 @@ export class InterviewBrainService {
         candidateIntent,
         elapsedSeconds: 0,
         language,
+        approvedCandidateQuestionAnswer: approvedCandidateQuestionAnswer({
+          language,
+          text: latestCandidateText,
+          jobTitle: session?.job_title,
+          jobDepartment: session?.job_department,
+          jobSummary: session?.job_summary,
+          requirements,
+        }),
       });
       const sequence = priorTurnRows.length
         ? Number(priorTurnRows[priorTurnRows.length - 1]?.sequence ?? -1) + 1
@@ -304,6 +527,7 @@ export class InterviewBrainService {
         candidateIntent,
         latestCandidateText,
         language,
+        seniority: session?.job_seniority ? String(session.job_seniority) : undefined,
       };
 
       let selectedTurn = deterministic.turn;
@@ -317,7 +541,11 @@ export class InterviewBrainService {
       let llmPolicyViolations: string[] = [];
 
       const conversationalIntent = candidateIntent === null || candidateIntent === "ANSWER";
-      const llmEligible = conversationalIntent && criteria.length > 0;
+      const llmEligible =
+        conversationalIntent &&
+        criteria.length > 0 &&
+        ["ask", "probe", "clarify", "transition", "close"].includes(deterministic.turn.action) &&
+        deterministic.questionSource !== "lifecycle";
       if (llmEligible) {
         const historyLimit = boundedInteger(
           process.env.AI_INTERVIEWER_HISTORY_TURNS,
@@ -335,15 +563,7 @@ export class InterviewBrainService {
           ORDER BY start_ms DESC, created_at DESC, id DESC
           LIMIT ${historyLimit}
         `;
-        const requirements = await transaction`
-          SELECT requirement_type, name, description
-          FROM job_requirements
-          WHERE organization_id = ${organizationId}::uuid
-            AND job_id = ${String(session?.job_id)}::uuid
-          ORDER BY weight DESC, created_at
-          LIMIT 8
-        `;
-        const closeObjectives = ["respect_time_budget", "complete_evidence_coverage"];
+        const closeObjectives = ["respect_time_budget", "complete_evidence_coverage", "final_goodbye"];
         try {
           const generated = await this.llmInterviewer.generateTurn({
             sessionId,
@@ -394,8 +614,15 @@ export class InterviewBrainService {
               expectedEvidence: deterministic.turn.expectedEvidence,
             },
             closeObjectives,
+            resumeClaim: deterministic.resumeClaimId
+              ? resumeClaims.find((claim) => claim.id === deterministic.resumeClaimId) ?? null
+              : null,
           });
-          const llmPolicy = enforceInterviewTurnPolicy(generated.turn, policyContext);
+          const renderedTurn = {
+            ...deterministic.turn,
+            spokenText: generated.turn.spokenText,
+          };
+          const llmPolicy = enforceInterviewTurnPolicy(renderedTurn, policyContext);
           if (llmPolicy.decision === "accepted") {
             selectedTurn = llmPolicy.turn;
             brainMode = "llm";
@@ -450,7 +677,8 @@ export class InterviewBrainService {
         INSERT INTO interview_turns (
           organization_id, interview_session_id, sequence, candidate_intent, action,
           criterion_key, objective, spoken_text, expected_evidence,
-          interviewer_trace_reference, finalized
+          interviewer_trace_reference, finalized,
+          turn_kind, question_source, resume_claim_id
         ) VALUES (
           ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
           ${turn.action}, ${turn.criterion}, ${turn.objective},
@@ -464,7 +692,10 @@ export class InterviewBrainService {
             reason: trace.reason,
             ...(trace.fallbackReason ? { fallbackReason: trace.fallbackReason } : {}),
             policyVersion: finalPolicy.policyVersion,
-          })}, true
+          })}, true,
+          ${deterministic.turnKind},
+          ${deterministic.questionSource},
+          ${deterministic.resumeClaimId}::uuid
         )
         RETURNING id, created_at
       `;
@@ -484,6 +715,18 @@ export class InterviewBrainService {
           ...(trace.fallbackReason ? { fallbackReason: trace.fallbackReason } : {}),
           askedQuestionIds: [...state.askedQuestionIds, questionId],
           evidenceCoverage,
+          turnKind: deterministic.turnKind,
+          questionSource: deterministic.questionSource,
+          resumeClaimId: deterministic.resumeClaimId,
+        },
+        lifecycle: {
+          phase: deterministic.turnKind === "candidate_question"
+            ? "candidate_question"
+            : deterministic.turnKind === "closing"
+              ? "closing"
+              : deterministic.turnKind === "transition"
+                ? "transition"
+                : "active",
         },
         policy: {
           version: finalPolicy.policyVersion,
@@ -533,6 +776,9 @@ export class InterviewBrainService {
                 : clock.stage,
         },
         evidenceCoverage,
+        turnKind: deterministic.turnKind,
+        questionSource: deterministic.questionSource,
+        resumeClaimId: deterministic.resumeClaimId,
         releaseMode: release.mode,
         policyVersion: finalPolicy.policyVersion,
         policyDecision: finalPolicy.decision,
