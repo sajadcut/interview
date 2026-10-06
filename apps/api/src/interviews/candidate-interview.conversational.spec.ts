@@ -24,9 +24,41 @@ function harness(options: {
   const brainCalls: Array<{ sessionId: string; body: Record<string, unknown> }> = [];
   const mediaEvents: Array<Record<string, unknown>> = [];
   const speechCalls: string[] = [];
+  let introductionTurn: { id: string; action: string; spoken_text: string } | null = null;
+
+  const transaction = Object.assign(
+    async (strings: TemplateStringsArray) => {
+      const query = strings.join(" ");
+      if (query.includes("SELECT c.display_name") && query.includes("FOR UPDATE OF s")) {
+        return [{
+          display_name: "علی رضایی",
+          job_title: "Senior .NET Developer",
+          time_budget_minutes: 20,
+        }];
+      }
+      if (query.includes("turn_kind = 'introduction'")) {
+        return introductionTurn ? [introductionTurn] : [];
+      }
+      if (query.includes("COALESCE(max(sequence), -1)")) return [{ next_sequence: 0 }];
+      if (query.includes("INSERT INTO interview_turns") && query.includes("'introduction'")) {
+        introductionTurn = {
+          id: "abababab-abab-4bab-8bab-abababababab",
+          action: "transition",
+          spoken_text: "سلام علی رضایی، خوش آمدید. اگر آماده‌اید شروع کنیم.",
+        };
+        return [introductionTurn];
+      }
+      if (query.includes("UPDATE interview_sessions")) return [];
+      throw new Error(`Unexpected candidate introduction SQL in unit test: ${query.replace(/\s+/g, " ").trim()}`);
+    },
+    {
+      json: (value: unknown) => value,
+      begin: async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction),
+    },
+  );
 
   const sql = Object.assign(
-    async (strings: TemplateStringsArray) => {
+    async (strings: TemplateStringsArray, ...values: unknown[]) => {
       const query = strings.join(" ");
       if (query.includes("FROM interview_sessions s") && query.includes("JOIN interview_media_sessions")) {
         return [{
@@ -42,7 +74,12 @@ function harness(options: {
         }];
       }
       if (query.includes("UPDATE interview_sessions") && query.includes("remaining_seconds")) return [];
-      if (query.includes("interview_turn_id") && query.includes("FROM interview_transcript_segments")) return [];
+      if (query.includes("interview_turn_id") && query.includes("FROM interview_transcript_segments")) {
+        const turnId = values.length > 2 ? String(values[2]) : "";
+        return appended.some((segment) => String(segment.turnId ?? "") === turnId)
+          ? [{ id: "existing-transcript" }]
+          : [];
+      }
       if (query.includes("AS last_end_ms")) return [{ last_end_ms: 1000 }];
       if (query.includes("COALESCE(max(end_ms), 0)")) return [{ elapsed_ms: 1000 }];
       if (query.includes("FROM interview_turns t") && query.includes("criterion_id")) {
@@ -161,6 +198,46 @@ function harness(options: {
 
   return { service, appended, recordedEvidence, brainCalls, mediaEvents, speechCalls };
 }
+
+test("introduction is deterministic, transcript-only, and idempotent before the first real question", async () => {
+  const { service, appended, recordedEvidence, brainCalls } = harness();
+  const internal = service as unknown as {
+    ensureIntroductionTurn(
+      scope: {
+        organizationId: string;
+        candidateId: string;
+        candidateIdentityId: string;
+        applicationId: string;
+        sessionId: string;
+        expiresAt: Date;
+      },
+      sessionId: string,
+    ): Promise<{ created: boolean; turn: { id: string; spokenText: string; turnKind: "introduction" } }>;
+    currentOrFirstTurn(sessionId: string): Promise<{ id: string; spokenText: string }>;
+  };
+  const scope = {
+    organizationId,
+    candidateId,
+    candidateIdentityId: identityId,
+    applicationId,
+    sessionId: candidateSessionId,
+    expiresAt: new Date(Date.now() + 60_000),
+  };
+
+  const first = await internal.ensureIntroductionTurn(scope, interviewSessionId);
+  const second = await internal.ensureIntroductionTurn(scope, interviewSessionId);
+  const firstQuestion = await internal.currentOrFirstTurn(interviewSessionId);
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.equal(first.turn.id, second.turn.id);
+  assert.equal(appended.filter((segment) => segment.lifecycleRole === "introduction").length, 1);
+  assert.equal(recordedEvidence.length, 0);
+  assert.equal(brainCalls.length, 1);
+  assert.equal(firstQuestion.id, "88888888-8888-4888-8888-888888888888");
+  assert.equal(appended[0]?.lifecycleRole, "introduction");
+  assert.equal(appended[1]?.lifecycleRole, "interview");
+});
 
 test("candidate text answers use the shared conversational brain path", async () => {
   const { service, appended, recordedEvidence, brainCalls, mediaEvents } = harness();
