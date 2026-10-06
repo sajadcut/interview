@@ -75,7 +75,7 @@ test("brain respects skip requests without inventing evidence coverage", () => {
   input.candidateIntent = "SKIP_REQUEST";
 
   const decision = decideInterviewTurn(input);
-  assert.equal(decision.turn.action, "transition");
+  assert.equal(decision.turn.action, "ask");
   assert.equal(decision.turn.criterion, "system_design");
   assert.equal(decision.nextState.evidenceCoverage.backend_depth, undefined);
 });
@@ -102,24 +102,84 @@ test("brain routes candidate factual questions away from improvisation", () => {
   assert.match(decision.reason, /approved knowledge/i);
 });
 
-test("brain closes when the configured evidence coverage is complete", () => {
+test("brain enters candidate-question wrap-up after evidence coverage is complete, then closes", () => {
   const input = baseInput();
   input.state.evidenceCoverage = { backend_depth: 1, system_design: 1 };
 
-  const decision = decideInterviewTurn(input);
-  assert.equal(decision.turn.action, "close");
-  assert.equal(decision.turn.criterion, null);
+  const wrapUp = decideInterviewTurn(input);
+  assert.equal(wrapUp.turn.action, "escalate");
+  assert.equal(wrapUp.turn.criterion, null);
+  assert.equal(wrapUp.turnKind, "candidate_question");
+
+  input.state.closingStage = "candidate_question";
+  input.latestCandidateText = "خیر، ممنون";
+  input.candidateIntent = "CANDIDATE_QUESTION";
+  const close = decideInterviewTurn(input);
+  assert.equal(close.turn.action, "close");
+  assert.equal(close.turn.criterion, null);
+  assert.equal(close.turnKind, "closing");
 });
 
-test("brain closes when the time budget has reached the final minute", () => {
+test("brain asks no new assessment question in the final minute", () => {
   const input = baseInput();
   input.state.remainingSeconds = 70;
   input.elapsedSeconds = 15;
 
   const decision = decideInterviewTurn(input);
-  assert.equal(decision.turn.action, "close");
+  assert.equal(decision.turn.action, "escalate");
+  assert.equal(decision.turnKind, "candidate_question");
   assert.equal(decision.nextState.remainingSeconds, 55);
-  assert.match(decision.reason, /time budget/i);
+  assert.match(decision.reason, /final minute/i);
+});
+
+test("brain validates an actual mapped resume claim instead of treating it as evidence", () => {
+  const input = baseInput();
+  input.state.resumeClaims = [{
+    id: "11111111-1111-4111-8111-111111111111",
+    claimType: "architecture",
+    text: "Designed microservice architecture for a high-traffic payment system",
+    importance: 9,
+    status: "unverified",
+    matchedCriterionKey: "backend_depth",
+  }];
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.action, "ask");
+  assert.equal(decision.turnKind, "resume_validation");
+  assert.equal(decision.questionSource, "resume_claim");
+  assert.equal(decision.resumeClaimId, input.state.resumeClaims[0]!.id);
+  assert.match(decision.turn.spokenText, /microservice architecture/);
+  assert.equal(input.state.evidenceCoverage.backend_depth, undefined);
+});
+
+test("five-minute strategy prioritizes required weighted gaps over optional criteria", () => {
+  const input = baseInput();
+  input.state.remainingSeconds = 299;
+  input.criteria[0] = { ...input.criteria[0]!, required: true, weight: 1, priority: 1 };
+  input.criteria[1] = { ...input.criteria[1]!, required: true, weight: 4, priority: 5 };
+  input.criteria.push({
+    key: "optional_devops",
+    label: "DevOps",
+    objective: "validate optional devops",
+    expectedEvidence: ["deployment"],
+    minimumEvidence: 1,
+    required: false,
+    weight: 10,
+    priority: 10,
+  });
+
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.criterion, "system_design");
+  assert.notEqual(decision.turn.criterion, "optional_devops");
+  assert.match(decision.reason, /Final-five-minute strategy/i);
+});
+
+test("candidate end request skips new questions and goes straight to deterministic goodbye", () => {
+  const input = baseInput();
+  input.candidateIntent = "END_INTERVIEW_REQUEST";
+  const decision = decideInterviewTurn(input);
+  assert.equal(decision.turn.action, "close");
+  assert.equal(decision.turnKind, "closing");
+  assert.equal(decision.questionSource, "lifecycle");
 });
 
 test("Persian brain uses Persian spoken labels and never speaks English rubric labels", () => {
