@@ -14,6 +14,27 @@ function strategyObjective(questionStrategy: unknown, criterionKey: string, fall
   const root = asRecord(questionStrategy); const criteria = asRecord(root.criteria); const item = asRecord(criteria[criterionKey]);
   return typeof item.objective === "string" && item.objective.trim() ? item.objective.trim() : fallback;
 }
+function recordArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    : [];
+}
+
+function resumeClaimCategory(text: string, metadata: Record<string, unknown>): string {
+  const value = `${typeof metadata.claimType === "string" ? metadata.claimType : ""} ${text}`;
+  if (/security|oauth|oidc|auth|امنیت|احراز/i.test(value)) return "security";
+  if (/database|sql|postgres|oracle|entity framework|ef core|دیتابیس|پایگاه داده/i.test(value)) return "database";
+  if (/aws|azure|cloud|kubernetes|docker|devops|ci\/?cd|ابر|دواپس/i.test(value)) return "cloud_devops";
+  if (/architect|microservice|distributed|معماری|مایکروسرویس|توزیع/i.test(value)) return "architecture";
+  if (/performance|latency|throughput|scale|traffic|cache|redis|کارایی|مقیاس|ترافیک/i.test(value)) return "scale_performance";
+  if (/lead|mentor|owner|manager|رهبری|منتور|مالکیت|مسئول/i.test(value)) return "leadership_ownership";
+  if (/\b(?:senior|staff|principal|lead)\b|ارشد/i.test(value)) return "seniority";
+  if (/\d+(?:[.,]\d+)?\s*(?:%|x|ms|rps|tps|k|m|میلیون|هزار)/i.test(value)) return "measurable_achievement";
+  if (metadata.claimType === "experience" || /project|پروژه/i.test(value)) return "project";
+  if (metadata.claimType === "skill") return "skill";
+  return "technology";
+}
+
 function approvalInput(row: Record<string, unknown>) {
   return {
     approvalStatus: row.approval_status ? String(row.approval_status) : null,
@@ -231,7 +252,7 @@ export class InterviewsService {
         AND payload->'input'->>'sessionId'=${sessionId}
       ORDER BY created_at DESC LIMIT 1`;
     const resumeEvidence=await this.database.sql`
-      SELECT id::text,evidence_type,source_type,source_reference,excerpt,occurred_at,created_at
+      SELECT id::text,evidence_type,source_type,source_reference,excerpt,metadata,occurred_at,created_at
       FROM evidence
       WHERE organization_id=${organizationId}::uuid
         AND candidate_id=${String(session.candidate_id)}::uuid
@@ -241,6 +262,65 @@ export class InterviewsService {
         )
       ORDER BY created_at DESC
       LIMIT 50`;
+    const resumeTurnRows=await this.database.sql`
+      SELECT t.id::text AS turn_id, t.resume_claim_id::text,
+             e.id::text AS interview_evidence_id, e.transcript_segment_ids,
+             e.criterion_id::text
+      FROM interview_turns t
+      LEFT JOIN interview_evidence e
+        ON e.organization_id=t.organization_id
+       AND e.interview_session_id=t.interview_session_id
+       AND e.turn_id=t.id
+      WHERE t.organization_id=${organizationId}::uuid
+        AND t.interview_session_id=${sessionId}::uuid
+        AND t.resume_claim_id IS NOT NULL
+      ORDER BY t.sequence,e.created_at
+    `;
+    const latestAiEvaluation = evaluations.find((row) => !String(row.evaluator_version ?? "").startsWith("human:"));
+    const criterionResults = recordArray(latestAiEvaluation?.criterion_results);
+    const transcriptById = new Map(transcript.map((row) => [String(row.id), row]));
+    const resumeClaimValidations = resumeEvidence.map((claim) => {
+      const claimId = String(claim.id);
+      const linkedRows = resumeTurnRows.filter((row) => String(row.resume_claim_id ?? "") === claimId);
+      const interviewEvidenceIds = linkedRows
+        .map((row) => row.interview_evidence_id ? String(row.interview_evidence_id) : "")
+        .filter(Boolean);
+      const transcriptSegmentIds = [...new Set(linkedRows.flatMap((row) =>
+        Array.isArray(row.transcript_segment_ids) ? row.transcript_segment_ids.map(String) : [],
+      ))];
+      const candidateTexts = transcriptSegmentIds
+        .map((id) => transcriptById.get(id))
+        .filter((row) => row && String(row.speaker) === "candidate")
+        .map((row) => String(row?.text ?? ""));
+      const explicitContradiction = candidateTexts.some((text) =>
+        /(?:من (?:این کار را )?انجام ندادم|نقش من نبود|تجربه(?:‌| )ای نداشتم|در رزومه اشتباه|i did not|i didn't|was not my role|no experience)/i.test(text),
+      );
+      const cited = criterionResults.find((result) => {
+        const ids = Array.isArray(result.evidenceIds) ? result.evidenceIds.map(String) : [];
+        return ids.some((id) => interviewEvidenceIds.includes(id));
+      });
+      const score = cited && typeof cited.score === "number" ? cited.score : null;
+      const confidence = cited && typeof cited.confidence === "number" ? cited.confidence : null;
+      const status = linkedRows.length === 0
+        ? "unverified"
+        : explicitContradiction
+          ? "contradicted"
+          : cited && score !== null && score >= 70 && (confidence ?? 0) >= 0.65
+            ? "supported"
+            : "insufficient_evidence";
+      const text = String(claim.excerpt ?? claim.evidence_type ?? "");
+      return {
+        id: claimId,
+        claimType: resumeClaimCategory(text, asRecord(claim.metadata)),
+        text,
+        sourceReference: String(claim.source_reference ?? ""),
+        status,
+        interviewEvidenceIds,
+        transcriptSegmentIds,
+        ...(score !== null ? { score } : {}),
+        ...(confidence !== null ? { confidence } : {}),
+      };
+    });
     const humanReviews=await this.database.sql`
       SELECT id::text,status,reason_codes,priority,human_override,override_rationale,
              evidence_references,criterion_comparison,created_at,completed_at
@@ -267,6 +347,7 @@ export class InterviewsService {
       evaluationJob:evaluationJobs[0] ?? null,
       evaluationReconciliation,
       resumeEvidence,
+      resumeClaimValidations,
       humanReview:humanReviews[0] ?? null,
       integrity:{
         interpretation:"observable_signals_only",
