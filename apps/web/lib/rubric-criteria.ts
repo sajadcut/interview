@@ -13,7 +13,6 @@ const softSkillStableKeys: Array<[RegExp, string]> = [
   [/stakeholder|ذی.?نفع/i, "stakeholder_communication"],
   [/ابهام|ambigu/i, "ambiguity_management"],
   [/حل مسئله|problem/i, "problem_solving"],
-  [/stakeholder|ذی.?نفع/i, "stakeholder_communication"],
   [/وضوح|ساختار.*ارتباط|communication/i, "communication"],
   [/همکاری|تیمی|collaboration|teamwork/i, "collaboration"],
   [/مالکیت|مسئولیت|ownership/i, "ownership"],
