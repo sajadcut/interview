@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DEFAULT_SOFT_SKILL_LABELS,
   buildInterviewCoverage,
   coverageSummary,
+  criterionKeyForLabel,
   isSoftSkillCriterion,
 } from "./rubric-criteria";
 
@@ -40,5 +42,36 @@ test("decision, ambiguity, stakeholder and trade-off criteria stay transcript-on
     "استدلال درباره بده‌بستان‌ها",
   ]) {
     assert.equal(isSoftSkillCriterion({ label }), true, label);
+  }
+});
+
+
+test("default soft-skill labels map to distinct stable keys", () => {
+  const keys = DEFAULT_SOFT_SKILL_LABELS.map((label, index) => criterionKeyForLabel(label, index));
+  assert.equal(new Set(keys).size, DEFAULT_SOFT_SKILL_LABELS.length);
+  assert.ok(keys.includes("stakeholder_communication"));
+  assert.ok(keys.includes("ambiguity_management"));
+});
+
+test("coverage keeps collaboration, stakeholder communication, problem solving and ambiguity separate", () => {
+  const areas = buildInterviewCoverage({
+    title: "Senior .NET Developer",
+    seniority: "Senior",
+    summary: "Backend platform",
+    requirements: [],
+    criteria: DEFAULT_SOFT_SKILL_LABELS.map((label, index) => ({
+      criterionKey: criterionKeyForLabel(label, index),
+      label,
+      required: true,
+    })),
+  });
+
+  for (const key of [
+    "problem_solving",
+    "ambiguity_management",
+    "collaboration",
+    "stakeholder_communication",
+  ]) {
+    assert.equal(areas.find((area) => area.key === key)?.status, "required", key);
   }
 });
