@@ -8,6 +8,7 @@ import { EvaluatorShadowTestingController } from "./evaluator-shadow-testing.con
 import { EvaluatorShadowTestingService } from "./evaluator-shadow-testing.service";
 import { InterviewBrainService } from "./interview-brain.service";
 import { InterviewEvaluatorService } from "./interview-evaluator.service";
+import { InterviewIntegrityService } from "./interview-integrity.service";
 import { InterviewMediaController } from "./interview-media.controller";
 import { InterviewMediaEventService } from "./interview-media-event.service";
 import { InterviewMediaService } from "./interview-media.service";
@@ -46,7 +47,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
   providers: [
     SupervisedPilotRuntimeGateService, SupervisedPilotService, SupervisedPilotAwareInterviewsService,
     { provide: InterviewsService, useExisting: SupervisedPilotAwareInterviewsService },
-    InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService,
+    InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService, InterviewIntegrityService,
     InterviewReviewService, InterviewReleaseGovernanceService,
     EvaluatorCalibrationService, EvaluatorCalibrationAnalyticsService, EvaluatorShadowTestingService,
     LiveKitTransportAdapter, SileroVadHttpClient,
@@ -58,7 +59,7 @@ import { WhisperHttpClient } from "./whisper-http.client";
     CandidateInterviewService,
   ],
   exports: [
-    InterviewsService, InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService,
+    InterviewsService, InterviewSessionStateService, LlmInterviewerService, InterviewBrainService, InterviewEvaluatorService, InterviewIntegrityService,
     InterviewReviewService, InterviewReleaseGovernanceService,
     EvaluatorCalibrationService, EvaluatorCalibrationAnalyticsService, EvaluatorShadowTestingService,
     LiveKitTransportAdapter, REALTIME_TRANSPORT_ADAPTER, SileroVadHttpClient, VOICE_ACTIVITY_DETECTION_ADAPTER,
