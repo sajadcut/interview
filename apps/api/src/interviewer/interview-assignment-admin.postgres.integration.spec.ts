@@ -119,6 +119,18 @@ test(
         )
       `;
       await database.sql`
+        INSERT INTO interviewer_profiles (
+          organization_id, email, first_name, last_name, job_title, status
+        ) VALUES (
+          ${organizationId}::uuid,
+          ${`interviewer-${suffix}@example.invalid`},
+          'Technical',
+          'Interviewer',
+          'Senior .NET Interviewer',
+          'active'
+        )
+      `;
+      await database.sql`
         INSERT INTO membership_roles (organization_id, membership_id, role_id)
         VALUES (
           ${organizationId}::uuid,
