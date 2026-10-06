@@ -214,8 +214,8 @@ export class InterviewsService {
       JOIN interview_release_units r ON r.organization_id=p.organization_id AND r.id=p.release_unit_id
       JOIN applications a ON a.organization_id=s.organization_id AND a.id=s.application_id
       WHERE s.organization_id=${organizationId}::uuid AND s.id=${sessionId}::uuid LIMIT 1`;
-    if (!sessions.length) return null;
     const session=sessions[0];
+    if (!session) return null;
     const evaluationReconciliation = String(session.status) === "completed"
       ? await this.evaluator.reconcileLatestQueuedResult(sessionId)
       : { status: "not_completed" };
