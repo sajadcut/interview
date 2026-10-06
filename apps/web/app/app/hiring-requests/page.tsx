@@ -171,26 +171,35 @@ export default function HiringRequestsPage() {
     setBusy(mode);
     setError(undefined);
     setFeedback(undefined);
-    const body = {
+    const sharedBody = {
       title: form.title.trim(),
       hiringTeam: form.hiringTeam.trim(),
-      department: form.department.trim() || null,
       headcount: Number(form.headcount),
-      seniority: form.seniority.trim() || null,
-      location: form.location.trim() || null,
       businessReason: form.businessReason.trim(),
       requirements: form.requirements.split("\n").map((value) => value.trim()).filter(Boolean),
+    };
+    const createBody = {
+      ...sharedBody,
+      ...(form.department.trim() ? { department: form.department.trim() } : {}),
+      ...(form.seniority.trim() ? { seniority: form.seniority.trim() } : {}),
+      ...(form.location.trim() ? { location: form.location.trim() } : {}),
+    };
+    const updateBody = {
+      ...sharedBody,
+      department: form.department.trim() || null,
+      seniority: form.seniority.trim() || null,
+      location: form.location.trim() || null,
     };
 
     const result = editingId
       ? await api.PATCH("/v1/hiring-requests/{hiringRequestId}", {
           params: { path: { hiringRequestId: editingId } },
           headers: tenantHeaders(identity),
-          body,
+          body: updateBody,
         })
       : await api.POST("/v1/hiring-requests", {
           headers: tenantHeaders(identity),
-          body,
+          body: createBody,
         });
 
     if (result.error) {
