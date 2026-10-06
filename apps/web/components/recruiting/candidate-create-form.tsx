@@ -47,7 +47,8 @@ export function CandidateCreateForm() {
       if (result.error || !result.data) {
         throw new Error(apiErrorMessage(result, "ایجاد کاندیدا ناموفق بود"));
       }
-      router.push(`/app/candidates/${result.data.id}`);
+      const candidate = result.data as { id: string };
+      router.push(`/app/candidates/${candidate.id}`);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ایجاد کاندیدا ناموفق بود");
