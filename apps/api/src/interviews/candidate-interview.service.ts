@@ -581,23 +581,28 @@ export class CandidateInterviewService {
           ? latestMediaSession.id
           : (await this.media.createMediaSession(sessionId, "audio")).id;
       const connection = await this.issueCandidateConnection(scope, sessionId, activeMediaSessionId);
+      const introduction = await this.ensureIntroductionTurn(scope, sessionId);
       const turn = await this.currentOrFirstTurn(sessionId);
       let runtime = await this.assertOwnedRuntime(scope, sessionId, activeMediaSessionId);
-      let evaluationJob: { id: string; status: string } | undefined;
       if (turn.action === "close") {
-        const finished = await this.finishCandidateInterview(
+        runtime = await this.finishCandidateInterview(
           scope,
           sessionId,
           activeMediaSessionId,
           "brain_close",
         );
-        runtime = finished;
-        evaluationJob = finished.evaluationJob;
       }
       const messages = await this.transcript(sessionId);
 
       return {
         status: runtime.status === "completed" || turn.action === "close" ? "completed" : "active",
+        lifecyclePhase: turn.turnKind === "candidate_question"
+          ? "candidate_question"
+          : turn.turnKind === "closing"
+            ? "closing"
+            : introduction.created
+              ? "introduction"
+              : "active",
         sessionId,
         mediaSessionId: activeMediaSessionId,
         remainingSeconds: runtime.remainingSeconds,
@@ -605,19 +610,26 @@ export class CandidateInterviewService {
         developmentPreview,
         releaseMode: runtime.releaseMode,
         interviewer: {
-          name: "AI Interviewer",
-          subtitle: "Structured interview",
+          name: "مصاحبه‌گر هوشمند",
+          subtitle: "مصاحبه ساختاریافته",
           avatarVideoAvailable: false,
         },
+        ...(introduction.created
+          ? {
+              openingTurn: {
+                id: introduction.turn.id,
+                action: introduction.turn.action,
+                spokenText: introduction.turn.spokenText,
+              },
+            }
+          : {}),
         turn: {
           id: turn.id,
           action: turn.action,
-          criterion: turn.criterion,
           spokenText: turn.spokenText,
         },
         transcript: messages,
         connection,
-        ...(evaluationJob ? { evaluationJob } : {}),
         privacy: {
           rawMediaPersisted: false,
           candidateVideoAnalysis: "none",
@@ -748,17 +760,23 @@ export class CandidateInterviewService {
     const question = await this.currentQuestionContext(sessionId);
     const startMs = await this.elapsedMs(sessionId);
     const candidateDurationMs = Math.max(250, Math.round(durationSeconds * 1000));
+    const candidateLifecycleRole = question?.turnKind === "candidate_question"
+      ? "candidate_question"
+      : "interview";
     const candidateSegment = await this.interviews.appendTranscriptSegment(sessionId, {
       speaker: "candidate",
       startMs,
       endMs: startMs + candidateDurationMs,
       text: candidateText,
       isFinal: true,
+      lifecycleRole: candidateLifecycleRole,
     });
     if (
       question?.criterionId &&
       question.criterionKey &&
-      ["ask", "probe", "clarify"].includes(question.action)
+      ["planned_criterion", "resume_validation", "adaptive_follow_up"].includes(question.turnKind) &&
+      ["ask", "probe"].includes(question.action) &&
+      isSubstantiveCandidateEvidence(candidateText)
     ) {
       await this.interviews.recordEvidence(sessionId, {
         criterionId: question.criterionId,
@@ -768,20 +786,13 @@ export class CandidateInterviewService {
       });
     }
 
+    const candidateIntent = detectCandidateIntent(candidateText, question?.turnKind);
     const nextTurn = await this.brain.nextTurn(sessionId, {
       latestCandidateText: candidateText,
-      candidateIntent: "ANSWER",
+      candidateIntent,
       elapsedSeconds: 0,
     });
-    const interviewerStartMs = startMs + candidateDurationMs;
-    const interviewerDurationMs = estimateSpeechDurationMs(nextTurn.spokenText);
-    await this.interviews.appendTranscriptSegment(sessionId, {
-      speaker: "interviewer",
-      startMs: interviewerStartMs,
-      endMs: interviewerStartMs + interviewerDurationMs,
-      text: nextTurn.spokenText,
-      isFinal: true,
-    });
+    await this.ensureInterviewerTranscript(sessionId, nextTurn);
     await this.media.appendEvent(sessionId, mediaSessionId, {
       idempotencyKey: `candidate-brain:${nextTurn.id}`,
       eventType: "brain_turn",
@@ -802,11 +813,14 @@ export class CandidateInterviewService {
       remainingSeconds: finalRuntime.remainingSeconds,
       clock: finalRuntime.clock,
       completed: nextTurn.action === "close" || finalRuntime.status === "completed",
-      ...("evaluationJob" in finalRuntime ? { evaluationJob: finalRuntime.evaluationJob } : {}),
+      lifecyclePhase: nextTurn.turnKind === "candidate_question"
+        ? "candidate_question"
+        : nextTurn.turnKind === "closing"
+          ? "closing"
+          : "active",
       turn: {
         id: nextTurn.id,
         action: nextTurn.action,
-        criterion: nextTurn.criterion,
         spokenText: nextTurn.spokenText,
       },
     };
@@ -895,24 +909,23 @@ export class CandidateInterviewService {
       let runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
       let turn = await this.currentOrFirstTurn(sessionId);
 
-      if (
+      const shouldEnterWrapUp =
         runtime.status === "in_progress" &&
         runtime.remainingSeconds <= 60 &&
-        turn.action !== "close"
-      ) {
+        turn.action !== "close" &&
+        turn.turnKind !== "candidate_question" &&
+        turn.turnKind !== "closing";
+      const shouldForceClose =
+        runtime.status === "in_progress" &&
+        runtime.remainingSeconds <= 0 &&
+        turn.action !== "close";
+      if (shouldEnterWrapUp || shouldForceClose) {
         turn = await this.brain.nextTurn(sessionId, {
           latestCandidateText: "",
           candidateIntent: "SILENCE_TIMEOUT",
           elapsedSeconds: 0,
         });
-        const startMs = await this.elapsedMs(sessionId);
-        await this.interviews.appendTranscriptSegment(sessionId, {
-          speaker: "interviewer",
-          startMs,
-          endMs: startMs + estimateSpeechDurationMs(turn.spokenText),
-          text: turn.spokenText,
-          isFinal: true,
-        });
+        await this.ensureInterviewerTranscript(sessionId, turn);
         if (turn.action === "close") {
           runtime = await this.finishCandidateInterview(
             scope,
@@ -927,13 +940,17 @@ export class CandidateInterviewService {
         status: ["completed", "failed", "cancelled"].includes(runtime.status) || turn.action === "close"
           ? "completed" as const
           : "active" as const,
+        lifecyclePhase: turn.turnKind === "candidate_question"
+          ? "candidate_question" as const
+          : turn.turnKind === "closing"
+            ? "closing" as const
+            : "active" as const,
         sessionId,
         remainingSeconds: runtime.remainingSeconds,
         clock: runtime.clock,
         turn: {
           id: turn.id,
           action: turn.action,
-          criterion: turn.criterion,
           spokenText: turn.spokenText,
         },
       };
