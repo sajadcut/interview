@@ -194,14 +194,12 @@ function selectIncompleteCriterion(
     return current;
   }
 
-  const rotated = afterKey
-    ? [
-        ...candidates.filter((criterion) => criterion.key !== afterKey),
-        ...candidates.filter((criterion) => criterion.key === afterKey),
-      ]
+  const alternatives = afterKey
+    ? candidates.filter((criterion) => criterion.key !== afterKey)
     : candidates;
+  const selectionPool = alternatives.length > 0 ? alternatives : candidates;
 
-  return [...rotated].sort((left, right) => {
+  return [...selectionPool].sort((left, right) => {
     const scoreDelta = criterionScore(state, right, endingSoon) - criterionScore(state, left, endingSoon);
     if (scoreDelta !== 0) return scoreDelta;
     return criteria.indexOf(left) - criteria.indexOf(right);
@@ -335,6 +333,13 @@ function availableResumeClaim(
 export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBrainDecision {
   const language = normalizeInterviewSpokenLanguage(rawInput.language);
   const criteria = rawInput.criteria.map(normalizeCriterion).filter((criterion) => criterion.key && criterion.label);
+  const inferredQuestionCounts: Record<string, number> = {};
+  for (const questionId of rawInput.state.askedQuestionIds) {
+    const [criterion, action] = questionId.split(":");
+    if (criterion && criterion !== "session" && (action === "ask" || action === "probe")) {
+      inferredQuestionCounts[criterion] = (inferredQuestionCounts[criterion] ?? 0) + 1;
+    }
+  }
   const input: InterviewBrainInput = {
     ...rawInput,
     language,
@@ -344,7 +349,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
     state: {
       ...rawInput.state,
       closingStage: rawInput.state.closingStage ?? "interview",
-      questionCountByCriterion: rawInput.state.questionCountByCriterion ?? {},
+      questionCountByCriterion: rawInput.state.questionCountByCriterion ?? inferredQuestionCounts,
       askedResumeClaimIds: rawInput.state.askedResumeClaimIds ?? [],
       resumeClaims: rawInput.state.resumeClaims ?? [],
     },
