@@ -11,7 +11,14 @@ const candidateSessionId = "55555555-5555-4555-8555-555555555555";
 const interviewSessionId = "66666666-6666-4666-8666-666666666666";
 const mediaSessionId = "77777777-7777-4777-8777-777777777777";
 
-function harness(options: { realCandidate?: boolean; transcriptText?: string } = {}) {
+function harness(options: {
+  realCandidate?: boolean;
+  transcriptText?: string;
+  questionAction?: string;
+  questionTurnKind?: string;
+  brainAction?: string;
+  brainTurnKind?: string;
+} = {}) {
   const appended: Array<Record<string, unknown>> = [];
   const recordedEvidence: Array<Record<string, unknown>> = [];
   const brainCalls: Array<{ sessionId: string; body: Record<string, unknown> }> = [];
@@ -35,13 +42,18 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
         }];
       }
       if (query.includes("UPDATE interview_sessions") && query.includes("remaining_seconds")) return [];
+      if (query.includes("interview_turn_id") && query.includes("FROM interview_transcript_segments")) return [];
+      if (query.includes("AS last_end_ms")) return [{ last_end_ms: 1000 }];
       if (query.includes("COALESCE(max(end_ms), 0)")) return [{ elapsed_ms: 1000 }];
       if (query.includes("FROM interview_turns t") && query.includes("criterion_id")) {
         return [{
           turn_id: "99999999-9999-4999-8999-999999999999",
-          action: "probe",
+          action: options.questionAction ?? "probe",
           criterion_key: "backend_depth",
           criterion_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          objective: "validate production backend depth",
+          turn_kind: options.questionTurnKind ?? "adaptive_follow_up",
+          resume_claim_id: null,
         }];
       }
       throw new Error(`Unexpected candidate interview SQL in unit test: ${query.replace(/\s+/g, " ").trim()}`);
@@ -87,13 +99,16 @@ function harness(options: { realCandidate?: boolean; transcriptText?: string } =
       brainCalls.push({ sessionId, body });
       return {
         id: "88888888-8888-4888-8888-888888888888",
-        action: "probe",
+        action: options.brainAction ?? "probe",
         criterion: "backend_depth",
         objective: "validate production backend depth",
         spokenText: "چرا Redis را انتخاب کردید و قبلش چه گزینه‌ای را بررسی کردید؟",
         expectedEvidence: ["trade-offs"],
         remainingSeconds: 1180,
         finalized: true,
+        turnKind: options.brainTurnKind ?? "adaptive_follow_up",
+        questionSource: "adaptive_follow_up",
+        resumeClaimId: null,
       };
     },
   };
@@ -166,6 +181,49 @@ test("candidate text answers use the shared conversational brain path", async ()
   assert.equal(recordedEvidence[0]?.criterionId, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
   assert.equal(result.turn.spokenText, "چرا Redis را انتخاب کردید و قبلش چه گزینه‌ای را بررسی کردید؟");
   assert.equal(mediaEvents.length, 1);
+});
+
+test("non-substantive answers do not create positive interview evidence", async () => {
+  const { service, recordedEvidence, brainCalls } = harness();
+  await service.answerText("candidate-token", {
+    sessionId: interviewSessionId,
+    mediaSessionId,
+    text: "نمی‌دانم",
+  });
+
+  assert.equal(recordedEvidence.length, 0);
+  assert.equal(brainCalls[0]?.body.candidateIntent, "ANSWER");
+});
+
+test("candidate end request reaches the brain as an explicit lifecycle intent and creates no evidence", async () => {
+  const { service, recordedEvidence, brainCalls } = harness();
+  await service.answerText("candidate-token", {
+    sessionId: interviewSessionId,
+    mediaSessionId,
+    text: "می‌خواهم مصاحبه را پایان بدهم",
+  });
+
+  assert.equal(recordedEvidence.length, 0);
+  assert.equal(brainCalls[0]?.body.candidateIntent, "END_INTERVIEW_REQUEST");
+});
+
+test("candidate-question opportunity is not scored as interview evidence", async () => {
+  const { service, recordedEvidence, brainCalls, appended } = harness({
+    questionAction: "escalate",
+    questionTurnKind: "candidate_question",
+    brainAction: "close",
+    brainTurnKind: "closing",
+  });
+  await service.answerText("candidate-token", {
+    sessionId: interviewSessionId,
+    mediaSessionId,
+    text: "درباره فرایند استخدام سؤال دارم؟",
+  });
+
+  assert.equal(recordedEvidence.length, 0);
+  assert.equal(brainCalls[0]?.body.candidateIntent, "CANDIDATE_QUESTION");
+  assert.equal(appended[0]?.lifecycleRole, "candidate_question");
+  assert.equal(appended[1]?.lifecycleRole, "closing");
 });
 
 test("candidate audio uses Whisper transcript then the exact same conversational brain path", async () => {
