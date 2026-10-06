@@ -826,7 +826,15 @@ export function CandidateInterviewExperience({
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
     };
-  }, [runtime, runtimeSnapshot?.sessionId, state.phase]);
+  }, [
+    runtime,
+    runtimeSnapshot?.sessionId,
+    runtimeSnapshot?.turn.id,
+    state.phase,
+    displayRemainingSeconds,
+    answerBusy,
+    listening,
+  ]);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.addEventListener || !runtimeSnapshot || state.phase === "completed") return;
