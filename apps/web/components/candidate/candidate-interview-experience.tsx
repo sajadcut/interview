@@ -411,6 +411,7 @@ export function CandidateInterviewExperience({
           ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
           : false,
         cameraRetryDelaysMs: mode === "full" ? [350, 700] : [],
+        microphoneRetryDelaysMs: [350, 700],
       });
       if (!result || requestId !== mediaRequestIdRef.current) {
         controller.stop();
