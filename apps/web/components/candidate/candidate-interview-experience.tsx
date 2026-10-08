@@ -11,6 +11,7 @@ import {
   type CandidateMediaPermissionState,
 } from "../../lib/candidate-interview-state";
 import { candidateInterviewUiCopy } from "../../lib/candidate-interview-copy";
+import { CANDIDATE_PREVIEW_HANDOFF_KEY } from "../../lib/candidate-device-preview";
 import type {
   CandidateRuntimeAnswer,
   CandidateRuntimeCompletion,
@@ -319,6 +320,7 @@ export function CandidateInterviewExperience({
 
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRequestIdRef = useRef(0);
+  const autoStartFromSetupRef = useRef<boolean | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -711,9 +713,19 @@ export function CandidateInterviewExperience({
 
   useEffect(() => {
     reduce({ type: "BOOTSTRAP", online: navigator.onLine, runtimeAvailable: Boolean(runtime) });
-    // A permission grant is not an active camera stream. Acquire the actual
-    // devices on entry so the preview and readiness reflect real media tracks.
-    void requestMedia("full");
+    if (autoStartFromSetupRef.current === null) {
+      // Only open media automatically after an explicit check and Continue
+      // in candidate setup. Direct entry never starts camera/microphone.
+      try {
+        autoStartFromSetupRef.current =
+          window.sessionStorage.getItem(CANDIDATE_PREVIEW_HANDOFF_KEY) === "1";
+        window.sessionStorage.removeItem(CANDIDATE_PREVIEW_HANDOFF_KEY);
+      } catch {
+        autoStartFromSetupRef.current = false;
+      }
+    }
+    if (autoStartFromSetupRef.current) void requestMedia("full");
+    else void inspectPermissions();
     const onOffline = () => {
       const now = Date.now();
       networkDownAtRef.current = now;
