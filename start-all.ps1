@@ -86,6 +86,20 @@ function Import-RootEnvironment {
 
 Import-RootEnvironment -Path $envFile
 
+# Keep the local database schema synchronized with the application before any service
+# starts. The migration runner is idempotent, checksum-protected, and advisory-locked,
+# so re-running start-all.ps1 safely skips migrations that are already applied.
+if ([string]::IsNullOrWhiteSpace($env:DATABASE_URL)) {
+    throw "DATABASE_URL is required. Configure it in .env before starting the development stack."
+}
+
+Write-Host "[database] Applying pending migrations..."
+& npm.cmd run db:migrate
+if ($LASTEXITCODE -ne 0) {
+    throw "Database migration failed (exit code $LASTEXITCODE). Fix the migration/database error before starting the development stack."
+}
+Write-Host "[database] Schema is current."
+
 # The realtime interviewer is a local sidecar. Keep a development-only shared secret in
 # this parent process when the developer has not configured one, so both the sidecar and
 # the API child receive the same value without committing a credential.
