@@ -724,8 +724,13 @@ export function CandidateInterviewExperience({
         autoStartFromSetupRef.current = false;
       }
     }
-    if (autoStartFromSetupRef.current) void requestMedia("full");
-    else void inspectPermissions();
+    // Defer acquisition until after effect setup. In React Strict Mode the
+    // first dev-only setup is cleaned up before this timer fires, preventing
+    // competing getUserMedia calls and camera-on/camera-off flicker.
+    const startupTimer = autoStartFromSetupRef.current
+      ? window.setTimeout(() => void requestMedia("full"), 0)
+      : null;
+    if (!autoStartFromSetupRef.current) void inspectPermissions();
     const onOffline = () => {
       const now = Date.now();
       networkDownAtRef.current = now;
@@ -753,6 +758,7 @@ export function CandidateInterviewExperience({
     window.addEventListener("offline", onOffline);
     window.addEventListener("online", onOnline);
     return () => {
+      if (startupTimer !== null) window.clearTimeout(startupTimer);
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("online", onOnline);
       mediaRequestIdRef.current += 1;
