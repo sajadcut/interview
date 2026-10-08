@@ -129,6 +129,21 @@ test.describe("critical candidate flows", () => {
     await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
+    // The setup preview must keep the *actual* video track live, not simply
+    // report granted permissions and immediately stop the webcam.
+    const localPreview = page.locator('section[aria-label="Live device preview"] video');
+    await expect.poll(() => localPreview.evaluate((element) =>
+      ((element as HTMLVideoElement).srcObject as MediaStream | null)
+        ?.getVideoTracks().some((track) => track.readyState === "live") ?? false,
+    )).toBe(true);
+    await page.getByRole("button", { name: "Stop preview" }).click();
+    await expect.poll(() => localPreview.evaluate((element) =>
+      (element as HTMLVideoElement).srcObject === null,
+    )).toBe(true);
+    await expect(continueButton).toBeDisabled();
+    await page.getByRole("button", { name: "Check camera and microphone" }).click();
+    await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+
     // Each required consent is independently necessary; readiness appears only after all three.
     await page.getByLabel(/Privacy disclosure/).check();
     await expect(continueButton).toBeDisabled();
