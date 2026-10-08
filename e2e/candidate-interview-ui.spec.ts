@@ -82,14 +82,14 @@ test("candidate interview UI reaches candidate-scoped realtime readiness without
   await expect(
     page.getByRole("alert").filter({ hasText: "Camera or microphone permission is blocked." }),
   ).toBeVisible();
-  await expect(page.getByLabel("Microphone: Ready")).toBeVisible();
+  await expect(page.getByLabel("Microphone: Permission granted")).toBeVisible();
   await expect(page.getByLabel("Camera: Blocked")).toBeVisible();
 
   await page.getByRole("button", { name: "Try audio-only" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Audio-only fallback is active. Camera remains off." }),
   ).toBeVisible();
-  await expect(page.getByLabel("Microphone: Ready")).toBeVisible();
+  await expect(page.getByLabel("Microphone: Permission granted")).toBeVisible();
   await expect(page.getByLabel("Camera: Unavailable")).toBeVisible();
 
   const startButton = page.getByRole("button", { name: "Start interview" });
