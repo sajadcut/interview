@@ -63,6 +63,7 @@ export default function CandidateSetupPage() {
   });
   const [deviceState, setDeviceState] = useState<DeviceState>("idle");
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [audioOnly, setAudioOnly] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
 
   useEffect(() => {
@@ -102,19 +103,36 @@ export default function CandidateSetupPage() {
   async function checkDevices() {
     setDeviceState("checking");
     setDeviceError(null);
-    let stream: MediaStream | undefined;
+    setAudioOnly(false);
+    let microphoneStream: MediaStream | undefined;
+    let cameraStream: MediaStream | undefined;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error(copy.deviceUnsupported);
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      const audioReady = stream.getAudioTracks().some((track) => track.readyState === "live");
-      const videoReady = stream.getVideoTracks().some((track) => track.readyState === "live");
-      if (!audioReady || !videoReady) throw new Error(copy.deviceRequired);
+
+      // Microphone is essential; camera is optional because the interview
+      // experience already supports a documented audio-only fallback.
+      microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      if (!microphoneStream.getAudioTracks().some((track) => track.readyState === "live")) {
+        throw new Error(copy.deviceRequired);
+      }
+
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        if (!cameraStream.getVideoTracks().some((track) => track.readyState === "live")) {
+          setAudioOnly(true);
+        }
+      } catch {
+        // A missing, busy, or blocked camera must not prevent an interview
+        // when a working microphone is available.
+        setAudioOnly(true);
+      }
       setDeviceState("ready");
     } catch (cause) {
       setDeviceState("failed");
       setDeviceError(deviceErrorMessage(cause, copy));
     } finally {
-      stream?.getTracks().forEach((track) => track.stop());
+      microphoneStream?.getTracks().forEach((track) => track.stop());
+      cameraStream?.getTracks().forEach((track) => track.stop());
     }
   }
 
@@ -182,6 +200,7 @@ export default function CandidateSetupPage() {
         </fieldset>
 
         {consentStatus?.readyForInterview ? <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{copy.consentReady}</div> : null}
+        {audioOnly && deviceState === "ready" ? <div role="status" className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{copy.audioOnlyReady}</div> : null}
         {deviceError ? <div role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{deviceError}</div> : null}
 
         <div className="mt-6 flex flex-wrap gap-3">
