@@ -122,7 +122,7 @@ test.describe("critical candidate flows", () => {
     });
 
     await page.getByRole("button", { name: "Check camera and microphone" }).click();
-    await expect(candidateAlert(page, "E2E simulated device denial")).toBeVisible();
+    await expect(candidateAlert(page, "Microphone access is blocked")).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
     await page.getByRole("button", { name: "Check camera and microphone" }).click();
