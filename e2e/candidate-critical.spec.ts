@@ -161,6 +161,15 @@ test.describe("critical candidate flows", () => {
     await expect(page.getByText(new RegExp(`Hello ${candidateIdentity.displayName}`))).toBeVisible();
     await expect(page.getByRole("status")).toContainText("Network is ready.");
 
+    // Continue from setup explicitly authorizes the candidate room to open its
+    // own fresh tracks. A granted permission without live tracks is not ready.
+    const interviewPreview = page.locator('video[muted]').first();
+    await expect.poll(() => interviewPreview.evaluate((element) =>
+      ((element as HTMLVideoElement).srcObject as MediaStream | null)
+        ?.getVideoTracks().some((track) => track.readyState === "live") ?? false,
+    )).toBe(true);
+    await expect(page.getByRole("button", { name: "Start interview" })).toBeEnabled();
+
     await context.setOffline(true);
     await expect(candidateAlert(page, "Network connection is offline")).toBeVisible();
     await context.setOffline(false);
