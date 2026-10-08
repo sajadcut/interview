@@ -318,6 +318,7 @@ export function CandidateInterviewExperience({
   const [displayRemainingSeconds, setDisplayRemainingSeconds] = useState(interviewDurationMinutes * 60);
 
   const streamRef = useRef<MediaStream | null>(null);
+  const mediaRequestIdRef = useRef(0);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -381,6 +382,7 @@ export function CandidateInterviewExperience({
   };
 
   const requestMedia = async (mode: MediaRequestMode) => {
+    const requestId = ++mediaRequestIdRef.current;
     setPermissionBusy(true);
     setNetworkRestored(false);
     try {
@@ -395,6 +397,12 @@ export function CandidateInterviewExperience({
             ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
             : false,
       });
+      // React Strict Mode and navigation can invalidate a pending permission
+      // prompt. Never attach an old stream after cleanup or a newer request.
+      if (requestId !== mediaRequestIdRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       if (!stream.getAudioTracks().some((track) => track.readyState === "live")) {
         stream.getTracks().forEach((track) => track.stop());
         reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
@@ -413,10 +421,11 @@ export function CandidateInterviewExperience({
         audioOnly: mode === "audio-only",
       });
     } catch (cause) {
+      if (requestId !== mediaRequestIdRef.current) return;
       releaseStream();
       await inspectPermissions(mediaFailureCode(cause));
     } finally {
-      setPermissionBusy(false);
+      if (requestId === mediaRequestIdRef.current) setPermissionBusy(false);
     }
   };
 
@@ -734,6 +743,7 @@ export function CandidateInterviewExperience({
     return () => {
       window.removeEventListener("offline", onOffline);
       window.removeEventListener("online", onOnline);
+      mediaRequestIdRef.current += 1;
       releaseStream(false);
       void runtime?.disconnect?.().catch(() => undefined);
     };
