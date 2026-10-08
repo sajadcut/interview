@@ -353,7 +353,10 @@ export function CandidateInterviewExperience({
   const installStream = (stream: MediaStream) => {
     releaseStream(false);
     streamRef.current = stream;
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+      void localVideoRef.current.play().catch(() => undefined);
+    }
     setHasLocalMedia(true);
     setMicrophoneEnabled(true);
     setCameraEnabled(stream.getVideoTracks().some((track) => track.readyState === "live"));
@@ -699,7 +702,9 @@ export function CandidateInterviewExperience({
 
   useEffect(() => {
     reduce({ type: "BOOTSTRAP", online: navigator.onLine, runtimeAvailable: Boolean(runtime) });
-    void inspectPermissions();
+    // A permission grant is not an active camera stream. Acquire the actual
+    // devices on entry so the preview and readiness reflect real media tracks.
+    void requestMedia("full");
     const onOffline = () => {
       const now = Date.now();
       networkDownAtRef.current = now;
@@ -884,7 +889,12 @@ export function CandidateInterviewExperience({
   }, [sessionExpiresAt]);
 
   useEffect(() => {
-    if (localVideoRef.current) localVideoRef.current.srcObject = streamRef.current;
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = streamRef.current;
+      if (streamRef.current?.getVideoTracks().some((track) => track.readyState === "live")) {
+        void localVideoRef.current.play().catch(() => undefined);
+      }
+    }
   }, [hasLocalMedia, state.phase]);
 
   useEffect(() => {
