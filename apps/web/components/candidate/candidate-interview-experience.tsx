@@ -11,7 +11,7 @@ import {
   type CandidateMediaPermissionState,
 } from "../../lib/candidate-interview-state";
 import { candidateInterviewUiCopy } from "../../lib/candidate-interview-copy";
-import { CANDIDATE_PREVIEW_HANDOFF_KEY } from "../../lib/candidate-device-preview";
+import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview } from "../../lib/candidate-device-preview";
 import type {
   CandidateRuntimeAnswer,
   CandidateRuntimeCompletion,
@@ -319,6 +319,7 @@ export function CandidateInterviewExperience({
   const [displayRemainingSeconds, setDisplayRemainingSeconds] = useState(interviewDurationMinutes * 60);
 
   const streamRef = useRef<MediaStream | null>(null);
+  const mediaControllerRef = useRef<CandidateDevicePreview | null>(null);
   const mediaRequestIdRef = useRef(0);
   const autoStartFromSetupRef = useRef<boolean | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -347,6 +348,8 @@ export function CandidateInterviewExperience({
     setState((current) => candidateInterviewReducer(current, event));
 
   const releaseStream = (updateUi = true) => {
+    mediaControllerRef.current?.stop();
+    mediaControllerRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
@@ -387,39 +390,65 @@ export function CandidateInterviewExperience({
     const requestId = ++mediaRequestIdRef.current;
     setPermissionBusy(true);
     setNetworkRestored(false);
+    releaseStream();
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
         reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
         return;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
+
+      // The setup preview has just released its tracks. Opening microphone and
+      // camera in one combined request can fail while one device is still busy.
+      // Acquire independently and retry transient camera errors without losing
+      // a healthy microphone. Never mark permission as a live device.
+      const controller = new CandidateDevicePreview(navigator.mediaDevices);
+      mediaControllerRef.current = controller;
+      const result = await controller.start({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        video:
-          mode === "full"
-            ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
-            : false,
+        video: mode === "full"
+          ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }
+          : false,
+        cameraRetryDelaysMs: mode === "full" ? [350, 700] : [],
       });
-      // React Strict Mode and navigation can invalidate a pending permission
-      // prompt. Never attach an old stream after cleanup or a newer request.
-      if (requestId !== mediaRequestIdRef.current) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (!result || requestId !== mediaRequestIdRef.current) {
+        controller.stop();
         return;
       }
+
+      if (mode === "full" && !result.camera) {
+        controller.stop();
+        if (mediaControllerRef.current === controller) mediaControllerRef.current = null;
+        reduce({
+          type: "PERMISSIONS_RESOLVED",
+          microphone: "granted",
+          camera: mediaFailureCode(result.cameraError) === "permission_denied" ? "denied" : "unavailable",
+          audioOnly: false,
+        });
+        reduce({ type: "PERMISSION_FAILED", code: mediaFailureCode(result.cameraError) });
+        return;
+      }
+
+      const tracks = [
+        ...result.microphone.getAudioTracks(),
+        ...(result.camera?.getVideoTracks() ?? []),
+      ];
+      const stream = new MediaStream(tracks);
       if (!stream.getAudioTracks().some((track) => track.readyState === "live")) {
-        stream.getTracks().forEach((track) => track.stop());
+        controller.stop();
+        if (mediaControllerRef.current === controller) mediaControllerRef.current = null;
         reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
         return;
       }
+
+      // installStream releases the previous preview, so take ownership of the
+      // new controller only after the new stream has been installed.
+      mediaControllerRef.current = null;
       installStream(stream);
+      mediaControllerRef.current = controller;
       reduce({
         type: "PERMISSIONS_RESOLVED",
         microphone: "granted",
-        camera:
-          mode === "audio-only"
-            ? "unavailable"
-            : stream.getVideoTracks().some((track) => track.readyState === "live")
-              ? "granted"
-              : "unavailable",
+        camera: result.camera ? "granted" : "unavailable",
         audioOnly: mode === "audio-only",
       });
     } catch (cause) {
