@@ -2,7 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import { useEffect, useRef, useState } from "react";
-import { CandidateDevicePreview } from "../../../lib/candidate-device-preview";
+import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview } from "../../../lib/candidate-device-preview";
 import { api, localizeApiMessage } from "../../../lib/api";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
@@ -213,6 +213,9 @@ export default function CandidateSetupPage() {
       }
       // Release setup devices before the interview page acquires its own stream.
       previewRef.current?.stop();
+      // A one-time marker ties automatic interview media startup to the user's
+      // explicit device check and Continue actions in this same browser tab.
+      window.sessionStorage.setItem(CANDIDATE_PREVIEW_HANDOFF_KEY, "1");
       window.location.assign("/candidate/interview");
     } catch (cause) {
       setDeviceError(cause instanceof Error ? cause.message : candidateCopy[locale].genericError);
