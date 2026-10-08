@@ -401,7 +401,9 @@ export function CandidateInterviewExperience({
       // camera in one combined request can fail while one device is still busy.
       // Acquire independently and retry transient camera errors without losing
       // a healthy microphone. Never mark permission as a live device.
-      const controller = new CandidateDevicePreview(navigator.mediaDevices);
+      const controller = new CandidateDevicePreview({
+        getUserMedia: (constraints) => navigator.mediaDevices.getUserMedia(constraints),
+      });
       mediaControllerRef.current = controller;
       const result = await controller.start({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -454,7 +456,14 @@ export function CandidateInterviewExperience({
     } catch (cause) {
       if (requestId !== mediaRequestIdRef.current) return;
       releaseStream();
-      await inspectPermissions(mediaFailureCode(cause));
+      const code = mediaFailureCode(cause);
+      reduce({
+        type: "PERMISSIONS_RESOLVED",
+        microphone: code === "permission_denied" ? "denied" : "unavailable",
+        camera: "unknown",
+        audioOnly: false,
+      });
+      reduce({ type: "PERMISSION_FAILED", code });
     } finally {
       if (requestId === mediaRequestIdRef.current) setPermissionBusy(false);
     }
