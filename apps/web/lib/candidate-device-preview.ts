@@ -9,6 +9,7 @@ export interface CandidateDevicePreviewOptions {
   audio?: boolean | MediaTrackConstraints;
   video?: boolean | MediaTrackConstraints;
   cameraRetryDelaysMs?: number[];
+  microphoneRetryDelaysMs?: number[];
 }
 
 export interface CandidateDevicePreviewResult {
@@ -41,17 +42,30 @@ export class CandidateDevicePreview {
     const request = ++this.generation;
     this.release();
 
-    let microphone: MediaStream;
-    try {
-      microphone = await this.devices.getUserMedia({ audio: options.audio ?? true, video: false });
-    } catch (cause) {
-      if (request !== this.generation) return null;
-      throw cause;
+    let microphone: MediaStream | null = null;
+    let microphoneError: unknown = null;
+    const microphoneDelays = [0, ...(options.microphoneRetryDelaysMs ?? [])];
+    for (const delay of microphoneDelays) {
+      if (delay > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delay));
+        if (request !== this.generation) return null;
+      }
+      try {
+        const candidate = await this.devices.getUserMedia({ audio: options.audio ?? true, video: false });
+        if (request !== this.generation) {
+          stopTracks(candidate);
+          return null;
+        }
+        microphone = candidate;
+        break;
+      } catch (cause) {
+        if (request !== this.generation) return null;
+        microphoneError = cause;
+        const transient = cause instanceof DOMException && ["NotReadableError", "AbortError"].includes(cause.name);
+        if (!transient) break;
+      }
     }
-    if (request !== this.generation) {
-      stopTracks(microphone);
-      return null;
-    }
+    if (!microphone) throw microphoneError ?? new Error("microphone_unavailable");
     if (!microphone.getAudioTracks().some((track) => track.readyState === "live")) {
       stopTracks(microphone);
       throw new Error("microphone_unavailable");
