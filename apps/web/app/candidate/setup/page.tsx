@@ -1,7 +1,8 @@
 "use client";
 
 import type { components } from "@interview/api-client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CandidateDevicePreview } from "../../../lib/candidate-device-preview";
 import { api, localizeApiMessage } from "../../../lib/api";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
@@ -64,6 +65,11 @@ export default function CandidateSetupPage() {
   const [deviceState, setDeviceState] = useState<DeviceState>("idle");
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [audioOnly, setAudioOnly] = useState(false);
+  const [hasCamera, setHasCamera] = useState(false);
+  const [cameraIssue, setCameraIssue] = useState<string | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const previewRef = useRef<CandidateDevicePreview | null>(null);
+  const checkIdRef = useRef(0);
   const [savingConsent, setSavingConsent] = useState(false);
 
   useEffect(() => {
@@ -100,39 +106,91 @@ export default function CandidateSetupPage() {
     };
   }, [locale]);
 
+  // Closing/reloading this page must release devices, including when the
+  // permission dialog resolves after the component has unmounted.
+  useEffect(() => {
+    return () => {
+      checkIdRef.current += 1;
+      previewRef.current?.stop();
+      if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
+    };
+  }, []);
+
+  function stopPreview() {
+    checkIdRef.current += 1;
+    previewRef.current?.stop();
+    if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
+    setDeviceState("idle");
+    setDeviceError(null);
+    setCameraIssue(null);
+    setAudioOnly(false);
+    setHasCamera(false);
+  }
+
   async function checkDevices() {
+    const checkId = ++checkIdRef.current;
     setDeviceState("checking");
     setDeviceError(null);
+    setCameraIssue(null);
+    setHasCamera(false);
     setAudioOnly(false);
-    let microphoneStream: MediaStream | undefined;
-    let cameraStream: MediaStream | undefined;
+    if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error(copy.deviceUnsupported);
+      if (!previewRef.current) previewRef.current = new CandidateDevicePreview(navigator.mediaDevices);
+      const result = await previewRef.current.start();
+      if (!result || checkId !== checkIdRef.current) return;
 
-      // Microphone is essential; camera is optional because the interview
-      // experience already supports a documented audio-only fallback.
-      microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      if (!microphoneStream.getAudioTracks().some((track) => track.readyState === "live")) {
-        throw new Error(copy.deviceRequired);
+      if (result.camera && previewVideoRef.current) {
+        const video = previewVideoRef.current;
+        video.srcObject = result.camera;
+        void video.play().catch(() => {
+          if (checkId === checkIdRef.current && video.srcObject === result.camera) {
+            setCameraIssue(copy.previewPlaybackFailed);
+          }
+        });
       }
 
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        if (!cameraStream.getVideoTracks().some((track) => track.readyState === "live")) {
+      setHasCamera(Boolean(result.camera));
+      setAudioOnly(!result.camera);
+      if (result.cameraError) {
+        const cause = result.cameraError;
+        setCameraIssue(
+          cause instanceof DOMException && ["NotFoundError", "DevicesNotFoundError", "OverconstrainedError"].includes(cause.name)
+            ? copy.cameraNotFound
+            : cause instanceof DOMException && ["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(cause.name)
+              ? copy.cameraPermissionDenied
+              : copy.cameraUnavailable,
+        );
+      }
+
+      for (const track of result.microphone.getAudioTracks()) {
+        track.addEventListener("ended", () => {
+          if (checkId !== checkIdRef.current) return;
+          stopPreview();
+          setDeviceState("failed");
+          setDeviceError(copy.deviceRequired);
+        }, { once: true });
+      }
+      for (const track of result.camera?.getVideoTracks() ?? []) {
+        track.addEventListener("ended", () => {
+          if (checkId !== checkIdRef.current) return;
+          if (previewVideoRef.current) previewVideoRef.current.srcObject = null;
+          setHasCamera(false);
           setAudioOnly(true);
-        }
-      } catch {
-        // A missing, busy, or blocked camera must not prevent an interview
-        // when a working microphone is available.
-        setAudioOnly(true);
+          setCameraIssue(copy.cameraDisconnected);
+        }, { once: true });
       }
       setDeviceState("ready");
     } catch (cause) {
+      if (checkId !== checkIdRef.current) return;
+      previewRef.current?.stop();
       setDeviceState("failed");
-      setDeviceError(deviceErrorMessage(cause, copy));
-    } finally {
-      microphoneStream?.getTracks().forEach((track) => track.stop());
-      cameraStream?.getTracks().forEach((track) => track.stop());
+      setDeviceError(
+        cause instanceof Error && cause.message === "microphone_unavailable"
+          ? copy.deviceRequired
+          : deviceErrorMessage(cause, copy),
+      );
     }
   }
 
@@ -153,6 +211,8 @@ export default function CandidateSetupPage() {
       if (refreshed.error || !refreshed.data?.readyForInterview) {
         throw new Error(messageFrom(refreshed.error, candidateCopy[locale].genericError, locale));
       }
+      // Release setup devices before the interview page acquires its own stream.
+      previewRef.current?.stop();
       window.location.assign("/candidate/interview");
     } catch (cause) {
       setDeviceError(cause instanceof Error ? cause.message : candidateCopy[locale].genericError);
@@ -200,13 +260,33 @@ export default function CandidateSetupPage() {
         </fieldset>
 
         {consentStatus?.readyForInterview ? <div className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{copy.consentReady}</div> : null}
-        {audioOnly && deviceState === "ready" ? <div role="status" className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{copy.audioOnlyReady}</div> : null}
+        <section className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]" aria-label={copy.previewTitle}>
+          <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-950">
+            <video ref={previewVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover [transform:scaleX(-1)] ${hasCamera && deviceState === "ready" ? "" : "hidden"}`} />
+            {!(hasCamera && deviceState === "ready") ? (
+              <div className="absolute inset-0 grid place-items-center px-5 text-center text-sm leading-6 text-slate-200">
+                {deviceState === "checking" ? copy.previewChecking : audioOnly && deviceState === "ready" ? copy.previewCameraOff : copy.previewIdle}
+              </div>
+            ) : null}
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700">
+            <h2 className="font-semibold text-slate-900">{copy.previewTitle}</h2>
+            <p className="mt-2 leading-5 text-slate-500">{copy.previewLocalOnly}</p>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between gap-3"><span>{copy.microphoneLabel}</span><strong>{deviceState === "ready" ? copy.deviceReady : copy.deviceNotChecked}</strong></div>
+              <div className="flex justify-between gap-3"><span>{copy.cameraLabel}</span><strong>{hasCamera && deviceState === "ready" ? copy.deviceReady : audioOnly && deviceState === "ready" ? copy.deviceUnavailable : copy.deviceNotChecked}</strong></div>
+            </div>
+          </div>
+        </section>
+        {audioOnly && deviceState === "ready" ? <div role="status" className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{copy.audioOnlyReady}{cameraIssue ? ` ${cameraIssue}` : ""}</div> : null}
+        {cameraIssue && !audioOnly ? <div role="alert" className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{cameraIssue}</div> : null}
         {deviceError ? <div role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{deviceError}</div> : null}
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button disabled={!session || deviceState === "checking"} onClick={checkDevices} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-50" type="button">
             {deviceState === "checking" ? copy.checking : deviceState === "ready" ? copy.checkAgain : copy.checkDevices}
           </button>
+          {deviceState === "ready" ? <button type="button" disabled={savingConsent} onClick={stopPreview} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">{copy.stopPreview}</button> : null}
           <button
             disabled={deviceState !== "ready" || !allConsentsGranted || savingConsent}
             onClick={() => void persistConsentsAndContinue()}
