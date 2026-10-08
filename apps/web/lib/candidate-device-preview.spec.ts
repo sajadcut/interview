@@ -126,3 +126,39 @@ test("unmount during pending microphone permission closes the late microphone", 
   assert.equal(await checking, null);
   assert.equal(mic.track.stopped, true);
 });
+
+test("busy camera is retried without stopping the working microphone", async () => {
+  const microphone = makeStream(true);
+  const camera = makeStream(false);
+  let cameraCalls = 0;
+  const preview = new CandidateDevicePreview(devices(async (constraints) => {
+    if (!constraints.video) return microphone.stream;
+    cameraCalls += 1;
+    if (cameraCalls === 1) throw new DOMException("camera temporarily busy", "NotReadableError");
+    return camera.stream;
+  }));
+  const result = await preview.start({ cameraRetryDelaysMs: [1] });
+  assert.equal(result?.camera, camera.stream);
+  assert.equal(result?.cameraError, null);
+  assert.equal(cameraCalls, 2);
+  assert.equal(microphone.track.stopped, false);
+  assert.equal(camera.track.stopped, false);
+  preview.stop();
+  assert.equal(microphone.track.stopped, true);
+  assert.equal(camera.track.stopped, true);
+});
+
+test("audio-only request never opens the camera", async () => {
+  const microphone = makeStream(true);
+  let cameraCalls = 0;
+  const preview = new CandidateDevicePreview(devices(async (constraints) => {
+    if (constraints.video) { cameraCalls += 1; throw new Error("should not request camera"); }
+    return microphone.stream;
+  }));
+  const result = await preview.start({ video: false });
+  assert.equal(result?.microphone, microphone.stream);
+  assert.equal(result?.camera, null);
+  assert.equal(result?.cameraError, null);
+  assert.equal(cameraCalls, 0);
+  preview.stop();
+});
