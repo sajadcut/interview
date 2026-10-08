@@ -3,6 +3,8 @@
  * Unlike a one-shot permission probe, tracks stay live until stop() or navigation.
  * Concurrent/stale requests never resurrect streams after they were released.
  */
+export const CANDIDATE_PREVIEW_HANDOFF_KEY = "candidate:media-preview-handoff";
+
 export interface CandidateDevicePreviewResult {
   microphone: MediaStream;
   camera: MediaStream | null;
