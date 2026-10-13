@@ -23,6 +23,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "title">("newest");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -51,14 +52,19 @@ export default function JobsPage() {
 
   const filteredJobs = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return jobs.filter((job) => {
+    const matching = jobs.filter((job) => {
       if (statusFilter !== "all" && job.status !== statusFilter) return false;
       if (!normalized) return true;
       return [job.title, job.department, job.location, job.seniority, job.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(normalized));
     });
-  }, [jobs, query, statusFilter]);
+    return matching.sort((a, b) => sortOrder === "title"
+      ? a.title.localeCompare(b.title, "fa")
+      : sortOrder === "oldest"
+        ? new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+        : new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }, [jobs, query, statusFilter, sortOrder]);
 
   const selectedVisibleCount = filteredJobs.filter((job) => selectedIds.has(job.id)).length;
   const allVisibleSelected = filteredJobs.length > 0 && selectedVisibleCount === filteredJobs.length;
@@ -152,13 +158,13 @@ export default function JobsPage() {
                 className="h-10 w-full rounded-[10px] border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
                 placeholder="جست‌وجو بر اساس عنوان، تیم، محل یا وضعیت..."
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => { setQuery(event.target.value); setSelectedIds(new Set()); }}
               />
             </div>
             <select
               aria-label="فیلتر وضعیت موقعیت"
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
+              onChange={(event) => { setStatusFilter(event.target.value); setSelectedIds(new Set()); }}
               className="h-10 rounded-[10px] border border-slate-200 bg-white px-3 text-[11px] text-slate-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50"
             >
               <option value="all">همه وضعیت‌ها</option>
@@ -167,6 +173,11 @@ export default function JobsPage() {
               <option value="paused">متوقف</option>
               <option value="closed">بسته</option>
               <option value="archived">بایگانی‌شده</option>
+            </select>
+            <select aria-label="مرتب‌سازی موقعیت‌ها" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "newest" | "oldest" | "title")} className="h-10 rounded-[10px] border border-slate-200 bg-white px-3 text-[11px] text-slate-700">
+              <option value="newest">جدیدترین تغییرات</option>
+              <option value="oldest">قدیمی‌ترین تغییرات</option>
+              <option value="title">عنوان (الفبا)</option>
             </select>
           </div>
         )}
@@ -244,7 +255,7 @@ export default function JobsPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-[10px] text-slate-400">
           <span>{formatFaNumber(filteredJobs.length)} از {formatFaNumber(jobs.length)} موقعیت ثبت‌شده</span>
-          <span className="font-medium text-slate-500">مرتب‌شده بر اساس آخرین به‌روزرسانی</span>
+          <span className="font-medium text-slate-500">انتخاب همه فقط شامل نتایج فیلترشده همین فهرست است</span>
         </div>
       </Panel>
 
