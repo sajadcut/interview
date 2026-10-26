@@ -40,7 +40,7 @@ interface CandidateWorkspacePayload {
   resumeSkillClaims?: Array<{
     id: string; resumeId: string; evidenceId?: string; skillKey: string; skillName: string;
     originalFilename: string; claimText: string; startChar: number; endChar: number;
-    confidence: number; reviewState: string; sourceReference: string;
+    confidence: number; reviewState: string; reviewReason?: string; sourceReference: string;
     parserVersion: string; taxonomyVersion: string;
   }>;
   jobSkillRequirements?: Array<{
@@ -65,6 +65,10 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string>();
   const [technicalApproval, setTechnicalApproval] = useState<{ decision: string; feedback: string; approverName?: string } | null>();
+  const [activeClaimReview, setActiveClaimReview] = useState<string>();
+  const [claimReviewState, setClaimReviewState] = useState<"confirmed" | "rejected">("confirmed");
+  const [claimReviewReason, setClaimReviewReason] = useState("");
+  const [savingClaimReview, setSavingClaimReview] = useState(false);
 
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
@@ -129,6 +133,32 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
     })();
     return () => { active = false; };
   }, [identity, selectedApplicationId]);
+
+  async function submitClaimReview(claimId: string) {
+    if (!identity || !access.can("candidate.resume_manage")) return;
+    const reviewReason = claimReviewReason.trim();
+    if (reviewReason.length < 8) {
+      setMessage("دلیل بازبینی باید حداقل ۸ کاراکتر باشد.");
+      return;
+    }
+    setSavingClaimReview(true);
+    try {
+      const result = await api.PUT("/v1/candidates/{candidateId}/skill-claims/{claimId}/review", {
+        params: { path: { candidateId, claimId } },
+        headers: tenantHeaders(identity),
+        body: { reviewState: claimReviewState, reviewReason },
+      });
+      if (result.error) throw new Error(messageFrom(result.error, "ثبت بازبینی ادعا ناموفق بود."));
+      setActiveClaimReview(undefined);
+      setClaimReviewReason("");
+      setMessage("بازبینی متن ادعای رزومه ثبت شد. این کار به معنی تأیید مهارت فنی نیست.");
+      await load(identity);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "بازبینی ثبت نشد");
+    } finally {
+      setSavingClaimReview(false);
+    }
+  }
 
   async function finalizeScorecard() {
     if (!identity || !selectedApplicationId) return;
@@ -291,6 +321,35 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
                 <div className="font-semibold">{claim.skillName} · {claim.reviewState === "pending" ? "نیازمند بررسی" : claim.reviewState}</div>
                 <div className="mt-1 whitespace-pre-wrap leading-5">{claim.claimText}</div>
                 <div className="mt-1 text-[9px] text-slate-400">{claim.originalFilename}</div>
+                {claim.reviewReason ? <p className="mt-1 text-[9px] text-slate-500">دلیل بررسی: {claim.reviewReason}</p> : null}
+                {access.can("candidate.resume_manage") ? <>
+                  <button type="button" onClick={() => {
+                    setActiveClaimReview((current) => current === claim.id ? undefined : claim.id);
+                    setClaimReviewReason(claim.reviewReason ?? "");
+                    setClaimReviewState(claim.reviewState === "rejected" ? "rejected" : "confirmed");
+                  }} className="mt-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-[10px] font-semibold text-indigo-700">
+                    بازبینی ادعای رزومه
+                  </button>
+                  {activeClaimReview === claim.id ? <form className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3"
+                    onSubmit={(event) => { event.preventDefault(); void submitClaimReview(claim.id); }}>
+                    <label className="block text-[10px] text-slate-700">نتیجه بررسی متن ادعا
+                      <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2" value={claimReviewState}
+                        onChange={(event) => setClaimReviewState(event.target.value as "confirmed" | "rejected")}>
+                        <option value="confirmed">وجود ادعا در رزومه تأیید شد</option>
+                        <option value="rejected">نگاشت ادعا به مهارت رد شد</option>
+                      </select>
+                    </label>
+                    <label className="block text-[10px] text-slate-700">دلیل مستند بازبینی
+                      <textarea className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2"
+                        required minLength={8} maxLength={1000} rows={3} value={claimReviewReason}
+                        onChange={(event) => setClaimReviewReason(event.target.value)} />
+                    </label>
+                    <button disabled={savingClaimReview || claimReviewReason.trim().length < 8}
+                      className="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-semibold text-white disabled:opacity-50">
+                      {savingClaimReview ? "در حال ثبت…" : "ثبت نتیجه بازبینی"}
+                    </button>
+                  </form> : null}
+                </> : null}
               </div>)}</div>
             </details> : null}
           </Panel>

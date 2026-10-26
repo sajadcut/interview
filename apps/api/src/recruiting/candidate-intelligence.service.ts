@@ -165,6 +165,7 @@ export class CandidateIntelligenceService {
         endChar: Number(row.end_char),
         confidence: Number(row.extraction_confidence),
         reviewState: String(row.review_state),
+        ...(row.review_reason ? { reviewReason: String(row.review_reason) } : {}),
         reviewVersion: Number(row.review_version),
         ...(row.review_reason ? { reviewReason: String(row.review_reason) } : {}),
         parserVersion: String(row.parser_version),
