@@ -18,7 +18,7 @@ export interface AnchoredResumeSkillClaim {
 
 const DEFINITIONS: ReadonlyArray<CanonicalSkill & { aliases: readonly string[]; evidencePattern: RegExp }> = [
   { key: "c-sharp", nameEn: "C#", nameFa: "سی‌شارپ", category: "technical", taxonomyVersion: "v1",
-    aliases: ["c-sharp", "c#", "c sharp"], evidencePattern: /(?:^|[^\p{L}\p{N}])c\s*#(?=$|[^\p{L}\p{N}])/iu },
+    aliases: ["c-sharp", "c#", "c sharp"], evidencePattern: /(?<![\p{L}\p{N}])c\s*#(?=$|[^\p{L}\p{N}])/iu },
   { key: "aspnet-core", nameEn: "ASP.NET Core", nameFa: "ای‌اس‌پی دات‌نت کور", category: "technical", taxonomyVersion: "v1",
     aliases: ["aspnet-core", "asp.net core", "asp net core"], evidencePattern: /\basp\s*\.?\s*net\s+core\b/i },
   { key: "dotnet", nameEn: ".NET", nameFa: "دات‌نت", category: "technical", taxonomyVersion: "v1",
