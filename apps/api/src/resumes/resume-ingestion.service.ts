@@ -13,6 +13,7 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker, type ResumeChunk } from "./resume-chunker";
 import { RESUME_EMBEDDING_PROVIDER, type ResumeEmbeddingBatch, type ResumeEmbeddingProvider } from "./resume-embedding-provider";
 import { RESUME_PARSER_VERSION, ResumeParser, type ParsedResumeProfile } from "./resume-parser";
+import { anchorResumeSkillClaim } from "./resume-skill-mapping";
 import { MAX_RESUME_BYTES, ResumeTextExtractor } from "./resume-text-extractor";
 import type { ResumeDto } from "./resume-ingestion.dto";
 
@@ -376,6 +377,40 @@ export class ResumeIngestionService {
           )
           ON CONFLICT DO NOTHING
         `;
+        // Persist the resume assertion separately from interview scores. This
+        // deliberately requires a literal source span: model/parser guesses stay unverified.
+        const anchored = anchorResumeSkillClaim(input.extractedText, skill);
+        if (anchored) {
+          await tx`
+            INSERT INTO skill_taxonomy (
+              organization_id, skill_key, name_fa, name_en, category, taxonomy_version
+            ) VALUES (
+              ${input.organizationId}::uuid, ${anchored.skill.key}, ${anchored.skill.nameFa},
+              ${anchored.skill.nameEn}, ${anchored.skill.category}, ${anchored.skill.taxonomyVersion}
+            )
+            ON CONFLICT (organization_id, skill_key) DO NOTHING
+          `;
+          await tx`
+            INSERT INTO resume_skill_claims (
+              organization_id, candidate_id, resume_id, skill_id, evidence_id,
+              source_reference, claim_text, start_char, end_char,
+              extraction_confidence, taxonomy_version, parser_version
+            )
+            SELECT ${input.organizationId}::uuid, ${input.candidateId}::uuid, ${input.resumeId}::uuid,
+                   st.id, e.id, ${sourceReference}, ${anchored.claimText},
+                   ${anchored.startChar}, ${anchored.endChar},
+                   ${skill.confidence}, ${anchored.skill.taxonomyVersion}, ${input.profile.parserVersion}
+            FROM skill_taxonomy st
+            JOIN evidence e
+              ON e.organization_id = st.organization_id
+             AND e.candidate_id = ${input.candidateId}::uuid
+             AND e.source_type = 'resume' AND e.evidence_type = 'resume_claim'
+             AND e.source_reference = ${sourceReference}
+            WHERE st.organization_id = ${input.organizationId}::uuid
+              AND st.skill_key = ${anchored.skill.key}
+            ON CONFLICT (organization_id, resume_id, skill_id) DO NOTHING
+          `;
+        }
       }
 
       for (const experience of input.profile.experiences) {
