@@ -15,6 +15,7 @@ interface HarnessResult {
   service: InterviewBrainService;
   getInsert: () => { query: string; values: unknown[] } | null;
   getCheckpoint: () => Record<string, unknown> | null;
+  getLlmContext: () => Record<string, unknown> | null;
 }
 
 function harness(options: {
@@ -22,9 +23,11 @@ function harness(options: {
   llmFailure?: string;
   forbiddenTopics?: string[];
   evidenceCount?: number;
+  selectedQuestionDocuments?: Array<{ id: string; name: string; text: string; questions: string[] }>;
 } = {}): HarnessResult {
   let inserted: { query: string; values: unknown[] } | null = null;
   let checkpoint: Record<string, unknown> | null = null;
+  let llmContext: Record<string, unknown> | null = null;
 
   const transaction = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const query = strings.join(" ");
@@ -62,7 +65,18 @@ function harness(options: {
         production_approved_by_user_id: null,
       }];
     }
-    if (query.includes("FROM application_question_documents selected")) return [];
+    if (query.includes("FROM application_question_documents selected")) {
+      assert.match(query, /selected\.organization_id/);
+      assert.match(query, /selected\.application_id/);
+      assert.match(query, /d\.job_id/);
+      return (options.selectedQuestionDocuments ?? []).map((doc) => ({
+        id: doc.id,
+        original_name: doc.name,
+        sha256: "a".repeat(64),
+        extracted_text: doc.text,
+        suggested_questions: doc.questions,
+      }));
+    }
     if (query.includes("FROM rubric_criteria")) {
       return [{
         criterion_key: "backend_depth",
@@ -138,7 +152,8 @@ function harness(options: {
     executionId: "execution-1",
   };
   const llm = {
-    generateTurn: async () => {
+    generateTurn: async (context: Record<string, unknown>) => {
+      llmContext = context;
       if (options.llmFailure) throw new LlmInterviewerFailure(options.llmFailure);
       const value = options.llmTurn ?? defaultTurn;
       return {
@@ -168,6 +183,7 @@ function harness(options: {
     service: new InterviewBrainService(database, tenant, llm as never),
     getInsert: () => inserted,
     getCheckpoint: () => checkpoint,
+    getLlmContext: () => llmContext,
   };
 }
 
@@ -269,4 +285,46 @@ test("provider timeout becomes a fast deterministic fallback and still persists 
   );
   assert.ok(traceReference);
   assert.match(traceReference, /\|fallbackReason=PROVIDER_TIMEOUT$/);
+});
+
+test("LLM receives only selected document questions with bounded excerpts and persists provenance", async () => {
+  const docs = [{
+    id: "6f2964d0-59ea-45a7-8537-2324b8871555",
+    name: "backend-interview.txt",
+    text: "Distributed cache systems are deployed when request volume increases. ".repeat(30),
+    questions: [
+      "How do you ensure idempotency during a retry?",
+      "When would you choose Redis instead of a relational transaction?",
+    ],
+  }];
+  const sample = harness({ selectedQuestionDocuments: docs });
+  const response = await sample.service.nextTurn(sessionId, {
+    latestCandidateText: "نتیجه هیچی نشد",
+    candidateIntent: "ANSWER",
+    elapsedSeconds: 4,
+  });
+  assert.equal(response.brainMode, "llm");
+  const context = sample.getLlmContext();
+  assert.ok(context);
+  const sources = context.selectedQuestionDocuments as Array<Record<string, unknown>>;
+  assert.equal(sources.length, 1);
+  assert.deepEqual(sources[0]?.suggestedQuestions, docs[0]?.questions);
+  assert.ok(String(sources[0]?.excerpt).length <= 850);
+  assert.ok(!("storageKey" in sources[0]!));
+  const checkpoint = sample.getCheckpoint();
+  assert.ok(checkpoint);
+  const brain = checkpoint.brain as Record<string, unknown>;
+  assert.deepEqual(brain.selectedQuestionDocumentIds, [docs[0]?.id]);
+});
+
+test("unselected job documents are never sent to the LLM", async () => {
+  const sample = harness();
+  await sample.service.nextTurn(sessionId, {
+    latestCandidateText: "نتیجه هیچی نشد",
+    candidateIntent: "ANSWER",
+    elapsedSeconds: 4,
+  });
+  const context = sample.getLlmContext();
+  assert.ok(context);
+  assert.equal(context.selectedQuestionDocuments, undefined);
 });
