@@ -19,6 +19,7 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
     const tenant=new TenantContextService();
     const actor=randomUUID(),orgA=randomUUID(),orgB=randomUUID(),jobId=randomUUID();
     const candidateId=randomUUID(),applicationId=randomUUID(),fileId=randomUUID(),documentId=randomUUID();
+    const rubricId=randomUUID(),rubricVersionId=randomUUID(),criterionId=randomUUID();
     const suffix=randomUUID();
     const source="Technical interview reference: How would you design idempotency for a .NET payment API? " +
       "Explain handling retries, conflict errors and durable state in SQL Server.";
@@ -37,7 +38,15 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
       await sql`INSERT INTO candidates(id,organization_id,display_name)
         VALUES(${candidateId}::uuid,${orgA}::uuid,'Question Candidate')`;
       await sql`INSERT INTO jobs(id,organization_id,title,status)
-        VALUES(${jobId}::uuid,${orgA}::uuid,'Senior .NET Engineer','draft')`;
+        VALUES(${jobId}::uuid,${orgA}::uuid,'Senior .NET Engineer','active')`;
+      await sql`INSERT INTO rubrics(id,organization_id,job_id,name,status)
+        VALUES(${rubricId}::uuid,${orgA}::uuid,${jobId}::uuid,'Question Rubric','published')`;
+      await sql`INSERT INTO rubric_versions(id,organization_id,rubric_id,version,status,published_at)
+        VALUES(${rubricVersionId}::uuid,${orgA}::uuid,${rubricId}::uuid,1,'published',now())`;
+      await sql`INSERT INTO rubric_criteria(
+        id,organization_id,rubric_version_id,criterion_key,label,weight,required,display_order
+      ) VALUES (${criterionId}::uuid,${orgA}::uuid,${rubricVersionId}::uuid,
+        'idempotency','Payment idempotency',1,true,0)`;
       await sql`INSERT INTO applications(id,organization_id,job_id,candidate_id)
         VALUES(${applicationId}::uuid,${orgA}::uuid,${jobId}::uuid,${candidateId}::uuid)`;
       await sql`INSERT INTO files(id,organization_id,storage_key,original_name,mime_type,size_bytes,sha256)
