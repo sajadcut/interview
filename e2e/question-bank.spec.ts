@@ -21,11 +21,11 @@ test("recruiter uploads a job-scoped question document and sees it after a reloa
     buffer: Buffer.from(content, "utf8"),
   });
   await expect(page.getByRole("status").filter({ hasText: "روی دیسک سرور ذخیره" })).toBeVisible();
-  await expect(page.getByText(uniqueName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: uniqueName, exact: true })).toBeVisible();
 
   // A reload validates DB-backed listing, not just local component state.
   await page.reload();
   await page.getByLabel("موقعیت شغلی").selectOption(SEEDED_JOB_ID);
-  await expect(page.getByText(uniqueName, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: uniqueName, exact: true })).toBeVisible();
   await expect(page.getByText(/How would you design idempotency/)).toBeVisible();
 });
