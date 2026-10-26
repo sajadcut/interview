@@ -285,6 +285,39 @@ test(
           AND skill_key='postgresql'
       `;
       assert.equal(declaredSkill[0]?.verification_state, "unverified");
+
+      // A previously human-corrected mapping must remain in the immutable audit
+      // history, but must not be exposed as a fresh claim after parser reprocessing.
+      await database.sql`
+        UPDATE resumes SET parser_version='outdated-before-reparse'
+        WHERE organization_id=${orgA}::uuid AND id=${first.id}::uuid
+      `;
+      await tenant.run(orgA, () => service.ingest(candidateA, {
+        originalName: "repeat-after-human-review.txt",
+        mimeType: "text/plain",
+        data: source,
+      }));
+      const reloaded = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
+      assert.equal(reloaded.resumeSkillClaims.some((item) => item.id === claim.id), false);
+      assert.equal(reloaded.resumeSkillClaims.some((item) => item.skillKey === "postgresql"), true);
+      const reviewedHistory = await tenant.run(orgA, () => skillEvidence.reviewHistory(candidateA, claim.id));
+      assert.deepEqual(reviewedHistory.map((item) => item.reviewVersion), [1, 2]);
+      const archived = await database.sql`
+        SELECT review_state, is_current, evidence_id FROM resume_skill_claims
+        WHERE organization_id=${orgA}::uuid AND id=${claim.id}::uuid
+      `;
+      assert.equal(archived[0]?.review_state, "confirmed");
+      assert.equal(archived[0]?.is_current, false);
+      assert.equal(archived[0]?.evidence_id, null);
+      await assert.rejects(
+        () => tenant.run(orgA, () => auth.run({
+          userId: actorId, source: "session" as const,
+        }, () => skillEvidence.reviewResumeClaim(candidateA, claim.id, {
+          reviewState: "confirmed", reviewReason: "Stale claim is not active anymore", expectedVersion: 2,
+        }))),
+        /Resume skill claim not found/,
+      );
+
       const removed = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, []));
       assert.deepEqual(removed, []);
       const tombstones = await database.sql`
