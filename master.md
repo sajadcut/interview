@@ -637,6 +637,12 @@ Vector search is a retrieval signal, not the final business score.
 
 ---
 
+## 10.1 Source-anchored skill evidence graph (implementation in progress)
+
+An additive, tenant-scoped `skill_taxonomy` defines canonical skills, with controlled `skill_aliases`. `job_skill_requirements` captures 1–5 expected proficiency, importance, evidence quota, optional rubric criterion and version. `resume_skill_claims` links the candidate and original resume text offsets/excerpt to source evidence and a canonical skill, with an explicit human-review state. Deterministic extraction requires a literal resume anchor and intentionally does not convert an assertion into verified competence.
+
+The existing published application rubric, criterion evaluations, deterministic scorecard and human hiring decision remain authoritative. Candidate intelligence displays resume assertions and configured job-skill gaps separately from hiring/technical interview scores. The skill graph is a staged implementation, not a replacement of the existing matching, evaluation or interview planning logic. See `docs/implementation/skill-evidence-roadmap.md` for acceptance status.
+
 # 11. Evidence and scoring architecture
 
 Evidence is first-class and should deep-link to source material and timestamps where possible.

@@ -438,3 +438,14 @@ The LLM Provider Layer proves prompt-version provenance, structured-output valid
 The current direct-maintenance-on-`main` model remains supported. The enforced source-level protections are the deterministic `quality-gate`, committed dependency lockfile, migration/index verification, generated-contract drift check, typed-client usage guard, `npm run llm-provider:contract:check`, `npm run ffmpeg:contract:check`, `npm run whisper:contract:check`, `npm run livekit:config:check`, `npm run alerting:check`, lint, typecheck, full test suite (including PostgreSQL privacy/monitoring integration, TypeScript realtime/Whisper contract tests, dependency-free Node LLM scripted-provider tests, dependency-free Python media-worker/FFmpeg fake-process tests, alerting contract/runbook checks, and specialized worker tests), production build, deterministic browser fixtures, and critical Browser E2E flows.
 
 If the repository later moves to a multi-contributor or pull-request-only workflow, branch protection with required `quality` status checks should be enabled as an additional governance layer.
+
+
+---
+
+# 9. Skill Evidence Graph implementation (2026-10-26)
+
+Current status: **Phase 0 architecture gap analysis DONE; Phase 1 IN_PROGRESS; Phases 2–5 not completed.** See `docs/implementation/skill-evidence-roadmap.md` for task-by-task tracking and CI evidence.
+
+The additive migration `packages/db/migrations/0069_skill_evidence_foundation.sql` introduces tenant-bound taxonomy, aliases, versioned job skill requirements and source-anchored resume claims. `apps/api/src/resumes/resume-skill-mapping.ts` conservatively anchors .NET skill mentions; `resume-ingestion.service.ts` persists resume-claim evidence links without changing existing hiring scores. New tests cover literal offsets, false-positive skill associations, replay and tenant-scope FK rejection. The existing candidate intelligence workspace now reads and displays sourced claims and skill requirement gaps as **unverified** assertions.
+
+Missing for Phase 1 acceptance: editable job requirements, authorized human mapping review and correction with audit, full LLM mapping-proposal workflow, browser verification. Other phases (versioned questions, interview planner and competency-level evaluator/report) remain open. No autonomous real-candidate production approval is implied. Every commit needs its own CI verification.

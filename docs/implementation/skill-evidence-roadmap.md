@@ -27,8 +27,8 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 - [x] Deterministic, conservative .NET skill alias mapping and source offsets in `resume-skill-mapping.ts`; add negative unit tests.
 - [x] Ingestion transaction writes new taxonomy and evidence-linked resume claim edges for curated, literally anchored skills; unmatched skill labels remain in existing `candidate_skills`.
 - [ ] Run PostgreSQL migration/integration and static/unit tests on the required Node 25/npm 11 workstation or CI.
-- [ ] Add tenant-scoped typed read/write APIs, controlled HR review/override and versioned changes; regenerate OpenAPI/client.
-- [ ] Job definition UI for required skill levels/weights, candidate review UI with source highlight and feedback; browser E2E.
+- [x] Tenant-scoped candidate intelligence read API exposes source-anchored resume assertions and versioned job skill requirements.\n- [ ] Authorized human review/write APIs, controlled override and versioned changes; regenerate OpenAPI/client.
+- [x] Read-only candidate workspace displays expected job skill levels, declared claims, their original excerpt and confidence separately from assessed competence.\n- [ ] Job definition/edit UI for skill levels/weights, writable candidate review feedback and verified browser E2E.
 - [ ] LLM extraction proposals with strict schema, confidence and safe fallback; extend taxonomy aliases only via review.
 - [ ] Verify job-rubric mapping and full duplicate/reload/cross-tenant acceptance tests.
 
@@ -45,7 +45,7 @@ Request Senior .NET developer → HR approval → job/rubric → question upload
 - `packages/db/migrations/0069_skill_evidence_foundation.sql` — additive relational model.
 - `apps/api/src/resumes/resume-skill-mapping.ts` — conservative source anchoring.
 - `apps/api/src/resumes/resume-skill-mapping.spec.ts` — focused negative cases.
-- `apps/api/src/resumes/resume-ingestion.service.ts` — transactional claim insert.
+- `apps/api/src/resumes/resume-ingestion.service.ts` — transactional claim insert.\n- `apps/api/src/resumes/resume-ingestion.postgres.integration.spec.ts` — persisted claim replay/source and cross-tenant negative coverage.\n- `apps/api/src/recruiting/candidate-intelligence.service.ts` — scoped read model for existing candidate intelligence API.\n- `apps/web/components/recruiting/candidate-intelligence-workspace.tsx` — source and skill-gaps Persian UI.\n- `master.md`, `projectstate.md` — architecture/current-state updates.
 - `docs/implementation/skill-evidence-roadmap.md` — this log.
 
 ## Validation evidence / commits
