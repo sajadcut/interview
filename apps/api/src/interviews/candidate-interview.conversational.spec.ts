@@ -87,6 +87,9 @@ function harness(options: {
         }];
       }
       if (query.includes("UPDATE interview_sessions")) return [];
+      // Canonical finish invalidates any still-active candidate room connection
+      // before enqueueing the independent evaluator. This is idempotent cleanup.
+      if (query.includes("UPDATE interview_candidate_connections") && query.includes("status='disconnected'")) return [];
       if (query.includes("interview_turn_id") && query.includes("FROM interview_transcript_segments")) {
         const turnId = values.length > 2 ? String(values[2]) : "";
         return appended.some((segment) => String(segment.turnId ?? "") === turnId)
