@@ -36,7 +36,11 @@ jobs:
           test "$(npm --version)" = "11.6.2"
       - name: Resolve patched dependency lockfile
         run: |
+          # Rebuild the resolution tree rather than retaining old exact nested
+          # Multer versions from the previous lockfile.
+          rm -f package-lock.json
           npm install --package-lock-only --ignore-scripts --no-audit
+          node -e 'const p=require("./package-lock.json").packages;const v=p["node_modules/multer"]?.version;if(v!=="2.5.0") throw Error("Multer must resolve to patched 2.5.0 (got "+v+")")'
           # Apply only compatible transitive fixes; the subsequent audit is
           # mandatory even if npm's conservative fixer cannot fix everything.
           npm audit fix --package-lock-only --ignore-scripts || true
