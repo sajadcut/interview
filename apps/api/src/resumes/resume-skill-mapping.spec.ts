@@ -7,7 +7,7 @@ test("anchors each .NET claim in its original resume and never verifies it", () 
   for (const [key, canonical] of [
     ["c-sharp", "c-sharp"], ["aspnet-core", "aspnet-core"], ["sql-server", "sql-server"],
     ["redis", "redis"], ["microservices", "microservices"],
-  ]) {
+  ] as const) {
     const actual = anchorResumeSkillClaim(text, { key, label: key });
     assert.equal(actual?.skill.key, canonical);
     assert.equal(text.slice(actual!.startChar, actual!.endChar), actual?.claimText);
