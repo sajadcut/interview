@@ -18,14 +18,17 @@ test("HR creates and rejects an anchored versioned question in the Persian bank"
   await page.getByRole("textbox", { name: "نقل‌قول مستقیم از سند" }).fill(question);
   await page.getByRole("button", { name: "ایجاد سؤال" }).click();
   await expect(page.getByRole("status").filter({ hasText: "نسخه سؤال ثبت شد" })).toBeVisible();
-  const row = page.getByRole("article").filter({ hasText: question });
+  const questionsSection = page.getByRole("heading", { name: "سؤال‌های ساختاریافته و نسخه‌دار" }).locator("..");
+  const row = questionsSection.locator("article").filter({ hasText: question });
   await expect(row).toContainText("در انتظار بررسی");
   await page.reload();
   await page.getByLabel("موقعیت شغلی").selectOption(SEEDED_JOB_ID);
-  const persisted = page.getByRole("article").filter({ hasText: question });
+  const persisted = page.getByRole("heading", { name: "سؤال‌های ساختاریافته و نسخه‌دار" })
+    .locator("..").locator("article").filter({ hasText: question });
   await expect(persisted).toContainText("نسخه ۱");
   await persisted.getByPlaceholder("دلیل مستند تصمیم انسانی").fill("This proposal needs a more precise expected answer");
   await persisted.getByRole("button", { name: "رد سؤال" }).click();
   await expect(page.getByRole("status").filter({ hasText: "نسخه سؤال رد شد" })).toBeVisible();
-  await expect(page.getByRole("article").filter({ hasText: question })).toContainText("ردشده");
+  await expect(page.getByRole("heading", { name: "سؤال‌های ساختاریافته و نسخه‌دار" })
+    .locator("..").locator("article").filter({ hasText: question })).toContainText("ردشده");
 });
