@@ -4,7 +4,6 @@ import { QuestionBankController } from "./question-bank.controller";
 import { QuestionBankService } from "./question-bank.service";
 import { QuestionVersionsController } from "./question-versions.controller";
 import { QuestionVersionsService } from "./question-versions.service";
-import { AuthContextService } from "../auth/auth-context.service";
 
 @Module({
   controllers: [QuestionBankController, QuestionVersionsController],
