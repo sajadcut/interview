@@ -40,7 +40,7 @@ interface CandidateWorkspacePayload {
   resumeSkillClaims?: Array<{
     id: string; resumeId: string; evidenceId?: string; skillKey: string; skillName: string;
     originalFilename: string; claimText: string; startChar: number; endChar: number;
-    confidence: number; reviewState: string; reviewReason?: string; sourceReference: string;
+    confidence: number; reviewState: string; reviewVersion: number; reviewReason?: string; sourceReference: string;
     parserVersion: string; taxonomyVersion: string;
   }>;
   jobSkillRequirements?: Array<{
@@ -66,7 +66,8 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
   const [message, setMessage] = useState<string>();
   const [technicalApproval, setTechnicalApproval] = useState<{ decision: string; feedback: string; approverName?: string } | null>();
   const [activeClaimReview, setActiveClaimReview] = useState<string>();
-  const [claimReviewState, setClaimReviewState] = useState<"confirmed" | "rejected">("confirmed");
+  const [claimReviewState, setClaimReviewState] = useState<"confirmed" | "rejected" | "corrected">("confirmed");
+  const [correctedSkillKey, setCorrectedSkillKey] = useState("");
   const [claimReviewReason, setClaimReviewReason] = useState("");
   const [savingClaimReview, setSavingClaimReview] = useState(false);
 
@@ -136,7 +137,13 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
 
   async function submitClaimReview(claimId: string) {
     if (!identity || !access.can("candidate.resume_manage")) return;
+    const currentClaim = workspace?.resumeSkillClaims?.find((claim) => claim.id === claimId);
+    if (!currentClaim) return;
     const reviewReason = claimReviewReason.trim();
+    if (claimReviewState === "corrected" && (!correctedSkillKey || correctedSkillKey === currentClaim.skillKey)) {
+      setMessage("برای اصلاح نگاشت، مهارت متفاوت و موجود در فهرست انتخاب کنید.");
+      return;
+    }
     if (reviewReason.length < 8) {
       setMessage("دلیل بازبینی باید حداقل ۸ کاراکتر باشد.");
       return;
@@ -146,11 +153,23 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
       const result = await api.PUT("/v1/candidates/{candidateId}/skill-claims/{claimId}/review", {
         params: { path: { candidateId, claimId } },
         headers: tenantHeaders(identity),
-        body: { reviewState: claimReviewState, reviewReason },
+        body: {
+          reviewState: claimReviewState,
+          reviewReason,
+          expectedVersion: currentClaim.reviewVersion,
+          ...(claimReviewState === "corrected" ? { correctedSkillKey } : {}),
+        },
       });
-      if (result.error) throw new Error(messageFrom(result.error, "ثبت بازبینی ادعا ناموفق بود."));
+      if (result.error) {
+        if (result.response.status === 409) {
+          await load(identity);
+          throw new Error("این ادعا توسط فرد دیگری تغییر کرده است؛ آخرین نسخه دریافت شد. لطفاً دوباره بررسی کنید.");
+        }
+        throw new Error(messageFrom(result.error, "ثبت بازبینی ادعا ناموفق بود."));
+      }
       setActiveClaimReview(undefined);
       setClaimReviewReason("");
+      setCorrectedSkillKey("");
       setMessage("بازبینی متن ادعای رزومه ثبت شد. این کار به معنی تأیید مهارت فنی نیست.");
       await load(identity);
     } catch (error) {
@@ -327,6 +346,7 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
                     setActiveClaimReview((current) => current === claim.id ? undefined : claim.id);
                     setClaimReviewReason(claim.reviewReason ?? "");
                     setClaimReviewState(claim.reviewState === "rejected" ? "rejected" : "confirmed");
+                    setCorrectedSkillKey("");
                   }} className="mt-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-[10px] font-semibold text-indigo-700">
                     بازبینی ادعای رزومه
                   </button>
@@ -334,11 +354,25 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
                     onSubmit={(event) => { event.preventDefault(); void submitClaimReview(claim.id); }}>
                     <label className="block text-[10px] text-slate-700">نتیجه بررسی متن ادعا
                       <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2" value={claimReviewState}
-                        onChange={(event) => setClaimReviewState(event.target.value as "confirmed" | "rejected")}>
+                        onChange={(event) => setClaimReviewState(event.target.value as "confirmed" | "rejected" | "corrected")}>
                         <option value="confirmed">وجود ادعا در رزومه تأیید شد</option>
                         <option value="rejected">نگاشت ادعا به مهارت رد شد</option>
+                        <option value="corrected">اصلاح نگاشت ادعا به مهارت دیگر</option>
                       </select>
                     </label>
+                    {claimReviewState === "corrected" ? <label className="block text-[10px] text-slate-700">
+                      نگاشت جدید — فقط مهارت‌های موجود در بانک مهارت سازمان
+                      <select className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2"
+                        required value={correctedSkillKey} onChange={(event) => setCorrectedSkillKey(event.target.value)}>
+                        <option value="">انتخاب مهارت صحیح</option>
+                        {Array.from(new Map([
+                          ...(workspace.jobSkillRequirements ?? []).map((item) => [item.skillKey, item.skillName] as const),
+                          ...(workspace.resumeSkillClaims ?? []).map((item) => [item.skillKey, item.skillName] as const),
+                        ])).filter(([key]) => key !== claim.skillKey).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </label> : null}
                     <label className="block text-[10px] text-slate-700">دلیل مستند بازبینی
                       <textarea className="mt-1 w-full rounded-lg border border-slate-200 bg-white p-2"
                         required minLength={8} maxLength={1000} rows={3} value={claimReviewReason}
