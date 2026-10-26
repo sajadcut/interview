@@ -76,8 +76,17 @@ export function JobSkillRequirementsEditor({
     return () => { active = false; };
   }, [jobId]);
 
-  function changeRow(skillKey: string, patch: Partial<Requirement>) {
-    setRows((previous) => previous.map((row) => row.skillKey === skillKey ? { ...row, ...patch } : row));
+  function changeRow(skillKey: string, patch: Partial<Requirement>, rubricSelection?: string | null) {
+    setRows((previous) => previous.map((row) => {
+      if (row.skillKey !== skillKey) return row;
+      if (rubricSelection === null) {
+        // Omit an optional field rather than sending an explicit undefined value.
+        const next = { ...row, ...patch };
+        delete next.rubricCriterionId;
+        return next;
+      }
+      return { ...row, ...patch, ...(rubricSelection ? { rubricCriterionId: rubricSelection } : {}) };
+    }));
     setSaved(false);
   }
 
@@ -167,7 +176,7 @@ export function JobSkillRequirementsEditor({
               <label className="mt-3 block space-y-1 text-[10px] text-slate-600">
                 پیوند با معیار ارزیابی موجود (اختیاری)
                 <select className={field} value={row.rubricCriterionId ?? ""}
-                  onChange={(event) => changeRow(row.skillKey, { rubricCriterionId: event.target.value || undefined })}>
+                  onChange={(event) => changeRow(row.skillKey, {}, event.target.value || null)}>
                   <option value="">بدون پیوند؛ این مهارت وارد امتیاز Rubric نمی‌شود</option>
                   {rubricCriteria.map((criterion) => (
                     <option key={criterion.id} value={criterion.id}>{criterion.label}</option>
