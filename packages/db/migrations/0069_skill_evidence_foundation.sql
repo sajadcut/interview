@@ -1,5 +1,3 @@
--- Skill Evidence Graph: additive phase-1 foundation. Existing rubric/scorecard remains authoritative.
--- All referenced objects are scoped by organization_id; this migration never assigns interview scores.
 CREATE TABLE IF NOT EXISTS skill_taxonomy (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -33,8 +31,6 @@ CREATE TABLE IF NOT EXISTS skill_aliases (
     REFERENCES skill_taxonomy(organization_id, id) ON DELETE CASCADE
 );
 
--- Versioned job requirements are intentionally separate from the already published rubric.
--- A new skill requirement is not an automatic scoring criterion.
 CREATE TABLE IF NOT EXISTS job_skill_requirements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
@@ -85,8 +81,6 @@ CREATE TRIGGER job_skill_criterion_scope
   BEFORE INSERT OR UPDATE OF job_id, rubric_criterion_id ON job_skill_requirements
   FOR EACH ROW EXECUTE FUNCTION check_job_skill_criterion_scope();
 
--- Preserve tenant, candidate, resume and original evidence provenance in one constrained edge.
--- "extracted" means a resume assertion, not a verified competency.
 CREATE UNIQUE INDEX resumes_org_candidate_id_uq
   ON resumes(organization_id, candidate_id, id);
 
