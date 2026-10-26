@@ -8507,6 +8507,212 @@
         ]
       }
     },
+    "/v1/question-bank/applications/{applicationId}/document-snapshots": {
+      "get": {
+        "operationId": "QuestionBankController_snapshots",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuestionSelectionSnapshotDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
+    "/v1/question-bank/jobs/{jobId}/questions": {
+      "get": {
+        "operationId": "QuestionVersionsController_list",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BankQuestionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      },
+      "post": {
+        "operationId": "QuestionVersionsController_create",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBankQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BankQuestionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
+    "/v1/question-bank/jobs/{jobId}/questions/{questionId}": {
+      "put": {
+        "operationId": "QuestionVersionsController_revise",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseBankQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BankQuestionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
+    "/v1/question-bank/jobs/{jobId}/questions/{questionId}/review": {
+      "put": {
+        "operationId": "QuestionVersionsController_review",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBankQuestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankQuestionReviewDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
     "/v1/assessments/{assessmentId}/sessions": {
       "post": {
         "operationId": "AssessmentsController_createSession",
@@ -16255,6 +16461,50 @@
           "locked"
         ]
       },
+      "QuestionSelectionSnapshotDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshotVersion": {
+            "type": "number",
+            "minimum": 1
+          },
+          "documentIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "approvedQuestionVersions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "contentSha256": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "applicationId",
+          "snapshotVersion",
+          "documentIds",
+          "approvedQuestionVersions",
+          "contentSha256",
+          "createdAt"
+        ]
+      },
       "SaveQuestionDocumentsDto": {
         "type": "object",
         "properties": {
@@ -16269,6 +16519,166 @@
         },
         "required": [
           "documentIds"
+        ]
+      },
+      "BankQuestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "number",
+            "minimum": 1
+          },
+          "questionText": {
+            "type": "string"
+          },
+          "sourceExcerpt": {
+            "type": "string"
+          },
+          "skillKey": {
+            "type": "string"
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "origin": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "documentId",
+          "versionId",
+          "version",
+          "questionText",
+          "sourceExcerpt",
+          "reviewState",
+          "origin"
+        ]
+      },
+      "CreateBankQuestionDto": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "questionText": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 600
+          },
+          "sourceExcerpt": {
+            "type": "string",
+            "description": "Verbatim excerpt from the selected reference document"
+          },
+          "skillKey": {
+            "type": "string",
+            "description": "Existing organization taxonomy skill key"
+          }
+        },
+        "required": [
+          "documentId",
+          "questionText",
+          "sourceExcerpt"
+        ]
+      },
+      "ReviseBankQuestionDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "number",
+            "minimum": 1
+          },
+          "questionText": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 600
+          },
+          "sourceExcerpt": {
+            "type": "string"
+          },
+          "skillKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "questionText",
+          "sourceExcerpt"
+        ]
+      },
+      "ReviewBankQuestionDto": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "type": "number",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "decision",
+          "reason"
+        ]
+      },
+      "BankQuestionReviewDto": {
+        "type": "object",
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "number",
+            "minimum": 1
+          },
+          "decision": {
+            "type": "string"
+          },
+          "reviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "questionId",
+          "version",
+          "decision",
+          "reviewerUserId"
         ]
       },
       "AssessmentSessionRequestDto": {

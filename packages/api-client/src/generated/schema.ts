@@ -2452,6 +2452,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/question-bank/applications/{applicationId}/document-snapshots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionBankController_snapshots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/question-bank/jobs/{jobId}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionVersionsController_list"];
+        put?: never;
+        post: operations["QuestionVersionsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/question-bank/jobs/{jobId}/questions/{questionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["QuestionVersionsController_revise"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/question-bank/jobs/{jobId}/questions/{questionId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["QuestionVersionsController_review"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/assessments/{assessmentId}/sessions": {
         parameters: {
             query?: never;
@@ -4560,8 +4624,65 @@ export interface components {
             selectedDocumentIds: string[];
             locked: boolean;
         };
+        QuestionSelectionSnapshotDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            applicationId: string;
+            snapshotVersion: number;
+            documentIds: string[];
+            approvedQuestionVersions: Record<string, never>[];
+            contentSha256: string;
+            createdAt: string;
+        };
         SaveQuestionDocumentsDto: {
             documentIds: string[];
+        };
+        BankQuestionDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            versionId: string;
+            version: number;
+            questionText: string;
+            sourceExcerpt: string;
+            skillKey?: string;
+            /** @enum {string} */
+            reviewState: "pending" | "approved" | "rejected";
+            origin: string;
+        };
+        CreateBankQuestionDto: {
+            /** Format: uuid */
+            documentId: string;
+            questionText: string;
+            /** @description Verbatim excerpt from the selected reference document */
+            sourceExcerpt: string;
+            /** @description Existing organization taxonomy skill key */
+            skillKey?: string;
+        };
+        ReviseBankQuestionDto: {
+            expectedVersion: number;
+            questionText: string;
+            sourceExcerpt: string;
+            skillKey?: string;
+        };
+        ReviewBankQuestionDto: {
+            expectedVersion: number;
+            /** @enum {string} */
+            decision: "approved" | "rejected";
+            reason: string;
+        };
+        BankQuestionReviewDto: {
+            /** Format: uuid */
+            questionId: string;
+            version: number;
+            decision: string;
+            /** Format: uuid */
+            reviewerUserId: string;
         };
         AssessmentSessionRequestDto: {
             applicationId: string;
@@ -11302,6 +11423,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationQuestionDocumentsDto"];
+                };
+            };
+        };
+    };
+    QuestionBankController_snapshots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionSelectionSnapshotDto"][];
+                };
+            };
+        };
+    };
+    QuestionVersionsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankQuestionDto"][];
+                };
+            };
+        };
+    };
+    QuestionVersionsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBankQuestionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankQuestionDto"][];
+                };
+            };
+        };
+    };
+    QuestionVersionsController_revise: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviseBankQuestionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankQuestionDto"][];
+                };
+            };
+        };
+    };
+    QuestionVersionsController_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+                questionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewBankQuestionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankQuestionReviewDto"];
                 };
             };
         };
