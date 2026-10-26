@@ -114,3 +114,54 @@ test("candidate interview UI reaches candidate-scoped realtime readiness without
 
   await setCandidateConsents(page, false);
 });
+
+test("audio-only setup handoff never re-requests a denied camera in the interview room", async ({
+  page,
+  candidateIdentity,
+}) => {
+  await authenticateCandidate(page, candidateIdentity.applicationId);
+  await setCandidateConsents(page, false);
+
+  // Instrument both pages, not just the setup document. A fresh document is
+  // needed so the injected getUserMedia wrapper covers the initial device check.
+  await page.addInitScript(() => {
+    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (constraints: MediaStreamConstraints) => {
+      if (constraints.video) {
+        const key = "candidate-e2e-video-requests";
+        window.sessionStorage.setItem(key, String(Number(window.sessionStorage.getItem(key) || "0") + 1));
+        throw new DOMException("candidate-e2e-camera-denied-in-setup", "NotAllowedError");
+      }
+      return original(constraints);
+    };
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Check camera and microphone" }).click();
+  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Audio-only" })).toBeVisible();
+  expect(await page.evaluate(() => window.sessionStorage.getItem("candidate-e2e-video-requests"))).toBe("1");
+
+  await page.getByLabel(/Privacy disclosure/).check();
+  await page.getByLabel(/AI-assisted interview/).check();
+  await page.getByLabel(/Audio\/video recording/).check();
+  await Promise.all([
+    page.waitForURL(/\/candidate\/interview$/),
+    page.getByRole("button", { name: "Continue to interview" }).click(),
+  ]);
+
+  await expect(page.getByRole("status").filter({ hasText: "Audio-only fallback is active" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start interview" })).toBeEnabled();
+  const media = await page.evaluate(() => {
+    const preview = document.querySelector("video[muted]") as HTMLVideoElement | null;
+    const stream = preview?.srcObject as MediaStream | null;
+    return {
+      cameraRequests: window.sessionStorage.getItem("candidate-e2e-video-requests"),
+      microphoneActive: Boolean(stream?.getAudioTracks().some((track) => track.readyState === "live")),
+      cameraTracks: stream?.getVideoTracks().length ?? -1,
+    };
+  });
+  expect(media).toEqual({ cameraRequests: "1", microphoneActive: true, cameraTracks: 0 });
+  await setCandidateConsents(page, false);
+});
