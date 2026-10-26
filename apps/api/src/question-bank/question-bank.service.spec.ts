@@ -49,3 +49,70 @@ test("cannot edit selection after an interview session exists", async () => {
   await assert.rejects(service.saveSelection(appId, []), /locked after interview starts/);
   assert.equal(writes, 0);
 });
+
+test("valid UTF-8 document is extracted and persisted through private storage", async () => {
+  const fileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  let stored = 0;
+  let inserted = 0;
+  const sql = async (strings: TemplateStringsArray) => {
+    const query = strings.join(" ");
+    if (query.includes("SELECT id FROM jobs")) return [{ id: jobId }];
+    if (query.includes("count(*)::int")) return [{ count: 0 }];
+    if (query.includes("INSERT INTO question_bank_documents")) {
+      inserted += 1;
+      return [{
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        job_id: jobId,
+        original_name: "questions.txt",
+        mime_type: "text/plain",
+        byte_size: 124,
+        sha256: "c".repeat(64),
+        extracted_text: "How would you design an idempotent .NET endpoint? ",
+        created_at: new Date().toISOString(),
+      }];
+    }
+    throw new Error("Unexpected SQL in question bank upload unit test");
+  };
+  const storage = {
+    save: async (value: { data: Uint8Array; mimeType: string }) => {
+      stored += 1;
+      assert.equal(value.mimeType, "text/plain");
+      assert.ok(value.data.byteLength > 40);
+      return { id: fileId, key: organizationId + "/" + fileId, sha256: "c".repeat(64) };
+    },
+  } as unknown as StorageService;
+  const extractor = {
+    extract: async () => ({
+      text: "How would you design an idempotent .NET endpoint? ".repeat(3),
+      pageCount: null,
+      extractorVersion: "test",
+    }),
+  } as unknown as ResumeTextExtractor;
+  const tenant = { require: () => ({ organizationId }) } as TenantContextService;
+  const bank = new QuestionBankService({ sql } as unknown as DatabaseService, tenant, storage, extractor);
+  const result = await bank.upload(jobId, {
+    originalname: "questions.txt",
+    mimetype: "text/plain",
+    size: 124,
+    buffer: Buffer.from("How would you design an idempotent .NET endpoint? ".repeat(3)),
+  });
+  assert.equal(result.fileName, "questions.txt");
+  assert.equal(stored, 1);
+  assert.equal(inserted, 1);
+});
+
+test("an unsupported or corrupt file never reaches disk storage", async () => {
+  const tenant = { require: () => ({ organizationId }) } as TenantContextService;
+  let saved = false;
+  const sql = async () => [{ id: jobId }];
+  const storage = { save: async () => { saved = true; } } as unknown as StorageService;
+  const extractor = { extract: async () => { throw new Error("Invalid PDF header"); } } as unknown as ResumeTextExtractor;
+  const bank = new QuestionBankService({ sql } as unknown as DatabaseService, tenant, storage, extractor);
+  await assert.rejects(bank.upload(jobId, {
+    originalname: "broken.pdf",
+    mimetype: "application/pdf",
+    size: 6,
+    buffer: Buffer.from("broken"),
+  }), /Invalid PDF header/);
+  assert.equal(saved, false);
+});
