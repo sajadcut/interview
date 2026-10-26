@@ -45,8 +45,14 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 - [x] Hide stale LLM suggestions from the current resume workspace using exact stored text SHA while retaining immutable review history; regression for stale read and stale human action (`9ba1cb0b`); validated with later code commit `d93f8589` in quality-gate `40385809611` **success**.
 - [ ] Complete remaining expanded multi-resume/application/job-rubric cross-version acceptance and real provider calibration, privacy/consent gates.
 
-## Phase 2 — structured question bank: TODO
+## Phase 2 — structured question bank: IN_PROGRESS (begun at user request; Phase-1 operational sign-off still blocked)
 Retain existing private disk upload and per-application selection; add immutable question versions, skill/source mappings, review/approval UI, audited LLM proposals and frozen interview snapshots. Tests: file, isolation, prompt injection, source selection, browser.
+- [x] Implement `0074_versioned_question_bank.sql`: tenant- and job-bound question entities, append-only versions, source excerpt and existing-skill links, human-only approval events and immutable per-application selection snapshots.
+- [x] Add question create/revise/review/list endpoints, stale version conflicts and immutable selection snapshot read; persisted acceptance test `question-versions.postgres.integration.spec.ts`.
+- [ ] Confirm exact-commit CI including DB replay, OpenAPI generated artifacts, browser and local disk preservation.
+- [ ] Add Persian question approval/revision UI and browser coverage.
+- [ ] Add audited bounded LLM question proposals with explicit human approval, malicious-input tests, and frozen live interview plan links.
+- [ ] Verify supervised live provider, disk volume persistence and interviewer snapshot replay end-to-end.
 ## Phase 3 — versioned adaptive planner: TODO
 Persist application plan with common/adaptive split, evidence quotas, question provenance, worker recovery/reconnect and strict fallback disclosure. Tests: replay, negative, worker and browser.
 ## Phase 4 — skill evidence evaluator/report: TODO
