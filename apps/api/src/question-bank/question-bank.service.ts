@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../database/database.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
@@ -190,7 +191,82 @@ export class QuestionBankService {
           VALUES (${organizationId}::uuid, ${applicationId}::uuid, ${id}::uuid)
         `;
       }
-      return { applicationId, documentIds: ids };
+      // Freeze the selected source identities AND approved immutable question
+      // versions. Later edits/approvals do not rewrite earlier snapshots.
+      const approved = await tx`
+        SELECT q.id::text AS question_id,q.document_id::text,v.id::text AS version_id,
+               v.version,v.question_text,v.source_excerpt,st.skill_key,
+               d.sha256 AS document_sha256
+        FROM application_question_documents selected
+        JOIN question_bank_questions q
+          ON q.organization_id=selected.organization_id
+         AND q.document_id=selected.document_id
+        JOIN question_bank_documents d
+          ON d.organization_id=q.organization_id AND d.job_id=q.job_id AND d.id=q.document_id
+        JOIN LATERAL (
+          SELECT * FROM question_bank_question_versions vv
+          WHERE vv.organization_id=q.organization_id AND vv.question_id=q.id
+          ORDER BY vv.version DESC LIMIT 1
+        ) v ON true
+        JOIN question_bank_question_reviews review
+          ON review.organization_id=v.organization_id AND review.version_id=v.id
+         AND review.decision='approved'
+        LEFT JOIN skill_taxonomy st
+          ON st.organization_id=v.organization_id AND st.id=v.skill_id
+        WHERE selected.organization_id=${organizationId}::uuid
+          AND selected.application_id=${applicationId}::uuid
+          AND q.job_id=${String(applications[0].job_id)}::uuid
+        ORDER BY q.document_id,q.id,v.version
+      `;
+      const frozenQuestions = approved.map(row => ({
+        questionId: String(row.question_id),
+        documentId: String(row.document_id),
+        documentSha256: String(row.document_sha256),
+        versionId: String(row.version_id),
+        version: Number(row.version),
+        questionText: String(row.question_text),
+        sourceExcerpt: String(row.source_excerpt),
+        ...(row.skill_key ? { skillKey: String(row.skill_key) } : {}),
+      }));
+      const frozen = { documentIds: ids, approvedQuestionVersions: frozenQuestions };
+      const contentSha = createHash("sha256").update(JSON.stringify(frozen)).digest("hex");
+      const previous = await tx`
+        SELECT snapshot_version FROM application_question_selection_snapshots
+        WHERE organization_id=${organizationId}::uuid AND application_id=${applicationId}::uuid
+        ORDER BY snapshot_version DESC LIMIT 1
+      `;
+      const snapshotVersion = Number(previous[0]?.snapshot_version ?? 0) + 1;
+      await tx`
+        INSERT INTO application_question_selection_snapshots(
+          organization_id,application_id,job_id,snapshot_version,
+          document_ids,approved_question_versions,content_sha256
+        ) VALUES (
+          ${organizationId}::uuid,${applicationId}::uuid,
+          ${String(applications[0].job_id)}::uuid,${snapshotVersion},
+          ${tx.json(ids)},${tx.json(frozenQuestions)},${contentSha}
+        )
+      `;
+      return { applicationId, documentIds: ids, snapshotVersion, snapshotSha256: contentSha };
     });
+  }
+
+  async selectionSnapshots(applicationId: string) {
+    await this.application(applicationId);
+    const organizationId = this.tenant.require().organizationId;
+    const rows = await this.database.sql`
+      SELECT id::text,snapshot_version,document_ids,approved_question_versions,
+             content_sha256,created_at
+      FROM application_question_selection_snapshots
+      WHERE organization_id=${organizationId}::uuid AND application_id=${applicationId}::uuid
+      ORDER BY snapshot_version DESC LIMIT 100
+    `;
+    return rows.map(row => ({
+      id: String(row.id), applicationId,
+      snapshotVersion: Number(row.snapshot_version),
+      documentIds: row.document_ids,
+      approvedQuestionVersions: row.approved_question_versions,
+      contentSha256: String(row.content_sha256),
+      createdAt: new Date(String(row.created_at)).toISOString(),
+    }));
   }
 }
