@@ -66,6 +66,7 @@ export interface ConversationalInterviewerContext {
     fileName: string;
     sha256: string;
     excerpt: string;
+    suggestedQuestions: string[];
   }>;
   resumeClaim?: {
     id: string;

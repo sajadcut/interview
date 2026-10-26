@@ -9,6 +9,7 @@ import {
   type InterviewBrainState,
 } from "./interview-brain";
 import { computeInterviewClock } from "./interview-clock";
+import { selectQuestionWindow } from "../question-bank/question-bank-questions";
 import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
   LlmInterviewerFailure,
@@ -374,7 +375,7 @@ export class InterviewBrainService {
       // can cross into the candidate's model context.
       const bankRows = await transaction`
         SELECT d.id::text, d.original_name, d.sha256,
-               left(d.extracted_text, 1500) AS excerpt
+               d.extracted_text, d.suggested_questions
         FROM application_question_documents selected
         JOIN question_bank_documents d
           ON d.organization_id = selected.organization_id AND d.id = selected.document_id
@@ -384,12 +385,22 @@ export class InterviewBrainService {
         ORDER BY selected.selected_at, d.id
         LIMIT 8
       `;
-      const selectedQuestionDocuments = bankRows.map((row) => ({
-        id: String(row.id),
-        fileName: boundedText(row.original_name, 180),
-        sha256: String(row.sha256),
-        excerpt: boundedText(row.excerpt, 1500),
-      }));
+      const brainCheckpoint = asRecord(checkpoint.brain);
+      const turnOrdinal = asStringArray(brainCheckpoint.askedQuestionIds).length;
+      const selectedQuestionDocuments = bankRows.map((row) => {
+        const fullText = String(row.extracted_text ?? "");
+        const rawQuestions = Array.isArray(row.suggested_questions)
+          ? row.suggested_questions.filter((item): item is string => typeof item === "string")
+          : [];
+        const start = (turnOrdinal * 997) % Math.max(1, fullText.length - 850);
+        return {
+          id: String(row.id),
+          fileName: boundedText(row.original_name, 180),
+          sha256: String(row.sha256),
+          excerpt: boundedText(fullText.slice(start, start + 850), 850),
+          suggestedQuestions: selectQuestionWindow(rawQuestions, turnOrdinal, 3),
+        };
+      });
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
@@ -744,6 +755,7 @@ export class InterviewBrainService {
           turnKind: deterministic.turnKind,
           questionSource: deterministic.questionSource,
           resumeClaimId: deterministic.resumeClaimId,
+          selectedQuestionDocumentIds: selectedQuestionDocuments.map((doc) => doc.id),
         },
         lifecycle: {
           phase: deterministic.turnKind === "candidate_question"

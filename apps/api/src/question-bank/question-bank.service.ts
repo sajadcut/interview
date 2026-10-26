@@ -4,6 +4,7 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { StorageService } from "../storage/storage.service";
 import { ResumeTextExtractor, MAX_RESUME_BYTES } from "../resumes/resume-text-extractor";
 import { getEnv } from "../config/env";
+import { extractQuestionCandidates } from "./question-bank-questions";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -82,6 +83,7 @@ export class QuestionBankService {
     // Extract before writing: corrupt, image-only and unsupported files never enter the bank.
     const extracted = await this.extractor.extract({ data: file.buffer, mimeType, originalName: fileName });
     const body = extracted.text.slice(0, MAX_EXTRACT_CHARS);
+    const questions = extractQuestionCandidates(body);
     const organizationId = this.tenant.require().organizationId;
     const count = await this.database.sql`
       SELECT count(*)::int AS count FROM question_bank_documents
@@ -94,10 +96,11 @@ export class QuestionBankService {
       const rows = await this.database.sql`
         INSERT INTO question_bank_documents (
           organization_id, job_id, file_id, original_name, mime_type,
-          byte_size, sha256, extracted_text
+          byte_size, sha256, extracted_text, suggested_questions
         ) VALUES (
           ${organizationId}::uuid, ${jobId}::uuid, ${saved.id}::uuid,
-          ${fileName}, ${mimeType}, ${file.size}, ${saved.sha256}, ${body}
+          ${fileName}, ${mimeType}, ${file.size}, ${saved.sha256}, ${body},
+          ${this.database.sql.json(questions as never)}
         )
         RETURNING id::text, job_id::text, original_name, mime_type, byte_size,
                   sha256, extracted_text, created_at
