@@ -1,0 +1,82 @@
+name: security-dependency-lock-refresh
+
+# Only a protected main-branch manifest change triggers this one-off lock
+# refresh. Pull requests cannot run with a write-scoped token.
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - apps/api/package.json
+      - apps/web/package.json
+      - .github/workflows/security-dependency-lock-refresh.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-lock-main
+  cancel-in-progress: false
+
+jobs:
+  patch-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          registry-url: https://registry.npmjs.org
+      - name: Pin npm
+        run: |
+          npm install --global npm@11.6.2 --ignore-scripts
+          test "$(npm --version)" = "11.6.2"
+      - name: Resolve patched dependency lockfile
+        run: |
+          # Rebuild the resolution tree rather than retaining old exact nested
+          # Multer versions from the previous lockfile.
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --no-audit
+          node -e 'const p=require("./package-lock.json").packages;const v=p["node_modules/multer"]?.version;if(v!=="2.5.0") throw Error("Multer must resolve to patched 2.5.0 (got "+v+")")'
+          # Apply only compatible transitive fixes; the subsequent audit is
+          # mandatory even if npm's conservative fixer cannot fix everything.
+          npm audit fix --package-lock-only --ignore-scripts || true
+          git diff --exit-code -- package.json apps/api/package.json apps/web/package.json
+          git diff --check
+      - name: Inspect exact resolved runtime dependency versions
+        run: |
+          node -e 'const p=require("./package-lock.json").packages; for(const key of ["node_modules/multer","node_modules/@nestjs/platform-express/node_modules/multer","node_modules/@nestjs/platform-express","node_modules/next","node_modules/zod"]) console.log(key,p[key]?.version??"absent",p[key]?.dependencies?.multer??"")'
+          npm ls multer --all || true
+      - name: Enforce production vulnerability gate
+        run: npm audit --omit=dev --audit-level=high
+      - name: Verify clean locked install
+        run: npm ci
+      - name: Typecheck and build patched dependency graph
+        run: |
+          npm run typecheck
+          npm run e2e:typecheck
+          npm run build
+      - name: Check real API boot via OpenAPI export
+        run: |
+          npm run api:sync
+          git diff --exit-code -- openapi/openapi.json packages/api-client/src/generated/schema.ts
+      - name: Verify focused media and interview worker tests
+        run: |
+          npm run test --workspace=@interview/web
+          npm run ai-worker:test
+      - name: Commit reviewed-scope generated lockfile to main
+        run: |
+          git diff --exit-code -- package.json apps/api/package.json apps/web/package.json
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile unchanged: dependency lock refresh already complete."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package-lock.json
+          git diff --cached --name-only | grep -qx 'package-lock.json'
+          git commit -m "fix(deps): lock audited patched runtime dependencies"
+          git push origin HEAD:main
