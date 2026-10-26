@@ -114,6 +114,44 @@ test(
       `;
       assert.equal(skills.some((row) => row.skill_key === "typescript"), true);
 
+      // Phase-1 skill graph: literal resume text -> taxonomy -> candidate-scoped evidence.
+      // Duplicate uploads must never duplicate claims or turn them into verified skills.
+      const anchoredClaims = await database.sql`
+        SELECT st.skill_key, rc.claim_text, rc.start_char, rc.end_char,
+               rc.review_state, rc.extraction_confidence, e.source_reference
+        FROM resume_skill_claims rc
+        JOIN skill_taxonomy st
+          ON st.organization_id = rc.organization_id AND st.id = rc.skill_id
+        JOIN evidence e
+          ON e.organization_id = rc.organization_id AND e.id = rc.evidence_id
+        WHERE rc.organization_id = ${orgA}::uuid
+          AND rc.candidate_id = ${candidateA}::uuid
+          AND rc.resume_id = ${first.id}::uuid
+      `;
+      const postgresClaims = anchoredClaims.filter((row) => row.skill_key === "postgresql");
+      assert.equal(postgresClaims.length, 1);
+      const postgresClaim = postgresClaims[0]!;
+      assert.equal(postgresClaim.review_state, "pending");
+      assert.equal(
+        source.toString("utf8").slice(Number(postgresClaim.start_char), Number(postgresClaim.end_char)),
+        postgresClaim.claim_text,
+      );
+      assert.match(String(postgresClaim.source_reference), /^resume:[^#]+#skill:postgresql$/);
+
+      // Composite tenant FKs reject cross-organization skill/resume associations even when IDs exist.
+      await assert.rejects(() => database.sql`
+        INSERT INTO resume_skill_claims (
+          organization_id, candidate_id, resume_id, skill_id, source_reference,
+          claim_text, start_char, end_char, extraction_confidence,
+          taxonomy_version, parser_version
+        )
+        SELECT ${orgB}::uuid, ${candidateB}::uuid, ${first.id}::uuid,
+               st.id, 'malicious-cross-tenant', 'PostgreSQL', 0, 10, 0.99,
+               'v1', 'test'
+        FROM skill_taxonomy st
+        WHERE st.organization_id = ${orgA}::uuid AND st.skill_key = 'postgresql'
+      `);
+
       const resumeRows = await database.sql`
         SELECT count(*)::int AS count FROM resumes
         WHERE organization_id = ${orgA}::uuid AND candidate_id = ${candidateA}::uuid
