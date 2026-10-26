@@ -1,4 +1,9 @@
 import { test, expect } from "./fixtures";
+import { candidateCopy } from "../apps/web/lib/i18n";
+import { candidateInterviewUiCopy } from "../apps/web/lib/candidate-interview-copy";
+const copy = candidateCopy.fa;
+const room = candidateInterviewUiCopy.fa;
+
 import {
   createCandidateInvitation,
   setCandidateConsents,
@@ -15,23 +20,23 @@ async function authenticateCandidate(
   await page.evaluate(() => window.localStorage.clear());
 
   await page.goto(`/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
-  await expect(page.getByRole("heading", { name: "Verify candidate access" })).toBeVisible();
-  await page.getByLabel("One-time verification code").fill(invitation.developmentOtp);
+  await expect(page.getByRole("heading", { name: copy.invitation.title })).toBeVisible();
+  await page.getByLabel(copy.invitation.codeLabel).fill(invitation.developmentOtp);
   await Promise.all([
     page.waitForURL(/\/candidate\/setup$/),
-    page.getByRole("button", { name: "Verify and continue" }).click(),
+    page.getByRole("button", { name: copy.invitation.verify }).click(),
   ]);
 }
 
 async function prepareCandidateInterview(page: Parameters<typeof signInRecruiter>[0]) {
   await setCandidateConsents(page, false);
-  await page.getByRole("button", { name: "Check camera and microphone" }).click();
-  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+  await page.getByRole("button", { name: copy.setup.checkDevices }).click();
+  await expect(page.getByRole("button", { name: copy.setup.checkAgain })).toBeVisible();
 
-  await page.getByLabel(/Privacy disclosure/).check();
-  await page.getByLabel(/AI-assisted interview/).check();
-  await page.getByLabel(/Audio\/video recording/).check();
-  const continueButton = page.getByRole("button", { name: "Continue to interview" });
+  await page.getByLabel(copy.setup.consents.privacy_disclosure[0]).check();
+  await page.getByLabel(copy.setup.consents.ai_interview[0]).check();
+  await page.getByLabel(copy.setup.consents.recording[0]).check();
+  const continueButton = page.getByRole("button", { name: copy.setup.continue });
   await expect(continueButton).toBeEnabled();
 
   await page.addInitScript(() => {
@@ -74,25 +79,25 @@ test("candidate interview UI reaches candidate-scoped realtime readiness without
   await prepareCandidateInterview(page);
 
   await expect(
-    page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" }),
+    page.getByRole("heading", { name: room.title }),
   ).toBeVisible();
-  await expect(page.getByRole("status").filter({ hasText: "Network is ready." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: room.network.online })).toBeVisible();
 
-  await page.getByRole("button", { name: "Enable camera and microphone" }).click();
+  await page.getByRole("button", { name: room.permissions.enableBoth }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Camera or microphone permission is blocked." }),
+    page.getByRole("alert").filter({ hasText: room.error.permission_denied }),
   ).toBeVisible();
-  await expect(page.getByLabel("Microphone: Permission granted")).toBeVisible();
-  await expect(page.getByLabel("Camera: Blocked")).toBeVisible();
+  await expect(page.getByLabel(`${room.permissions.microphone}: ${room.permissions.granted}`)).toBeVisible();
+  await expect(page.getByLabel(`${room.permissions.camera}: ${room.permissions.denied}`)).toBeVisible();
 
-  await page.getByRole("button", { name: "Try audio-only" }).click();
+  await page.getByRole("button", { name: room.permissions.tryAudioOnly }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Audio-only fallback is active. Camera remains off." }),
+    page.getByRole("status").filter({ hasText: room.permissions.audioOnlyActive }),
   ).toBeVisible();
-  await expect(page.getByLabel("Microphone: Permission granted")).toBeVisible();
-  await expect(page.getByLabel("Camera: Unavailable")).toBeVisible();
+  await expect(page.getByLabel(`${room.permissions.microphone}: ${room.permissions.granted}`)).toBeVisible();
+  await expect(page.getByLabel(`${room.permissions.camera}: ${room.permissions.unavailable}`)).toBeVisible();
 
-  const startButton = page.getByRole("button", { name: "Start interview" });
+  const startButton = page.getByRole("button", { name: room.controls.start });
   await expect(startButton).toBeVisible();
   await expect(startButton).toBeEnabled();
   await expect(page.getByRole("button", { name: "Start answer" })).toHaveCount(0);
@@ -105,11 +110,11 @@ test("candidate interview UI reaches candidate-scoped realtime readiness without
 
   await context.setOffline(true);
   await expect(
-    page.getByRole("alert").filter({ hasText: "Network connection is offline" }),
+    page.getByRole("alert").filter({ hasText: room.network.offline }),
   ).toBeVisible();
   await context.setOffline(false);
   await expect(
-    page.getByRole("status").filter({ hasText: "Network connection restored" }),
+    page.getByRole("status").filter({ hasText: room.network.restored }),
   ).toBeVisible();
 
   await setCandidateConsents(page, false);
@@ -136,23 +141,23 @@ test("audio-only setup handoff never re-requests a denied camera in the intervie
     };
   });
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: copy.setup.title })).toBeVisible();
 
-  await page.getByRole("button", { name: "Check camera and microphone" }).click();
-  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
-  await expect(page.getByRole("status").filter({ hasText: "Audio-only" })).toBeVisible();
+  await page.getByRole("button", { name: copy.setup.checkDevices }).click();
+  await expect(page.getByRole("button", { name: copy.setup.checkAgain })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: copy.setup.audioOnlyReady })).toBeVisible();
   expect(await page.evaluate(() => window.sessionStorage.getItem("candidate-e2e-video-requests"))).toBe("1");
 
-  await page.getByLabel(/Privacy disclosure/).check();
-  await page.getByLabel(/AI-assisted interview/).check();
-  await page.getByLabel(/Audio\/video recording/).check();
+  await page.getByLabel(copy.setup.consents.privacy_disclosure[0]).check();
+  await page.getByLabel(copy.setup.consents.ai_interview[0]).check();
+  await page.getByLabel(copy.setup.consents.recording[0]).check();
   await Promise.all([
     page.waitForURL(/\/candidate\/interview$/),
-    page.getByRole("button", { name: "Continue to interview" }).click(),
+    page.getByRole("button", { name: copy.setup.continue }).click(),
   ]);
 
-  await expect(page.getByRole("status").filter({ hasText: "Audio-only fallback is active" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start interview" })).toBeEnabled();
+  await expect(page.getByRole("status").filter({ hasText: room.permissions.audioOnlyActive })).toBeVisible();
+  await expect(page.getByRole("button", { name: room.controls.start })).toBeEnabled();
   const media = await page.evaluate(() => {
     const preview = document.querySelector("video[muted]") as HTMLVideoElement | null;
     const stream = preview?.srcObject as MediaStream | null;

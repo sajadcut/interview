@@ -1,4 +1,9 @@
 import { test, expect } from "./fixtures";
+import { candidateCopy } from "../apps/web/lib/i18n";
+import { candidateInterviewUiCopy } from "../apps/web/lib/candidate-interview-copy";
+const copy = candidateCopy.fa;
+const room = candidateInterviewUiCopy.fa;
+
 import {
   BASE_URL,
   createCandidateInvitation,
@@ -18,36 +23,36 @@ async function verifyCandidateInvitation(
   otp: string,
 ) {
   await page.goto(`/candidate/invitation?token=${encodeURIComponent(token)}`);
-  await expect(page.getByRole("heading", { name: "Verify candidate access" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: copy.invitation.title })).toBeVisible();
   await expect(page.getByText(identity.displayName, { exact: true })).toBeVisible();
   await expect(page.getByText(identity.jobTitle, { exact: false })).toBeVisible();
 
   // A mistyped code must fail closed without consuming the invitation, allowing a valid retry.
   const wrongOtp = otp === "000000" ? "111111" : "000000";
-  await page.getByLabel("One-time verification code").fill(wrongOtp);
-  await page.getByRole("button", { name: "Verify and continue" }).click();
-  await expect(candidateAlert(page, "Candidate OTP is invalid")).toBeVisible();
+  await page.getByLabel(copy.invitation.codeLabel).fill(wrongOtp);
+  await page.getByRole("button", { name: copy.invitation.verify }).click();
+  await expect(candidateAlert(page, "کد یک‌بارمصرف نامعتبر است")).toBeVisible();
   await expect(page).toHaveURL(/\/candidate\/invitation\?token=/);
 
-  await page.getByLabel("One-time verification code").fill(otp);
+  await page.getByLabel(copy.invitation.codeLabel).fill(otp);
   await Promise.all([
     page.waitForURL(/\/candidate\/setup$/),
-    page.getByRole("button", { name: "Verify and continue" }).click(),
+    page.getByRole("button", { name: copy.invitation.verify }).click(),
   ]);
-  await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: copy.setup.title })).toBeVisible();
 }
 
 test.describe("critical candidate flows", () => {
   test("candidate setup is protected without a candidate session", async ({ page }) => {
     await page.goto("/candidate/setup");
     await page.waitForURL(/\/candidate\/login$/);
-    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.login.title })).toBeVisible();
   });
 
   test("invalid invitation fails closed in the browser", async ({ page }) => {
     await page.goto(`/candidate/invitation?token=${"x".repeat(43)}`);
-    await expect(candidateAlert(page, /invalid|expired|already (?:been )?used/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Verify and continue" })).toHaveCount(0);
+    await expect(candidateAlert(page, /دعوت‌نامه نامعتبر|دعوت‌نامه.*منقضی|قبلاً استفاده شده/)).toBeVisible();
+    await expect(page.getByRole("button", { name: copy.invitation.verify })).toHaveCount(0);
   });
 
   test("candidate can paste an invitation token from the secure login surface", async ({ page, context, candidateIdentity }) => {
@@ -63,7 +68,7 @@ test.describe("critical candidate flows", () => {
       page.locator("form").getByRole("button").click(),
     ]);
 
-    await expect(page.getByRole("heading", { name: "Verify candidate access" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.invitation.title })).toBeVisible();
     await expect(page.getByText(candidateIdentity.displayName, { exact: true })).toBeVisible();
   });
 
@@ -95,15 +100,15 @@ test.describe("critical candidate flows", () => {
 
     // The candidate session is cookie-backed and must survive a full browser reload.
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.setup.title })).toBeVisible();
     await expect(page.getByText(new RegExp(candidateIdentity.displayName))).toBeVisible();
 
     // Interview access fails closed until persisted consent exists.
     await page.goto("/candidate/interview");
     await page.waitForURL(/\/candidate\/setup$/);
-    await expect(page.getByRole("heading", { name: "Prepare your interview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.setup.title })).toBeVisible();
 
-    const continueButton = page.getByRole("button", { name: "Continue to interview" });
+    const continueButton = page.getByRole("button", { name: copy.setup.continue });
     await expect(continueButton).toBeDisabled();
 
     // Exercise the device failure path once, then recover. Even with working devices,
@@ -121,35 +126,35 @@ test.describe("critical candidate flows", () => {
       };
     });
 
-    await page.getByRole("button", { name: "Check camera and microphone" }).click();
-    await expect(candidateAlert(page, "Microphone access is blocked")).toBeVisible();
+    await page.getByRole("button", { name: copy.setup.checkDevices }).click();
+    await expect(candidateAlert(page, copy.setup.devicePermissionDenied)).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
-    await page.getByRole("button", { name: "Check camera and microphone" }).click();
-    await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+    await page.getByRole("button", { name: copy.setup.checkDevices }).click();
+    await expect(page.getByRole("button", { name: copy.setup.checkAgain })).toBeVisible();
     await expect(continueButton).toBeDisabled();
 
     // The setup preview must keep the *actual* video track live, not simply
     // report granted permissions and immediately stop the webcam.
-    const localPreview = page.locator('section[aria-label="Live device preview"] video');
+    const localPreview = page.locator('section[aria-label="پیش‌نمایش زنده دستگاه‌ها"] video');
     await expect.poll(() => localPreview.evaluate((element) =>
       ((element as HTMLVideoElement).srcObject as MediaStream | null)
         ?.getVideoTracks().some((track) => track.readyState === "live") ?? false,
     )).toBe(true);
-    await page.getByRole("button", { name: "Stop preview" }).click();
+    await page.getByRole("button", { name: copy.setup.stopPreview }).click();
     await expect.poll(() => localPreview.evaluate((element) =>
       (element as HTMLVideoElement).srcObject === null,
     )).toBe(true);
     await expect(continueButton).toBeDisabled();
-    await page.getByRole("button", { name: "Check camera and microphone" }).click();
-    await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+    await page.getByRole("button", { name: copy.setup.checkDevices }).click();
+    await expect(page.getByRole("button", { name: copy.setup.checkAgain })).toBeVisible();
 
     // Each required consent is independently necessary; readiness appears only after all three.
-    await page.getByLabel(/Privacy disclosure/).check();
+    await page.getByLabel(copy.setup.consents.privacy_disclosure[0]).check();
     await expect(continueButton).toBeDisabled();
-    await page.getByLabel(/AI-assisted interview/).check();
+    await page.getByLabel(copy.setup.consents.ai_interview[0]).check();
     await expect(continueButton).toBeDisabled();
-    await page.getByLabel(/Audio\/video recording/).check();
+    await page.getByLabel(copy.setup.consents.recording[0]).check();
     await expect(continueButton).toBeEnabled();
 
     await Promise.all([
@@ -157,9 +162,9 @@ test.describe("critical candidate flows", () => {
       continueButton.click(),
     ]);
 
-    await expect(page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" })).toBeVisible();
-    await expect(page.getByText(new RegExp(`Hello ${candidateIdentity.displayName}`))).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("Network is ready.");
+    await expect(page.getByRole("heading", { name: room.title })).toBeVisible();
+    await expect(page.getByText(new RegExp(`${copy.interview.hello} ${candidateIdentity.displayName}`))).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(room.network.online);
 
     // Continue from setup explicitly authorizes the candidate room to open its
     // own fresh tracks. A granted permission without live tracks is not ready.
@@ -168,22 +173,22 @@ test.describe("critical candidate flows", () => {
       ((element as HTMLVideoElement).srcObject as MediaStream | null)
         ?.getVideoTracks().some((track) => track.readyState === "live") ?? false,
     )).toBe(true);
-    await expect(page.getByRole("button", { name: "Start interview" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: room.controls.start })).toBeEnabled();
 
     await context.setOffline(true);
-    await expect(candidateAlert(page, "Network connection is offline")).toBeVisible();
+    await expect(candidateAlert(page, room.network.offline)).toBeVisible();
     await context.setOffline(false);
-    await expect(page.getByRole("status")).toContainText("Network connection restored");
+    await expect(page.getByRole("status")).toContainText(room.network.restored);
 
     // Both the candidate session and consent ledger must survive reload; device readiness is intentionally per-page.
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Your interview is ready for the Realtime stage" })).toBeVisible();
-    await expect(page.getByText(new RegExp(`Hello ${candidateIdentity.displayName}`))).toBeVisible();
+    await expect(page.getByRole("heading", { name: room.title })).toBeVisible();
+    await expect(page.getByText(new RegExp(`${copy.interview.hello} ${candidateIdentity.displayName}`))).toBeVisible();
 
     // Realtime completion is not simulated here; this validates the authenticated completion surface
     // and the secure-session termination behavior that the realtime runtime will hand off to.
     await page.goto("/candidate/completed");
-    await expect(page.getByRole("heading", { name: "Interview completed" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.completed.title })).toBeVisible();
     await expect(page.getByText(new RegExp(candidateIdentity.displayName))).toBeVisible();
 
     // Leave persistent candidate state neutral before ending the cookie-backed session. This keeps the
@@ -192,14 +197,14 @@ test.describe("critical candidate flows", () => {
 
     await Promise.all([
       page.waitForURL(/\/candidate\/login$/),
-      page.getByRole("button", { name: "End secure session" }).click(),
+      page.getByRole("button", { name: copy.completed.end }).click(),
     ]);
-    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: copy.login.title })).toBeVisible();
 
     // Logged-out candidate access is closed, and the original invitation remains single-use.
     await page.goto("/candidate/setup");
     await page.waitForURL(/\/candidate\/login$/);
     await page.goto(`${BASE_URL}/candidate/invitation?token=${encodeURIComponent(invitation.developmentToken)}`);
-    await expect(candidateAlert(page, /invalid|expired|already (?:been )?used/i)).toBeVisible();
+    await expect(candidateAlert(page, /دعوت‌نامه نامعتبر|دعوت‌نامه.*منقضی|قبلاً استفاده شده/)).toBeVisible();
   });
 });

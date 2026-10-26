@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import { candidateCopy } from "../apps/web/lib/i18n";
 import {
   E2E_USER_EMAIL,
   SEEDED_APPLICATION_ID,
@@ -32,7 +33,7 @@ test.describe("browser security boundaries", () => {
 
     await page.goto("/candidate/setup");
     await page.waitForURL(/\/candidate\/login$/);
-    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: candidateCopy.fa.login.title })).toBeVisible();
 
     // Candidate auth failure must not revoke or replace the independent internal session.
     await page.goto("/app");

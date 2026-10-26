@@ -201,11 +201,11 @@ invariant(!apiControllerSource.includes("x-user-id"), "candidate controller must
 
 for (const marker of [
   "candidate-ui-e2e-camera-denied",
-  "Try audio-only",
-  "Audio-only fallback is active",
-  "Start interview",
-  "Network connection is offline",
-  "Network connection restored",
+  "room.permissions.tryAudioOnly",
+  "room.permissions.audioOnlyActive",
+  "room.controls.start",
+  "room.network.offline",
+  "room.network.restored",
 ]) {
   invariant(e2eSource.includes(marker), `browser evidence marker missing: ${marker}`);
 }

@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import { candidateCopy } from "../apps/web/lib/i18n";
 import { SEEDED_CANDIDATE_ID, signInRecruiter } from "./support";
 
 test.describe("browser compatibility smoke", () => {
@@ -14,10 +15,10 @@ test.describe("browser compatibility smoke", () => {
 
   test("candidate public entry and protected setup render outside Chromium", async ({ page }) => {
     await page.goto("/candidate/login");
-    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: candidateCopy.fa.login.title })).toBeVisible();
 
     await page.goto("/candidate/setup");
     await page.waitForURL(/\/candidate\/login$/);
-    await expect(page.getByRole("heading", { name: "Open your interview invitation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: candidateCopy.fa.login.title })).toBeVisible();
   });
 });
