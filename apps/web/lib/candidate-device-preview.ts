@@ -5,6 +5,20 @@
  */
 export const CANDIDATE_PREVIEW_HANDOFF_KEY = "candidate:media-preview-handoff";
 
+export type CandidatePreviewHandoffMode = "full" | "audio-only";
+
+/** Preserve the candidate's explicit setup choice through the same-tab navigation. */
+export function candidatePreviewHandoffValue(audioOnly: boolean): CandidatePreviewHandoffMode {
+  return audioOnly ? "audio-only" : "full";
+}
+
+/** Old "1" markers are accepted for a one-time backwards-compatible full-media handoff. */
+export function parseCandidatePreviewHandoff(value: string | null): CandidatePreviewHandoffMode | null {
+  if (value === "audio-only") return "audio-only";
+  if (value === "full" || value === "1") return "full";
+  return null;
+}
+
 export interface CandidateDevicePreviewOptions {
   audio?: boolean | MediaTrackConstraints;
   video?: boolean | MediaTrackConstraints;
@@ -36,6 +50,18 @@ export class CandidateDevicePreview {
   stop(): void {
     this.generation += 1;
     this.release();
+  }
+
+  hasLiveMicrophone(): boolean {
+    return [...this.streams].some((stream) =>
+      stream.getAudioTracks().some((track) => track.readyState === "live"),
+    );
+  }
+
+  hasLiveCamera(): boolean {
+    return [...this.streams].some((stream) =>
+      stream.getVideoTracks().some((track) => track.readyState === "live"),
+    );
   }
 
   async start(options: CandidateDevicePreviewOptions = {}): Promise<CandidateDevicePreviewResult | null> {
@@ -91,11 +117,12 @@ export class CandidateDevicePreview {
             camera = candidate;
             this.streams.add(candidate);
             cameraError = null;
-          } else {
-            stopTracks(candidate);
-            cameraError = new Error("camera_unavailable");
+            break;
           }
-          break;
+          // A browser can resolve getUserMedia with a track already ended.
+          // Retry within the same bounded policy instead of reporting it ready.
+          stopTracks(candidate);
+          cameraError = new Error("camera_unavailable");
         } catch (cause) {
           if (request !== this.generation) return null;
           cameraError = cause;
@@ -105,6 +132,18 @@ export class CandidateDevicePreview {
       }
     }
 
+    // Camera permission/retry delays can outlast a previously live microphone.
+    // Check again at the point readiness is returned, not just after acquisition.
+    if (!this.hasLiveMicrophone()) {
+      this.release();
+      throw new Error("microphone_unavailable");
+    }
+    if (camera && !this.hasLiveCamera()) {
+      stopTracks(camera);
+      this.streams.delete(camera);
+      camera = null;
+      cameraError = new Error("camera_unavailable");
+    }
     return { microphone, camera, cameraError };
   }
 }
