@@ -16,6 +16,7 @@ const iconByHref: Record<string, IconName> = {
   "/app/candidates": "candidates",
   "/app/talent": "talent",
   "/app/interviews": "interviews",
+  "/app/question-bank": "brain",
   "/app/interviewers": "candidates",
   "/app/inbox": "inbox",
   "/app/analytics": "analytics",

@@ -6,6 +6,7 @@ import { api, apiErrorMessage } from "../../lib/api";
 import { faDomainLabel, formatFaDateTime } from "../../lib/i18n";
 import { resolveTenantIdentity, tenantHeaders, type TenantIdentity } from "../../lib/tenant-client";
 import { Icon } from "../product/icon";
+import { ApplicationQuestionDocumentPicker } from "./application-question-document-picker";
 
 type InterviewerOption = {
   userId: string;
@@ -464,6 +465,8 @@ export function InterviewOperations() {
                       </td>
 
                       <td className="px-5 py-4 text-end">
+                        <div className="flex flex-wrap justify-end gap-2">
+                        <ApplicationQuestionDocumentPicker applicationId={session.applicationId} candidateName={session.candidateName} />
                         {terminal ? (
                           session.sessionId ? (
                             <Link href={`/app/interviews/${session.sessionId}`} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100">
@@ -484,6 +487,7 @@ export function InterviewOperations() {
                             {busyKey === key ? "در حال ارسال…" : "ارسال به مصاحبه"}
                           </button>
                         )}
+                        </div>
                       </td>
                     </tr>
                   );
