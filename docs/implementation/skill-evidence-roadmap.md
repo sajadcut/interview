@@ -41,8 +41,8 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 - [x] Strict schema, HTTP transport/fallback, PostgreSQL tenant/idempotency/alias collision/stale source and browser explicit opt-in tests passed: exact code commit `35cae658ed708a05074d86586a39bcdb846033fa`, GitHub quality-gate `40382992327` **success**.
 - [ ] Exercise a real organization-approved LLM endpoint with a supervised consented resume, calibrate offsets/confidence, and verify PII/privacy processing boundaries; deterministic fallback remains authoritative.
 - [x] Optional job-to-existing-rubric criterion mapping UI and tenancy/reload/revision tests pass on `0e3b3326`; mapping intentionally does not modify pinned rubric scores.
-- [x] Added PostgreSQL acceptance coverage for two distinct resumes of the same candidate, a common skill across both sources, identical uploaded bytes across two tenants, deduplicated replay, parser-version reprocessing and unaffected human-review history (`d80ced99`, `d93f8589`); latest commit CI verdict separately required.
-- [x] Hide stale LLM suggestions from the current resume workspace using exact stored text SHA while retaining immutable review history; regression for stale read and stale human action (`9ba1cb0b`); exact CI verdict separately required.
+- [x] Added PostgreSQL acceptance coverage for two distinct resumes of the same candidate, a common skill across both sources, identical uploaded bytes across two tenants, deduplicated replay, parser-version reprocessing and unaffected human-review history (`d80ced99`, `d93f8589`); exact-code quality-gate `40385809611` **success**.
+- [x] Hide stale LLM suggestions from the current resume workspace using exact stored text SHA while retaining immutable review history; regression for stale read and stale human action (`9ba1cb0b`); validated with later code commit `d93f8589` in quality-gate `40385809611` **success**.
 - [ ] Complete remaining expanded multi-resume/application/job-rubric cross-version acceptance and real provider calibration, privacy/consent gates.
 
 ## Phase 2 — structured question bank: TODO
@@ -92,17 +92,18 @@ Request Senior .NET developer → HR approval → job/rubric → question upload
 - New feature commits: `05c074f` job requirements and basic review; `f7e55d9` Persian job editing; `e1a813d` corrected mapping, ordered history, expectedVersion and migration 0071; `3599bfa` PostgreSQL review tests; `934c5cf`/ `1108eb6` HR review UI; `9efa3a3` rubric criterion mapping; `5b09b59` browser job editor; `0e3b332` reviewer browser test fixture fix; `ec0b730` evidence-preserving reprocessing; `d2d5b8c` reprocessing after human-review regression.
 - **CI_VALIDATED** for `0e3b332`: quality-gate `40378901769` success with migrations, contracts, lint, TypeScript, API/DB tests, build and Chromium critical browser flows. Reparse `d2d5b8c` quality-gate `40379984710` also passed.
 - Opt-in LLM proposal sequence: `8cbb754` schema/provider validation; `5d4d34c` tenant-scoped API and review; `a701d29` PostgreSQL review coverage; `3d9bfe4` lint fixes; `07cce3b` Persian UI; `c76c7a0` explicit opt-in browser test; `4ef5b9b` concurrency-safe alias check; `3b1ca1b` conflict/stale source tests; `ba3b4fc` progress documentation; `35b1c8f` transport test; `4f317cb` require explicit provider URL; **`35cae658` final code commit — quality-gate `40382992327` success, API/DB load `40382992516` success.** No real organization-model request was executed; this is CI validation, not model calibration.
+- Multi-resume/common-skill/parser replay and stale-proposal visibility: **CI_VALIDATED** at `d93f8589e5f69da33fbef48fa5ae5ce8584c24b8`; quality-gate `40385809611` successful including PostgreSQL tests, migration/contract drift, lint, TypeScript, Build and Playwright browser E2E. No provider live validation claimed.
 - No production readiness claimed.
 
 ## Multi-resume replay acceptance checkpoint
 | Scenario | Implemented regression | External sign-off |
 |---|---|---|
-| One candidate, two independently uploaded resumes | Distinct resume IDs; separate source evidence and original offsets | CI under verification |
-| Same canonical skill claimed in both resumes | Separate per-resume claim IDs and anchored excerpts | CI under verification |
-| Same file bytes in two organizations | Separate candidate/resume/claim namespace and forbidden cross-tenant read | CI under verification |
-| Parser-version upgrade of second resume | First resume's claim review version/history untouched; only own evidence rebound | CI under verification |
-| LLM proposal bound to superseded source hash | Current API excludes stale proposal; archived approval/event remains auditable | CI under verification |
+| One candidate, two independently uploaded resumes | Distinct resume IDs; separate source evidence and original offsets | CI_VALIDATED on `d93f8589` (`40385809611`) |
+| Same canonical skill claimed in both resumes | Separate per-resume claim IDs and anchored excerpts | CI_VALIDATED on `d93f8589` (`40385809611`) |
+| Same file bytes in two organizations | Separate candidate/resume/claim namespace and forbidden cross-tenant read | CI_VALIDATED on `d93f8589` (`40385809611`) |
+| Parser-version upgrade of second resume | First resume's claim review version/history untouched; only own evidence rebound | CI_VALIDATED on `d93f8589` (`40385809611`) |
+| LLM proposal bound to superseded source hash | Current API excludes stale proposal; archived approval/event remains auditable | CI_VALIDATED on `d93f8589` (`40385809611`) |
 | Live organization-approved LLM / real PII handling | Not exercised; approved credentials and consent needed | VALIDATION_PENDING |
 
 ## Immediate next action
-Multi-resume and stale-source regression improvements are pushed through `d93f8589`; verify exact-commit quality-gate before marking this increment CI_VALIDATED. Remaining Phase-1 gates: approved-provider live test with explicit consent/privacy controls and model offset/confidence calibration, expanded application/job-rubric cross-version and tenant replay. Do not transition to Phase 2 until all acceptance checks pass on the exact commit; no resume claim or model proposal automatically becomes competency evidence or a hiring score.
+Multi-resume and stale-source regressions are **CI_VALIDATED** through exact code commit `d93f8589e5f69da33fbef48fa5ae5ce8584c24b8`, quality-gate `40385809611` success. The subsequent documentation-only commit is separately checked. Remaining Phase-1 gates: approved-provider live test with explicit consent/privacy controls and model offset/confidence calibration, expanded application/job-rubric cross-version and tenant replay. Do not transition to Phase 2 until all acceptance checks pass on the exact commit; no resume claim or model proposal automatically becomes competency evidence or a hiring score.
