@@ -177,7 +177,7 @@ test.describe("critical candidate flows", () => {
 
     // Continue from setup explicitly authorizes the candidate room to open its
     // own fresh tracks. A granted permission without live tracks is not ready.
-    const interviewPreview = page.locator('video[muted]').first();
+    const interviewPreview = page.getByTestId("candidate-local-video");
     await expect.poll(() => interviewPreview.evaluate((element) =>
       ((element as HTMLVideoElement).srcObject as MediaStream | null)
         ?.getVideoTracks().some((track) => track.readyState === "live") ?? false,

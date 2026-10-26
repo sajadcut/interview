@@ -49,12 +49,14 @@ export default function CandidateInterviewPage() {
   useEffect(() => {
     let active = true;
     setLoadError(false);
+    // Permission and consent are validated before any media preflight call.
+    // Preflight itself may reject missing consent; fetching it concurrently
+    // used to hide the intended /candidate/setup redirect behind a load error.
     void Promise.all([
       api.GET("/v1/candidate-auth/session"),
       api.GET("/v1/candidate-consent"),
-      loadInterviewPreflight(),
     ])
-      .then(([sessionResult, consentResult, preflightResult]) => {
+      .then(async ([sessionResult, consentResult]) => {
         if (!active) return;
         if (sessionResult.error || !sessionResult.data) {
           if (sessionResult.response.status === 401) {
@@ -76,12 +78,17 @@ export default function CandidateInterviewPage() {
           window.location.replace("/candidate/setup");
           return;
         }
+
+        // A candidate without consent must never reach the realtime preflight.
+        const preflightResult = await loadInterviewPreflight();
+        if (!active) return;
         setSession(sessionResult.data);
         setPreflight(preflightResult);
       })
       .catch(() => {
         if (active) setLoadError(true);
       });
+
     return () => {
       active = false;
     };

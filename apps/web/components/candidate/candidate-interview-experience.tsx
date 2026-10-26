@@ -1165,7 +1165,7 @@ export function CandidateInterviewExperience({
                 ) : null}
 
                 <div className="absolute bottom-4 end-4 h-36 w-48 overflow-hidden rounded-xl border border-white/20 bg-slate-900 shadow-2xl sm:h-40 sm:w-56">
-                  <video ref={localVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled && hasLocalMedia ? "" : "hidden"}`} />
+                  <video data-testid="candidate-local-video" ref={localVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled && hasLocalMedia ? "" : "hidden"}`} />
                   {!cameraEnabled || !hasLocalMedia ? <div className="grid h-full place-items-center text-xs text-slate-400">{copy.stage.cameraOff}</div> : null}
                   <div className="absolute bottom-2 start-2 rounded bg-black/50 px-2 py-1 text-[10px]">{liveCopy.you}</div>
                 </div>
@@ -1269,7 +1269,7 @@ export function CandidateInterviewExperience({
           <div className="grid lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,.75fr)]">
             <div className="p-4 sm:p-6">
               <div className="relative aspect-video overflow-hidden rounded-2xl bg-slate-950">
-                <video ref={localVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled && hasLocalMedia ? "" : "hidden"}`} />
+                <video data-testid="candidate-local-video" ref={localVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${cameraEnabled && hasLocalMedia ? "" : "hidden"}`} />
                 {!hasLocalMedia || !cameraEnabled ? <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-slate-900 to-slate-800 p-6 text-center text-white"><div><div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-white/10 text-xl">◉</div><div className="mt-4 text-sm font-semibold">{state.audioOnly ? copy.stage.audioOnly : copy.stage.localPreview}</div><p className="mt-2 max-w-md text-xs leading-5 text-slate-300">{state.audioOnly ? copy.stage.cameraOff : copy.stage.previewPrivate}</p></div></div> : null}
               </div>
 

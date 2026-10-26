@@ -161,7 +161,7 @@ test("audio-only setup handoff never re-requests a denied camera in the intervie
   // React attaches its media element ref in an effect after the state
   // transition. Poll the *actual* stream, not merely the button's readiness.
   await expect.poll(() => page.evaluate(() => {
-    const preview = document.querySelector("video[muted]") as HTMLVideoElement | null;
+    const preview = document.querySelector('video[data-testid="candidate-local-video"]') as HTMLVideoElement | null;
     const stream = preview?.srcObject as MediaStream | null;
     return {
       cameraRequests: window.sessionStorage.getItem("candidate-e2e-video-requests"),
