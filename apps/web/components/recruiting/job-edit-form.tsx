@@ -16,6 +16,7 @@ import {
 } from "../../lib/rubric-criteria";
 import { useInternalAccess } from "../product/internal-access";
 import { Panel, Pill } from "../product/recruiting-ui";
+import { JobSkillRequirementsEditor } from "./job-skill-requirements-editor";
 
 type JobWorkspace = components["schemas"]["JobWorkspaceDto"];
 type Requirement = components["schemas"]["RequirementDto"];
@@ -345,6 +346,7 @@ export function JobEditForm({ jobId }: { jobId: string }) {
           </div>
         </Panel>
       </div>
+      <JobSkillRequirementsEditor jobId={jobId} />
     </div>
   );
 }
