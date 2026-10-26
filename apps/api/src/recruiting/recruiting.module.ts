@@ -11,6 +11,9 @@ import { RecruitingService } from "./recruiting.service";
 import { ScorecardReviewController } from "./scorecard-review.controller";
 import { SkillEvidenceController } from "./skill-evidence.controller";
 import { SkillEvidenceService } from "./skill-evidence.service";
+import { SkillProposalProvider } from "./skill-proposal-provider";
+import { SkillProposalsController } from "./skill-proposals.controller";
+import { SkillProposalsService } from "./skill-proposals.service";
 import { ScorecardReviewService } from "./scorecard-review.service";
 import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pilot-aware-recruiting-operations.service";
 
@@ -21,6 +24,7 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     RecruitingOperationsController,
     CandidateIntelligenceController,
     SkillEvidenceController,
+    SkillProposalsController,
     ScorecardReviewController,
     HiringRequestsController,
   ],
@@ -30,6 +34,8 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     { provide: RecruitingOperationsService, useExisting: SupervisedPilotAwareRecruitingOperationsService },
     CandidateIntelligenceService,
     SkillEvidenceService,
+    SkillProposalProvider,
+    SkillProposalsService,
     ScorecardReviewService,
     HiringRequestsService,
   ],
