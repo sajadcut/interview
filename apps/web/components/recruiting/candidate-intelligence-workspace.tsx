@@ -70,6 +70,12 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
   const [correctedSkillKey, setCorrectedSkillKey] = useState("");
   const [claimReviewReason, setClaimReviewReason] = useState("");
   const [savingClaimReview, setSavingClaimReview] = useState(false);
+  const [historyClaimId, setHistoryClaimId] = useState<string>();
+  const [historyEvents, setHistoryEvents] = useState<Array<{
+    id: string; reviewVersion: number; previousState: string; reviewState: string;
+    previousSkillKey?: string; skillKey?: string; reviewReason: string; createdAt: string;
+  }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   async function load(resolvedIdentity?: TenantIdentity) {
     const currentIdentity = resolvedIdentity ?? identity ?? (await resolveTenantIdentity());
@@ -176,6 +182,29 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
       setMessage(error instanceof Error ? error.message : "بازبینی ثبت نشد");
     } finally {
       setSavingClaimReview(false);
+    }
+  }
+
+  async function toggleReviewHistory(claimId: string) {
+    if (historyClaimId === claimId) {
+      setHistoryClaimId(undefined);
+      return;
+    }
+    if (!identity || !access.can("candidate.read")) return;
+    setHistoryClaimId(claimId);
+    setHistoryEvents([]);
+    setHistoryLoading(true);
+    try {
+      const result = await api.GET("/v1/candidates/{candidateId}/skill-claims/{claimId}/reviews", {
+        params: { path: { candidateId, claimId } },
+        headers: tenantHeaders(identity),
+      });
+      if (result.error) throw new Error(messageFrom(result.error, "دریافت تاریخچه بازبینی ناموفق بود."));
+      setHistoryEvents(result.data ?? []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "خطا در دریافت تاریخچه بازبینی");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -384,6 +413,22 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
                     </button>
                   </form> : null}
                 </> : null}
+                <button type="button" className="ms-2 mt-2 rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-semibold text-slate-700"
+                  onClick={() => void toggleReviewHistory(claim.id)}>
+                  {historyClaimId === claim.id ? "بستن تاریخچه" : "مشاهده تاریخچه بازبینی"}
+                </button>
+                {historyClaimId === claim.id ? <div className="mt-2 space-y-2 rounded-lg bg-slate-50 p-3 text-[10px] text-slate-700">
+                  {historyLoading ? "در حال دریافت رویدادها…" : historyEvents.length === 0 ? "رویدادی ثبت نشده است." :
+                    historyEvents.map((item) => <div key={item.id} className="border-b border-slate-200 pb-2 last:border-0">
+                      <strong>نسخه {formatFaNumber(item.reviewVersion)} · {
+                        item.reviewState === "corrected" ? "اصلاح نگاشت" : item.reviewState === "confirmed" ? "تأیید ادعا" : "رد نگاشت"
+                      }</strong>
+                      {item.previousSkillKey && item.skillKey && item.previousSkillKey !== item.skillKey ?
+                        <div dir="ltr" className="mt-1 text-start">{item.previousSkillKey} → {item.skillKey}</div> : null}
+                      <p className="mt-1 whitespace-pre-wrap">{item.reviewReason}</p>
+                      <span className="mt-1 block text-[9px] text-slate-400">{formatFaDigits(item.createdAt)}</span>
+                    </div>)}
+                </div> : null}
               </div>)}</div>
             </details> : null}
           </Panel>
