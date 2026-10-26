@@ -318,6 +318,109 @@ test(
         /Resume skill claim not found/,
       );
 
+      // Phase-1 acceptance: a second, different resume for the SAME candidate
+      // keeps its own source claims across an independent parser-version replay.
+      // Reusing identical bytes in a second tenant must create separate evidence.
+      const otherSource = Buffer.from(
+        "Maryam Rahimi\\nSkills\\nRedis, Docker\\nWork Experience\\n" +
+        "Backend developer at Sample Co | 2021 - Present\\n" +
+        "Built caching services using Redis and Docker in production environments.",
+      );
+      const second = await tenant.run(orgA, () => service.ingest(candidateA, {
+        originalName: "second-career-resume.txt", mimeType: "text/plain", data: otherSource,
+      }));
+      const otherTenant = await tenant.run(orgB, () => service.ingest(candidateB, {
+        originalName: "same-bytes-in-another-org.txt", mimeType: "text/plain", data: otherSource,
+      }));
+      assert.notEqual(second.id, first.id);
+      assert.notEqual(otherTenant.id, second.id);
+      const secondReplay = await tenant.run(orgA, () => service.ingest(candidateA, {
+        originalName: "same-resume-renamed.txt", mimeType: "text/plain", data: otherSource,
+      }));
+      assert.equal(secondReplay.id, second.id);
+
+      const selectClaims = async (org: string, resumeId: string) => database.sql`
+        SELECT rc.id::text, rc.resume_id::text, rc.source_reference,
+               rc.claim_text, rc.start_char, rc.end_char, rc.review_state,
+               rc.review_version, rc.is_current, rc.evidence_id::text,
+               st.skill_key, e.id::text AS joined_evidence_id
+        FROM resume_skill_claims rc
+        JOIN skill_taxonomy st ON st.organization_id=rc.organization_id AND st.id=rc.skill_id
+        LEFT JOIN evidence e ON e.organization_id=rc.organization_id AND e.id=rc.evidence_id
+        WHERE rc.organization_id=${org}::uuid AND rc.resume_id=${resumeId}::uuid
+        ORDER BY st.skill_key, rc.id
+      `;
+      const secondClaims = await selectClaims(orgA, second.id);
+      const crossTenantClaims = await selectClaims(orgB, otherTenant.id);
+      assert.deepEqual(secondClaims.map((row) => row.skill_key), ["docker", "redis"]);
+      assert.deepEqual(crossTenantClaims.map((row) => row.skill_key), ["docker", "redis"]);
+      for (const row of secondClaims) {
+        assert.equal(row.is_current, true);
+        assert.equal(row.review_state, "pending");
+        assert.equal(row.review_version, 0);
+        assert.equal(row.evidence_id, row.joined_evidence_id);
+        assert.equal(
+          otherSource.toString("utf8").slice(Number(row.start_char), Number(row.end_char)),
+          row.claim_text,
+        );
+        assert.match(String(row.source_reference), new RegExp(`^resume:${second.id}#skill:`));
+      }
+      for (const row of crossTenantClaims) {
+        assert.equal(row.evidence_id, row.joined_evidence_id);
+        assert.equal(row.is_current, true);
+        assert.match(String(row.source_reference), new RegExp(`^resume:${otherTenant.id}#skill:`));
+      }
+
+      // Human-review history on the first resume must be immutable when the
+      // second is reparsed using an earlier parser_version.
+      const firstClaimsBefore = await selectClaims(orgA, first.id);
+      await database.sql`
+        UPDATE resumes SET parser_version='resume-structure-pre-v3'
+        WHERE organization_id=${orgA}::uuid AND id=${second.id}::uuid
+      `;
+      const secondReprocessed = await tenant.run(orgA, () => service.ingest(candidateA, {
+        originalName: "second-after-parser-upgrade.txt", mimeType: "text/plain", data: otherSource,
+      }));
+      assert.equal(secondReprocessed.id, second.id);
+      const secondAfter = await selectClaims(orgA, second.id);
+      assert.deepEqual(secondAfter.map((row) => row.id), secondClaims.map((row) => row.id));
+      assert.equal(secondAfter.every((row) =>
+        row.is_current === true && row.evidence_id === row.joined_evidence_id), true);
+      assert.deepEqual(
+        (await selectClaims(orgA, first.id)).map((row) => [
+          row.id, row.review_version, row.is_current, row.source_reference,
+        ]),
+        firstClaimsBefore.map((row) => [
+          row.id, row.review_version, row.is_current, row.source_reference,
+        ]),
+      );
+      assert.deepEqual(
+        (await selectClaims(orgB, otherTenant.id)).map((row) => [row.id, row.evidence_id]),
+        crossTenantClaims.map((row) => [row.id, row.evidence_id]),
+      );
+      const orgAResumes = await tenant.run(orgA, () => service.listResumes(candidateA));
+      const orgBResumes = await tenant.run(orgB, () => service.listResumes(candidateB));
+      assert.deepEqual(new Set(orgAResumes.map((row) => row.id)), new Set([first.id, second.id]));
+      assert.deepEqual(orgBResumes.map((row) => row.id), [otherTenant.id]);
+      const crossTenantWorkspace = await tenant.run(orgB, () => intelligence.getWorkspace(candidateB));
+      assert.deepEqual(crossTenantWorkspace.resumeSkillClaims.map((row) => row.resumeId).sort(),
+        [otherTenant.id, otherTenant.id]);
+      const ownWorkspace = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
+      assert.equal(ownWorkspace.resumeSkillClaims.some((row) =>
+        row.resumeId === second.id && row.skillKey === "docker"), true);
+      assert.equal(ownWorkspace.resumeSkillClaims.some((row) =>
+        row.resumeId === otherTenant.id), false);
+      assert.deepEqual((await tenant.run(orgA, () => skillEvidence.reviewHistory(candidateA, claim.id)))
+        .map((row) => row.reviewVersion), [1, 2]);
+      // Neither claim sources nor HR corrections can become verified competence.
+      const scored = await database.sql`
+        SELECT count(*)::int AS count FROM scorecards
+        WHERE organization_id IN (${orgA}::uuid, ${orgB}::uuid)
+      `;
+      assert.equal(scored[0]?.count, 0);
+      await assert.rejects(() => tenant.run(orgB, () => service.getResume(candidateB, second.id)),
+        /Resume not found/);
+
       const removed = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, []));
       assert.deepEqual(removed, []);
       const tombstones = await database.sql`
@@ -347,7 +450,7 @@ test(
         SELECT count(*)::int AS count FROM resumes
         WHERE organization_id = ${orgA}::uuid AND candidate_id = ${candidateA}::uuid
       `;
-      assert.equal(resumeRows[0]?.count, 1);
+      assert.equal(resumeRows[0]?.count, 2);
 
       const embeddingRows = await database.sql`
         SELECT count(*)::int AS count, min(dimensions)::int AS dimensions,
