@@ -5,7 +5,7 @@ export function extractQuestionCandidates(text: string): string[] {
   // Many PDFs omit physical line breaks; preserve questions separated by ?/؟.
   const candidates = text.replace(/\r\n?/g, "\n").split(/(?<=[?؟])\s*|\n+/u);
   for (const candidate of candidates) {
-    const question = candidate.trim().replace(/^(?:[•*\-]|\d{1,3}[.)])\s*/u, "");
+    const question = candidate.trim().replace(/^(?:[•*-]|\d{1,3}[.)])\s*/u, "");
     if (question.length < 12 || question.length > 380 || !/[?؟]$/u.test(question)) continue;
     const key = question.toLocaleLowerCase().replace(/\s+/g, " ");
     if (seen.has(key)) continue;
