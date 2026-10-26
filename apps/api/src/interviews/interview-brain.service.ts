@@ -715,7 +715,7 @@ export class InterviewBrainService {
           organization_id, interview_session_id, sequence, candidate_intent, action,
           criterion_key, objective, spoken_text, expected_evidence,
           interviewer_trace_reference, finalized,
-          turn_kind, question_source, resume_claim_id
+          turn_kind, question_source, resume_claim_id, question_bank_document_ids
         ) VALUES (
           ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
           ${turn.action}, ${turn.criterion}, ${turn.objective},
@@ -732,7 +732,8 @@ export class InterviewBrainService {
           })}, true,
           ${deterministic.turnKind},
           ${deterministic.questionSource},
-          ${deterministic.resumeClaimId}::uuid
+          ${deterministic.resumeClaimId}::uuid,
+          ${this.database.sql.json(selectedQuestionDocuments.map((doc) => doc.id) as never)}
         )
         RETURNING id, created_at
       `;

@@ -207,6 +207,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   const inserted = testHarness.getInsert();
   assert.ok(inserted);
   assert.match(inserted.query, /interviewer_trace_reference, finalized/);
+  assert.match(inserted.query, /question_bank_document_ids/);
   assert.match(inserted.query, /true/);
   const traceReference = inserted.values.find(
     (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v4:"),
