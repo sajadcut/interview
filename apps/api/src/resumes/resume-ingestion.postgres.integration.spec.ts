@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
 import postgres from "postgres";
 import type { DatabaseService } from "../database/database.service";
+import { CandidateIntelligenceService } from "../recruiting/candidate-intelligence.service";
 import type { StorageService } from "../storage/storage.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker } from "./resume-chunker";
@@ -137,6 +138,16 @@ test(
         postgresClaim.claim_text,
       );
       assert.match(String(postgresClaim.source_reference), /^resume:[^#]+#skill:postgresql$/);
+
+      const intelligence = new CandidateIntelligenceService(database, tenant);
+      const orgAWorkspace = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
+      const orgBWorkspace = await tenant.run(orgB, () => intelligence.getWorkspace(candidateB));
+      assert.equal(orgAWorkspace.resumeSkillClaims.some((claim) =>
+        claim.skillKey === "postgresql" && claim.reviewState === "pending"), true);
+      assert.equal(orgAWorkspace.resumeSkillClaims.some((claim) =>
+        claim.skillKey === "postgresql" && claim.claimText.includes("PostgreSQL")), true);
+      assert.equal(orgBWorkspace.resumeSkillClaims.length, 0);
+      assert.equal(orgBWorkspace.jobSkillRequirements.length, 0);
 
       // Composite tenant FKs reject cross-organization skill/resume associations even when IDs exist.
       await assert.rejects(() => database.sql`
