@@ -3,6 +3,7 @@ import test from "node:test";
 import { once } from "node:events";
 import { LLMProviderError } from "../src/llm-provider.mjs";
 import { createInterviewerHttpServer } from "../src/interviewer-http.mjs";
+import { LLM_INTERVIEWER_PROMPT_VERSION } from "../src/interviewer-capability.mjs";
 
 const secret = "test-shared-secret";
 
@@ -12,7 +13,7 @@ function validEnvelope() {
     capability: "interview.next_turn",
     capabilityVersion: "v2",
     promptId: "interview.conversational_next_turn",
-    promptVersion: "v3",
+    promptVersion: LLM_INTERVIEWER_PROMPT_VERSION,
     structuredOutputSchemaVersion: "llm-interviewer.v1",
     input: { latestCandidateText: "نتیجه هیچی نشد" },
     inputReferences: { sessionId: "session-1" },
@@ -57,7 +58,7 @@ function successfulLlm() {
         },
         provider: "fake",
         model: "fake-1",
-        prompt: { id: "interview.conversational_next_turn", version: "v3" },
+        prompt: { id: "interview.conversational_next_turn", version: LLM_INTERVIEWER_PROMPT_VERSION },
         attempts: [],
         usage: { inputTokens: 10, outputTokens: 10, totalTokens: 20, costMicros: 0 },
       };
@@ -73,7 +74,7 @@ test("realtime interviewer health exposes provider reachability without credenti
     assert.equal(body.reachable, true);
     assert.equal(body.ready, true);
     assert.equal(body.provider, "fake");
-    assert.equal(body.promptVersion, "v3");
+    assert.equal(body.promptVersion, LLM_INTERVIEWER_PROMPT_VERSION);
     assert.equal(body.fallbackAvailable, true);
     assert.equal(JSON.stringify(body).includes(secret), false);
   });
@@ -132,7 +133,7 @@ test("realtime interviewer returns structured output and provenance", async () =
     const body = await response.json();
     assert.equal(body.output.action, "probe");
     assert.equal(body.provenance.provider, "fake");
-    assert.equal(body.provenance.promptVersion, "v3");
+    assert.equal(body.provenance.promptVersion, LLM_INTERVIEWER_PROMPT_VERSION);
     assert.ok(body.executionId);
   });
 });
