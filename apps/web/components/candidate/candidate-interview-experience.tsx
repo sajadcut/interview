@@ -772,7 +772,7 @@ export function CandidateInterviewExperience({
         metadata: {
           answerLength: text.length,
           phase: state.phase,
-          currentTurnId: runtimeSnapshot?.turn.id,
+          ...(runtimeSnapshot?.turn.id ? { currentTurnId: runtimeSnapshot.turn.id } : {}),
           remainingSeconds: displayRemainingSeconds,
         },
       }).catch(() => undefined);
@@ -826,7 +826,7 @@ export function CandidateInterviewExperience({
       void runtime?.reportIntegrity?.({
         eventType: "network_disconnect",
         clientOccurredAt: new Date(now).toISOString(),
-        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+        metadata: { phase: state.phase, ...(runtimeSnapshot?.turn.id ? { currentTurnId: runtimeSnapshot.turn.id } : {}), remainingSeconds: displayRemainingSeconds },
       }).catch(() => undefined);
     };
     const onOnline = () => {
@@ -839,7 +839,7 @@ export function CandidateInterviewExperience({
         eventType: "network_reconnect",
         clientOccurredAt: new Date(now).toISOString(),
         ...(disconnectedAt ? { durationMs: Math.max(0, now - disconnectedAt) } : {}),
-        metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+        metadata: { phase: state.phase, ...(runtimeSnapshot?.turn.id ? { currentTurnId: runtimeSnapshot.turn.id } : {}), remainingSeconds: displayRemainingSeconds },
       }).catch(() => undefined);
     };
     window.addEventListener("offline", onOffline);
@@ -1068,7 +1068,7 @@ export function CandidateInterviewExperience({
     void runtime?.reportIntegrity?.({
       eventType: next ? "microphone_enabled" : "microphone_disabled",
       clientOccurredAt: new Date().toISOString(),
-      metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+      metadata: { phase: state.phase, ...(runtimeSnapshot?.turn.id ? { currentTurnId: runtimeSnapshot.turn.id } : {}), remainingSeconds: displayRemainingSeconds },
     }).catch(() => undefined);
   };
 
@@ -1087,7 +1087,7 @@ export function CandidateInterviewExperience({
     void runtime?.reportIntegrity?.({
       eventType: next ? "camera_enabled" : "camera_disabled",
       clientOccurredAt: new Date().toISOString(),
-      metadata: { phase: state.phase, currentTurnId: runtimeSnapshot?.turn.id, remainingSeconds: displayRemainingSeconds },
+      metadata: { phase: state.phase, ...(runtimeSnapshot?.turn.id ? { currentTurnId: runtimeSnapshot.turn.id } : {}), remainingSeconds: displayRemainingSeconds },
     }).catch(() => undefined);
   };
 
