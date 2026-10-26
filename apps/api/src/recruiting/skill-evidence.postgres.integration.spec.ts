@@ -76,20 +76,20 @@ test("skill requirements are tenant-scoped, append-only versions and claim revie
       FROM skill_taxonomy st WHERE st.organization_id=${orgA}::uuid AND st.skill_key='redis'`;
 
     const confirmed = await tenant.run(orgA, () => skills.reviewResumeClaim(candidateA, claimId, {
-      reviewState: "confirmed", reviewReason: "مطابقت متن ادعا با رزومه بررسی شد",
+      reviewState: "confirmed", reviewReason: "مطابقت متن ادعا با رزومه بررسی شد", expectedVersion: 0,
     }));
     assert.equal(confirmed.reviewState, "confirmed");
     assert.equal(confirmed.reviewerUserId, actor);
-    await tenant.run(orgA, () => skills.reviewResumeClaim(candidateA, claimId, {
-      reviewState: "confirmed", reviewReason: "مطابقت متن ادعا با رزومه بررسی شد",
-    }));
+    await assert.rejects(() => tenant.run(orgA, () => skills.reviewResumeClaim(candidateA, claimId, {
+      reviewState: "confirmed", reviewReason: "مطابقت متن ادعا با رزومه بررسی شد", expectedVersion: 0,
+    })), /Stale resume skill claim review version/);
     const events = await sql`SELECT count(*)::int AS count FROM resume_skill_claim_review_events
       WHERE organization_id=${orgA}::uuid AND claim_id=${claimId}::uuid`;
     assert.equal(events[0]?.count, 1);
 
     await assert.rejects(
       () => tenant.run(orgB, () => skills.reviewResumeClaim(candidateA, claimId, {
-        reviewState: "rejected", reviewReason: "No source matches the skill assertion",
+        reviewState: "rejected", reviewReason: "No source matches the skill assertion", expectedVersion: 1,
       })),
       /Resume skill claim not found/,
     );
