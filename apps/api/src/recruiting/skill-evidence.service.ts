@@ -138,7 +138,7 @@ export class SkillEvidenceService {
         `;
       }
       for (const [key, last] of previousByKey) {
-        if (!Boolean(last.is_active) || keys.has(key)) continue;
+        if (!last.is_active || keys.has(key)) continue;
         await tx`
           INSERT INTO job_skill_requirements(
             organization_id, job_id, skill_id, required_level, weight, required,
