@@ -61,6 +61,12 @@ export interface ConversationalInterviewerContext {
     expectedEvidence: string[];
   };
   closeObjectives: string[];
+  selectedQuestionDocuments?: Array<{
+    id: string;
+    fileName: string;
+    sha256: string;
+    excerpt: string;
+  }>;
   resumeClaim?: {
     id: string;
     claimType: string;

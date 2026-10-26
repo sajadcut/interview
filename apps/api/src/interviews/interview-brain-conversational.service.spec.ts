@@ -62,6 +62,7 @@ function harness(options: {
         production_approved_by_user_id: null,
       }];
     }
+    if (query.includes("FROM application_question_documents selected")) return [];
     if (query.includes("FROM rubric_criteria")) {
       return [{
         criterion_key: "backend_depth",

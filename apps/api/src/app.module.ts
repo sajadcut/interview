@@ -23,6 +23,7 @@ import { OperationalMetricsService } from "./metrics/operational-metrics.service
 import { ProductOperationsModule } from "./operations/product-operations.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { PrivacyModule } from "./privacy/privacy.module";
+import { QuestionBankModule } from "./question-bank/question-bank.module";
 import { RecruitingModule } from "./recruiting/recruiting.module";
 import { ResumeIngestionModule } from "./resumes/resume-ingestion.module";
 import { SourcingModule } from "./sourcing/sourcing.module";
@@ -44,6 +45,7 @@ import { TenantModule } from "./tenant/tenant.module";
     EngagementModule,
     InterviewsModule,
     InterviewerModule,
+    QuestionBankModule,
     AssessmentsModule,
     AnalyticsModule,
     PrivacyModule,

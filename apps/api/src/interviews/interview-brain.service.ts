@@ -369,6 +369,27 @@ export class InterviewBrainService {
           AND rubric_version_id = ${String(session?.rubric_version_id)}::uuid
         ORDER BY display_order, criterion_key
       `;
+      // Only the explicit, immutable document selection of this application may
+      // influence the next question. No document from another job or tenant
+      // can cross into the candidate's model context.
+      const bankRows = await transaction`
+        SELECT d.id::text, d.original_name, d.sha256,
+               left(d.extracted_text, 1500) AS excerpt
+        FROM application_question_documents selected
+        JOIN question_bank_documents d
+          ON d.organization_id = selected.organization_id AND d.id = selected.document_id
+        WHERE selected.organization_id = ${organizationId}::uuid
+          AND selected.application_id = ${String(session?.application_id)}::uuid
+          AND d.job_id = ${String(session?.job_id)}::uuid
+        ORDER BY selected.selected_at, d.id
+        LIMIT 8
+      `;
+      const selectedQuestionDocuments = bankRows.map((row) => ({
+        id: String(row.id),
+        fileName: boundedText(row.original_name, 180),
+        sha256: String(row.sha256),
+        excerpt: boundedText(row.excerpt, 1500),
+      }));
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
@@ -618,6 +639,7 @@ export class InterviewBrainService {
               expectedEvidence: deterministic.turn.expectedEvidence,
             },
             closeObjectives,
+            ...(selectedQuestionDocuments.length ? { selectedQuestionDocuments } : {}),
             resumeClaim: deterministic.resumeClaimId
               ? resumeClaims.find((claim) => claim.id === deterministic.resumeClaimId) ?? null
               : null,
