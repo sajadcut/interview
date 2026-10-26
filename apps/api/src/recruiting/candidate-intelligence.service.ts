@@ -76,6 +76,39 @@ export class CandidateIntelligenceService {
       LIMIT 200
     `;
 
+    // Resume evidence is an unverified assertion, never an interview score.
+    const resumeSkillClaims = await this.database.sql`
+      SELECT rc.id::text, rc.resume_id::text, rc.evidence_id::text, rc.source_reference,
+             rc.claim_text, rc.start_char, rc.end_char, rc.extraction_confidence,
+             rc.review_state, rc.taxonomy_version, rc.parser_version,
+             st.skill_key, st.name_en, st.name_fa, r.original_filename
+      FROM resume_skill_claims rc
+      JOIN skill_taxonomy st
+        ON st.organization_id = rc.organization_id AND st.id = rc.skill_id
+      JOIN resumes r
+        ON r.organization_id = rc.organization_id AND r.candidate_id = rc.candidate_id
+       AND r.id = rc.resume_id
+      WHERE rc.organization_id = ${organizationId}::uuid
+        AND rc.candidate_id = ${candidateId}::uuid
+      ORDER BY rc.created_at DESC, rc.id DESC
+      LIMIT 200
+    `;
+    const jobSkillRequirements = await this.database.sql`
+      SELECT a.id::text AS application_id, jsr.required_level, jsr.weight, jsr.required,
+             jsr.minimum_evidence_count, jsr.requirement_version, st.skill_key, st.name_en, st.name_fa
+      FROM applications a
+      JOIN LATERAL (
+        SELECT DISTINCT ON (skill_id) *
+        FROM job_skill_requirements
+        WHERE organization_id = a.organization_id AND job_id = a.job_id
+        ORDER BY skill_id, requirement_version DESC, created_at DESC
+      ) jsr ON true
+      JOIN skill_taxonomy st ON st.organization_id = jsr.organization_id AND st.id = jsr.skill_id
+      WHERE a.organization_id = ${organizationId}::uuid AND a.candidate_id = ${candidateId}::uuid
+      ORDER BY a.id, jsr.required DESC, jsr.weight DESC
+      LIMIT 300
+    `;
+
     const candidate = candidates[0];
     return {
       candidate: {
@@ -118,6 +151,32 @@ export class CandidateIntelligenceService {
         ...(row.recommendation ? { recommendation: String(row.recommendation) } : {}),
         ...(row.decision ? { decision: String(row.decision) } : {}),
         ...(row.decision_reason ? { decisionReason: String(row.decision_reason) } : {}),
+      })),
+      resumeSkillClaims: resumeSkillClaims.map((row) => ({
+        id: String(row.id),
+        resumeId: String(row.resume_id),
+        ...(row.evidence_id ? { evidenceId: String(row.evidence_id) } : {}),
+        skillKey: String(row.skill_key),
+        skillName: String(row.name_fa || row.name_en),
+        originalFilename: String(row.original_filename),
+        claimText: String(row.claim_text),
+        startChar: Number(row.start_char),
+        endChar: Number(row.end_char),
+        confidence: Number(row.extraction_confidence),
+        reviewState: String(row.review_state),
+        parserVersion: String(row.parser_version),
+        taxonomyVersion: String(row.taxonomy_version),
+        sourceReference: String(row.source_reference),
+      })),
+      jobSkillRequirements: jobSkillRequirements.map((row) => ({
+        applicationId: String(row.application_id),
+        skillKey: String(row.skill_key),
+        skillName: String(row.name_fa || row.name_en),
+        requiredLevel: Number(row.required_level),
+        importance: Number(row.weight),
+        required: Boolean(row.required),
+        minimumEvidenceCount: Number(row.minimum_evidence_count),
+        requirementVersion: Number(row.requirement_version),
       })),
       evidence: evidence.map((row) => ({
         id: String(row.id),

@@ -37,6 +37,17 @@ interface CandidateWorkspacePayload {
     decisionReason?: string;
   }>;
   evidence: Array<{ id: string; applicationId?: string; evidenceType: string; sourceType: string; sourceReference: string; excerpt?: string; occurredAt?: string; createdAt: string }>;
+  resumeSkillClaims?: Array<{
+    id: string; resumeId: string; evidenceId?: string; skillKey: string; skillName: string;
+    originalFilename: string; claimText: string; startChar: number; endChar: number;
+    confidence: number; reviewState: string; sourceReference: string;
+    parserVersion: string; taxonomyVersion: string;
+  }>;
+  jobSkillRequirements?: Array<{
+    applicationId: string; skillKey: string; skillName: string; requiredLevel: number;
+    importance: number; required: boolean; minimumEvidenceCount: number;
+    requirementVersion: number;
+  }>;
 }
 
 function messageFrom(value: unknown, fallback: string): string {
@@ -242,6 +253,46 @@ export function CandidateIntelligenceWorkspace({ candidateId }: { candidateId: s
           <Panel className="p-5">
             <h2 className="text-[13px] font-semibold">مهارت‌ها و وضعیت تأیید</h2>
             <div className="mt-4 flex flex-wrap gap-2">{workspace.skills.length ? workspace.skills.map((skill) => <span key={skill.id} title={skill.sourceReference} className={`rounded-full px-2.5 py-1 text-[9px] font-semibold ${skill.verificationState === "verified" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{skill.skillLabel} · {faDomainLabel(skill.verificationState)}</span>) : <span className="text-[10px] text-slate-400">مهارتی ثبت نشده است.</span>}</div>
+          </Panel>
+
+          <Panel className="p-5">
+            <h2 className="text-[13px] font-semibold">ادعاهای رزومه و مهارت‌های شغل</h2>
+            <p className="mt-2 text-[10px] leading-5 text-slate-500">
+              موارد زیر صرفاً ادعای استخراج‌شده از رزومه‌اند؛ به معنی مهارت اثبات‌شده یا امتیاز مصاحبه نیستند.
+            </p>
+            {selectedApplication && (workspace.jobSkillRequirements ?? []).some((item) => item.applicationId === selectedApplication.id) ? (
+              <div className="mt-3 space-y-2">
+                {(workspace.jobSkillRequirements ?? []).filter((item) => item.applicationId === selectedApplication.id).map((requirement) => {
+                  const claim = (workspace.resumeSkillClaims ?? []).find((item) => item.skillKey === requirement.skillKey && item.reviewState !== "rejected");
+                  return <div key={`${requirement.applicationId}:${requirement.skillKey}`} className="rounded-xl border border-slate-100 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <strong className="text-[11px] text-slate-800">{requirement.skillName}</strong>
+                      <span className="text-[10px] text-slate-500">سطح موردنیاز: {formatFaNumber(requirement.requiredLevel)} از ۵</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px]">
+                      <Pill>{claim ? "ادعا یافت شد" : "فاقد ادعای مرتبط"}</Pill>
+                      <Pill>{requirement.required ? "الزامی" : "اختیاری"}</Pill>
+                      <span className="text-slate-400">حداقل شواهد: {formatFaNumber(requirement.minimumEvidenceCount)}</span>
+                    </div>
+                    {claim ? <details className="mt-2 text-[10px] text-slate-600">
+                      <summary className="cursor-pointer font-semibold text-indigo-700">مشاهده متن ادعای رزومه</summary>
+                      <blockquote className="mt-2 whitespace-pre-wrap border-s-2 border-indigo-200 ps-3 leading-5">{claim.claimText}</blockquote>
+                      <div className="mt-1 text-[9px] text-slate-400">{claim.originalFilename} · {claim.reviewState === "pending" ? "در انتظار بازبینی" : "بازبینی ثبت‌شده"} · اطمینان استخراج: {formatFaPercent(claim.confidence * 100)}</div>
+                    </details> : null}
+                  </div>;
+                })}
+              </div>
+            ) : <p className="mt-3 rounded-lg bg-slate-50 p-3 text-[10px] text-slate-500">
+              برای این پرونده هنوز مهارت‌های سطح‌بندی‌شده تعریف نشده است.
+            </p>}
+            {(workspace.resumeSkillClaims ?? []).length > 0 ? <details className="mt-3 text-[10px] text-slate-500">
+              <summary className="cursor-pointer font-semibold">همه ادعاهای مهارتی ({formatFaNumber((workspace.resumeSkillClaims ?? []).length)})</summary>
+              <div className="mt-2 space-y-2">{(workspace.resumeSkillClaims ?? []).map((claim) => <div key={claim.id} className="rounded-lg border border-slate-100 p-2">
+                <div className="font-semibold">{claim.skillName} · {claim.reviewState === "pending" ? "نیازمند بررسی" : claim.reviewState}</div>
+                <div className="mt-1 whitespace-pre-wrap leading-5">{claim.claimText}</div>
+                <div className="mt-1 text-[9px] text-slate-400">{claim.originalFilename}</div>
+              </div>)}</div>
+            </details> : null}
           </Panel>
 
           {selectedApplication && access.can("technical_approval.submit") ? <Panel className="p-5"><h2 className="text-[13px] font-semibold">تأیید فنی تیم درخواست‌کننده</h2><p className="mt-2 text-[9px] leading-4 text-slate-500">برای موقعیت متصل به درخواست نیرو، منابع انسانی تا زمانی که آخرین تصمیم فنی «تأیید» نباشد نمی‌تواند استخدام نهایی را ثبت کند.</p>{technicalApproval ? <div className="mt-3 rounded-lg bg-slate-50 p-3 text-[9px] text-slate-600">آخرین تصمیم: <strong>{faDomainLabel(technicalApproval.decision)}</strong>{technicalApproval.approverName ? ` · ${technicalApproval.approverName}` : ""}<div className="mt-1">{technicalApproval.feedback}</div></div> : null}<div className="mt-4 grid grid-cols-3 gap-2"><button type="button" onClick={() => void submitTechnicalApproval("approve")} className="rounded-lg border border-emerald-100 px-2 py-2 text-[9px] font-semibold text-emerald-700">تأیید</button><button type="button" onClick={() => void submitTechnicalApproval("needs_interview")} className="rounded-lg border border-amber-100 px-2 py-2 text-[9px] font-semibold text-amber-700">مصاحبه بیشتر</button><button type="button" onClick={() => void submitTechnicalApproval("reject")} className="rounded-lg border border-rose-100 px-2 py-2 text-[9px] font-semibold text-rose-700">رد</button></div></Panel> : null}
