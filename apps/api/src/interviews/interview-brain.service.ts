@@ -733,7 +733,7 @@ export class InterviewBrainService {
           ${deterministic.turnKind},
           ${deterministic.questionSource},
           ${deterministic.resumeClaimId}::uuid,
-          ${this.database.sql.json(selectedQuestionDocuments.map((doc) => doc.id) as never)}
+          ${this.database.sql.json((brainMode === "llm" ? selectedQuestionDocuments.map((doc) => doc.id) : []) as never)}
         )
         RETURNING id, created_at
       `;
@@ -756,7 +756,7 @@ export class InterviewBrainService {
           turnKind: deterministic.turnKind,
           questionSource: deterministic.questionSource,
           resumeClaimId: deterministic.resumeClaimId,
-          selectedQuestionDocumentIds: selectedQuestionDocuments.map((doc) => doc.id),
+          selectedQuestionDocumentIds: brainMode === "llm" ? selectedQuestionDocuments.map((doc) => doc.id) : [],
         },
         lifecycle: {
           phase: deterministic.turnKind === "candidate_question"
