@@ -740,6 +740,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/candidates/{candidateId}/skill-claims/{claimId}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SkillEvidenceController_reviewHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/candidates/{candidateId}/skill-claims/{claimId}/review": {
         parameters: {
             query?: never;
@@ -3345,16 +3361,36 @@ export interface components {
         SaveJobSkillRequirementsDto: {
             skills: components["schemas"]["JobSkillRequirementInputDto"][];
         };
+        ResumeSkillClaimReviewEventDto: {
+            /** Format: uuid */
+            id: string;
+            reviewVersion: number;
+            previousState: string;
+            /** @enum {string} */
+            reviewState: "confirmed" | "rejected" | "corrected";
+            previousSkillKey?: string;
+            skillKey?: string;
+            reviewReason: string;
+            /** Format: uuid */
+            reviewerUserId: string;
+            createdAt: string;
+        };
         ReviewResumeSkillClaimDto: {
             /** @enum {string} */
-            reviewState: "confirmed" | "rejected";
+            reviewState: "confirmed" | "rejected" | "corrected";
+            /** @description Optimistic concurrency version from claim workspace */
+            expectedVersion: number;
+            /** @description Existing canonical skill key, required only for corrected */
+            correctedSkillKey?: string;
             reviewReason: string;
         };
         ReviewedResumeSkillClaimDto: {
             /** Format: uuid */
             claimId: string;
             /** @enum {string} */
-            reviewState: "confirmed" | "rejected";
+            reviewState: "confirmed" | "rejected" | "corrected";
+            skillKey: string;
+            reviewVersion: number;
             reviewReason: string;
             /** Format: uuid */
             reviewerUserId: string;
@@ -7162,6 +7198,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobSkillRequirementDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SkillEvidenceController_reviewHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeSkillClaimReviewEventDto"][];
                 };
             };
             400: {

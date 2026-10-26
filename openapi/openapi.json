@@ -3009,6 +3009,87 @@
         ]
       }
     },
+    "/v1/candidates/{candidateId}/skill-claims/{claimId}/reviews": {
+      "get": {
+        "operationId": "SkillEvidenceController_reviewHistory",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "claimId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResumeSkillClaimReviewEventDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-evidence"
+        ]
+      }
+    },
     "/v1/candidates/{candidateId}/skill-claims/{claimId}/review": {
       "put": {
         "operationId": "SkillEvidenceController_reviewClaim",
@@ -11545,6 +11626,55 @@
           "skills"
         ]
       },
+      "ResumeSkillClaimReviewEventDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reviewVersion": {
+            "type": "number",
+            "minimum": 1
+          },
+          "previousState": {
+            "type": "string"
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "rejected",
+              "corrected"
+            ]
+          },
+          "previousSkillKey": {
+            "type": "string"
+          },
+          "skillKey": {
+            "type": "string"
+          },
+          "reviewReason": {
+            "type": "string"
+          },
+          "reviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reviewVersion",
+          "previousState",
+          "reviewState",
+          "reviewReason",
+          "reviewerUserId",
+          "createdAt"
+        ]
+      },
       "ReviewResumeSkillClaimDto": {
         "type": "object",
         "properties": {
@@ -11552,8 +11682,18 @@
             "type": "string",
             "enum": [
               "confirmed",
-              "rejected"
+              "rejected",
+              "corrected"
             ]
+          },
+          "expectedVersion": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Optimistic concurrency version from claim workspace"
+          },
+          "correctedSkillKey": {
+            "type": "string",
+            "description": "Existing canonical skill key, required only for corrected"
           },
           "reviewReason": {
             "type": "string",
@@ -11563,6 +11703,7 @@
         },
         "required": [
           "reviewState",
+          "expectedVersion",
           "reviewReason"
         ]
       },
@@ -11577,8 +11718,16 @@
             "type": "string",
             "enum": [
               "confirmed",
-              "rejected"
+              "rejected",
+              "corrected"
             ]
+          },
+          "skillKey": {
+            "type": "string"
+          },
+          "reviewVersion": {
+            "type": "number",
+            "minimum": 1
           },
           "reviewReason": {
             "type": "string"
@@ -11594,6 +11743,8 @@
         "required": [
           "claimId",
           "reviewState",
+          "skillKey",
+          "reviewVersion",
           "reviewReason",
           "reviewerUserId",
           "reviewedAt"
