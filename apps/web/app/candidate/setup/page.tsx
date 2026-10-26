@@ -2,7 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import { useEffect, useRef, useState } from "react";
-import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview } from "../../../lib/candidate-device-preview";
+import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview, candidatePreviewHandoffValue } from "../../../lib/candidate-device-preview";
 import { api, localizeApiMessage } from "../../../lib/api";
 import { candidateCopy, getDefaultLocale } from "../../../lib/i18n";
 
@@ -138,7 +138,7 @@ export default function CandidateSetupPage() {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error(copy.deviceUnsupported);
       if (!previewRef.current) previewRef.current = new CandidateDevicePreview(navigator.mediaDevices);
-      const result = await previewRef.current.start();
+      const result = await previewRef.current.start({ cameraRetryDelaysMs: [250, 500], microphoneRetryDelaysMs: [250, 500] });
       if (!result || checkId !== checkIdRef.current) return;
 
       if (result.camera && previewVideoRef.current) {
@@ -194,8 +194,26 @@ export default function CandidateSetupPage() {
     }
   }
 
+  function activeDeviceCheck(): boolean {
+    // A successful browser permission check is not enough: the preview tracks
+    // can end while the candidate reads consent or while consent is saved.
+    const preview = previewRef.current;
+    if (!preview?.hasLiveMicrophone()) {
+      setDeviceState("failed");
+      setDeviceError(copy.deviceRequired);
+      return false;
+    }
+    if (!audioOnly && !preview.hasLiveCamera()) {
+      setDeviceState("failed");
+      setCameraIssue(copy.cameraDisconnected);
+      setDeviceError(copy.deviceFailed);
+      return false;
+    }
+    return true;
+  }
+
   async function persistConsentsAndContinue() {
-    if (deviceState !== "ready" || !Object.values(consents).every(Boolean)) return;
+    if (deviceState !== "ready" || !Object.values(consents).every(Boolean) || !activeDeviceCheck()) return;
     setSavingConsent(true);
     setDeviceError(null);
     try {
@@ -211,11 +229,12 @@ export default function CandidateSetupPage() {
       if (refreshed.error || !refreshed.data?.readyForInterview) {
         throw new Error(messageFrom(refreshed.error, candidateCopy[locale].genericError, locale));
       }
+      if (!activeDeviceCheck()) return;
       // Release setup devices before the interview page acquires its own stream.
       previewRef.current?.stop();
-      // A one-time marker ties automatic interview media startup to the user's
-      // explicit device check and Continue actions in this same browser tab.
-      window.sessionStorage.setItem(CANDIDATE_PREVIEW_HANDOFF_KEY, "1");
+      // The one-time marker preserves the explicitly tested media mode. In
+      // particular, audio-only setup must not open the camera in the next room.
+      window.sessionStorage.setItem(CANDIDATE_PREVIEW_HANDOFF_KEY, candidatePreviewHandoffValue(audioOnly));
       window.location.assign("/candidate/interview");
     } catch (cause) {
       setDeviceError(cause instanceof Error ? cause.message : candidateCopy[locale].genericError);
@@ -286,7 +305,7 @@ export default function CandidateSetupPage() {
         {deviceError ? <div role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{deviceError}</div> : null}
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <button disabled={!session || deviceState === "checking"} onClick={checkDevices} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-50" type="button">
+          <button disabled={!session || deviceState === "checking" || savingConsent} onClick={checkDevices} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 disabled:opacity-50" type="button">
             {deviceState === "checking" ? copy.checking : deviceState === "ready" ? copy.checkAgain : copy.checkDevices}
           </button>
           {deviceState === "ready" ? <button type="button" disabled={savingConsent} onClick={stopPreview} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">{copy.stopPreview}</button> : null}
