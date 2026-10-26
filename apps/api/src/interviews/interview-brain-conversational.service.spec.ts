@@ -181,7 +181,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.equal(result.brainMode, "llm");
   assert.equal(result.brainProvider, "openai-compatible");
   assert.equal(result.brainPromptId, "interview.conversational_next_turn");
-  assert.equal(result.brainPromptVersion, "v2");
+  assert.equal(result.brainPromptVersion, "v4");
   assert.equal(result.finalized, true);
   assert.match(result.spokenText, /نتیجه‌ای نگرفتید|اثر نکرد/);
   assert.doesNotMatch(result.spokenText, /ممنون\. برای ارزیابی دقیق‌تر/);
@@ -208,7 +208,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
 test("complete evidence enters deterministic candidate-question wrap-up before final goodbye", async () => {
   const testHarness = harness({ evidenceCount: 1 });
   const result = await testHarness.service.nextTurn(sessionId, {
-    latestCandidateText: "آخرش latency حدود بیست درصد بهتر شد.",
+    latestCandidateText: "من مسئول تصمیم بودم؛ به جای cache محلی Redis را انتخاب کردیم چون محدودیت latency داشتیم. هزینه بیشتر را پذیرفتیم و در نتیجه latency بیست درصد کاهش یافت.",
     candidateIntent: "ANSWER",
     elapsedSeconds: 4,
   });
