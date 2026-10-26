@@ -2855,6 +2855,248 @@
         ]
       }
     },
+    "/v1/jobs/{jobId}/skill-requirements": {
+      "get": {
+        "operationId": "SkillEvidenceController_listJobSkills",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobSkillRequirementDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-evidence"
+        ]
+      },
+      "put": {
+        "operationId": "SkillEvidenceController_replaceJobSkills",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveJobSkillRequirementsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobSkillRequirementDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-evidence"
+        ]
+      }
+    },
+    "/v1/candidates/{candidateId}/skill-claims/{claimId}/review": {
+      "put": {
+        "operationId": "SkillEvidenceController_reviewClaim",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "claimId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewResumeSkillClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewedResumeSkillClaimDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-evidence"
+        ]
+      }
+    },
     "/v1/scorecards/{scorecardId}/reviews": {
       "post": {
         "operationId": "ScorecardReviewController_review",
@@ -11166,6 +11408,195 @@
         "required": [
           "decision",
           "reason"
+        ]
+      },
+      "JobSkillRequirementDto": {
+        "type": "object",
+        "properties": {
+          "skillKey": {
+            "type": "string",
+            "example": "aspnet-core"
+          },
+          "nameEn": {
+            "type": "string",
+            "example": "ASP.NET Core"
+          },
+          "nameFa": {
+            "type": "string",
+            "example": "ای‌اس‌پی دات‌نت کور"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "soft"
+            ]
+          },
+          "requiredLevel": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.001,
+            "maximum": 100
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "minimumEvidenceCount": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "rubricCriterionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requirementVersion": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "skillKey",
+          "nameEn",
+          "category",
+          "requiredLevel",
+          "weight",
+          "required",
+          "minimumEvidenceCount",
+          "id",
+          "requirementVersion"
+        ]
+      },
+      "JobSkillRequirementInputDto": {
+        "type": "object",
+        "properties": {
+          "skillKey": {
+            "type": "string",
+            "example": "aspnet-core"
+          },
+          "nameEn": {
+            "type": "string",
+            "example": "ASP.NET Core"
+          },
+          "nameFa": {
+            "type": "string",
+            "example": "ای‌اس‌پی دات‌نت کور"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "soft"
+            ]
+          },
+          "requiredLevel": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0.001,
+            "maximum": 100
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "minimumEvidenceCount": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "rubricCriterionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "skillKey",
+          "nameEn",
+          "category",
+          "requiredLevel",
+          "weight",
+          "required",
+          "minimumEvidenceCount"
+        ]
+      },
+      "SaveJobSkillRequirementsDto": {
+        "type": "object",
+        "properties": {
+          "skills": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobSkillRequirementInputDto"
+            }
+          }
+        },
+        "required": [
+          "skills"
+        ]
+      },
+      "ReviewResumeSkillClaimDto": {
+        "type": "object",
+        "properties": {
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "rejected"
+            ]
+          },
+          "reviewReason": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reviewState",
+          "reviewReason"
+        ]
+      },
+      "ReviewedResumeSkillClaimDto": {
+        "type": "object",
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reviewState": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "rejected"
+            ]
+          },
+          "reviewReason": {
+            "type": "string"
+          },
+          "reviewerUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reviewedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claimId",
+          "reviewState",
+          "reviewReason",
+          "reviewerUserId",
+          "reviewedAt"
         ]
       },
       "ReviewScorecardDto": {

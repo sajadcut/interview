@@ -724,6 +724,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/jobs/{jobId}/skill-requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["SkillEvidenceController_listJobSkills"];
+        put: operations["SkillEvidenceController_replaceJobSkills"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/candidates/{candidateId}/skill-claims/{claimId}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["SkillEvidenceController_reviewClaim"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/scorecards/{scorecardId}/reviews": {
         parameters: {
             query?: never;
@@ -3274,6 +3306,59 @@ export interface components {
             reason: string;
             /** Format: uuid */
             scorecardId?: string;
+        };
+        JobSkillRequirementDto: {
+            /** @example aspnet-core */
+            skillKey: string;
+            /** @example ASP.NET Core */
+            nameEn: string;
+            /** @example ای‌اس‌پی دات‌نت کور */
+            nameFa?: string;
+            /** @enum {string} */
+            category: "technical" | "soft";
+            requiredLevel: number;
+            weight: number;
+            required: boolean;
+            minimumEvidenceCount: number;
+            /** Format: uuid */
+            rubricCriterionId?: string;
+            /** Format: uuid */
+            id: string;
+            requirementVersion: number;
+        };
+        JobSkillRequirementInputDto: {
+            /** @example aspnet-core */
+            skillKey: string;
+            /** @example ASP.NET Core */
+            nameEn: string;
+            /** @example ای‌اس‌پی دات‌نت کور */
+            nameFa?: string;
+            /** @enum {string} */
+            category: "technical" | "soft";
+            requiredLevel: number;
+            weight: number;
+            required: boolean;
+            minimumEvidenceCount: number;
+            /** Format: uuid */
+            rubricCriterionId?: string;
+        };
+        SaveJobSkillRequirementsDto: {
+            skills: components["schemas"]["JobSkillRequirementInputDto"][];
+        };
+        ReviewResumeSkillClaimDto: {
+            /** @enum {string} */
+            reviewState: "confirmed" | "rejected";
+            reviewReason: string;
+        };
+        ReviewedResumeSkillClaimDto: {
+            /** Format: uuid */
+            claimId: string;
+            /** @enum {string} */
+            reviewState: "confirmed" | "rejected";
+            reviewReason: string;
+            /** Format: uuid */
+            reviewerUserId: string;
+            reviewedAt: string;
         };
         ReviewScorecardDto: {
             /** @enum {string} */
@@ -6968,6 +7053,174 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SkillEvidenceController_listJobSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSkillRequirementDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SkillEvidenceController_replaceJobSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveJobSkillRequirementsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSkillRequirementDto"][];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    SkillEvidenceController_reviewClaim: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidateId: string;
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewResumeSkillClaimDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewedResumeSkillClaimDto"];
+                };
             };
             400: {
                 headers: {
