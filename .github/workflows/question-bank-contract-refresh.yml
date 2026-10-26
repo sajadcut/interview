@@ -1,0 +1,56 @@
+name: question-bank-contract-refresh
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/api/src/question-bank/**
+      - apps/api/src/app.module.ts
+      - .github/workflows/question-bank-contract-refresh.yml
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: interview
+          POSTGRES_PASSWORD: interview
+          POSTGRES_DB: interview
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U interview -d interview"
+          --health-interval 10s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
+      AUTH_INTEGRATION_DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
+      CORS_ORIGIN: http://127.0.0.1:3000
+      NEXT_PUBLIC_DEFAULT_LOCALE: fa
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+      - run: npm install --global npm@11.6.2 --ignore-scripts
+      - run: npm ci
+      - run: npm run db:migrate
+      - name: Verify TypeScript before API schema generation
+        run: npm run typecheck
+      - name: Regenerate typed OpenAPI contracts
+        run: npm run api:sync
+      - name: Commit generated contracts to main
+        run: |
+          git diff --check
+          if git diff --quiet -- openapi/openapi.json packages/api-client/src/generated/schema.ts; then
+            echo "No API contract drift"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add openapi/openapi.json packages/api-client/src/generated/schema.ts
+          git commit -m "chore(api): generate typed question bank contracts"
+          git push origin HEAD:main
