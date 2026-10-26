@@ -315,7 +315,12 @@ test(
       assert.equal(scheduledOption.interviewerName, "Technical Interviewer");
       assert.equal(scheduledOption.assignmentStatus, "assigned");
       assert.equal(scheduledOption.sessionStatus, "scheduled");
-      assert.equal(scheduledOption.scheduledFor, scheduledFor);
+      // The persisted interview schedule is stored with second precision;
+      // compare the real instant at that precision, not the input milliseconds.
+      assert.equal(
+        scheduledOption.scheduledFor,
+        new Date(Math.floor(Date.parse(scheduledFor) / 1000) * 1000).toISOString(),
+      );
 
       const pendingOption = options.sessions.find(
         (item) => item.applicationId === pendingApplicationId,
