@@ -1,6 +1,4 @@
--- Phase 2: individually versioned questions, reviewer decisions and immutable
--- per-application reference snapshots. Documents remain on private disk.
-CREATE TABLE question_bank_questions (
+CREATE TABLE IF NOT EXISTS question_bank_questions (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  organization_id uuid NOT NULL,
  job_id uuid NOT NULL,
@@ -15,7 +13,7 @@ CREATE TABLE question_bank_questions (
 );
 CREATE INDEX question_bank_questions_job_idx ON question_bank_questions(organization_id,job_id,document_id);
 
-CREATE TABLE question_bank_question_versions (
+CREATE TABLE IF NOT EXISTS question_bank_question_versions (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  organization_id uuid NOT NULL,
  question_id uuid NOT NULL,
@@ -33,7 +31,7 @@ CREATE TABLE question_bank_question_versions (
 CREATE INDEX question_bank_question_versions_latest_idx
  ON question_bank_question_versions(organization_id,question_id,version DESC);
 
-CREATE TABLE question_bank_question_reviews (
+CREATE TABLE IF NOT EXISTS question_bank_question_reviews (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  organization_id uuid NOT NULL,
  version_id uuid NOT NULL,
@@ -48,7 +46,7 @@ CREATE TABLE question_bank_question_reviews (
 );
 CREATE INDEX question_bank_question_reviews_version_idx ON question_bank_question_reviews(organization_id,version_id);
 
-CREATE TABLE application_question_selection_snapshots (
+CREATE TABLE IF NOT EXISTS application_question_selection_snapshots (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  organization_id uuid NOT NULL,
  application_id uuid NOT NULL,
