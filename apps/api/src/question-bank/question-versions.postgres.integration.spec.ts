@@ -129,6 +129,13 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         WHERE organization_id=${orgA}::uuid`;
       assert.equal(count[0]?.count,0);
     }finally{
+      // Existing file attachments have RESTRICT FKs. Clean the application and
+      // job-bound document first; cascading source deletion then clears nested
+      // immutable question versions and snapshots without editing them in place.
+      await sql`DELETE FROM applications WHERE organization_id=${orgA}::uuid AND id=${applicationId}::uuid`;
+      await sql`DELETE FROM question_bank_documents
+        WHERE organization_id=${orgA}::uuid AND id=${documentId}::uuid`;
+      await sql`DELETE FROM files WHERE organization_id=${orgA}::uuid AND id=${fileId}::uuid`;
       await sql`DELETE FROM organizations WHERE id IN (${orgA}::uuid,${orgB}::uuid)`;
       await sql`DELETE FROM users WHERE id=${actor}::uuid`;
       await db.onModuleDestroy();
