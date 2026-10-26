@@ -1,7 +1,7 @@
 # Skill Evidence Graph & Adaptive Interview — implementation status
 
 Repository: https://github.com/sajadcut/interview · target: `main`
-Baseline inspected: `3d7267ab8f6ed9bfb30ca3814ffa42643cfd9c7c` (2026-10-26).
+Initial architecture baseline: `3d7267ab8f6ed9bfb30ca3814ffa42643cfd9c7c` (2026-10-26). Current progress is tracked against exact latest `main` commits.
 This is an execution log, not a claim of production readiness. Do not mark a phase DONE without its complete acceptance gates.
 
 ## Phase 0 — architecture gap analysis: DONE (source inspection only)
@@ -23,12 +23,17 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 **Contracts:** `organization_id` is mandatory on all new domain edges; Candidate is organization-global; Application is job-specific; raw resume text is evidence, never proof. Resume match remains separate from interview evaluation. Pinned published rubric and deterministic weighted score remain authoritative; LLM suggestions cannot silently change them. All candidate-affecting conclusions require human review.
 
 ## Phase 1 — central skill model and resume claims: IN_PROGRESS
-- [x] Define additive relational taxonomy, aliases, versioned job skill objectives and anchored resume skill claims in `0069_skill_evidence_foundation.sql` (implementation submitted; DB migration validation pending).
+- [x] Define additive relational taxonomy, aliases, versioned job skill objectives and anchored resume skill claims in `0069_skill_evidence_foundation.sql`.
 - [x] Deterministic, conservative .NET skill alias mapping and source offsets in `resume-skill-mapping.ts`; add negative unit tests.
 - [x] Ingestion transaction writes new taxonomy and evidence-linked resume claim edges for curated, literally anchored skills; unmatched skill labels remain in existing `candidate_skills`.
-- [ ] Run PostgreSQL migration/integration and static/unit tests on the required Node 25/npm 11 workstation or CI.
-- [x] Tenant-scoped candidate intelligence read API exposes source-anchored resume assertions and versioned job skill requirements.\n- [ ] Authorized human review/write APIs, controlled override and versioned changes; regenerate OpenAPI/client.
-- [x] Read-only candidate workspace displays expected job skill levels, declared claims, their original excerpt and confidence separately from assessed competence.\n- [ ] Job definition/edit UI for skill levels/weights, writable candidate review feedback and verified browser E2E.
+- [x] Execute PostgreSQL migration/integration and static/unit tests in Node 25/npm 11 CI for baseline claim graph (quality-gate `40375173175`, passed on `0370602`).
+- [ ] Complete exact-commit CI and browser regression for the newer human-review and job-editing changes.
+- [x] Tenant-scoped candidate intelligence read API exposes source-anchored resume assertions and versioned job skill requirements.
+- [x] Implement permission-scoped human review/write API, corrected mapping to existing canonical skills, optimistic concurrency, versioned review history and event log (implementation; CI for latest SHA pending).
+- [ ] Verify generated OpenAPI/client drift is resolved by contract-sync and exact-commit CI.
+- [x] Read-only candidate workspace displays expected job skill levels, declared claims, their original excerpt and confidence separately from assessed competence.
+- [x] Job editing UI for versioned skill levels/weights is in main (`f7e55d9`); retain the pre-existing candidate read-only claim source display.
+- [ ] Add writable candidate claim review UX (reason, correction, conflict refresh) and verified browser E2E.
 - [ ] LLM extraction proposals with strict schema, confidence and safe fallback; extend taxonomy aliases only via review.
 - [ ] Verify job-rubric mapping and full duplicate/reload/cross-tenant acceptance tests.
 
@@ -45,14 +50,18 @@ Request Senior .NET developer → HR approval → job/rubric → question upload
 - `packages/db/migrations/0069_skill_evidence_foundation.sql` — additive relational model.
 - `apps/api/src/resumes/resume-skill-mapping.ts` — conservative source anchoring.
 - `apps/api/src/resumes/resume-skill-mapping.spec.ts` — focused negative cases.
-- `apps/api/src/resumes/resume-ingestion.service.ts` — transactional claim insert.\n- `apps/api/src/resumes/resume-ingestion.postgres.integration.spec.ts` — persisted claim replay/source and cross-tenant negative coverage.\n- `apps/api/src/recruiting/candidate-intelligence.service.ts` — scoped read model for existing candidate intelligence API.\n- `apps/web/components/recruiting/candidate-intelligence-workspace.tsx` — source and skill-gaps Persian UI.\n- `master.md`, `projectstate.md` — architecture/current-state updates.
+- `apps/api/src/resumes/resume-ingestion.service.ts` — transactional claim insert.
+- `apps/api/src/resumes/resume-ingestion.postgres.integration.spec.ts` — persisted claim replay/source and cross-tenant negative coverage.
+- `apps/api/src/recruiting/candidate-intelligence.service.ts` — scoped read model for existing candidate intelligence API.
+- `apps/web/components/recruiting/candidate-intelligence-workspace.tsx` — source and skill-gaps Persian UI.
+- `master.md`, `projectstate.md` — architecture/current-state updates.
 - `docs/implementation/skill-evidence-roadmap.md` — this log.
 
 ## Validation evidence / commits
 - Baseline inspected through GitHub connector. Local checkout not available: container has Node 22 / npm 10, no PostgreSQL or Dotin Nexus access; do **not** claim local DB, full unit, API or browser tests passed.
-- Migration `0069`: **VALIDATION_PENDING**; application/UI/regression: **VALIDATION_PENDING**.
-- Commit/CI status: record exact resulting SHA and workflow conclusion after remote write; no earlier commit's status applies.
+- Phase-1 baseline claim graph and migration `0069`: **CI_VALIDATED** on `0370602db1a891bf0a25d14fb16f6ca6db51f272`, quality-gate `40375173175` concluded success. New versioned human-review migration `0071` applied successfully in intermediate CI; exact latest SHA validation still pending.
+- New feature commits: `05c074f` job requirements and basic review; `f7e55d9` Persian job editing; `e1a813d` corrected mapping, ordered history, expectedVersion and migration `0071`; `3599bfa` PostgreSQL review/concurrency tests; `0d7a5f6` hide inactive requirements. OpenAPI auto-generated sync must be checked against latest HEAD before marking it CI_VALIDATED. No prior-commit CI result transfers.
 - No production readiness claimed.
 
 ## Immediate next action
-Check exact-commit GitHub quality gate, fix failures, run migration/tenant isolation tests and then implement typed skill review endpoints before claiming Phase 1 complete.
+Finish generated contract sync and full CI for latest `main` commit. Then implement candidate review UX and browser tests; next, LLM proposals and job–rubric mapping validation. Never label Phase 1 DONE without the release gates.
