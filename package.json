@@ -76,9 +76,7 @@
     "ava-tts-worker:test": "python3 -m unittest discover -s services/ava-tts-worker/test -p 'test_*.py' && python3 -m py_compile services/ava-tts-worker/server.py services/ava-tts-worker/fa_tech_normalizer.py"
   },
   "overrides": {
-    "@nestjs/platform-express": {
-      "multer": "2.5.0"
-    }
+    "multer": "2.5.0"
   },
   "scarfSettings": {
     "enabled": false
