@@ -131,6 +131,47 @@ test("opt-in proposals are source-bound, tenant isolated, idempotent and require
     const events = await sql`SELECT count(*)::int AS count FROM resume_skill_proposal_review_events
       WHERE organization_id=${orgA}::uuid AND proposal_id=${proposal.id}::uuid`;
     assert.equal(events[0]?.count, 1);
+
+    // A different skill cannot acquire an alias already human-registered to Redis,
+    // even though both canonical keys belong to the same tenant.
+    await sql`
+      INSERT INTO skill_taxonomy(organization_id,skill_key,name_en,category)
+      VALUES(${orgA}::uuid,'postgresql','PostgreSQL','technical')
+      ON CONFLICT (organization_id,skill_key) DO NOTHING
+    `;
+    const secondProposal = randomUUID();
+    await sql`
+      INSERT INTO resume_skill_proposals(
+        id, organization_id, candidate_id, resume_id, skill_id, source_text_sha256,
+        claim_text, start_char, end_char, extraction_confidence, provider, model
+      )
+      SELECT ${secondProposal}::uuid, ${orgA}::uuid, ${candidateId}::uuid, ${resumeId}::uuid,
+             st.id, ${sha}, 'Redis', ${start}, ${start + 5}, 0.65, 'test', 'test'
+      FROM skill_taxonomy st
+      WHERE st.organization_id=${orgA}::uuid AND st.skill_key='postgresql'
+    `;
+    await assert.rejects(() => tenant.run(orgA, () => auth.run({
+      userId: reviewerId, source: "session",
+    }, () => service.review(candidateId, resumeId, secondProposal, {
+      decision: "approved", expectedVersion: 0,
+      reason: "Attempt to register conflicting taxonomy alias", reviewedAlias: "Redis",
+    }))), /another canonical skill/i);
+    const stillPending = await sql`
+      SELECT review_state FROM resume_skill_proposals
+      WHERE organization_id=${orgA}::uuid AND id=${secondProposal}::uuid
+    `;
+    assert.equal(stillPending[0]?.review_state, "pending");
+
+    // A reprocessed/changed resume invalidates source-bound proposals.
+    await sql`
+      UPDATE resume_documents SET text_sha256=${"d".repeat(64)}
+      WHERE organization_id=${orgA}::uuid AND resume_id=${resumeId}::uuid
+    `;
+    await assert.rejects(() => tenant.run(orgA, () => auth.run({
+      userId: reviewerId, source: "session",
+    }, () => service.review(candidateId, resumeId, secondProposal, {
+      decision: "rejected", expectedVersion: 0, reason: "Source version should not match",
+    }))), /source changed/i);
     // Human approval is still NOT verification and never changes candidate scores.
     const verified = await sql`SELECT count(*)::int AS count FROM candidate_skills
       WHERE organization_id=${orgA}::uuid AND candidate_id=${candidateId}::uuid AND verification_state='verified'`;
