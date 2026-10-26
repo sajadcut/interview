@@ -53,6 +53,9 @@ export class SkillProposalsService {
       SELECT p.*, st.skill_key
       FROM resume_skill_proposals p
       JOIN skill_taxonomy st ON st.organization_id=p.organization_id AND st.id=p.skill_id
+      JOIN resume_documents d
+        ON d.organization_id=p.organization_id AND d.resume_id=p.resume_id
+       AND d.text_sha256=p.source_text_sha256
       WHERE p.organization_id=${organizationId}::uuid AND p.candidate_id=${candidateId}::uuid
         AND p.resume_id=${resumeId}::uuid
       ORDER BY p.created_at DESC, p.id DESC LIMIT 100

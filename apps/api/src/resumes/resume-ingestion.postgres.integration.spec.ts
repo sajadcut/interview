@@ -322,8 +322,8 @@ test(
       // keeps its own source claims across an independent parser-version replay.
       // Reusing identical bytes in a second tenant must create separate evidence.
       const otherSource = Buffer.from(
-        "Maryam Rahimi\\nSkills\\nRedis, Docker\\nWork Experience\\n" +
-        "Backend developer at Sample Co | 2021 - Present\\n" +
+        "Maryam Rahimi\nSkills\nRedis, Docker\nWork Experience\n" +
+        "Backend developer at Sample Co | 2021 - Present\n" +
         "Built caching services using Redis and Docker in production environments.",
       );
       const second = await tenant.run(orgA, () => service.ingest(candidateA, {

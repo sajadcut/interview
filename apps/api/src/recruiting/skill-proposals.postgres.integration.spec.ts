@@ -172,6 +172,14 @@ test("opt-in proposals are source-bound, tenant isolated, idempotent and require
     }, () => service.review(candidateId, resumeId, secondProposal, {
       decision: "rejected", expectedVersion: 0, reason: "Source version should not match",
     }))), /source changed/i);
+    assert.deepEqual(await tenant.run(orgA, () => service.list(candidateId, resumeId)), [],
+      "stale suggestions must remain auditable but not appear as current resume proposals");
+    const immutableArchivedProposal = await sql`
+      SELECT review_state, source_text_sha256 FROM resume_skill_proposals
+      WHERE organization_id=${orgA}::uuid AND id=${proposal.id}::uuid
+    `;
+    assert.equal(immutableArchivedProposal[0]?.review_state, "approved");
+    assert.equal(immutableArchivedProposal[0]?.source_text_sha256, sha);
     // Human approval is still NOT verification and never changes candidate scores.
     const verified = await sql`SELECT count(*)::int AS count FROM candidate_skills
       WHERE organization_id=${orgA}::uuid AND candidate_id=${candidateId}::uuid AND verification_state='verified'`;
