@@ -32,3 +32,13 @@ export class SaveQuestionDocumentsDto {
   @IsUUID("4", { each: true })
   documentIds!: string[];
 }
+
+export class QuestionSelectionSnapshotDto {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ format: "uuid" }) applicationId!: string;
+  @ApiProperty({ minimum: 1 }) snapshotVersion!: number;
+  @ApiProperty({ type: [String] }) documentIds!: string[];
+  @ApiProperty({ type: "array", items: { type: "object" } }) approvedQuestionVersions!: Record<string, unknown>[];
+  @ApiProperty() contentSha256!: string;
+  @ApiProperty() createdAt!: string;
+}

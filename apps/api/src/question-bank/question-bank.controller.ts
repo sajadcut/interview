@@ -9,7 +9,7 @@ import { Permissions } from "../auth/permissions";
 import { AuditedAction } from "../audit/audited-action.decorator";
 import { MAX_RESUME_BYTES } from "../resumes/resume-text-extractor";
 import {
-  QuestionBankJobDto, QuestionBankDocumentDto, ApplicationQuestionDocumentsDto, SaveQuestionDocumentsDto,
+  QuestionBankJobDto, QuestionBankDocumentDto, ApplicationQuestionDocumentsDto, SaveQuestionDocumentsDto, QuestionSelectionSnapshotDto,
 } from "./question-bank.dto";
 import { QuestionBankService } from "./question-bank.service";
 
@@ -47,6 +47,13 @@ export class QuestionBankController {
   @ApiOkResponse({ type: ApplicationQuestionDocumentsDto })
   selection(@Param("applicationId", ParseUUIDPipe) applicationId: string) {
     return this.bank.selection(applicationId);
+  }
+
+  @Get("applications/:applicationId/document-snapshots")
+  @RequirePermissions(Permissions.InterviewAssign)
+  @ApiOkResponse({ type: QuestionSelectionSnapshotDto, isArray: true })
+  snapshots(@Param("applicationId", ParseUUIDPipe) applicationId: string) {
+    return this.bank.selectionSnapshots(applicationId);
   }
 
   @Put("applications/:applicationId/documents")
