@@ -9,6 +9,7 @@ on:
       - package.json
       - apps/api/package.json
       - apps/web/package.json
+      - .github/workflows/security-dependency-lock-refresh.yml
 
 permissions:
   contents: write
@@ -41,6 +42,10 @@ jobs:
           npm audit fix --package-lock-only --ignore-scripts || true
           git diff --exit-code -- package.json apps/api/package.json apps/web/package.json
           git diff --check
+      - name: Inspect exact resolved runtime dependency versions
+        run: |
+          node -e 'const p=require("./package-lock.json").packages; for(const key of ["node_modules/multer","node_modules/@nestjs/platform-express/node_modules/multer","node_modules/@nestjs/platform-express","node_modules/next","node_modules/zod"]) console.log(key,p[key]?.version??"absent",p[key]?.dependencies?.multer??"")'
+          npm ls multer --all || true
       - name: Enforce production vulnerability gate
         run: npm audit --omit=dev --audit-level=high
       - name: Verify clean locked install
