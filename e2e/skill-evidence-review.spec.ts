@@ -5,12 +5,14 @@ test("HR reviews a source-anchored resume claim with versioned audit and stale-w
   await signInRecruiter(page);
   const organizationId = await activeOrganizationId(page);
   const headers = { origin: BASE_URL, "x-organization-id": organizationId };
+  const uploadStamp = Date.now();
+  const uploadName = `skills-${uploadStamp}.txt`;
   const source = `Test Candidate
 Experience
 Developed Redis caching with persistent keys.
 Skills
 Redis
-Test source ${Date.now()}
+Test source ${uploadStamp}
 `;
 
   const upload = await page.context().request.post(
@@ -18,11 +20,13 @@ Test source ${Date.now()}
     {
       headers,
       multipart: {
-        file: { name: `skills-${Date.now()}.txt`, mimeType: "text/plain", buffer: Buffer.from(source, "utf8") },
+        file: { name: uploadName, mimeType: "text/plain", buffer: Buffer.from(source, "utf8") },
       },
     },
   );
   expect(upload.ok(), `Resume upload returned ${upload.status()}: ${(await upload.text()).slice(0, 500)}`).toBe(true);
+  const uploaded = await upload.json() as { id: string };
+  expect(uploaded.id).toBeTruthy();
 
   const workspaceUrl = `${BASE_URL}/api/backend/v1/candidates/${SEEDED_CANDIDATE_ID}/intelligence-workspace`;
   const before = await page.context().request.get(workspaceUrl, { headers });
@@ -30,7 +34,7 @@ Test source ${Date.now()}
   const beforePayload = await before.json() as {
     resumeSkillClaims: Array<{ id: string; resumeId: string; skillKey: string; reviewVersion: number; reviewState: string; claimText: string }>;
   };
-  const claim = beforePayload.resumeSkillClaims.find((item) => item.skillKey === "redis");
+  const claim = beforePayload.resumeSkillClaims.find((item) => item.resumeId === uploaded.id && item.skillKey === "redis");
   expect(claim, "An exact Redis statement should be source-anchored").toBeDefined();
   expect(claim?.reviewState).toBe("pending");
   expect(claim?.reviewVersion).toBe(0);
@@ -39,7 +43,7 @@ Test source ${Date.now()}
   await page.goto(`/app/candidates/${SEEDED_CANDIDATE_ID}`);
   await expect(page.getByRole("heading", { name: "ادعاهای رزومه و مهارت‌های شغل" })).toBeVisible();
   await page.getByText(/همه ادعاهای مهارتی/).click();
-  const skillCard = page.locator("div.rounded-lg.border.border-slate-100").filter({ hasText: "Redis" }).first();
+  const skillCard = page.locator("div.rounded-lg.border.border-slate-100").filter({ hasText: uploadName }).first();
   await expect(skillCard).toBeVisible();
   await skillCard.getByRole("button", { name: "بازبینی ادعای رزومه" }).click();
   await skillCard.getByRole("textbox", { name: "دلیل مستند بازبینی" }).fill("عبارت Redis با متن اصلی رزومه تطبیق داده شد.");
