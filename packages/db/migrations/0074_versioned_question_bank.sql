@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS question_bank_questions (
  UNIQUE (organization_id,id),
  UNIQUE (organization_id,job_id,id),
  FOREIGN KEY (organization_id,job_id,document_id)
-   REFERENCES question_bank_documents(organization_id,job_id,id) ON DELETE RESTRICT
+   REFERENCES question_bank_documents(organization_id,job_id,id) ON DELETE CASCADE
 );
 CREATE INDEX question_bank_questions_job_idx ON question_bank_questions(organization_id,job_id,document_id);
 
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS question_bank_question_versions (
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE (organization_id,id),
  UNIQUE (organization_id,question_id,version),
- FOREIGN KEY (organization_id,question_id) REFERENCES question_bank_questions(organization_id,id) ON DELETE RESTRICT,
+ FOREIGN KEY (organization_id,question_id) REFERENCES question_bank_questions(organization_id,id) ON DELETE CASCADE,
  FOREIGN KEY (organization_id,skill_id) REFERENCES skill_taxonomy(organization_id,id) ON DELETE RESTRICT
 );
 CREATE INDEX question_bank_question_versions_latest_idx
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS question_bank_question_reviews (
  UNIQUE (organization_id,id),
  UNIQUE (organization_id,version_id),
  FOREIGN KEY (organization_id,version_id)
-   REFERENCES question_bank_question_versions(organization_id,id) ON DELETE RESTRICT
+   REFERENCES question_bank_question_versions(organization_id,id) ON DELETE CASCADE
 );
 CREATE INDEX question_bank_question_reviews_version_idx ON question_bank_question_reviews(organization_id,version_id);
 
@@ -67,6 +67,9 @@ CREATE INDEX application_question_selection_snapshots_latest_idx
 -- A row in any of these audit/version tables may never be modified in place.
 CREATE FUNCTION prevent_question_bank_immutable_changes() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ -- Cascade cleanup after deleting an entire parent organization/job/application is allowed.
+ -- Direct in-place edits or deletes of a historical audit record are forbidden.
+ IF TG_OP='DELETE' AND pg_trigger_depth() > 1 THEN RETURN OLD; END IF;
  RAISE EXCEPTION 'Question bank version, review and snapshot records are immutable'
  USING ERRCODE='23514';
 END $$;
