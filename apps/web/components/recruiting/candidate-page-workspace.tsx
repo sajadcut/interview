@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CandidateIntelligenceWorkspace } from "./candidate-intelligence-workspace";
+import { CandidateSkillProposalsPanel } from "./candidate-skill-proposals-panel";
 import { ResumeIngestionPanel } from "./resume-ingestion-panel";
 
 export function CandidatePageWorkspace({ candidateId }: { candidateId: string }) {
@@ -13,6 +14,7 @@ export function CandidatePageWorkspace({ candidateId }: { candidateId: string })
         candidateId={candidateId}
         onIngested={() => setRevision((current) => current + 1)}
       />
+      <CandidateSkillProposalsPanel key={revision} candidateId={candidateId} />
       <CandidateIntelligenceWorkspace key={revision} candidateId={candidateId} />
     </div>
   );
