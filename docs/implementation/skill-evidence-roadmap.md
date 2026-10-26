@@ -49,10 +49,18 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 Retain existing private disk upload and per-application selection; add immutable question versions, skill/source mappings, review/approval UI, audited LLM proposals and frozen interview snapshots. Tests: file, isolation, prompt injection, source selection, browser.
 - [x] Implement `0074_versioned_question_bank.sql`: tenant- and job-bound question entities, append-only versions, source excerpt and existing-skill links, human-only approval events and immutable per-application selection snapshots.
 - [x] Add question create/revise/review/list endpoints, stale version conflicts and immutable selection snapshot read; persisted acceptance test `question-versions.postgres.integration.spec.ts`.
-- [ ] Confirm exact-commit CI including DB replay, OpenAPI generated artifacts, browser and local disk preservation.
-- [ ] Add Persian question approval/revision UI and browser coverage.
+- [x] Exact-code CI for the Phase-2 structured question slice: `8043fc4b8a0d6338177b462a795c7f285208332a`, GitHub Actions quality-gate `40392542051` **success** (PostgreSQL migrations/integration, OpenAPI contract drift, lint, TypeScript, Build and Playwright). Existing local-disk upload/reload browser regression also passed; persistent volume deployment remains operational validation pending.
+- [x] Persian question create/revise/approve/reject UI in `question-versions-panel.tsx` and `e2e/question-versions.spec.ts`, validated on `8043fc4`.
 - [ ] Add audited bounded LLM question proposals with explicit human approval, malicious-input tests, and frozen live interview plan links.
 - [ ] Verify supervised live provider, disk volume persistence and interviewer snapshot replay end-to-end.
+### Phase-2 verified increment
+- Migration: `0074_versioned_question_bank.sql` — append-only question, version, reviewer decision, selection snapshot contracts.
+- API: `question-versions.controller.ts`, `question-versions.service.ts`, DTOs; version conflict and literal source excerpt checks; selection snapshots from `question-bank.service.ts`.
+- UI: Persian authoring/review panel in `question-bank-workspace.tsx`.
+- Tests: `question-versions.postgres.integration.spec.ts`, `question-versions.spec.ts`; legacy question-bank upload/reload behavior still verified.
+- Exact commit **CI_VALIDATED**: [quality-gate 40392542051](https://github.com/sajadcut/interview/actions/runs/40392542051) on `8043fc4b8a0d6338177b462a795c7f285208332a`.
+- Still **NOT READY** for final Phase-2 sign-off: audited LLM question proposals, prompt-injection acceptance, real source-selection consumption by the immutable interview plan/turns, external model and disk volume production validation.
+
 ## Phase 3 — versioned adaptive planner: TODO
 Persist application plan with common/adaptive split, evidence quotas, question provenance, worker recovery/reconnect and strict fallback disclosure. Tests: replay, negative, worker and browser.
 ## Phase 4 — skill evidence evaluator/report: TODO
@@ -112,4 +120,5 @@ Request Senior .NET developer → HR approval → job/rubric → question upload
 | Live organization-approved LLM / real PII handling | Not exercised; approved credentials and consent needed | VALIDATION_PENDING |
 
 ## Immediate next action
+Phase-1 code regression gates have passed, but **Phase 1 remains IN_PROGRESS** under the original definition because no consented real-organization LLM execution, calibration and privacy approval were available. This is an external operational acceptance blocker, not a CI failure. Phase 2 was started at the user's explicit request, without silently treating this prerequisite as satisfied. Continue Phase-2 auditable bounded LLM question proposals and immutable plan consumption; do not call either Phase 1 or 2 DONE before their remaining gates.
 Multi-resume and stale-source regressions are **CI_VALIDATED** through exact code commit `d93f8589e5f69da33fbef48fa5ae5ce8584c24b8`, quality-gate `40385809611` success. The subsequent documentation-only commit is separately checked. Remaining Phase-1 gates: approved-provider live test with explicit consent/privacy controls and model offset/confidence calibration, expanded application/job-rubric cross-version and tenant replay. Do not transition to Phase 2 until all acceptance checks pass on the exact commit; no resume claim or model proposal automatically becomes competency evidence or a hiring score.
