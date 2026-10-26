@@ -1,0 +1,82 @@
+name: candidate-browser-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/candidate-browser-smoke.yml
+      - apps/web/app/candidate/**
+      - apps/web/components/candidate/**
+      - apps/web/lib/candidate-*
+      - e2e/candidate-*.spec.ts
+      - e2e/security-boundaries.spec.ts
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-smoke-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  candidate-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
+      AUTH_INTEGRATION_DATABASE_URL: postgresql://interview:interview@127.0.0.1:5432/interview
+      CORS_ORIGIN: http://127.0.0.1:3000
+      NEXT_PUBLIC_DEFAULT_LOCALE: en
+      DEV_ORGANIZATION_NAME: Browser E2E Organization
+      DEV_ORGANIZATION_SLUG: browser-e2e
+      DEV_USER_EMAIL: browser.e2e@local.interview
+      DEV_USER_DISPLAY_NAME: Browser E2E Recruiter
+      DEV_USER_PASSWORD: BrowserE2e!2026#Secure
+      E2E_USER_EMAIL: browser.e2e@local.interview
+      E2E_USER_PASSWORD: BrowserE2e!2026#Secure
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: interview
+          POSTGRES_PASSWORD: interview
+          POSTGRES_DB: interview
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U interview -d interview"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          cache: npm
+      - name: Pin npm
+        run: npm install -g npm@11.6.2 --ignore-scripts
+      - name: Install audited lock
+        run: npm ci
+      - name: Apply migrations
+        run: npm run db:migrate
+      - name: Build API and candidate UI
+        run: npm run build
+      - name: Seed browser fixtures
+        run: npm run e2e:seed
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Candidate authenticated flow and device fallback
+        run: npx playwright test e2e/candidate-critical.spec.ts e2e/candidate-interview-ui.spec.ts --project=chromium-critical
+      - name: Upload candidate browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-browser-diagnostics
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
