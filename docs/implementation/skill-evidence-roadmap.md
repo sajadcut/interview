@@ -27,15 +27,17 @@ This is an execution log, not a claim of production readiness. Do not mark a pha
 - [x] Deterministic, conservative .NET skill alias mapping and source offsets in `resume-skill-mapping.ts`; add negative unit tests.
 - [x] Ingestion transaction writes new taxonomy and evidence-linked resume claim edges for curated, literally anchored skills; unmatched skill labels remain in existing `candidate_skills`.
 - [x] Execute PostgreSQL migration/integration and static/unit tests in Node 25/npm 11 CI for baseline claim graph (quality-gate `40375173175`, passed on `0370602`).
-- [ ] Complete exact-commit CI and browser regression for the newer human-review and job-editing changes.
+- [x] Complete exact-commit CI for the active skill review/job editing and Chromium HR regression at `0e3b3326e3e6a9b87a592d2b4191792bf8c1046b` (quality-gate `40378901769`, success).
+- [x] Preserve human-reviewed claim history during parser reprocessing; rebind re-anchored evidence and hide stale claims (`0072_resume_claim_reprocessing.sql` and new PostgreSQL regression).
+- [ ] Confirm exact-commit CI for reprocessing migration and stale claim regression (`d2d5b8ceba079a43d0722d284f3dbca4990721bf`, quality-gate `40379984710` started).
 - [x] Tenant-scoped candidate intelligence read API exposes source-anchored resume assertions and versioned job skill requirements.
 - [x] Implement permission-scoped human review/write API, corrected mapping to existing canonical skills, optimistic concurrency, versioned review history and event log (implementation; CI for latest SHA pending).
-- [ ] Verify generated OpenAPI/client drift is resolved by contract-sync and exact-commit CI.
+- [x] Generated OpenAPI/client drift resolved and contract verification passed on `0e3b3326`; repeat on every API contract change.
 - [x] Read-only candidate workspace displays expected job skill levels, declared claims, their original excerpt and confidence separately from assessed competence.
 - [x] Job editing UI for versioned skill levels/weights is in main (`f7e55d9`); retain the pre-existing candidate read-only claim source display.
-- [ ] Add writable candidate claim review UX (reason, correction, conflict refresh) and verified browser E2E.
+- [x] Candidate HR review UX (reason, correction, stale-version conflict refresh) and persisted-browser HR regressions are in `main` and passed quality-gate `40378901769`.
 - [ ] LLM extraction proposals with strict schema, confidence and safe fallback; extend taxonomy aliases only via review.
-- [ ] Verify job-rubric mapping and full duplicate/reload/cross-tenant acceptance tests.
+- [x] Optional job-to-existing-rubric criterion mapping UI and tenancy/reload/revision tests pass on `0e3b3326`; mapping intentionally does not modify pinned rubric scores.\n- [ ] Validate full multi-resume, multi-tenant, cross-version replay scenarios and external provider/calibration gates.
 
 ## Phase 2 — structured question bank: TODO
 Retain existing private disk upload and per-application selection; add immutable question versions, skill/source mappings, review/approval UI, audited LLM proposals and frozen interview snapshots. Tests: file, isolation, prompt injection, source selection, browser.
@@ -57,11 +59,19 @@ Request Senior .NET developer → HR approval → job/rubric → question upload
 - `master.md`, `projectstate.md` — architecture/current-state updates.
 - `docs/implementation/skill-evidence-roadmap.md` — this log.
 
+- `packages/db/migrations/0070_skill_requirements_review.sql` — audited reviewer action log and versioned requirement tombstones.
+- `packages/db/migrations/0071_skill_claim_review_versions.sql` — optimistic claim corrections and audit history.
+- `packages/db/migrations/0072_resume_claim_reprocessing.sql` — active/historical claim separation during resume reparse.
+- `apps/api/src/recruiting/skill-evidence.controller.ts`, `skill-evidence.service.ts`, `skill-evidence.dto.ts` — scoped typed endpoints, human review events and revisions.
+- `apps/web/components/recruiting/job-skill-requirements-editor.tsx` — editable job skill/rubric mapping.
+- `e2e/skill-evidence.spec.ts` — browser HR job skill CRUD regression.
+- `openapi/openapi.json`, `packages/api-client/src/generated/schema.ts` — generated versioned contracts.
+
 ## Validation evidence / commits
 - Baseline inspected through GitHub connector. Local checkout not available: container has Node 22 / npm 10, no PostgreSQL or Dotin Nexus access; do **not** claim local DB, full unit, API or browser tests passed.
 - Phase-1 baseline claim graph and migration `0069`: **CI_VALIDATED** on `0370602db1a891bf0a25d14fb16f6ca6db51f272`, quality-gate `40375173175` concluded success. New versioned human-review migration `0071` applied successfully in intermediate CI; exact latest SHA validation still pending.
-- New feature commits: `05c074f` job requirements and basic review; `f7e55d9` Persian job editing; `e1a813d` corrected mapping, ordered history, expectedVersion and migration `0071`; `3599bfa` PostgreSQL review/concurrency tests; `0d7a5f6` hide inactive requirements. OpenAPI auto-generated sync must be checked against latest HEAD before marking it CI_VALIDATED. No prior-commit CI result transfers.
+- New feature commits: `05c074f` job requirements and basic review; `f7e55d9` Persian job editing; `e1a813d` corrected mapping, ordered history, expectedVersion and migration 0071; `3599bfa` PostgreSQL review tests; `934c5cf`/ `1108eb6` HR review UI; `9efa3a3` rubric criterion mapping; `5b09b59` browser job editor; `0e3b332` reviewer browser test fixture fix; `ec0b730` evidence-preserving reprocessing; `d2d5b8c` reprocessing after human-review regression.\n- **CI_VALIDATED** for 0e3b332: quality-gate `40378901769` success with migrations, contracts, lint, TypeScript, API/DB tests, Build, Chromium browser critical flows. **CI_PENDING** on d2d5b8c; do not transfer older green status.
 - No production readiness claimed.
 
 ## Immediate next action
-Finish generated contract sync and full CI for latest `main` commit. Then implement candidate review UX and browser tests; next, LLM proposals and job–rubric mapping validation. Never label Phase 1 DONE without the release gates.
+Verify quality-gate for the latest `main` after reprocessing and documentation. If green, begin the still-unfinished phase-1 opt-in LLM skill extraction proposal workflow (typed schema, source spans, explicit review, failure fallback) and extend integration tests. Never label Phase 1 DONE without release gates and real provider validation.
