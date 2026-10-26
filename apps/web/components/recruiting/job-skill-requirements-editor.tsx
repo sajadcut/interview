@@ -40,7 +40,12 @@ function requirementInput(row: SavedRequirement | Requirement): Requirement {
   };
 }
 
-export function JobSkillRequirementsEditor({ jobId }: { jobId: string }) {
+export function JobSkillRequirementsEditor({
+  jobId, rubricCriteria,
+}: {
+  jobId: string;
+  rubricCriteria: Array<{ id: string; label: string }>;
+}) {
   const [identity, setIdentity] = useState<TenantIdentity>();
   const [rows, setRows] = useState<Requirement[]>([]);
   const [selectedKey, setSelectedKey] = useState("c-sharp");
@@ -159,6 +164,16 @@ export function JobSkillRequirementsEditor({ jobId }: { jobId: string }) {
                   مهارت الزامی
                 </label>
               </div>
+              <label className="mt-3 block space-y-1 text-[10px] text-slate-600">
+                پیوند با معیار ارزیابی موجود (اختیاری)
+                <select className={field} value={row.rubricCriterionId ?? ""}
+                  onChange={(event) => changeRow(row.skillKey, { rubricCriterionId: event.target.value || undefined })}>
+                  <option value="">بدون پیوند؛ این مهارت وارد امتیاز Rubric نمی‌شود</option>
+                  {rubricCriteria.map((criterion) => (
+                    <option key={criterion.id} value={criterion.id}>{criterion.label}</option>
+                  ))}
+                </select>
+              </label>
             </div>)}
           </div> : <p className="rounded-lg bg-slate-50 p-4 text-[10px] text-slate-500">هنوز مهارتی برای این شغل سطح‌بندی نشده است.</p>}
 

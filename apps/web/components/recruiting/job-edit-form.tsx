@@ -346,7 +346,7 @@ export function JobEditForm({ jobId }: { jobId: string }) {
           </div>
         </Panel>
       </div>
-      <JobSkillRequirementsEditor jobId={jobId} />
+      <JobSkillRequirementsEditor jobId={jobId} rubricCriteria={job.rubricCriteria} />
     </div>
   );
 }
