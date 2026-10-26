@@ -64,7 +64,8 @@ export function InterviewOperations() {
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [refreshing, setRefreshing] = useState(false);
 
   const minDate = useMemo(() => {
     const now = new Date();
@@ -127,6 +128,14 @@ export function InterviewOperations() {
       active = false;
     };
   }, [load]);
+
+  async function refreshResults() {
+    setRefreshing(true);
+    setError(null);
+    try { await load(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "به‌روزرسانی وضعیت مصاحبه‌ها ناموفق بود"); }
+    finally { setRefreshing(false); }
+  }
 
   async function scheduleOrAssign(session: SessionOption) {
     if (TERMINAL_SESSION_STATUSES.has(session.sessionStatus)) {
@@ -250,7 +259,7 @@ export function InterviewOperations() {
         <div>
           <h1 className="text-[24px] font-semibold tracking-[-.03em] text-slate-950">مصاحبه‌ها</h1>
           <p className="mt-1 text-[11px] text-slate-500">
-            انتخاب مصاحبه‌گر مرحله قبل اینجا حفظ می‌شود؛ برای مصاحبه انسانی زمان‌بندی و Session ثبت می‌شود و برای AI دعوت امن کاندیدا ساخته می‌شود.
+            همه جلسه‌ها، از جمله مصاحبه‌های تکمیل‌شده، در این فهرست نمایش داده می‌شوند. برای مشاهده امتیاز و تحلیل هر فرد، «مشاهده نتیجه و امتیازات» را انتخاب کنید.
           </p>
         </div>
         <Link
@@ -283,6 +292,10 @@ export function InterviewOperations() {
               className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 ps-10 pe-3 text-[11px] outline-none focus:border-indigo-300 focus:bg-white"
             />
           </div>
+          <button type="button" onClick={() => void refreshResults()} disabled={refreshing || loading}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+            {refreshing ? "در حال به‌روزرسانی…" : "به‌روزرسانی وضعیت"}
+          </button>
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
@@ -410,7 +423,7 @@ export function InterviewOperations() {
                       <td className="px-3 py-4">
                         {terminal ? (
                           <div className="font-semibold text-slate-700">
-                            {session.interviewerName || session.interviewerEmail || "بدون مصاحبه‌گر"}
+                            {session.interviewerName || session.interviewerEmail || (session.interviewerMode === "ai" ? "مصاحبه‌گر هوش مصنوعی" : "بدون مصاحبه‌گر")}
                           </div>
                         ) : (
                           <div className="min-w-52">
@@ -454,7 +467,7 @@ export function InterviewOperations() {
                         {terminal ? (
                           session.sessionId ? (
                             <Link href={`/app/interviews/${session.sessionId}`} className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-semibold text-indigo-700 hover:bg-indigo-100">
-                              مشاهده نتیجه
+                              {session.sessionStatus === "completed" ? "مشاهده نتیجه و امتیازات" : "مشاهده جزئیات جلسه"}
                             </Link>
                           ) : <span className="text-[10px] text-slate-400">این مصاحبه پایان یافته است</span>
                         ) : (

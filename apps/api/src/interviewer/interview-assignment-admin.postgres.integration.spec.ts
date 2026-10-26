@@ -330,6 +330,28 @@ test(
       assert.equal(pendingOption.sessionStatus, "needs_scheduling");
       assert.equal(pendingOption.interviewerMode, "ai");
       assert.equal(pendingOption.candidateName, "Pending Interview Candidate");
+
+      // A completed AI interview must retain the report link and never create
+      // a duplicate "ready to send" application row.
+      const completedSessionId = randomUUID();
+      await database.sql`
+        INSERT INTO interview_sessions (
+          id, organization_id, application_id, interview_plan_id,
+          status, remaining_seconds, completed_at, checkpoint
+        ) VALUES (
+          ${completedSessionId}::uuid, ${organizationId}::uuid,
+          ${pendingApplicationId}::uuid, ${preparedAi.interviewPlanId}::uuid,
+          'completed', 0, now(), '{}'::jsonb
+        )
+      `;
+      const afterCompletion = await tenantContext.run(organizationId, () => service.getOptions());
+      const completedRows = afterCompletion.sessions.filter(
+        (item) => item.applicationId === pendingApplicationId,
+      );
+      assert.equal(completedRows.length, 1, "do not offer resending a completed interview");
+      assert.equal(completedRows[0]?.sessionId, completedSessionId);
+      assert.equal(completedRows[0]?.sessionStatus, "completed");
+      assert.equal(completedRows[0]?.interviewerMode, "ai");
     } finally {
       await database.sql`DELETE FROM organizations WHERE id = ${organizationId}::uuid`;
       await database.sql`

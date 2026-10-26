@@ -444,6 +444,7 @@ export class InterviewAssignmentAdminService {
           a.id::text AS application_id,
           c.display_name AS candidate_name,
           j.title AS job_title,
+          p.interview_type AS interview_type,
           ia.interviewer_user_id::text,
           COALESCE(
             NULLIF(trim(concat_ws(' ', ip.first_name, ip.last_name)), ''),
@@ -463,6 +464,8 @@ export class InterviewAssignmentAdminService {
           ON c.organization_id = a.organization_id AND c.id = a.candidate_id
         JOIN jobs j
           ON j.organization_id = a.organization_id AND j.id = a.job_id
+        JOIN interview_plans p
+          ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
         LEFT JOIN LATERAL (
           SELECT current_assignment.*
           FROM interview_assignments current_assignment
@@ -479,8 +482,8 @@ export class InterviewAssignmentAdminService {
         WHERE s.organization_id = ${organizationId}::uuid
           AND s.status NOT IN ('cancelled')
         ORDER BY
-          CASE WHEN s.status IN ('completed', 'failed') THEN 1 ELSE 0 END,
           COALESCE(
+            s.completed_at,
             ia.scheduled_for,
             NULLIF(s.checkpoint->>'scheduledFor', '')::timestamptz,
             s.created_at
@@ -547,14 +550,7 @@ export class InterviewAssignmentAdminService {
             FROM interview_sessions active_session
             WHERE active_session.organization_id = a.organization_id
               AND active_session.application_id = a.id
-              AND active_session.status IN (
-                'invited',
-                'scheduled',
-                'in_progress',
-                'paused',
-                'disconnected',
-                'reconnecting'
-              )
+              AND active_session.status <> 'cancelled'
           )
         ORDER BY a.updated_at DESC
       `,
@@ -590,6 +586,7 @@ export class InterviewAssignmentAdminService {
       applicationId: String(row.application_id),
       candidateName: String(row.candidate_name),
       jobTitle: String(row.job_title),
+      interviewerMode: String(row.interview_type) === "human_technical" ? "human" : "ai",
       ...(row.interviewer_user_id ? { interviewerUserId: String(row.interviewer_user_id) } : {}),
       ...(row.interviewer_name ? { interviewerName: String(row.interviewer_name) } : {}),
       ...(row.interviewer_email ? { interviewerEmail: String(row.interviewer_email) } : {}),
