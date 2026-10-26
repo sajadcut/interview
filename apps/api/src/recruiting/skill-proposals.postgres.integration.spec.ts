@@ -26,7 +26,7 @@ test("opt-in proposals are source-bound, tenant isolated, idempotent and require
   let providerCalls = 0;
   let invalid = false;
   const provider = {
-    propose: async (_input: { text: string; skillKeys: string[] }) => {
+    propose: async () => {
       providerCalls++;
       if (invalid) {
         return { status: "ok", provider: "fake", model: "test", output: { malicious: true } };

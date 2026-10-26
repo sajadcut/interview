@@ -39,7 +39,7 @@ export function validateSkillProposals(
 
 export function exactReviewedAlias(alias: string, excerpt: string): string {
   const cleaned = alias.normalize("NFKC").trim().toLocaleLowerCase("en").replace(/\s+/g, " ");
-  if (cleaned.length < 2 || cleaned.length > 200 || /[\u0000-\u001f<>]/u.test(cleaned)) {
+  if (cleaned.length < 2 || cleaned.length > 200 || (/[<>]/u.test(cleaned) || [...cleaned].some((c) => c.charCodeAt(0) < 32))) {
     throw new Error("Invalid reviewed skill alias");
   }
   if (!excerpt.normalize("NFKC").toLocaleLowerCase("en").includes(cleaned)) {
