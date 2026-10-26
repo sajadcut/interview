@@ -60,7 +60,7 @@ test.describe("critical recruiter flows", () => {
         expect(dialog.type()).toBe("prompt");
         await dialog.accept("E2E retry fixture reset to screening");
       });
-      await saraRow.getByRole("button", { name: "غربالگری", exact: true }).click();
+      await saraRow.getByRole("button", { name: "ارسال به غربالگری", exact: true }).click();
       await expect(page.getByText("پرونده به مرحله «غربالگری» منتقل شد.", { exact: true })).toBeVisible();
       saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
     }
@@ -72,30 +72,30 @@ test.describe("critical recruiter flows", () => {
       expect(dialog.type()).toBe("prompt");
       await dialog.dismiss();
     });
-    await saraRow.getByRole("button", { name: "بررسی", exact: true }).click();
+    await saraRow.getByRole("button", { name: "ارسال به بررسی", exact: true }).click();
     await expect(saraRow.getByRole("cell").nth(2)).toContainText("غربالگری");
 
     page.once("dialog", async (dialog) => {
       expect(dialog.type()).toBe("prompt");
       await dialog.accept("E2E verified recruiter stage transition");
     });
-    await saraRow.getByRole("button", { name: "مصاحبه", exact: true }).click();
-    await expect(page.getByText("پرونده به مرحله «مصاحبه» منتقل شد.", { exact: true })).toBeVisible();
+    await saraRow.getByRole("button", { name: "ارسال به بررسی", exact: true }).click();
+    await expect(page.getByText("پرونده به مرحله «بررسی» منتقل شد.", { exact: true })).toBeVisible();
 
     saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
-    await expect(saraRow.getByRole("cell").nth(2)).toContainText("مصاحبه");
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("بررسی");
 
     // Verify the mutation is persisted rather than only reflected in local React state.
     await page.reload();
     await expect(page.getByRole("heading", { name: "Senior Backend Engineer" })).toBeVisible();
     saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
-    await expect(saraRow.getByRole("cell").nth(2)).toContainText("مصاحبه");
+    await expect(saraRow.getByRole("cell").nth(2)).toContainText("بررسی");
 
     await saraRow.getByRole("checkbox").check();
-    const saveShortlist = page.getByRole("button", { name: "ذخیره فهرست نهایی (1)" });
+    const saveShortlist = page.getByRole("button", { name: "ذخیره فهرست نهایی (۱)" });
     await expect(saveShortlist).toBeEnabled();
     await saveShortlist.click();
-    await expect(page.getByText("1 کاندیدا در فهرست نهایی ذخیره شدند.", { exact: true })).toBeVisible();
+    await expect(page.getByText("۱ کاندیدا در فهرست نهایی ذخیره شدند.", { exact: true })).toBeVisible();
 
     // Return the durable seeded pipeline fixture to its canonical state. If the test fails before
     // this cleanup, the repair step at the start makes the next retry deterministic.
@@ -103,7 +103,7 @@ test.describe("critical recruiter flows", () => {
       expect(dialog.type()).toBe("prompt");
       await dialog.accept("E2E fixture cleanup to screening");
     });
-    await saraRow.getByRole("button", { name: "غربالگری", exact: true }).click();
+    await saraRow.getByRole("button", { name: "ارسال به غربالگری", exact: true }).click();
     await expect(page.getByText("پرونده به مرحله «غربالگری» منتقل شد.", { exact: true })).toBeVisible();
     saraRow = page.getByRole("row").filter({ hasText: "Sara Mohammadi" });
     await expect(saraRow.getByRole("cell").nth(2)).toContainText("غربالگری");
@@ -140,7 +140,7 @@ test.describe("critical recruiter flows", () => {
       buffer: Buffer.from(resumeText, "utf8"),
     });
 
-    await expect(page.getByText(/رزومه پردازش شد: \d+ بخش و \d+ شاهد\./)).toBeVisible();
+    await expect(page.getByText(/رزومه پردازش شد: [۰-۹٬]+ بخش و [۰-۹٬]+ شاهد\./)).toBeVisible();
     await expect(page.getByText("ali-rahimi-e2e-resume.txt")).toBeVisible();
     await expect(page.getByText("تکمیل‌شده", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("مهارت‌ها و وضعیت تأیید")).toBeVisible();
@@ -160,12 +160,14 @@ test.describe("critical recruiter flows", () => {
     await page.getByRole("textbox", { name: /الزامات ضروری/ }).fill("TypeScript\nPostgreSQL\nDistributed systems");
     await page.getByRole("textbox", { name: /الزامات ترجیحی/ }).fill("Kubernetes\nObservability");
 
-    // A job cannot be submitted without an evidence rubric.
+    // The form prepopulates role-relevant soft-skill criteria. Clear them to
+    // exercise the actual validation against an entirely empty rubric.
+    await page.getByRole("textbox", { name: /معیارهای الزامی/ }).fill("");
     await page.getByRole("button", { name: "ایجاد پیش‌نویس موقعیت" }).click();
     await expect(page.getByText("حداقل یک معیار ارزیابی وارد کنید.")).toBeVisible();
     await expect(page).toHaveURL(/\/app\/jobs\/new$/);
 
-    await page.getByRole("textbox", { name: /معیارهای چارچوب ارزیابی/ }).fill("System design\nReliability reasoning");
+    await page.getByRole("textbox", { name: /معیارهای الزامی/ }).fill("System design\nReliability reasoning");
     await Promise.all([
       page.waitForURL(/\/app\/jobs\/[0-9a-f-]{36}$/i),
       page.getByRole("button", { name: "ایجاد پیش‌نویس موقعیت" }).click(),
