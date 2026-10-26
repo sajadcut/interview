@@ -59,7 +59,7 @@ export class QuestionVersionsService {
       throw new BadRequestException("A sourced question and a literal excerpt (12-600 characters) are required");
     }
     // Markup in a reference document is untrusted data; it must never be silently executed.
-    if (/[\u0000-\u001f]/u.test(input.questionText.replace(/\n/g, ""))) {
+    if ([...input.questionText].some((char) => char.charCodeAt(0) < 32 && char !== "\\n")) {
       throw new BadRequestException("Question contains invalid control characters");
     }
   }
