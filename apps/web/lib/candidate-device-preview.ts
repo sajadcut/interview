@@ -103,8 +103,9 @@ export class CandidateDevicePreview {
     if (options.video !== false) {
       const delays = [0, ...(options.cameraRetryDelaysMs ?? [])];
       for (let attempt = 0; attempt < delays.length; attempt += 1) {
-        if (delays[attempt] > 0) {
-          await new Promise<void>((resolve) => setTimeout(resolve, delays[attempt]));
+        const delay = delays[attempt] ?? 0;
+        if (delay > 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, delay));
           if (request !== this.generation) return null;
         }
         try {
