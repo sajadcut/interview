@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CandidateDevicePreview } from "./candidate-device-preview";
+import { CandidateDevicePreview, candidatePreviewHandoffValue, parseCandidatePreviewHandoff } from "./candidate-device-preview";
 
 type MockTrack = {
   readyState: "live" | "ended";
@@ -160,5 +160,71 @@ test("audio-only request never opens the camera", async () => {
   assert.equal(result?.camera, null);
   assert.equal(result?.cameraError, null);
   assert.equal(cameraCalls, 0);
+  preview.stop();
+});
+
+test("same-tab handoff preserves full vs audio-only mode without trusting other marker values", () => {
+  assert.equal(candidatePreviewHandoffValue(false), "full");
+  assert.equal(candidatePreviewHandoffValue(true), "audio-only");
+  assert.equal(parseCandidatePreviewHandoff("full"), "full");
+  assert.equal(parseCandidatePreviewHandoff("audio-only"), "audio-only");
+  assert.equal(parseCandidatePreviewHandoff("1"), "full"); // legacy handoff
+  assert.equal(parseCandidatePreviewHandoff("false"), null);
+  assert.equal(parseCandidatePreviewHandoff(null), null);
+});
+
+test("preview rejects readiness when microphone ends while camera permission is pending", async () => {
+  const microphone = makeStream(true);
+  const camera = makeStream(false);
+  let resolveCamera: (value: MediaStream) => void = () => { throw new Error("not initialized"); };
+  const waitingForCamera = new Promise<MediaStream>((resolve) => { resolveCamera = resolve; });
+  const preview = new CandidateDevicePreview(devices(async (constraints) =>
+    constraints.video ? waitingForCamera : microphone.stream,
+  ));
+
+  const checking = preview.start();
+  await Promise.resolve();
+  microphone.track.stop();
+  resolveCamera(camera.stream);
+  await assert.rejects(checking, /microphone_unavailable/);
+  assert.equal(camera.track.stopped, true);
+  assert.equal(preview.hasLiveMicrophone(), false);
+  assert.equal(preview.hasLiveCamera(), false);
+});
+
+test("camera track returned already ended is retried and never reported as live", async () => {
+  const microphone = makeStream(true);
+  const endedCamera = makeStream(false);
+  endedCamera.track.stop();
+  const recoveredCamera = makeStream(false);
+  let attempts = 0;
+  const preview = new CandidateDevicePreview(devices(async (constraints) => {
+    if (!constraints.video) return microphone.stream;
+    attempts += 1;
+    return attempts === 1 ? endedCamera.stream : recoveredCamera.stream;
+  }));
+
+  const result = await preview.start({ cameraRetryDelaysMs: [0] });
+  assert.equal(attempts, 2);
+  assert.equal(result?.camera, recoveredCamera.stream);
+  assert.equal(preview.hasLiveMicrophone(), true);
+  assert.equal(preview.hasLiveCamera(), true);
+  preview.stop();
+  assert.equal(preview.hasLiveMicrophone(), false);
+  assert.equal(preview.hasLiveCamera(), false);
+});
+
+test("camera ending while preview is held cannot be mistaken for a live camera", async () => {
+  const microphone = makeStream(true);
+  const camera = makeStream(false);
+  const preview = new CandidateDevicePreview(devices(async (constraints) =>
+    constraints.video ? camera.stream : microphone.stream,
+  ));
+  await preview.start();
+  assert.equal(preview.hasLiveMicrophone(), true);
+  assert.equal(preview.hasLiveCamera(), true);
+  camera.track.stop();
+  assert.equal(preview.hasLiveMicrophone(), true);
+  assert.equal(preview.hasLiveCamera(), false);
   preview.stop();
 });
