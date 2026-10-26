@@ -383,6 +383,22 @@ export function CandidateInterviewExperience({
         if (streamRef.current !== stream) return;
         setCameraEnabled(false);
         setLiveError(copy.permissions.unavailableHelp);
+        // Before connection, losing the actual camera invalidates full-mode
+        // readiness. During an active session keep voice available while the
+        // user is offered an explicit camera recapture/reconnect path.
+        setState((current) => {
+          if (current.hasConnected) return current;
+          const withoutCamera = candidateInterviewReducer(current, {
+            type: "PERMISSIONS_RESOLVED",
+            microphone: "granted",
+            camera: "unavailable",
+            audioOnly: false,
+          });
+          return candidateInterviewReducer(withoutCamera, {
+            type: "PERMISSION_FAILED",
+            code: "device_unavailable",
+          });
+        });
       }, { once: true });
     }
   };
@@ -543,6 +559,12 @@ export function CandidateInterviewExperience({
     if (!hasLocalMedia || !streamRef.current?.getAudioTracks().some((track) => track.readyState === "live")) {
       releaseStream();
       reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
+      return;
+    }
+    if (!state.audioOnly && !streamRef.current.getVideoTracks().some((track) => track.readyState === "live")) {
+      reduce({ type: "PERMISSIONS_RESOLVED", microphone: "granted", camera: "unavailable", audioOnly: false });
+      reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
+      setLiveError(copy.permissions.unavailableHelp);
       return;
     }
     if (state.network === "offline") {
