@@ -240,6 +240,27 @@ class CandidateBrowserRealtimeRuntime {
     return blob;
   }
 
+  async finishManually(): Promise<CandidateRuntimeCompletion> {
+    const snapshot = this.snapshot;
+    if (!snapshot) throw new Error("Candidate interview runtime is not connected");
+    const result = await readJson<CandidateRuntimeCompletion>(
+      await fetch(
+        `${candidateApi}/sessions/${encodeURIComponent(snapshot.sessionId)}/media/${encodeURIComponent(snapshot.mediaSessionId)}/finish`,
+        { method: "POST", credentials: "same-origin" },
+      ),
+    );
+    this.snapshot = {
+      ...snapshot,
+      status: "completed",
+      lifecyclePhase: "completed",
+      openingTurn: undefined,
+      remainingSeconds: result.remainingSeconds,
+      clock: result.clock,
+    };
+    this.emit({ type: "snapshot", snapshot: this.snapshot });
+    return result;
+  }
+
   async acknowledgeTurnPlayed(turnId: string): Promise<CandidateRuntimeCompletion> {
     const snapshot = this.snapshot;
     if (!snapshot) throw new Error("Candidate interview runtime is not connected");

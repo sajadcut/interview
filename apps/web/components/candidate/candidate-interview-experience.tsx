@@ -40,6 +40,7 @@ export interface CandidateInterviewRuntime {
   submitText?(text: string): Promise<CandidateRuntimeAnswer>;
   submitVoice?(audio: Blob): Promise<CandidateRuntimeVoiceAnswer>;
   acknowledgeTurnPlayed?(turnId: string): Promise<CandidateRuntimeCompletion>;
+  finishManually?(): Promise<CandidateRuntimeCompletion>;
   sync?(): Promise<{
     status: "active" | "completed";
     lifecyclePhase: CandidateRuntimeSnapshot["lifecyclePhase"];
@@ -313,6 +314,7 @@ export function CandidateInterviewExperience({
   const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
   const [typedAnswer, setTypedAnswer] = useState("");
   const [answerBusy, setAnswerBusy] = useState(false);
+  const [manualFinishBusy, setManualFinishBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [liveStatus, setLiveStatus] = useState(liveCopy.yourTurn);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -343,6 +345,7 @@ export function CandidateInterviewExperience({
   const networkDownAtRef = useRef<number | null>(null);
   const lastLargePasteAtRef = useRef<number | null>(null);
   const closeTurnPlayedRef = useRef<string | null>(null);
+  const manualFinishInFlightRef = useRef(false);
 
   const reduce = (event: Parameters<typeof candidateInterviewReducer>[1]) =>
     setState((current) => candidateInterviewReducer(current, event));
@@ -553,6 +556,41 @@ export function CandidateInterviewExperience({
     } : current);
     reduce({ type: "COMPLETE" });
     setLiveStatus(liveCopy.completed);
+  };
+
+  const finishManually = async () => {
+    if (manualFinishInFlightRef.current || answerBusy || listening || !runtimeSnapshot || !runtime?.finishManually) return;
+    if (!window.confirm(copy.controls.endInterviewConfirmation)) return;
+    manualFinishInFlightRef.current = true;
+    setManualFinishBusy(true);
+    setLiveError(null);
+    try {
+      // End the persisted session, not merely the browser view. Evaluation is
+      // queued by the server's canonical finish path.
+      const completion = await runtime.finishManually();
+      setDisplayRemainingSeconds(completion.clock.remainingSeconds);
+      setRuntimeSnapshot((current) => current ? {
+        ...current,
+        status: "completed",
+        lifecyclePhase: "completed",
+        remainingSeconds: completion.remainingSeconds,
+        clock: completion.clock,
+      } : current);
+      listeningRef.current = false;
+      stopCaptureNodes();
+      void audioContextRef.current?.close().catch(() => undefined);
+      audioContextRef.current = null;
+      ttsAudioRef.current?.pause();
+      releaseStream();
+      reduce({ type: "COMPLETE" });
+      setLiveStatus(liveCopy.completed);
+      void runtime.disconnect?.().catch(() => undefined);
+    } catch (cause) {
+      setLiveError(candidateFacingError(cause, copy.controls.endInterviewFailed));
+    } finally {
+      manualFinishInFlightRef.current = false;
+      setManualFinishBusy(false);
+    }
   };
 
   const attemptConnection = async (reconnect = false) => {
@@ -1126,6 +1164,14 @@ export function CandidateInterviewExperience({
               <div className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${state.phase === "live" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-200"}`}>
                 {copy.stage[state.phase]}
               </div>
+              <button
+                type="button"
+                onClick={() => void finishManually()}
+                disabled={manualFinishBusy || answerBusy || listening || connectionBusy || !runtime?.finishManually}
+                className="min-h-11 rounded-xl border border-rose-300/40 bg-rose-500/15 px-4 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {manualFinishBusy ? copy.controls.endingInterview : copy.controls.endInterview}
+              </button>
             </div>
           </header>
           {displayRemainingSeconds <= 300 ? <div role="status" className={`rounded-xl border px-4 py-2 text-xs ${displayRemainingSeconds <= 60 ? "border-rose-300/20 bg-rose-300/10 text-rose-100" : "border-amber-300/20 bg-amber-300/10 text-amber-100"}`}>{displayRemainingSeconds <= 60 ? liveCopy.finalMinute : liveCopy.endingSoon}</div> : null}

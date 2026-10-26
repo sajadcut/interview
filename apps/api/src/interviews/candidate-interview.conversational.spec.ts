@@ -519,3 +519,29 @@ test("real-candidate audio keeps authenticated Whisper before entering conversat
   assert.deepEqual(speechCalls, ["authenticated"]);
   assert.equal(brainCalls.length, 1);
 });
+
+
+test("manual finish closes server session, queues evaluation and is idempotent", async () => {
+  const { service, stateTransitions, queuedJobs, evaluatorBuildStatuses, mediaEvents } =
+    harness({ brainAction: "ask", brainTurnKind: "planned_criterion" });
+  const first = await service.finishManually("candidate-token", interviewSessionId, mediaSessionId);
+  assert.equal(first.status, "completed");
+  assert.equal(first.lifecyclePhase, "completed");
+  assert.deepEqual(stateTransitions.map((item) => item.action), ["finish"]);
+  assert.equal(stateTransitions[0]?.reason, "candidate_manual_end");
+  assert.equal(queuedJobs.length, 1);
+  assert.deepEqual(evaluatorBuildStatuses, ["completed"]);
+  assert.equal(mediaEvents.filter((item) => item.eventType === "ended").length, 1);
+  const repeated = await service.finishManually("candidate-token", interviewSessionId, mediaSessionId);
+  assert.equal(repeated.status, "completed");
+  assert.equal(stateTransitions.length, 1);
+  assert.equal(queuedJobs.length, 1);
+});
+
+test("manual finish is available before the scripted closing turn", async () => {
+  const { service, brainCalls, stateTransitions } = harness({ questionAction: "ask", brainAction: "probe" });
+  const response = await service.finishManually("candidate-token", interviewSessionId, mediaSessionId);
+  assert.equal(response.status, "completed");
+  assert.equal(brainCalls.length, 0);
+  assert.equal(stateTransitions.length, 1);
+});

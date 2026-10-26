@@ -133,6 +133,15 @@ export class CandidateInterviewController {
     );
   }
 
+  @Post("sessions/:sessionId/media/:mediaSessionId/finish")
+  finishManually(
+    @Req() request: Request,
+    @Param("sessionId") sessionId: string,
+    @Param("mediaSessionId") mediaSessionId: string,
+  ) {
+    return this.candidateInterview.finishManually(candidateToken(request), sessionId, mediaSessionId);
+  }
+
   @Post("sessions/:sessionId/media/:mediaSessionId/turns/:turnId/played")
   acknowledgeTurnPlayed(
     @Req() request: Request,

@@ -731,7 +731,7 @@ export class CandidateInterviewService {
     scope: ResolvedCandidateSession,
     sessionId: string,
     mediaSessionId: string,
-    reason: "brain_close" | "time_budget_expired" | "closing_played",
+    reason: "brain_close" | "time_budget_expired" | "closing_played" | "candidate_manual_end",
   ) {
     const runtime = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
     if (!["completed", "failed", "cancelled"].includes(runtime.status)) {
@@ -959,6 +959,33 @@ export class CandidateInterviewService {
           action: turn.action,
           spokenText: turn.spokenText,
         },
+      };
+    });
+  }
+
+  async finishManually(
+    rawToken: string | undefined,
+    sessionId: string,
+    mediaSessionId: string,
+  ) {
+    const scope = await this.scope(rawToken);
+    // A candidate may end their own session even if consent was withdrawn.
+    // Ownership is scoped to the authenticated candidate, application and media session.
+    return this.tenantContext.run(scope.organizationId, async () => {
+      const current = await this.assertOwnedRuntime(scope, sessionId, mediaSessionId);
+      if (current.status === "failed" || current.status === "cancelled") {
+        throw new BadRequestException("Interview session cannot be finished");
+      }
+      // A repeated request must not queue evaluation more than once.
+      const finished = current.status === "completed"
+        ? current
+        : await this.finishCandidateInterview(scope, sessionId, mediaSessionId, "candidate_manual_end");
+      return {
+        status: "completed" as const,
+        lifecyclePhase: "completed" as const,
+        sessionId,
+        remainingSeconds: finished.remainingSeconds,
+        clock: finished.clock,
       };
     });
   }
