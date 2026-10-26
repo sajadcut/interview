@@ -322,9 +322,9 @@ test(
       // keeps its own source claims across an independent parser-version replay.
       // Reusing identical bytes in a second tenant must create separate evidence.
       const otherSource = Buffer.from(
-        "Maryam Rahimi\nSkills\nRedis, Docker\nWork Experience\n" +
+        "Maryam Rahimi\nSkills\nRedis, Docker, PostgreSQL\nWork Experience\n" +
         "Backend developer at Sample Co | 2021 - Present\n" +
-        "Built caching services using Redis and Docker in production environments.",
+        "Built caching services using Redis, Docker and PostgreSQL in production environments.",
       );
       const second = await tenant.run(orgA, () => service.ingest(candidateA, {
         originalName: "second-career-resume.txt", mimeType: "text/plain", data: otherSource,
@@ -352,8 +352,8 @@ test(
       `;
       const secondClaims = await selectClaims(orgA, second.id);
       const crossTenantClaims = await selectClaims(orgB, otherTenant.id);
-      assert.deepEqual(secondClaims.map((row) => row.skill_key), ["docker", "redis"]);
-      assert.deepEqual(crossTenantClaims.map((row) => row.skill_key), ["docker", "redis"]);
+      assert.deepEqual(secondClaims.map((row) => row.skill_key), ["docker", "postgresql", "redis"]);
+      assert.deepEqual(crossTenantClaims.map((row) => row.skill_key), ["docker", "postgresql", "redis"]);
       for (const row of secondClaims) {
         assert.equal(row.is_current, true);
         assert.equal(row.review_state, "pending");
@@ -404,10 +404,13 @@ test(
       assert.deepEqual(orgBResumes.map((row) => row.id), [otherTenant.id]);
       const crossTenantWorkspace = await tenant.run(orgB, () => intelligence.getWorkspace(candidateB));
       assert.deepEqual(crossTenantWorkspace.resumeSkillClaims.map((row) => row.resumeId).sort(),
-        [otherTenant.id, otherTenant.id]);
+        [otherTenant.id, otherTenant.id, otherTenant.id]);
       const ownWorkspace = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
       assert.equal(ownWorkspace.resumeSkillClaims.some((row) =>
         row.resumeId === second.id && row.skillKey === "docker"), true);
+      // Shared taxonomy keys remain distinct claims for each source resume.
+      assert.equal(ownWorkspace.resumeSkillClaims.filter((row) =>
+        row.skillKey === "postgresql" && [first.id, second.id].includes(row.resumeId)).length, 2);
       assert.equal(ownWorkspace.resumeSkillClaims.some((row) =>
         row.resumeId === otherTenant.id), false);
       assert.deepEqual((await tenant.run(orgA, () => skillEvidence.reviewHistory(candidateA, claim.id)))
