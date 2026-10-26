@@ -7,7 +7,19 @@ Before implementing a ticket:
 3. Read `docs/architecture-decisions/ADR-0002-node-25-npm-runtime.md` for the active Node.js/npm baseline.
 4. Read `docs/visual-product-target.md` for internal recruiter UI work.
 5. Read `production-readiness.md` when work touches interviews, scoring, security, privacy, or rollout.
-6. Implement only the requested scope and explicit prerequisites.
+6. Read `.agents/skills/README.md` and the relevant task-specific `.agents/skills/<name>/SKILL.md` when a matching workflow applies; do not load unrelated skills.
+7. Implement only the requested scope and explicit prerequisites.
+
+
+Task-specific Agent Skills (development assistance, not runtime AI capabilities):
+
+- Recruitment/HR/job/candidate lifecycle: `.agents/skills/interview-recruitment-workflow/SKILL.md`.
+- Camera/microphone/LiveKit/STT/TTS/device readiness: `.agents/skills/interview-realtime-media/SKILL.md`.
+- LLM interviewing, prompts, turn lifecycle: `.agents/skills/interview-ai-brain/SKILL.md`.
+- Evidence-backed evaluator, scorecards, integrity and human review: `.agents/skills/interview-evaluation/SKILL.md`.
+- Persian RTL recruiter and candidate UI: `.agents/skills/interview-persian-ux/SKILL.md`.
+- Test/CI/change verification and release reports: `.agents/skills/interview-quality-gate/SKILL.md`.
+- Combine only the skills applicable to the requested change. `AGENTS.md`, `master.md`, `projectstate.md`, and `production-readiness.md` remain authoritative where relevant.
 
 Non-negotiable architecture rules:
 
