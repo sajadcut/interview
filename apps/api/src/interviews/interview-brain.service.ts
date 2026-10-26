@@ -387,18 +387,24 @@ export class InterviewBrainService {
       `;
       const brainCheckpoint = asRecord(checkpoint.brain);
       const turnOrdinal = asStringArray(brainCheckpoint.askedQuestionIds).length;
-      const selectedQuestionDocuments = bankRows.map((row) => {
+      // Rotate across the entire selection and send only a few bounded excerpts
+      // per turn. Eight full documents can otherwise exceed the LLM token budget,
+      // silently forcing deterministic questions unrelated to the bank.
+      const sourceStart = bankRows.length ? turnOrdinal % bankRows.length : 0;
+      const rotated = [...bankRows.slice(sourceStart), ...bankRows.slice(0, sourceStart)];
+      const selectedQuestionDocuments = rotated.slice(0, 3).map((row) => {
         const fullText = String(row.extracted_text ?? "");
         const rawQuestions = Array.isArray(row.suggested_questions)
           ? row.suggested_questions.filter((item): item is string => typeof item === "string")
           : [];
-        const start = (turnOrdinal * 997) % Math.max(1, fullText.length - 850);
+        const start = (turnOrdinal * 997) % Math.max(1, fullText.length - 520);
         return {
           id: String(row.id),
-          fileName: boundedText(row.original_name, 180),
+          fileName: boundedText(row.original_name, 140),
           sha256: String(row.sha256),
-          excerpt: boundedText(fullText.slice(start, start + 850), 850),
-          suggestedQuestions: selectQuestionWindow(rawQuestions, turnOrdinal, 3),
+          excerpt: boundedText(fullText.slice(start, start + 520), 520),
+          suggestedQuestions: selectQuestionWindow(rawQuestions, turnOrdinal, 2)
+            .map((question) => boundedText(question, 220)),
         };
       });
       const questionStrategy = asRecord(session?.question_strategy);
