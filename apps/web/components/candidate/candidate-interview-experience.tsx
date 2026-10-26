@@ -373,7 +373,7 @@ export function CandidateInterviewExperience({
       track.addEventListener("ended", () => {
         if (streamRef.current !== stream) return;
         releaseStream();
-        reduce({ type: "PERMISSIONS_RESOLVED", microphone: "unavailable", camera: "unknown", audioOnly: false });
+        reduce({ type: "PERMISSIONS_RESOLVED", microphone: "unavailable", camera: "unknown", audioOnly: stream.getVideoTracks().length === 0 });
         reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
         setLiveError(copy.permissions.microphoneRequired);
       }, { once: true });
@@ -1051,8 +1051,14 @@ export function CandidateInterviewExperience({
   };
 
   const toggleCamera = () => {
+    const liveTracks = streamRef.current?.getVideoTracks().filter((track) => track.readyState === "live") ?? [];
+    if (liveTracks.length === 0) {
+      setCameraEnabled(false);
+      setLiveError(copy.permissions.unavailableHelp);
+      return;
+    }
     const next = !cameraEnabled;
-    streamRef.current?.getVideoTracks().forEach((track) => {
+    liveTracks.forEach((track) => {
       track.enabled = next;
     });
     setCameraEnabled(next);
@@ -1118,6 +1124,9 @@ export function CandidateInterviewExperience({
             </div>
           ) : null}
           {liveError ? <div role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs text-amber-100">{liveError}</div> : null}
+          {hasLocalMedia && !state.audioOnly && !streamRef.current?.getVideoTracks().some((track) => track.readyState === "live") ? (
+            <button type="button" disabled={permissionBusy} onClick={() => void requestMedia("full")} className="rounded-xl bg-amber-300/10 px-4 py-2 text-xs font-semibold text-amber-100 disabled:opacity-50">{permissionBusy ? copy.permissions.checking : copy.permissions.retryBoth}</button>
+          ) : null}
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
             <section className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
               <div className="relative aspect-video min-h-[360px]">
