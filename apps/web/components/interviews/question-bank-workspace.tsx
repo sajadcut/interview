@@ -2,6 +2,7 @@
 
 import type { components } from "@interview/api-client";
 import Link from "next/link";
+import { QuestionVersionsPanel } from "./question-versions-panel";
 import { useEffect, useState } from "react";
 import { api, apiErrorMessage } from "../../lib/api";
 import { formatFaNumber } from "../../lib/fa-numbers";
@@ -154,6 +155,7 @@ export function QuestionBankWorkspace() {
           </div>
         )}
       </div>
+      <QuestionVersionsPanel jobId={jobId} identity={identity} documents={documents} />
       <p className="text-[11px] leading-6 text-slate-500">
         این اسناد فقط زمینه تولید سؤال هستند؛ امتیازدهی همچنان با معیارهای منتشرشدهٔ شغل انجام می‌شود.
         برای فایل‌های اسکن‌شدهٔ بدون متن، باید نسخه قابل استخراج ارائه شود.
