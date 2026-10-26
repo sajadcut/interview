@@ -550,7 +550,10 @@ export class InterviewAssignmentAdminService {
             FROM interview_sessions active_session
             WHERE active_session.organization_id = a.organization_id
               AND active_session.application_id = a.id
-              AND active_session.status <> 'cancelled'
+              AND active_session.status IN (
+                 'invited', 'scheduled', 'in_progress', 'paused',
+                 'disconnected', 'reconnecting', 'completed'
+               )
           )
         ORDER BY a.updated_at DESC
       `,
