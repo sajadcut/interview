@@ -3178,6 +3178,261 @@
         ]
       }
     },
+    "/v1/candidates/{candidateId}/resumes/{resumeId}/skill-proposals": {
+      "get": {
+        "operationId": "SkillProposalsController_list",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resumeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SkillProposalDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-proposals"
+        ]
+      }
+    },
+    "/v1/candidates/{candidateId}/resumes/{resumeId}/skill-proposals/generate": {
+      "post": {
+        "operationId": "SkillProposalsController_generate",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resumeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillProposalResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-proposals"
+        ]
+      }
+    },
+    "/v1/candidates/{candidateId}/resumes/{resumeId}/skill-proposals/{proposalId}/review": {
+      "put": {
+        "operationId": "SkillProposalsController_review",
+        "parameters": [
+          {
+            "name": "candidateId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resumeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "proposalId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSkillProposalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewedSkillProposalDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "skill-proposals"
+        ]
+      }
+    },
     "/v1/scorecards/{scorecardId}/reviews": {
       "post": {
         "operationId": "ScorecardReviewController_review",
@@ -11746,6 +12001,143 @@
           "skillKey",
           "reviewVersion",
           "reviewReason",
+          "reviewerUserId",
+          "reviewedAt"
+        ]
+      },
+      "SkillProposalDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "skillKey": {
+            "type": "string"
+          },
+          "claimText": {
+            "type": "string"
+          },
+          "startChar": {
+            "type": "number"
+          },
+          "endChar": {
+            "type": "number"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "reviewState": {
+            "type": "string"
+          },
+          "reviewVersion": {
+            "type": "number"
+          },
+          "sourceTextSha256": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "skillKey",
+          "claimText",
+          "startChar",
+          "endChar",
+          "confidence",
+          "reviewState",
+          "reviewVersion",
+          "sourceTextSha256",
+          "provider",
+          "model"
+        ]
+      },
+      "SkillProposalResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "disabled",
+              "unavailable",
+              "source_too_large",
+              "no_taxonomy"
+            ]
+          },
+          "persistedCount": {
+            "type": "number"
+          },
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillProposalDto"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "persistedCount",
+          "proposals"
+        ]
+      },
+      "ReviewSkillProposalDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "expectedVersion": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 1000
+          },
+          "reviewedAlias": {
+            "type": "string",
+            "description": "Optional human-reviewed alias literal in the resume excerpt; never generated by the model automatically"
+          }
+        },
+        "required": [
+          "decision",
+          "expectedVersion",
+          "reason"
+        ]
+      },
+      "ReviewedSkillProposalDto": {
+        "type": "object",
+        "properties": {
+          "proposalId": {
+            "type": "string"
+          },
+          "reviewState": {
+            "type": "string"
+          },
+          "reviewVersion": {
+            "type": "number"
+          },
+          "reviewerUserId": {
+            "type": "string"
+          },
+          "reviewedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposalId",
+          "reviewState",
+          "reviewVersion",
           "reviewerUserId",
           "reviewedAt"
         ]
