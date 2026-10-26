@@ -1,6 +1,6 @@
 -- Skill Evidence Graph: additive phase-1 foundation. Existing rubric/scorecard remains authoritative.
 -- All referenced objects are scoped by organization_id; this migration never assigns interview scores.
-CREATE TABLE skill_taxonomy (
+CREATE TABLE IF NOT EXISTS skill_taxonomy (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   skill_key varchar(160) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE skill_taxonomy (
 );
 CREATE INDEX skill_taxonomy_search_idx ON skill_taxonomy(organization_id, category, name_en);
 
-CREATE TABLE skill_aliases (
+CREATE TABLE IF NOT EXISTS skill_aliases (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
   skill_id uuid NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE skill_aliases (
 
 -- Versioned job requirements are intentionally separate from the already published rubric.
 -- A new skill requirement is not an automatic scoring criterion.
-CREATE TABLE job_skill_requirements (
+CREATE TABLE IF NOT EXISTS job_skill_requirements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
   job_id uuid NOT NULL,
@@ -90,7 +90,7 @@ CREATE TRIGGER job_skill_criterion_scope
 CREATE UNIQUE INDEX resumes_org_candidate_id_uq
   ON resumes(organization_id, candidate_id, id);
 
-CREATE TABLE resume_skill_claims (
+CREATE TABLE IF NOT EXISTS resume_skill_claims (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
   candidate_id uuid NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE resume_skill_claims (
     REFERENCES skill_taxonomy(organization_id, id) ON DELETE RESTRICT,
   FOREIGN KEY (organization_id, evidence_id)
     REFERENCES evidence(organization_id, id) ON DELETE SET NULL (evidence_id),
-  FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
   CONSTRAINT claim_review_consistency CHECK (
     (review_state = 'pending' AND reviewed_at IS NULL AND reviewed_by_user_id IS NULL)
     OR (review_state <> 'pending' AND reviewed_at IS NOT NULL AND reviewed_by_user_id IS NOT NULL)
