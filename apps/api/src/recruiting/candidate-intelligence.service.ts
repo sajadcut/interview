@@ -102,7 +102,7 @@ export class CandidateIntelligenceService {
         FROM job_skill_requirements
         WHERE organization_id = a.organization_id AND job_id = a.job_id
         ORDER BY skill_id, requirement_version DESC, created_at DESC
-      ) jsr ON true
+      ) jsr ON jsr.is_active = true
       JOIN skill_taxonomy st ON st.organization_id = jsr.organization_id AND st.id = jsr.skill_id
       WHERE a.organization_id = ${organizationId}::uuid AND a.candidate_id = ${candidateId}::uuid
         AND jsr.is_active = true
