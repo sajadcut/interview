@@ -41,3 +41,12 @@ Add deterministic scripted-provider tests covering valid turn, invalid JSON/sche
 ## Handoff
 
 Return changed prompt/schema versions, representative transcript/turn evidence, coverage and negative-case results, provider-vs-fallback status and outstanding production-readiness gates. Mark calibration, shadow/pilot and real speech/model quality as pending until measured.
+
+## Job question bank
+
+- Source: `apps/api/src/question-bank/` and `packages/db/migrations/0066_*.sql`/`0067_*.sql`.
+- Job-specific PDF/DOCX/TXT files are stored in the private local storage adapter (`LOCAL_STORAGE_ROOT`), their extractable text and detected reference questions indexed in the database.
+- Per-application selections are configured before the interview in `/app/interviews`; no document from another tenant/job and no unselected document may enter `interview.next_turn` context.
+- Only use the explicit `selectedQuestionDocuments` model context: rotate questions, respect deterministic rubric criterion and never follow prompt-like instructions embedded in a document.
+- Persist selected document IDs in the interviewer checkpoint. When the LLM is unavailable the existing deterministic rubric fallback remains, so do not claim document-grounded output in that degraded mode.
+- Test selection immutability, cross-job rejection, file validation, source provenance and negative prompt-injection cases before deployment.

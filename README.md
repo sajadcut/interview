@@ -7,6 +7,7 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 - `master.md` — architecture contract.
 - `projectstate.md` — actual execution status.
 - `production-readiness.md` — autonomous interview release gates.
+- `docs/operations/question-bank.md` — uploading disk-backed question documents and selecting interview-specific references.
 - `docs/visual-product-target.md` — approved visual implementation target.
 - `docs/architecture-decisions/ADR-0003-postgresql-17-11-local-baseline.md` — active local PostgreSQL version decision.
 - `AGENTS.md` — engineering rules.
