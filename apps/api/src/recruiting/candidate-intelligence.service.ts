@@ -80,7 +80,7 @@ export class CandidateIntelligenceService {
     const resumeSkillClaims = await this.database.sql`
       SELECT rc.id::text, rc.resume_id::text, rc.evidence_id::text, rc.source_reference,
              rc.claim_text, rc.start_char, rc.end_char, rc.extraction_confidence,
-             rc.review_state, rc.taxonomy_version, rc.parser_version,
+             rc.review_state, rc.review_version, rc.review_reason, rc.taxonomy_version, rc.parser_version,
              st.skill_key, st.name_en, st.name_fa, r.original_filename
       FROM resume_skill_claims rc
       JOIN skill_taxonomy st
@@ -165,6 +165,8 @@ export class CandidateIntelligenceService {
         endChar: Number(row.end_char),
         confidence: Number(row.extraction_confidence),
         reviewState: String(row.review_state),
+        reviewVersion: Number(row.review_version),
+        ...(row.review_reason ? { reviewReason: String(row.review_reason) } : {}),
         parserVersion: String(row.parser_version),
         taxonomyVersion: String(row.taxonomy_version),
         sourceReference: String(row.source_reference),

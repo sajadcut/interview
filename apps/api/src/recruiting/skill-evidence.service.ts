@@ -156,55 +156,125 @@ export class SkillEvidenceService {
     return this.listJobSkills(jobId);
   }
 
+
+  async reviewHistory(candidateId: string, claimId: string) {
+    const organizationId = this.tenant.require().organizationId;
+    const claim = await this.database.sql`
+      SELECT id FROM resume_skill_claims
+      WHERE organization_id=${organizationId}::uuid
+        AND candidate_id=${candidateId}::uuid AND id=${claimId}::uuid
+    `;
+    if (!claim[0]) throw new NotFoundException("Resume skill claim not found");
+    const events = await this.database.sql`
+      SELECT id::text, review_version, previous_state, new_state, previous_skill_key,
+             new_skill_key, reason, reviewer_user_id::text, created_at
+      FROM resume_skill_claim_review_events
+      WHERE organization_id=${organizationId}::uuid AND claim_id=${claimId}::uuid
+      ORDER BY review_version ASC
+    `;
+    return events.map((row) => ({
+      id: String(row.id),
+      reviewVersion: Number(row.review_version),
+      previousState: String(row.previous_state),
+      reviewState: String(row.new_state),
+      ...(row.previous_skill_key ? { previousSkillKey: String(row.previous_skill_key) } : {}),
+      ...(row.new_skill_key ? { skillKey: String(row.new_skill_key) } : {}),
+      reviewReason: String(row.reason),
+      reviewerUserId: String(row.reviewer_user_id),
+      createdAt: new Date(String(row.created_at)).toISOString(),
+    }));
+  }
+
   async reviewResumeClaim(
     candidateId: string, claimId: string, input: ReviewResumeSkillClaimDto,
   ): Promise<ReviewedResumeSkillClaimDto> {
     const organizationId = this.tenant.require().organizationId;
     const actor = this.auth.getOptional()?.userId;
     if (!actor) throw new UnauthorizedException("Authenticated reviewer required");
-    const reason = input.reviewReason.trim();
-    if (reason.length < 8) throw new BadRequestException("Review reason must contain at least eight characters");
+    const reason = input.reviewReason?.trim() ?? "";
+    if (reason.length < 8 || reason.length > 1000) {
+      throw new BadRequestException("Review reason must contain 8–1000 characters");
+    }
+    if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) {
+      throw new BadRequestException("expectedVersion must be a nonnegative integer");
+    }
+    if (input.reviewState === "corrected") {
+      if (!input.correctedSkillKey || !/^[a-z0-9][a-z0-9-]{0,159}$/.test(input.correctedSkillKey)) {
+        throw new BadRequestException("Corrected claim requires an existing canonical skill key");
+      }
+    } else if (input.correctedSkillKey !== undefined) {
+      throw new BadRequestException("correctedSkillKey is only allowed for a corrected claim");
+    } else if (!["confirmed", "rejected"].includes(input.reviewState)) {
+      throw new BadRequestException("Unsupported review state");
+    }
 
-    return this.database.sql.begin(async (tx) => {
-      const rows = await tx`
-        SELECT id, review_state, review_reason, reviewed_at, reviewed_by_user_id
-        FROM resume_skill_claims
-        WHERE organization_id=${organizationId}::uuid
-          AND candidate_id=${candidateId}::uuid AND id=${claimId}::uuid
-        FOR UPDATE
-      `;
-      const claim = rows[0];
-      if (!claim) throw new NotFoundException("Resume skill claim not found");
-      const sameState = String(claim.review_state) === input.reviewState;
-      const sameReason = String(claim.review_reason ?? "") === reason;
-      if (sameState && sameReason && claim.reviewed_at) {
+    try {
+      return await this.database.sql.begin(async (tx) => {
+        const rows = await tx`
+          SELECT rc.id, rc.review_version, rc.review_state, rc.reviewed_at, rc.skill_id,
+                 st.skill_key
+          FROM resume_skill_claims rc
+          JOIN skill_taxonomy st
+            ON st.organization_id=rc.organization_id AND st.id=rc.skill_id
+          WHERE rc.organization_id=${organizationId}::uuid
+            AND rc.candidate_id=${candidateId}::uuid AND rc.id=${claimId}::uuid
+          FOR UPDATE OF rc
+        `;
+        const claim = rows[0];
+        if (!claim) throw new NotFoundException("Resume skill claim not found");
+        const previousVersion = Number(claim.review_version);
+        if (previousVersion !== input.expectedVersion) {
+          throw new ConflictException("Stale resume skill claim review version; reload before retry");
+        }
+
+        let skillId = String(claim.skill_id);
+        let skillKey = String(claim.skill_key);
+        if (input.reviewState === "corrected") {
+          const mappings = await tx`
+            SELECT id::text, skill_key FROM skill_taxonomy
+            WHERE organization_id=${organizationId}::uuid
+              AND skill_key=${input.correctedSkillKey!}
+          `;
+          if (!mappings[0]) throw new BadRequestException("Corrected skill must exist in the tenant taxonomy");
+          skillId = String(mappings[0].id);
+          skillKey = String(mappings[0].skill_key);
+          if (skillId === String(claim.skill_id)) {
+            throw new BadRequestException("Corrected mapping must differ from the current skill");
+          }
+        }
+        const nextVersion = previousVersion + 1;
+        const changed = await tx`
+          UPDATE resume_skill_claims
+          SET review_state=${input.reviewState}, review_reason=${reason},
+              reviewed_at=now(), reviewed_by_user_id=${actor}::uuid,
+              review_version=${nextVersion}, skill_id=${skillId}::uuid,
+              mapping_origin=CASE WHEN ${input.reviewState}='corrected'
+                THEN 'human_reviewed' ELSE mapping_origin END
+          WHERE organization_id=${organizationId}::uuid AND candidate_id=${candidateId}::uuid
+            AND id=${claimId}::uuid
+          RETURNING reviewed_at
+        `;
+        await tx`
+          INSERT INTO resume_skill_claim_review_events (
+            organization_id, claim_id, reviewer_user_id, previous_state, new_state,
+            reason, review_version, previous_skill_key, new_skill_key
+          ) VALUES (
+            ${organizationId}::uuid, ${claimId}::uuid, ${actor}::uuid,
+            ${String(claim.review_state)}, ${input.reviewState}, ${reason},
+            ${nextVersion}, ${String(claim.skill_key)}, ${skillKey}
+          )
+        `;
         return {
           claimId, reviewState: input.reviewState, reviewReason: reason,
-          reviewerUserId: String(claim.reviewed_by_user_id),
-          reviewedAt: new Date(String(claim.reviewed_at)).toISOString(),
+          reviewerUserId: actor, reviewedAt: new Date(String(changed[0]!.reviewed_at)).toISOString(),
+          skillKey, reviewVersion: nextVersion,
         };
+      });
+    } catch (error) {
+      if ((error as { code?: string })?.code === "23505") {
+        throw new ConflictException("The resume already has a claim mapped to that skill");
       }
-      const changed = await tx`
-        UPDATE resume_skill_claims
-        SET review_state=${input.reviewState}, review_reason=${reason},
-            reviewed_at=now(), reviewed_by_user_id=${actor}::uuid
-        WHERE organization_id=${organizationId}::uuid AND candidate_id=${candidateId}::uuid
-          AND id=${claimId}::uuid
-        RETURNING reviewed_at
-      `;
-      await tx`
-        INSERT INTO resume_skill_claim_review_events (
-          organization_id, claim_id, reviewer_user_id, previous_state, new_state, reason
-        ) VALUES (
-          ${organizationId}::uuid, ${claimId}::uuid, ${actor}::uuid,
-          ${String(claim.review_state)}, ${input.reviewState}, ${reason}
-        )
-      `;
-      return {
-        claimId, reviewState: input.reviewState, reviewReason: reason,
-        reviewerUserId: actor,
-        reviewedAt: new Date(String(changed[0]?.reviewed_at)).toISOString(),
-      };
-    });
+      throw error;
+    }
   }
 }

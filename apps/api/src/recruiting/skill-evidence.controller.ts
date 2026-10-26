@@ -6,7 +6,7 @@ import { RequirePermissions } from "../auth/require-permissions.decorator";
 import { ApiStandardErrorResponses } from "../common/http/api-standard-error-responses.decorator";
 import { RequireTenant } from "../tenant/require-tenant.decorator";
 import {
-  JobSkillRequirementDto, ReviewedResumeSkillClaimDto,
+  JobSkillRequirementDto, ReviewedResumeSkillClaimDto, ResumeSkillClaimReviewEventDto,
   ReviewResumeSkillClaimDto, SaveJobSkillRequirementsDto,
 } from "./skill-evidence.dto";
 import { SkillEvidenceService } from "./skill-evidence.service";
@@ -31,6 +31,16 @@ export class SkillEvidenceController {
   @ApiOkResponse({ type: JobSkillRequirementDto, isArray: true })
   replaceJobSkills(@Param("jobId", ParseUUIDPipe) jobId: string, @Body() input: SaveJobSkillRequirementsDto) {
     return this.skills.replaceJobSkills(jobId, input.skills);
+  }
+
+  @Get("candidates/:candidateId/skill-claims/:claimId/reviews")
+  @RequirePermissions(Permissions.CandidateRead)
+  @ApiOkResponse({ type: ResumeSkillClaimReviewEventDto, isArray: true })
+  reviewHistory(
+    @Param("candidateId", ParseUUIDPipe) candidateId: string,
+    @Param("claimId", ParseUUIDPipe) claimId: string,
+  ) {
+    return this.skills.reviewHistory(candidateId, claimId);
   }
 
   @Put("candidates/:candidateId/skill-claims/:claimId/review")

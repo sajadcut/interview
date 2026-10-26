@@ -71,9 +71,20 @@ export class JobSkillRequirementDto extends JobSkillRequirementInputDto {
 }
 
 export class ReviewResumeSkillClaimDto {
-  @ApiProperty({ enum: ["confirmed", "rejected"] })
-  @IsIn(["confirmed", "rejected"])
-  reviewState!: "confirmed" | "rejected";
+  @ApiProperty({ enum: ["confirmed", "rejected", "corrected"] })
+  @IsIn(["confirmed", "rejected", "corrected"])
+  reviewState!: "confirmed" | "rejected" | "corrected";
+
+  @ApiProperty({ minimum: 0, description: "Optimistic concurrency version from claim workspace" })
+  @IsInt()
+  @Min(0)
+  expectedVersion!: number;
+
+  @ApiPropertyOptional({ description: "Existing canonical skill key, required only for corrected" })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z0-9][a-z0-9-]{0,159}$/)
+  correctedSkillKey?: string;
 
   @ApiProperty({ minLength: 8, maxLength: 1000 })
   @IsString()
@@ -84,8 +95,23 @@ export class ReviewResumeSkillClaimDto {
 
 export class ReviewedResumeSkillClaimDto {
   @ApiProperty({ format: "uuid" }) claimId!: string;
-  @ApiProperty({ enum: ["confirmed", "rejected"] }) reviewState!: "confirmed" | "rejected";
+  @ApiProperty({ enum: ["confirmed", "rejected", "corrected"] }) reviewState!: "confirmed" | "rejected" | "corrected";
+  @ApiProperty() skillKey!: string;
+  @ApiProperty({ minimum: 1 }) reviewVersion!: number;
   @ApiProperty() reviewReason!: string;
   @ApiProperty({ format: "uuid" }) reviewerUserId!: string;
   @ApiProperty() reviewedAt!: string;
+}
+
+/** Immutable reviewer action log; source resume evidence remains unchanged. */
+export class ResumeSkillClaimReviewEventDto {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ minimum: 1 }) reviewVersion!: number;
+  @ApiProperty() previousState!: string;
+  @ApiProperty({ enum: ["confirmed", "rejected", "corrected"] }) reviewState!: string;
+  @ApiPropertyOptional() previousSkillKey?: string;
+  @ApiPropertyOptional() skillKey?: string;
+  @ApiProperty() reviewReason!: string;
+  @ApiProperty({ format: "uuid" }) reviewerUserId!: string;
+  @ApiProperty() createdAt!: string;
 }
