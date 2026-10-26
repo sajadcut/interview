@@ -4,6 +4,8 @@ import test from "node:test";
 import postgres from "postgres";
 import type { DatabaseService } from "../database/database.service";
 import { CandidateIntelligenceService } from "../recruiting/candidate-intelligence.service";
+import { SkillEvidenceService } from "../recruiting/skill-evidence.service";
+import { AuthContextService } from "../auth/auth-context.service";
 import type { StorageService } from "../storage/storage.service";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { ResumeChunker } from "./resume-chunker";
@@ -74,6 +76,8 @@ test(
     const orgB = randomUUID();
     const candidateA = randomUUID();
     const candidateB = randomUUID();
+    const actorId = randomUUID();
+    const jobId = randomUUID();
     const suffix = randomUUID();
     const source = Buffer.from(
       `Sara Ahmadi\nsara-${suffix}@example.invalid\nLocation: Tehran\n\nSkills\nTypeScript, Node.js, PostgreSQL\n\nWork Experience\nSenior Backend Engineer — Example Co | 2022 - Present\nBuilt Node.js APIs with PostgreSQL for production systems.`,
@@ -84,6 +88,14 @@ test(
         INSERT INTO organizations (id, name, slug) VALUES
           (${orgA}::uuid, 'Resume Org A', ${`resume-a-${suffix}`}),
           (${orgB}::uuid, 'Resume Org B', ${`resume-b-${suffix}`})
+      `;
+      await database.sql`
+        INSERT INTO users (id, email, display_name)
+        VALUES (${actorId}::uuid, ${`reviewer-${suffix}@example.invalid`}, 'Skills Reviewer')
+      `;
+      await database.sql`
+        INSERT INTO jobs (id, organization_id, title, status)
+        VALUES (${jobId}::uuid, ${orgA}::uuid, 'Backend Developer', 'draft')
       `;
       await database.sql`
         INSERT INTO candidates (id, organization_id, display_name) VALUES
@@ -148,6 +160,113 @@ test(
         claim.skillKey === "postgresql" && claim.claimText.includes("PostgreSQL")), true);
       assert.equal(orgBWorkspace.resumeSkillClaims.length, 0);
       assert.equal(orgBWorkspace.jobSkillRequirements.length, 0);
+
+      // Human review actions remain independent from the resume parser's raw evidence
+      // and from candidate's unverified declared skill list.
+      const auth = new AuthContextService();
+      const skillEvidence = new SkillEvidenceService(database, tenant, auth);
+      const current = await tenant.run(orgA, () => skillEvidence.listJobSkills(jobId));
+      assert.deepEqual(current, []);
+      const requiredSkill = {
+        skillKey: "postgresql", nameEn: "PostgreSQL", nameFa: "پستگرس",
+        category: "technical" as const, requiredLevel: 4, weight: 2,
+        required: true, minimumEvidenceCount: 2,
+      };
+      const created = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, [requiredSkill]));
+      assert.equal(created[0]?.requiredLevel, 4);
+      assert.equal(created[0]?.requirementVersion, 1);
+      const unchanged = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, [requiredSkill]));
+      assert.equal(unchanged[0]?.requirementVersion, 1);
+      const updated = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, [{ ...requiredSkill, requiredLevel: 5 }]));
+      assert.equal(updated[0]?.requirementVersion, 2);
+      await assert.rejects(
+        () => tenant.run(orgB, () => skillEvidence.listJobSkills(jobId)),
+        /Job not found/,
+      );
+
+      const claim = orgAWorkspace.resumeSkillClaims.find((item) => item.skillKey === "postgresql");
+      assert.ok(claim);
+      assert.equal(claim.reviewVersion, 0);
+      await assert.rejects(
+        () => tenant.run(orgA, () => skillEvidence.reviewResumeClaim(candidateA, claim.id, {
+          reviewState: "confirmed", reviewReason: "Evidence matches original statement", expectedVersion: 0,
+        })),
+        /Authenticated reviewer required/,
+      );
+      await database.sql`
+        INSERT INTO skill_taxonomy (organization_id, skill_key, name_en, category)
+        VALUES (${orgA}::uuid, 'redis', 'Redis', 'technical')
+        ON CONFLICT (organization_id, skill_key) DO NOTHING
+      `;
+      const reviewed = await tenant.run(orgA, () => auth.run({
+        userId: actorId, source: "session" as const,
+      }, () => skillEvidence.reviewResumeClaim(candidateA, claim.id, {
+        reviewState: "corrected", correctedSkillKey: "redis",
+        reviewReason: "Human verified incorrect skill mapping", expectedVersion: 0,
+      })));
+      assert.equal(reviewed.reviewState, "corrected");
+      assert.equal(reviewed.reviewVersion, 1);
+      assert.equal(reviewed.skillKey, "redis");
+      await assert.rejects(
+        () => tenant.run(orgA, () => auth.run({
+          userId: actorId, source: "session" as const,
+        }, () => skillEvidence.reviewResumeClaim(candidateA, claim.id, {
+          reviewState: "confirmed", reviewReason: "Outdated concurrent review", expectedVersion: 0,
+        }))),
+        /Stale resume skill claim review version/,
+      );
+      await assert.rejects(
+        () => tenant.run(orgB, () => auth.run({
+          userId: actorId, source: "session" as const,
+        }, () => skillEvidence.reviewResumeClaim(candidateB, claim.id, {
+          reviewState: "rejected", reviewReason: "Cross tenant attempt rejected", expectedVersion: 1,
+        }))),
+        /Resume skill claim not found/,
+      );
+
+      const next = await tenant.run(orgA, () => auth.run({
+        userId: actorId, source: "session" as const,
+      }, () => skillEvidence.reviewResumeClaim(candidateA, claim.id, {
+        reviewState: "confirmed", reviewReason: "Mapping accepted after human review", expectedVersion: 1,
+      })));
+      assert.equal(next.reviewVersion, 2);
+      assert.equal(next.skillKey, "redis");
+      const history = await tenant.run(orgA, () => skillEvidence.reviewHistory(candidateA, claim.id));
+      assert.deepEqual(history.map((event) => event.reviewVersion), [1, 2]);
+      assert.equal(history[0]?.previousSkillKey, "postgresql");
+      assert.equal(history[0]?.skillKey, "redis");
+      await assert.rejects(
+        () => tenant.run(orgB, () => skillEvidence.reviewHistory(candidateB, claim.id)),
+        /Resume skill claim not found/,
+      );
+      const afterReview = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
+      const updatedClaim = afterReview.resumeSkillClaims.find((item) => item.id === claim.id);
+      assert.equal(updatedClaim?.skillKey, "redis");
+      assert.equal(updatedClaim?.reviewVersion, 2);
+      assert.equal(updatedClaim?.sourceReference, claim.sourceReference);
+      const resumeEvidence = await database.sql`
+        SELECT source_reference, metadata FROM evidence
+        WHERE organization_id=${orgA}::uuid AND candidate_id=${candidateA}::uuid
+          AND source_reference=${claim.sourceReference}
+      `;
+      assert.equal(resumeEvidence[0]?.metadata?.skillKey, "postgresql");
+      assert.equal(resumeEvidence[0]?.source_reference, claim.sourceReference);
+      const declaredSkill = await database.sql`
+        SELECT verification_state FROM candidate_skills
+        WHERE organization_id=${orgA}::uuid AND candidate_id=${candidateA}::uuid
+          AND skill_key='postgresql'
+      `;
+      assert.equal(declaredSkill[0]?.verification_state, "unverified");
+      const removed = await tenant.run(orgA, () => skillEvidence.replaceJobSkills(jobId, []));
+      assert.deepEqual(removed, []);
+      const tombstones = await database.sql`
+        SELECT requirement_version, is_active FROM job_skill_requirements
+        WHERE organization_id=${orgA}::uuid AND job_id=${jobId}::uuid
+        ORDER BY requirement_version ASC
+      `;
+      assert.deepEqual(tombstones.map((row) => [Number(row.requirement_version), row.is_active]), [
+        [1, true], [2, true], [3, false],
+      ]);
 
       // Composite tenant FKs reject cross-organization skill/resume associations even when IDs exist.
       await assert.rejects(() => database.sql`
