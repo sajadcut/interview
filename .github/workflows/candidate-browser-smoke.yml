@@ -62,6 +62,10 @@ jobs:
         run: npm ci
       - name: Apply migrations
         run: npm run db:migrate
+      - name: Validate live API OpenAPI export
+        run: |
+          npm run api:sync
+          git diff --exit-code -- openapi/openapi.json packages/api-client/src/generated/schema.ts
       - name: Build API and candidate UI
         run: npm run build
       - name: Seed browser fixtures
