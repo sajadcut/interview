@@ -158,7 +158,9 @@ test("audio-only setup handoff never re-requests a denied camera in the intervie
 
   await expect(page.getByRole("status").filter({ hasText: room.permissions.audioOnlyActive })).toBeVisible();
   await expect(page.getByRole("button", { name: room.controls.start })).toBeEnabled();
-  const media = await page.evaluate(() => {
+  // React attaches its media element ref in an effect after the state
+  // transition. Poll the *actual* stream, not merely the button's readiness.
+  await expect.poll(() => page.evaluate(() => {
     const preview = document.querySelector("video[muted]") as HTMLVideoElement | null;
     const stream = preview?.srcObject as MediaStream | null;
     return {
@@ -166,7 +168,6 @@ test("audio-only setup handoff never re-requests a denied camera in the intervie
       microphoneActive: Boolean(stream?.getAudioTracks().some((track) => track.readyState === "live")),
       cameraTracks: stream?.getVideoTracks().length ?? -1,
     };
-  });
-  expect(media).toEqual({ cameraRequests: "1", microphoneActive: true, cameraTracks: 0 });
+  })).toEqual({ cameraRequests: "1", microphoneActive: true, cameraTracks: 0 });
   await setCandidateConsents(page, false);
 });

@@ -51,7 +51,11 @@ test.describe("critical candidate flows", () => {
 
   test("invalid invitation fails closed in the browser", async ({ page }) => {
     await page.goto(`/candidate/invitation?token=${"x".repeat(43)}`);
-    await expect(candidateAlert(page, /دعوت‌نامه نامعتبر|دعوت‌نامه.*منقضی|قبلاً استفاده شده/)).toBeVisible();
+    // Distinct backends may return differently localized invalid-token details.
+    // Never rely on the precise wording: the candidate must see an error and
+    // must not be offered any OTP verification form.
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.getByLabel(copy.invitation.codeLabel)).toHaveCount(0);
     await expect(page.getByRole("button", { name: copy.invitation.verify })).toHaveCount(0);
   });
 
@@ -85,7 +89,12 @@ test.describe("critical candidate flows", () => {
     const integrityReport = await context.request.get(
       `${BASE_URL}/api/backend/v1/interviews/${candidateIdentity.applicationId}/integrity`,
     );
-    expect([401, 403]).toContain(integrityReport.status());
+    // The internal recruiter route rejects candidate-only requests. A 400
+    // (missing required recruiter tenant identity) also fails closed before
+    // returning data; it must never return 2xx/3xx or a report payload.
+    expect([400, 401, 403]).toContain(integrityReport.status());
+    const deniedBody = await integrityReport.text();
+    expect(deniedBody).not.toContain("integrityConcernScore");
 
     // Consent is application/candidate state, not invitation state. Reset it after authentication so
     // CI retries and repeated local runs always exercise the pre-consent gate deterministically.
