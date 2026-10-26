@@ -70,16 +70,17 @@ export function InterviewReview({sessionId}:{sessionId:string}){
     const current=identity??await resolveTenantIdentity(); if(!identity)setIdentity(current);
     setIntegrityReviewBusy(true); setError(null);
     try{
-      const response=await fetch(`/api/backend/v1/interviews/${encodeURIComponent(sessionId)}/integrity/review`,{
-        method:"POST",
-        headers:tenantHeaders(current,true),
-        credentials:"same-origin",
-        body:JSON.stringify({status,comment}),
+      const response=await api.POST("/v1/interviews/{sessionId}/integrity/review",{
+        headers:tenantHeaders(current),
+        params:{path:{sessionId}},
+        body:{status,comment},
       });
-      if(response.status===401){window.location.replace("/login");return}
-      if(!response.ok){const body=await response.json().catch(()=>({}));throw new Error(typeof body.message==="string"?body.message:"ثبت بررسی یکپارچگی ناموفق بود")}
+      if(response.response.status===401){window.location.replace("/login");return}
+      if(response.error||!response.response.ok)throw new Error(apiErrorMessage(response,"ثبت بررسی یکپارچگی ناموفق بود"));
       setIntegrityComment("");
       await load();
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:"ثبت بررسی یکپارچگی ناموفق بود");
     }finally{setIntegrityReviewBusy(false)}
   },[identity,integrityComment,load,sessionId]);
 
