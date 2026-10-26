@@ -90,6 +90,7 @@ export class CandidateIntelligenceService {
        AND r.id = rc.resume_id
       WHERE rc.organization_id = ${organizationId}::uuid
         AND rc.candidate_id = ${candidateId}::uuid
+        AND rc.is_current = true
       ORDER BY rc.created_at DESC, rc.id DESC
       LIMIT 200
     `;

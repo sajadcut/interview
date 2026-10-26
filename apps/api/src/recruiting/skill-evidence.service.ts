@@ -218,6 +218,7 @@ export class SkillEvidenceService {
             ON st.organization_id=rc.organization_id AND st.id=rc.skill_id
           WHERE rc.organization_id=${organizationId}::uuid
             AND rc.candidate_id=${candidateId}::uuid AND rc.id=${claimId}::uuid
+            AND rc.is_current = true
           FOR UPDATE OF rc
         `;
         const claim = rows[0];

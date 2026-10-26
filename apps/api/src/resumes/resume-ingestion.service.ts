@@ -238,6 +238,16 @@ export class ResumeIngestionService {
     const textSha = createHash("sha256").update(input.extractedText).digest("hex");
     await this.database.sql.begin(async (tx) => {
       if (input.replaceExistingArtifacts) {
+        // Reprocessing the same immutable uploaded bytes must not lose human-review
+        // history. Mark old skill assertions inactive before replacing their source
+        // evidence. Re-anchored claims are reactivated only when detected again.
+        await tx`
+          UPDATE resume_skill_claims
+          SET is_current = false
+          WHERE organization_id = ${input.organizationId}::uuid
+            AND candidate_id = ${input.candidateId}::uuid
+            AND resume_id = ${input.resumeId}::uuid
+        `;
         const resumeSourcePrefix = `resume:${input.resumeId}#%`;
         await tx`
           DELETE FROM evidence
@@ -408,7 +418,16 @@ export class ResumeIngestionService {
              AND e.source_reference = ${sourceReference}
             WHERE st.organization_id = ${input.organizationId}::uuid
               AND st.skill_key = ${anchored.skill.key}
-            ON CONFLICT (organization_id, resume_id, skill_id) DO NOTHING
+            ON CONFLICT (organization_id, resume_id, skill_id) DO UPDATE SET
+              evidence_id = EXCLUDED.evidence_id,
+              source_reference = EXCLUDED.source_reference,
+              claim_text = EXCLUDED.claim_text,
+              start_char = EXCLUDED.start_char,
+              end_char = EXCLUDED.end_char,
+              extraction_confidence = EXCLUDED.extraction_confidence,
+              taxonomy_version = EXCLUDED.taxonomy_version,
+              parser_version = EXCLUDED.parser_version,
+              is_current = true
           `;
         }
       }

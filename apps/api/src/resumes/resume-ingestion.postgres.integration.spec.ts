@@ -151,6 +151,34 @@ test(
       );
       assert.match(String(postgresClaim.source_reference), /^resume:[^#]+#skill:postgresql$/);
 
+      // Simulate a previously processed resume under an older parser contract:
+      // the same file bytes are reprocessed, claim source evidence is recreated,
+      // and active claims are rebound instead of retaining orphaned evidence.
+      await database.sql`
+        UPDATE resumes SET parser_version = 'resume-structure-legacy'
+        WHERE organization_id = ${orgA}::uuid AND id = ${first.id}::uuid
+      `;
+      const reparsed = await tenant.run(orgA, () => service.ingest(candidateA, {
+        originalName: "sara-resume-reprocess.txt",
+        mimeType: "text/plain",
+        data: source,
+      }));
+      assert.equal(reparsed.id, first.id);
+      const claimsAfterReprocess = await database.sql`
+        SELECT rc.id, rc.is_current, rc.evidence_id, e.source_reference, rc.claim_text
+        FROM resume_skill_claims rc
+        JOIN skill_taxonomy st ON st.organization_id = rc.organization_id AND st.id = rc.skill_id
+        JOIN evidence e ON e.organization_id=rc.organization_id AND e.id=rc.evidence_id
+        WHERE rc.organization_id = ${orgA}::uuid AND rc.resume_id = ${first.id}::uuid
+          AND st.skill_key = 'postgresql'
+      `;
+      assert.equal(claimsAfterReprocess.length, 1);
+      assert.equal(claimsAfterReprocess[0]?.is_current, true);
+      assert.ok(claimsAfterReprocess[0]?.evidence_id);
+      assert.equal(claimsAfterReprocess[0]?.claim_text, postgresClaim.claim_text);
+      assert.equal(claimsAfterReprocess[0]?.source_reference, postgresClaim.source_reference);
+
+
       const intelligence = new CandidateIntelligenceService(database, tenant);
       const orgAWorkspace = await tenant.run(orgA, () => intelligence.getWorkspace(candidateA));
       const orgBWorkspace = await tenant.run(orgB, () => intelligence.getWorkspace(candidateB));
