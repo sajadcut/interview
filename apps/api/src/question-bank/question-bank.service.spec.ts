@@ -54,7 +54,7 @@ test("valid UTF-8 document is extracted and persisted through private storage", 
   const fileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   let stored = 0;
   let inserted = 0;
-  const sql = async (strings: TemplateStringsArray) => {
+  const sql = Object.assign(async (strings: TemplateStringsArray) => {
     const query = strings.join(" ");
     if (query.includes("SELECT id FROM jobs")) return [{ id: jobId }];
     if (query.includes("count(*)::int")) return [{ count: 0 }];
@@ -72,7 +72,7 @@ test("valid UTF-8 document is extracted and persisted through private storage", 
       }];
     }
     throw new Error("Unexpected SQL in question bank upload unit test");
-  };
+  }, { json: (value: unknown) => value });
   const storage = {
     save: async (value: { data: Uint8Array; mimeType: string }) => {
       stored += 1;
@@ -80,6 +80,7 @@ test("valid UTF-8 document is extracted and persisted through private storage", 
       assert.ok(value.data.byteLength > 40);
       return { id: fileId, key: organizationId + "/" + fileId, sha256: "c".repeat(64) };
     },
+    deleteById: async () => { throw new Error("Upload should not be rolled back"); },
   } as unknown as StorageService;
   const extractor = {
     extract: async () => ({
