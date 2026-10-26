@@ -1,0 +1,69 @@
+name: security-dependency-lock-refresh
+
+# Only a protected main-branch manifest change triggers this one-off lock
+# refresh. Pull requests cannot run with a write-scoped token.
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - apps/api/package.json
+      - apps/web/package.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-lock-main
+  cancel-in-progress: false
+
+jobs:
+  patch-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.9.0
+          registry-url: https://registry.npmjs.org
+      - name: Pin npm
+        run: |
+          npm install --global npm@11.6.2 --ignore-scripts
+          test "$(npm --version)" = "11.6.2"
+      - name: Resolve patched dependency lockfile
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit
+          # Apply only compatible transitive fixes; the subsequent audit is
+          # mandatory even if npm's conservative fixer cannot fix everything.
+          npm audit fix --package-lock-only --ignore-scripts || true
+          git diff --exit-code -- package.json apps/api/package.json apps/web/package.json
+          git diff --check
+      - name: Enforce production vulnerability gate
+        run: npm audit --omit=dev --audit-level=high
+      - name: Verify clean locked install
+        run: npm ci
+      - name: Typecheck and build patched dependency graph
+        run: |
+          npm run typecheck
+          npm run e2e:typecheck
+          npm run build
+      - name: Verify focused media and interview worker tests
+        run: |
+          npm run test --workspace=@interview/web
+          npm run ai-worker:test
+      - name: Commit reviewed-scope generated lockfile to main
+        run: |
+          git diff --exit-code -- package.json apps/api/package.json apps/web/package.json
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile unchanged: dependency lock refresh already complete."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- package-lock.json
+          git diff --cached --name-only | grep -qx 'package-lock.json'
+          git commit -m "fix(deps): lock audited patched runtime dependencies"
+          git push origin HEAD:main
