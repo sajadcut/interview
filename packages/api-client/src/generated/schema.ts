@@ -2308,6 +2308,54 @@ export interface paths {
         patch: operations["InterviewerProfileController_update"];
         trace?: never;
     };
+    "/v1/question-bank/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionBankController_jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/question-bank/jobs/{jobId}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionBankController_list"];
+        put?: never;
+        post: operations["QuestionBankController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/question-bank/applications/{applicationId}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["QuestionBankController_selection"];
+        put: operations["QuestionBankController_save"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/assessments/{assessmentId}/sessions": {
         parameters: {
             query?: never;
@@ -4282,6 +4330,35 @@ export interface components {
             bio?: string | null;
             /** @enum {string} */
             status?: "active" | "disabled";
+        };
+        QuestionBankJobDto: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+        };
+        QuestionBankDocumentDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            fileName: string;
+            mimeType: string;
+            sizeBytes: number;
+            sha256: string;
+            createdAt: string;
+            preview?: string;
+        };
+        ApplicationQuestionDocumentsDto: {
+            /** Format: uuid */
+            applicationId: string;
+            /** Format: uuid */
+            jobId: string;
+            availableDocuments: components["schemas"]["QuestionBankDocumentDto"][];
+            selectedDocumentIds: string[];
+            locked: boolean;
+        };
+        SaveQuestionDocumentsDto: {
+            documentIds: string[];
         };
         AssessmentSessionRequestDto: {
             applicationId: string;
@@ -10519,6 +10596,120 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    QuestionBankController_jobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankJobDto"][];
+                };
+            };
+        };
+    };
+    QuestionBankController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankDocumentDto"][];
+                };
+            };
+        };
+    };
+    QuestionBankController_upload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionBankDocumentDto"];
+                };
+            };
+        };
+    };
+    QuestionBankController_selection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationQuestionDocumentsDto"];
+                };
+            };
+        };
+    };
+    QuestionBankController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                applicationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveQuestionDocumentsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationQuestionDocumentsDto"];
                 };
             };
         };

@@ -7757,6 +7757,178 @@
         ]
       }
     },
+    "/v1/question-bank/jobs": {
+      "get": {
+        "operationId": "QuestionBankController_jobs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuestionBankJobDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
+    "/v1/question-bank/jobs/{jobId}/documents": {
+      "get": {
+        "operationId": "QuestionBankController_list",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuestionBankDocumentDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      },
+      "post": {
+        "operationId": "QuestionBankController_upload",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuestionBankDocumentDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
+    "/v1/question-bank/applications/{applicationId}/documents": {
+      "get": {
+        "operationId": "QuestionBankController_selection",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationQuestionDocumentsDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      },
+      "put": {
+        "operationId": "QuestionBankController_save",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveQuestionDocumentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationQuestionDocumentsDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
     "/v1/assessments/{assessmentId}/sessions": {
       "post": {
         "operationId": "AssessmentsController_createSession",
@@ -15016,6 +15188,114 @@
             ]
           }
         }
+      },
+      "QuestionBankJobDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ]
+      },
+      "QuestionBankDocumentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "jobId",
+          "fileName",
+          "mimeType",
+          "sizeBytes",
+          "sha256",
+          "createdAt"
+        ]
+      },
+      "ApplicationQuestionDocumentsDto": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "availableDocuments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionBankDocumentDto"
+            }
+          },
+          "selectedDocumentIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "locked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "applicationId",
+          "jobId",
+          "availableDocuments",
+          "selectedDocumentIds",
+          "locked"
+        ]
+      },
+      "SaveQuestionDocumentsDto": {
+        "type": "object",
+        "properties": {
+          "documentIds": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "documentIds"
+        ]
       },
       "AssessmentSessionRequestDto": {
         "type": "object",
