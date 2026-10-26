@@ -9,6 +9,8 @@ import { RecruitingOperationsService } from "./recruiting-operations.service";
 import { RecruitingController } from "./recruiting.controller";
 import { RecruitingService } from "./recruiting.service";
 import { ScorecardReviewController } from "./scorecard-review.controller";
+import { SkillEvidenceController } from "./skill-evidence.controller";
+import { SkillEvidenceService } from "./skill-evidence.service";
 import { ScorecardReviewService } from "./scorecard-review.service";
 import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pilot-aware-recruiting-operations.service";
 
@@ -18,6 +20,7 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     RecruitingController,
     RecruitingOperationsController,
     CandidateIntelligenceController,
+    SkillEvidenceController,
     ScorecardReviewController,
     HiringRequestsController,
   ],
@@ -26,6 +29,7 @@ import { SupervisedPilotAwareRecruitingOperationsService } from "./supervised-pi
     SupervisedPilotAwareRecruitingOperationsService,
     { provide: RecruitingOperationsService, useExisting: SupervisedPilotAwareRecruitingOperationsService },
     CandidateIntelligenceService,
+    SkillEvidenceService,
     ScorecardReviewService,
     HiringRequestsService,
   ],

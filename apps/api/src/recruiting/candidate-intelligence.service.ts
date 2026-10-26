@@ -105,6 +105,7 @@ export class CandidateIntelligenceService {
       ) jsr ON true
       JOIN skill_taxonomy st ON st.organization_id = jsr.organization_id AND st.id = jsr.skill_id
       WHERE a.organization_id = ${organizationId}::uuid AND a.candidate_id = ${candidateId}::uuid
+        AND jsr.is_active = true
       ORDER BY a.id, jsr.required DESC, jsr.weight DESC
       LIMIT 300
     `;
