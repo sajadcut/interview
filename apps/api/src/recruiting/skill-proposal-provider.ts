@@ -13,7 +13,14 @@ export class SkillProposalProvider {
     if (!["openai-compatible", "dotin-general-chatbot", "openai"].includes(env.LLM_PROVIDER)) {
       return { status: "disabled", provider: "disabled", model: "" };
     }
-    const base = (env.LLM_BASE_URL ?? "https://api.openai.com/v1").replace(/\/+$/, "");
+    // Candidate documents must never silently fall back to a public endpoint.
+    // Explicit organization-approved endpoint configuration is required even
+    // when the broader application enables a default chat provider.
+    if (!env.LLM_BASE_URL || !env.LLM_API_KEY || !env.LLM_MODEL ||
+        (env.NODE_ENV === "production" && !env.LLM_BASE_URL.startsWith("https://"))) {
+      return { status: "unavailable", provider: "openai-compatible", model: env.LLM_MODEL };
+    }
+    const base = env.LLM_BASE_URL.replace(/\/+$/, "");
     // Do not transmit text on ordinary resume ingestion: only explicit authenticated opt-in reaches here.
     // Resume content is untrusted and cannot override instructions or define a new canonical skill.
     const controller = AbortSignal.timeout(8000);
