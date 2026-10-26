@@ -10,6 +10,7 @@ Enterprise AI Recruiter for job definition, sourcing, screening, adaptive interv
 - `docs/visual-product-target.md` — approved visual implementation target.
 - `docs/architecture-decisions/ADR-0003-postgresql-17-11-local-baseline.md` — active local PostgreSQL version decision.
 - `AGENTS.md` — engineering rules.
+- `.agents/skills/README.md` — task-specific development Agent Skills (not product runtime capabilities).
 
 ## Development baseline
 
