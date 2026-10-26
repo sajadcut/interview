@@ -185,12 +185,14 @@ export class AiWorkerRuntime {
         jobId: job.id,
         leaseToken,
         workerId: this.workerId,
-        result: loggableBody(result, "application/json"),
+        // Persist the processor's actual structured result. Redaction belongs
+        // only to the diagnostic log, never to the durable queue contract.
+        result,
       });
       writeLog("info", "ai.job.processing.succeeded", {
         jobId: job.id,
         capability: job.capability,
-        result,
+        result: loggableBody(result, "application/json"),
       });
     } catch (error) {
       const failure = normalizedError(heartbeatFailure ?? error);
