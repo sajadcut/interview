@@ -174,6 +174,15 @@ export class SkillProposalsService {
           VALUES (${organizationId}::uuid,${String(proposal.skill_id)}::uuid,${alias},'human_reviewed')
           ON CONFLICT (organization_id, alias_normalized) DO NOTHING
         `;
+        // A second reviewer can race to register the same alias. Re-read after
+        // unique-index arbitration; never silently approve a conflicting mapping.
+        const finalAlias = await tx`
+          SELECT skill_id::text FROM skill_aliases
+          WHERE organization_id=${organizationId}::uuid AND alias_normalized=${alias}
+        `;
+        if (String(finalAlias[0]?.skill_id) !== String(proposal.skill_id)) {
+          throw new ConflictException("Reviewed alias already belongs to another canonical skill");
+        }
       }
       const changed = await tx`
         UPDATE resume_skill_proposals
