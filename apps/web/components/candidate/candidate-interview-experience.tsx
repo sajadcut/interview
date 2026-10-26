@@ -11,7 +11,7 @@ import {
   type CandidateMediaPermissionState,
 } from "../../lib/candidate-interview-state";
 import { candidateInterviewUiCopy } from "../../lib/candidate-interview-copy";
-import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview } from "../../lib/candidate-device-preview";
+import { CANDIDATE_PREVIEW_HANDOFF_KEY, CandidateDevicePreview, parseCandidatePreviewHandoff } from "../../lib/candidate-device-preview";
 import type {
   CandidateRuntimeAnswer,
   CandidateRuntimeCompletion,
@@ -321,7 +321,7 @@ export function CandidateInterviewExperience({
   const streamRef = useRef<MediaStream | null>(null);
   const mediaControllerRef = useRef<CandidateDevicePreview | null>(null);
   const mediaRequestIdRef = useRef(0);
-  const autoStartFromSetupRef = useRef<boolean | null>(null);
+  const autoStartFromSetupRef = useRef<MediaRequestMode | false | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -366,6 +366,25 @@ export function CandidateInterviewExperience({
     setHasLocalMedia(true);
     setMicrophoneEnabled(true);
     setCameraEnabled(stream.getVideoTracks().some((track) => track.readyState === "live"));
+
+    // Permissions can remain granted after the hardware track has ended.
+    // Stop presenting a stale stream as connected and make recapture explicit.
+    for (const track of stream.getAudioTracks()) {
+      track.addEventListener("ended", () => {
+        if (streamRef.current !== stream) return;
+        releaseStream();
+        reduce({ type: "PERMISSIONS_RESOLVED", microphone: "unavailable", camera: "unknown", audioOnly: false });
+        reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
+        setLiveError(copy.permissions.microphoneRequired);
+      }, { once: true });
+    }
+    for (const track of stream.getVideoTracks()) {
+      track.addEventListener("ended", () => {
+        if (streamRef.current !== stream) return;
+        setCameraEnabled(false);
+        setLiveError(copy.permissions.unavailableHelp);
+      }, { once: true });
+    }
   };
 
   const inspectPermissions = async (failureCode?: MediaFailureCode) => {
@@ -418,7 +437,7 @@ export function CandidateInterviewExperience({
         return;
       }
 
-      if (mode === "full" && !result.camera) {
+      if (mode === "full" && !result.camera?.getVideoTracks().some((track) => track.readyState === "live")) {
         controller.stop();
         if (mediaControllerRef.current === controller) mediaControllerRef.current = null;
         reduce({
@@ -521,7 +540,8 @@ export function CandidateInterviewExperience({
   };
 
   const attemptConnection = async (reconnect = false) => {
-    if (!hasLocalMedia || !streamRef.current) {
+    if (!hasLocalMedia || !streamRef.current?.getAudioTracks().some((track) => track.readyState === "live")) {
+      releaseStream();
       reduce({ type: "PERMISSION_FAILED", code: "device_unavailable" });
       return;
     }
@@ -534,10 +554,15 @@ export function CandidateInterviewExperience({
     reduce({ type: "CONNECT_REQUESTED" });
     try {
       if (!runtime) throw new Error(copy.connection.runtimePending);
+      const joiningStream = streamRef.current;
       const snapshot =
         reconnect && runtime.reconnect
-          ? await runtime.reconnect({ stream: streamRef.current, audioOnly: state.audioOnly })
-          : await runtime.connect({ stream: streamRef.current, audioOnly: state.audioOnly });
+          ? await runtime.reconnect({ stream: joiningStream, audioOnly: state.audioOnly })
+          : await runtime.connect({ stream: joiningStream, audioOnly: state.audioOnly });
+      if (streamRef.current !== joiningStream ||
+        !joiningStream.getAudioTracks().some((track) => track.readyState === "live")) {
+        throw new Error("microphone_disconnected_during_connection");
+      }
       if (snapshot) applySnapshot(snapshot);
       reduce({ type: reconnect ? "TRANSPORT_RECONNECTED" : "CONNECTED" });
       if (reconnect) {
@@ -757,7 +782,7 @@ export function CandidateInterviewExperience({
       // in candidate setup. Direct entry never starts camera/microphone.
       try {
         autoStartFromSetupRef.current =
-          window.sessionStorage.getItem(CANDIDATE_PREVIEW_HANDOFF_KEY) === "1";
+          parseCandidatePreviewHandoff(window.sessionStorage.getItem(CANDIDATE_PREVIEW_HANDOFF_KEY)) ?? false;
         window.sessionStorage.removeItem(CANDIDATE_PREVIEW_HANDOFF_KEY);
       } catch {
         autoStartFromSetupRef.current = false;
@@ -766,8 +791,9 @@ export function CandidateInterviewExperience({
     // Defer acquisition until after effect setup. In React Strict Mode the
     // first dev-only setup is cleaned up before this timer fires, preventing
     // competing getUserMedia calls and camera-on/camera-off flicker.
-    const startupTimer = autoStartFromSetupRef.current
-      ? window.setTimeout(() => void requestMedia("full"), 0)
+    const startupMode = autoStartFromSetupRef.current;
+    const startupTimer = startupMode
+      ? window.setTimeout(() => void requestMedia(startupMode), 0)
       : null;
     if (!autoStartFromSetupRef.current) void inspectPermissions();
     const onOffline = () => {
@@ -1078,13 +1104,20 @@ export function CandidateInterviewExperience({
 
           {state.network === "offline" ? (
             <div role="alert" className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">{liveCopy.offline}</div>
-          ) : state.phase === "reconnecting" || state.phase === "degraded" ? (
+          ) : state.phase === "reconnecting" || state.phase === "degraded" || state.phase === "ready" ? (
             <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
               <span>{liveCopy.paused}</span>
               <button type="button" disabled={connectionBusy || !hasLocalMedia} onClick={() => void attemptConnection(true)} className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{liveCopy.reconnect}</button>
             </div>
           ) : null}
 
+          {!hasLocalMedia ? (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+              <span>{copy.permissions.microphoneRequired}</span>
+              <button type="button" disabled={permissionBusy} onClick={() => void requestMedia(state.audioOnly ? "audio-only" : "full")} className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{permissionBusy ? copy.permissions.checking : copy.permissions.retryBoth}</button>
+            </div>
+          ) : null}
+          {liveError ? <div role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-2 text-xs text-amber-100">{liveError}</div> : null}
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
             <section className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
               <div className="relative aspect-video min-h-[360px]">
