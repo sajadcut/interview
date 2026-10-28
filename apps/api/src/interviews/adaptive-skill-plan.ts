@@ -80,8 +80,10 @@ export function nextApprovedCommonQuestion(input: {
     if (!uuid.test(q.versionId) || !uuid.test(q.documentId) ||
         q.questionText.length < 12 || q.questionText.length > 600) continue;
     if (!allowed.has(q.versionId) || !common.has(q.versionId) || spoken.has(q.versionId)) continue;
-    if (!skills.some(skill => skill.skillKey === q.skillKey &&
-        skill.questionVersionIds.includes(q.versionId))) continue;
+    const versionId = String(q.versionId);
+    const skillKey = String(q.skillKey);
+    if (!skills.some(skill => skill.skillKey === skillKey &&
+        skill.questionVersionIds.includes(versionId))) continue;
     return { versionId: q.versionId, documentId: q.documentId,
       questionText: q.questionText, skillKey: q.skillKey };
   }
