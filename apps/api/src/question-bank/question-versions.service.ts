@@ -172,6 +172,21 @@ export class QuestionVersionsService {
         throw new ConflictException("Question version was changed or already reviewed");
       if (input.decision === "approved" && !version.skill_id)
         throw new BadRequestException("Approved question must be mapped to a canonical skill");
+      if (input.decision === "approved") {
+        const active=await tx`
+          SELECT 1 FROM job_skill_requirements requirement
+          WHERE requirement.organization_id=${organizationId}::uuid
+            AND requirement.job_id=${jobId}::uuid
+            AND requirement.skill_id=${String(version.skill_id)}::uuid
+            AND requirement.is_active=true
+            AND requirement.requirement_version=(
+              SELECT max(latest.requirement_version) FROM job_skill_requirements latest
+              WHERE latest.organization_id=requirement.organization_id
+                AND latest.job_id=requirement.job_id AND latest.skill_id=requirement.skill_id
+            )
+        `;
+        if (!active[0]) throw new BadRequestException("Approved question must match an active job skill requirement");
+      }
       await tx`
         INSERT INTO question_bank_question_reviews(
           organization_id,version_id,decision,reason,reviewer_user_id
