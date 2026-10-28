@@ -16,7 +16,7 @@ test("skill requirements are tenant-scoped, append-only versions and claim revie
   const actor = randomUUID();
   const auth = { getOptional: () => ({ userId: actor }) } as unknown as AuthContextService;
   const skills = new SkillEvidenceService(database, tenant, auth);
-  const orgA = randomUUID(), orgB = randomUUID(), candidateA = randomUUID();
+  const orgA = randomUUID(), orgB = randomUUID(), candidateA = randomUUID(), candidateNew = randomUUID();
   const jobA = randomUUID(), jobB = randomUUID(), fileId = randomUUID(), resumeId = randomUUID();
   const appA = randomUUID(), appA2 = randomUUID(), appB = randomUUID();
   const rubricA = randomUUID(), rubricB = randomUUID();
@@ -139,8 +139,12 @@ test("skill requirements are tenant-scoped, append-only versions and claim revie
 
     await sql`INSERT INTO rubric_versions(id,organization_id,rubric_id,version,status,published_at)
       VALUES (${rubricA2}::uuid,${orgA}::uuid,${rubricA}::uuid,2,'published',now())`;
+    // One application per candidate/job is unique; use a second candidate
+    // to prove newly published rubric versions affect only future applications.
+    await sql`INSERT INTO candidates(id,organization_id,display_name)
+      VALUES (${candidateNew}::uuid,${orgA}::uuid,'Later Skill Candidate')`;
     await sql`INSERT INTO applications(id,organization_id,job_id,candidate_id)
-      VALUES (${appA2}::uuid,${orgA}::uuid,${jobA}::uuid,${candidateA}::uuid)`;
+      VALUES (${appA2}::uuid,${orgA}::uuid,${jobA}::uuid,${candidateNew}::uuid)`;
     const pins=await sql`
       SELECT id::text,rubric_version_id::text FROM applications
       WHERE organization_id=${orgA}::uuid AND id IN (
