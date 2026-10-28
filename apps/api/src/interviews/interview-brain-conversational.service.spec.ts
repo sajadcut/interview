@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import type { DatabaseService } from "../database/database.service";
 import type { TenantContextService } from "../tenant/tenant-context.service";
@@ -28,6 +29,18 @@ function harness(options: {
   let inserted: { query: string; values: unknown[] } | null = null;
   let checkpoint: Record<string, unknown> | null = null;
   let llmContext: Record<string, unknown> | null = null;
+  const fixtureDocs = options.selectedQuestionDocuments ?? [];
+  const approvedQuestions = fixtureDocs.flatMap((doc, i) =>
+    doc.questions.map((question, j) => ({
+      questionId: `11111111-1111-4111-8111-${String(i * 100 + j + 1).padStart(12, "0")}`,
+      documentId: doc.id, documentSha256: "a".repeat(64),
+      versionId: `22222222-2222-4222-8222-${String(i * 100 + j + 1).padStart(12, "0")}`,
+      version: 1, questionText: question, sourceExcerpt: doc.text.slice(0, 120),
+      skillKey: "dotnet",
+    })),
+  );
+  const frozen = { documentIds: fixtureDocs.map(d => d.id), approvedQuestionVersions: approvedQuestions };
+  const digest = createHash("sha256").update(JSON.stringify(frozen)).digest("hex");
 
   const transaction = async (strings: TemplateStringsArray, ...values: unknown[]) => {
     const query = strings.join(" ");
@@ -39,6 +52,10 @@ function harness(options: {
         remaining_seconds: 1200,
         reconnect_count: 0,
         checkpoint: { candidateIsRealCustomerCandidate: false },
+        frozen_document_ids: fixtureDocs.length ? frozen.documentIds : null,
+        frozen_approved_questions: fixtureDocs.length ? approvedQuestions : null,
+        frozen_content_sha256: fixtureDocs.length ? digest : null,
+        frozen_snapshot_version: fixtureDocs.length ? 2 : null,
         job_id: jobId,
         rubric_version_id: rubricVersionId,
         plan_version: 3,
@@ -64,18 +81,6 @@ function harness(options: {
         production_approved_at: null,
         production_approved_by_user_id: null,
       }];
-    }
-    if (query.includes("FROM application_question_documents selected")) {
-      assert.match(query, /selected\.organization_id/);
-      assert.match(query, /selected\.application_id/);
-      assert.match(query, /d\.job_id/);
-      return (options.selectedQuestionDocuments ?? []).map((doc) => ({
-        id: doc.id,
-        original_name: doc.name,
-        sha256: "a".repeat(64),
-        extracted_text: doc.text,
-        suggested_questions: doc.questions,
-      }));
     }
     if (query.includes("FROM rubric_criteria")) {
       return [{
@@ -187,6 +192,19 @@ function harness(options: {
   };
 }
 
+function digestForDocuments(docs: Array<{ id: string; name: string; text: string; questions: string[] }>): string {
+  const versions = docs.flatMap((doc, i) => doc.questions.map((question, j) => ({
+    questionId: `11111111-1111-4111-8111-${String(i * 100 + j + 1).padStart(12, "0")}`,
+    documentId: doc.id, documentSha256: "a".repeat(64),
+    versionId: `22222222-2222-4222-8222-${String(i * 100 + j + 1).padStart(12, "0")}`,
+    version: 1, questionText: question, sourceExcerpt: doc.text.slice(0, 120),
+    skillKey: "dotnet",
+  })));
+  return createHash("sha256").update(JSON.stringify({
+    documentIds: docs.map(doc => doc.id), approvedQuestionVersions: versions,
+  })).digest("hex");
+}
+
 test("healthy LLM follow-up is policy-checked, finalized, traced and does not manufacture evidence", async () => {
   const testHarness = harness();
   const result = await testHarness.service.nextTurn(sessionId, {
@@ -208,6 +226,7 @@ test("healthy LLM follow-up is policy-checked, finalized, traced and does not ma
   assert.ok(inserted);
   assert.match(inserted.query, /interviewer_trace_reference, finalized/);
   assert.match(inserted.query, /question_bank_document_ids/);
+  assert.match(inserted.query, /question_bank_question_version_ids/);
   assert.match(inserted.query, /true/);
   const traceReference = inserted.values.find(
     (value): value is string => typeof value === "string" && value.startsWith("llm:openai-compatible:v4:"),
@@ -316,6 +335,9 @@ test("LLM receives only selected document questions with bounded excerpts and pe
   assert.ok(checkpoint);
   const brain = checkpoint.brain as Record<string, unknown>;
   assert.deepEqual(brain.selectedQuestionDocumentIds, [docs[0]?.id]);
+  assert.equal((brain.selectedQuestionVersionIds as unknown[]).length, 2);
+  assert.equal(brain.pinnedQuestionSnapshotVersion, 2);
+  assert.equal(brain.pinnedQuestionSnapshotSha256, digestForDocuments(docs));
 });
 
 test("unselected job documents are never sent to the LLM", async () => {
