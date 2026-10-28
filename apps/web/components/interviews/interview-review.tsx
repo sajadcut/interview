@@ -16,6 +16,12 @@ type ResumeClaimValidation={id:string;claimType:string;text:string;sourceReferen
 type IntegritySignal={code:string;severity:"low"|"medium"|"high";description:string;evidenceEventIds:string[];scoreContribution:number};
 type IntegrityEvent={id:string;sequence:number;event_type:string;server_occurred_at?:string;client_occurred_at?:string|null;duration_ms?:number|null;metadata?:Record<string,unknown>;source?:string;severity?:string;interpretation?:string};
 type IntegrityReviewCase={id:string;status:"pending_review"|"reviewed_no_concern"|"reviewed_concern"|"inconclusive";comment?:string|null;reviewerUserId?:string|null;reviewedAt?:string|null};
+type AdaptivePlan={
+  contractVersion:string;sourcePlanVersion:number;status:string;createdAt:string;
+  snapshotSha256:string|null;commonQuestionVersionIds:string[];
+  criteria:Array<{criterionKey:string;required:boolean;minimumEvidence:number;maxQuestions:number;questionCount:number;evidenceCount:number}>;
+  skills:Array<{skillKey:string;criterionKey:string|null;required:boolean;minimumEvidence:number;evidenceCount:number;quotaState:"unmapped"|"quota_met"|"evidence_gap"}>;
+};
 type Review={
   session:{id:string;status:string;started_at?:string|null;completed_at?:string|null;interview_type:string;time_budget_minutes:number;candidate_id:string;job_id:string};
   clock:{durationSeconds:number;elapsedSeconds:number;remainingSeconds:number};
@@ -47,6 +53,7 @@ function tone(score?:number|null){if(score==null)return"bg-slate-100 text-slate-
 export function InterviewReview({sessionId}:{sessionId:string}){
   const [identity,setIdentity]=useState<TenantIdentity|null>(null);
   const [data,setData]=useState<Review|null>(null);
+  const [adaptivePlan,setAdaptivePlan]=useState<AdaptivePlan|null>(null);
   const [error,setError]=useState<string|null>(null);
   const [integrityComment,setIntegrityComment]=useState("");
   const [integrityReviewBusy,setIntegrityReviewBusy]=useState(false);
@@ -60,6 +67,10 @@ export function InterviewReview({sessionId}:{sessionId:string}){
     if(result.response.status===401){window.location.replace("/login");return}
     if(result.error||!result.data)throw new Error(apiErrorMessage(result,"نتیجه مصاحبه بارگذاری نشد"));
     setData(result.data as Review);
+    const plan=await api.GET("/v1/interviews/{sessionId}/adaptive-plan", {
+      headers:tenantHeaders(current), params:{path:{sessionId}},
+    });
+    setAdaptivePlan(plan.response.ok && plan.data ? plan.data as AdaptivePlan : null);
   },[identity,sessionId]);
   useEffect(()=>{void load().catch(c=>setError(c instanceof Error?c.message:"نتیجه مصاحبه بارگذاری نشد"))},[load]);
   useEffect(()=>{if(!data||data.evaluations.some(x=>!x.evaluator_version.startsWith("human:")))return;const t=window.setInterval(()=>void load().catch(()=>undefined),5000);return()=>window.clearInterval(t)},[data,load]);
@@ -100,6 +111,26 @@ export function InterviewReview({sessionId}:{sessionId:string}){
       <div className="flex flex-wrap items-start justify-between gap-4"><div><div className="text-[10px] font-semibold text-indigo-600">نتیجه مصاحبه · تصمیم‌یار انسانی</div><h1 className="mt-1 text-2xl font-semibold text-slate-950">امتیازنامه و شواهد مصاحبه</h1><p className="mt-2 text-[11px] leading-5 text-slate-500">امتیازها فقط از چارچوب ارزیابی نسخه‌دار و شواهد مصاحبه محاسبه می‌شوند. گزارش یکپارچگی جداست و هیچ سیگنال آن به‌تنهایی اثبات تقلب یا دلیل رد خودکار نیست.</p></div><a href="/app/interviews" className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-700">بازگشت به مصاحبه‌ها</a></div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6"><Metric label="وضعیت جلسه" value={data.session.status==="completed"?"تکمیل‌شده":data.session.status}/><Metric label="وضعیت ارزیابی" value={evaluationStatus(data,ai)}/><Metric label="پوشش شواهد" value={ai?.validation_report?.criterionCoverage==null?"—":formatFaPercent(ai.validation_report.criterionCoverage*100)}/><Metric label="امتیاز کلی" value={ai?.weighted_score==null?"—":formatFaNumber(ai.weighted_score)}/><Metric label="اطمینان" value={ai?.overall_confidence==null?"—":formatFaPercent(ai.overall_confidence*100)}/><Metric label="پیشنهاد" value={recommendation(ai?.recommendation)}/></div>
     </header>
+
+    {adaptivePlan?<section aria-label="برنامه تطبیقی مهارت‌ها" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><h2 className="text-sm font-semibold text-slate-900">برنامه تطبیقی مهارت‌ها</h2>
+          <p className="mt-1 text-[11px] text-slate-500">نسخه {formatFaNumber(adaptivePlan.sourcePlanVersion)} · سهم سؤالات مشترک و پیگیری‌های تطبیقی، ثابت از آغاز جلسه. تعداد شواهد به‌تنهایی اثبات توانایی نیست.</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] text-slate-600">{formatFaNumber(adaptivePlan.commonQuestionVersionIds.length)} سؤال تأییدشده در برنامه</span>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {adaptivePlan.skills.map(skill=><div key={skill.skillKey} className="rounded-xl border border-slate-200 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-900" dir="ltr">{skill.skillKey}</span>
+            <span className="text-[10px] text-slate-600">{skill.quotaState==="unmapped"?"بدون نگاشت Rubric":skill.quotaState==="quota_met"?"سهم شواهد ثبت شده":"شواهد ناکافی"}</span>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-600">{formatFaNumber(skill.evidenceCount)} از {formatFaNumber(skill.minimumEvidence)} شاهد ثبت‌شده · {skill.required?"ضروری":"اختیاری"}</p>
+        </div>)}
+        {adaptivePlan.skills.length===0?<p className="text-xs text-slate-500">در این نسخه شغل، هدف مهارتی مستقلی تعریف نشده است. معیارهای Rubric همچنان معتبر هستند.</p>:null}
+      </div>
+      <p className="mt-3 text-[10px] text-slate-500">سؤالات تأییدشده مبنای پرسش مشترک‌اند و پیگیری تطبیقی فقط برای شکاف‌های باقی‌مانده انجام می‌شود. امتیازدهی و تصمیم نهایی صرفاً طبق Rubric و بررسی انسانی است.</p>
+    </section>:null}
 
     {!ai?<section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-6 text-amber-900">ارزیابی هنوز نهایی نشده است. پردازش پس از تکمیل رسمی جلسه انجام می‌شود و تصمیم نهایی همچنان با تیم استخدام است.{data.evaluationReconciliation?.errorCode?<span> کد پیگیری: {data.evaluationReconciliation.errorCode}</span>:null}</section>:null}
 
