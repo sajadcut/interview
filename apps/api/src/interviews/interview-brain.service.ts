@@ -9,7 +9,7 @@ import {
   type InterviewBrainState,
 } from "./interview-brain";
 import { computeInterviewClock } from "./interview-clock";
-import { selectQuestionWindow } from "../question-bank/question-bank-questions";
+import { pinnedQuestionContext } from "./interview-question-snapshot";
 import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
   LlmInterviewerFailure,
@@ -297,6 +297,10 @@ export class InterviewBrainService {
           s.reconnect_count,
           s.checkpoint,
           s.application_id,
+          qs.document_ids AS frozen_document_ids,
+          qs.approved_question_versions AS frozen_approved_questions,
+          qs.content_sha256 AS frozen_content_sha256,
+          qs.snapshot_version AS frozen_snapshot_version,
           a.candidate_id,
           c.display_name AS candidate_name,
           p.job_id,
@@ -317,6 +321,9 @@ export class InterviewBrainService {
         FROM interview_sessions s
         JOIN interview_plans p
           ON p.organization_id = s.organization_id AND p.id = s.interview_plan_id
+        LEFT JOIN application_question_selection_snapshots qs
+          ON qs.organization_id = s.organization_id AND qs.application_id = s.application_id
+         AND qs.id = s.question_selection_snapshot_id
         JOIN applications a
           ON a.organization_id = s.organization_id AND a.id = s.application_id
         JOIN candidates c
@@ -370,43 +377,16 @@ export class InterviewBrainService {
           AND rubric_version_id = ${String(session?.rubric_version_id)}::uuid
         ORDER BY display_order, criterion_key
       `;
-      // Only the explicit, immutable document selection of this application may
-      // influence the next question. No document from another job or tenant
-      // can cross into the candidate's model context.
-      const bankRows = await transaction`
-        SELECT d.id::text, d.original_name, d.sha256,
-               d.extracted_text, d.suggested_questions
-        FROM application_question_documents selected
-        JOIN question_bank_documents d
-          ON d.organization_id = selected.organization_id AND d.id = selected.document_id
-        WHERE selected.organization_id = ${organizationId}::uuid
-          AND selected.application_id = ${String(session?.application_id)}::uuid
-          AND d.job_id = ${String(session?.job_id)}::uuid
-        ORDER BY selected.selected_at, d.id
-        LIMIT 8
-      `;
-      const brainCheckpoint = asRecord(checkpoint.brain);
-      const turnOrdinal = asStringArray(brainCheckpoint.askedQuestionIds).length;
-      // Rotate across the entire selection and send only a few bounded excerpts
-      // per turn. Eight full documents can otherwise exceed the LLM token budget,
-      // silently forcing deterministic questions unrelated to the bank.
-      const sourceStart = bankRows.length ? turnOrdinal % bankRows.length : 0;
-      const rotated = [...bankRows.slice(sourceStart), ...bankRows.slice(0, sourceStart)];
-      const selectedQuestionDocuments = rotated.slice(0, 3).map((row) => {
-        const fullText = String(row.extracted_text ?? "");
-        const rawQuestions = Array.isArray(row.suggested_questions)
-          ? row.suggested_questions.filter((item): item is string => typeof item === "string")
-          : [];
-        const start = (turnOrdinal * 997) % Math.max(1, fullText.length - 520);
-        return {
-          id: String(row.id),
-          fileName: boundedText(row.original_name, 140),
-          sha256: String(row.sha256),
-          excerpt: boundedText(fullText.slice(start, start + 520), 520),
-          suggestedQuestions: selectQuestionWindow(rawQuestions, turnOrdinal, 2)
-            .map((question) => boundedText(question, 220)),
-        };
-      });
+      // Session admission pinned an immutable human-reviewed selection. Never
+      // re-read mutable application picks or unapproved extracted document text.
+      const priorBrainCheckpoint = asRecord(asRecord(session?.checkpoint).brain);
+      const pinnedQuestions = pinnedQuestionContext({
+        documentIds: session?.frozen_document_ids,
+        approvedQuestions: session?.frozen_approved_questions,
+        contentSha256: session?.frozen_content_sha256,
+        snapshotVersion: session?.frozen_snapshot_version,
+      }, asStringArray(priorBrainCheckpoint.askedQuestionIds).length);
+      const selectedQuestionDocuments = pinnedQuestions.selectedQuestionDocuments;
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
@@ -721,7 +701,8 @@ export class InterviewBrainService {
           organization_id, interview_session_id, sequence, candidate_intent, action,
           criterion_key, objective, spoken_text, expected_evidence,
           interviewer_trace_reference, finalized,
-          turn_kind, question_source, resume_claim_id, question_bank_document_ids
+          turn_kind, question_source, resume_claim_id, question_bank_document_ids,
+          question_bank_question_version_ids
         ) VALUES (
           ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
           ${turn.action}, ${turn.criterion}, ${turn.objective},
@@ -739,7 +720,8 @@ export class InterviewBrainService {
           ${deterministic.turnKind},
           ${deterministic.questionSource},
           ${deterministic.resumeClaimId}::uuid,
-          ${this.database.sql.json((brainMode === "llm" ? selectedQuestionDocuments.map((doc) => doc.id) : []) as never)}
+          ${this.database.sql.json((brainMode === "llm" ? pinnedQuestions.documentIds : []) as never)},
+          ${this.database.sql.json((brainMode === "llm" ? pinnedQuestions.questionVersionIds : []) as never)}
         )
         RETURNING id, created_at
       `;
@@ -762,7 +744,10 @@ export class InterviewBrainService {
           turnKind: deterministic.turnKind,
           questionSource: deterministic.questionSource,
           resumeClaimId: deterministic.resumeClaimId,
-          selectedQuestionDocumentIds: brainMode === "llm" ? selectedQuestionDocuments.map((doc) => doc.id) : [],
+          selectedQuestionDocumentIds: brainMode === "llm" ? pinnedQuestions.documentIds : [],
+          selectedQuestionVersionIds: brainMode === "llm" ? pinnedQuestions.questionVersionIds : [],
+          pinnedQuestionSnapshotVersion: pinnedQuestions.snapshotVersion,
+          pinnedQuestionSnapshotSha256: pinnedQuestions.snapshotSha256,
         },
         lifecycle: {
           phase: deterministic.turnKind === "candidate_question"
