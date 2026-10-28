@@ -20,6 +20,7 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
     const actor=randomUUID(),orgA=randomUUID(),orgB=randomUUID(),jobId=randomUUID();
     const candidateId=randomUUID(),applicationId=randomUUID(),fileId=randomUUID(),documentId=randomUUID();
     const rubricId=randomUUID(),rubricVersionId=randomUUID(),criterionId=randomUUID();
+    const releaseUnitId=randomUUID(),planId=randomUUID(),sessionId=randomUUID();
     const suffix=randomUUID();
     const source="Technical interview reference: How would you design idempotency for a .NET payment API? " +
       "Explain handling retries, conflict errors and durable state in SQL Server.";
@@ -125,6 +126,46 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         WHERE organization_id=${orgA}::uuid AND id=${first.versionId}::uuid`,/immutable/i);
       await assert.rejects(()=>sql`DELETE FROM application_question_selection_snapshots
         WHERE organization_id=${orgA}::uuid AND application_id=${applicationId}::uuid`,/immutable/i);
+      // The database pins latest exact selection when a real session is admitted.
+      // This covers all session creation paths, not only the public API.
+      await sql`INSERT INTO interview_release_units (
+        id,organization_id,job_family,language,interview_type,rubric_version_family,
+        interviewer_policy_version,speech_avatar_stack_version,evaluator_version,lifecycle_stage
+      ) VALUES (${releaseUnitId}::uuid,${orgA}::uuid,'question-bank-fixture','en','structured',
+        'question-rubric-v1','policy-v1','speech-v1','evaluator-v1','INTERNAL_TEST')`;
+      await sql`INSERT INTO interview_plans(
+        id,organization_id,job_id,rubric_version_id,release_unit_id,
+        version,status,language,interview_type,time_budget_minutes
+      ) VALUES (${planId}::uuid,${orgA}::uuid,${jobId}::uuid,${rubricVersionId}::uuid,
+        ${releaseUnitId}::uuid,1,'published','en','structured',30)`;
+      await sql`INSERT INTO interview_sessions(
+        id,organization_id,application_id,interview_plan_id,status,remaining_seconds
+      ) VALUES (${sessionId}::uuid,${orgA}::uuid,${applicationId}::uuid,
+        ${planId}::uuid,'invited',1800)`;
+      const pinned=await sql`
+        SELECT s.question_selection_snapshot_id::text AS snapshot_id,
+               qs.snapshot_version,qs.content_sha256,qs.approved_question_versions
+        FROM interview_sessions s
+        JOIN application_question_selection_snapshots qs
+          ON qs.organization_id=s.organization_id AND qs.application_id=s.application_id
+         AND qs.id=s.question_selection_snapshot_id
+        WHERE s.organization_id=${orgA}::uuid AND s.id=${sessionId}::uuid
+      `;
+      assert.equal(Number(pinned[0]?.snapshot_version),3);
+      assert.equal(pinned[0]?.content_sha256,afterRevision[0]?.contentSha256);
+      assert.deepEqual(pinned[0]?.approved_question_versions,[]);
+      await assert.rejects(()=>sql`
+        UPDATE interview_sessions SET question_selection_snapshot_id=NULL
+        WHERE organization_id=${orgA}::uuid AND id=${sessionId}::uuid
+      `,/cannot be rebound/i);
+      await assert.rejects(()=>tenant.run(orgA,()=>bank.saveSelection(applicationId,[documentId])),
+        /locked after interview starts/i);
+      const pinnedAfter=await sql`
+        SELECT question_selection_snapshot_id::text AS snapshot_id
+        FROM interview_sessions WHERE organization_id=${orgA}::uuid AND id=${sessionId}::uuid
+      `;
+      assert.equal(pinnedAfter[0]?.snapshot_id,pinned[0]?.snapshot_id);
+
       const count=await sql`SELECT count(*)::int AS count FROM scorecards
         WHERE organization_id=${orgA}::uuid`;
       assert.equal(count[0]?.count,0);
