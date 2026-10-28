@@ -1396,6 +1396,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/interviews/{sessionId}/adaptive-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["InterviewOrchestrationController_getSessionAdaptivePlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/interviews/{sessionId}/evaluator-input": {
         parameters: {
             query?: never;
@@ -3865,6 +3881,19 @@ export interface components {
             interviewType: string;
             timeBudgetMinutes: number;
             questionStrategy: Record<string, never>;
+        };
+        SessionAdaptivePlanDto: {
+            sessionId: string;
+            contractVersion: string;
+            sourcePlanVersion: number;
+            status: string;
+            snapshotId?: Record<string, never> | null;
+            snapshotSha256?: Record<string, never> | null;
+            commonQuestionVersionIds: string[];
+            adaptivePolicy: Record<string, never>;
+            criteria: Record<string, never>[];
+            skills: Record<string, never>[];
+            createdAt: string;
         };
         InterviewEvaluatorInputDto: {
             schemaVersion: string;
@@ -9002,6 +9031,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InterviewPlanGeneratedDto"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorDto"];
+                };
+            };
+        };
+    };
+    InterviewOrchestrationController_getSessionAdaptivePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionAdaptivePlanDto"];
                 };
             };
             400: {
