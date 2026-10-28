@@ -338,6 +338,12 @@ test("LLM receives only selected document questions with bounded excerpts and pe
   assert.equal((brain.selectedQuestionVersionIds as unknown[]).length, 2);
   assert.equal(brain.pinnedQuestionSnapshotVersion, 2);
   assert.equal(brain.pinnedQuestionSnapshotSha256, digestForDocuments(docs));
+  const inserted = sample.getInsert();
+  assert.ok(inserted);
+  assert.match(inserted.query, /question_bank_question_version_ids/);
+  assert.ok(inserted.values.some((value) => Array.isArray(value)
+    && value.length === 2 && value.every(item => typeof item === "string" && item.startsWith("22222222-"))));
+
 });
 
 test("unselected job documents are never sent to the LLM", async () => {
