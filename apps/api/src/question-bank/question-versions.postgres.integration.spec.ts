@@ -21,6 +21,7 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
     const candidateId=randomUUID(),applicationId=randomUUID(),fileId=randomUUID(),documentId=randomUUID();
     const rubricId=randomUUID(),rubricVersionId=randomUUID(),criterionId=randomUUID();
     const releaseUnitId=randomUUID(),planId=randomUUID(),sessionId=randomUUID();
+    const laterRubricVersionId=randomUUID(),laterPlanId=randomUUID();
     const suffix=randomUUID();
     const source="Technical interview reference: How would you design idempotency for a .NET payment API? " +
       "Explain handling retries, conflict errors and durable state in SQL Server.";
@@ -138,6 +139,23 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         version,status,language,interview_type,time_budget_minutes
       ) VALUES (${planId}::uuid,${orgA}::uuid,${jobId}::uuid,${rubricVersionId}::uuid,
         ${releaseUnitId}::uuid,1,'published','en','structured',30)`;
+      // Publishing a new rubric must not silently change the application pin.
+      await sql`INSERT INTO rubric_versions(id,organization_id,rubric_id,version,status,published_at)
+        VALUES (${laterRubricVersionId}::uuid,${orgA}::uuid,${rubricId}::uuid,2,'published',now())`;
+      await sql`INSERT INTO interview_plans(
+        id,organization_id,job_id,rubric_version_id,release_unit_id,
+        version,status,language,interview_type,time_budget_minutes
+      ) VALUES (${laterPlanId}::uuid,${orgA}::uuid,${jobId}::uuid,${laterRubricVersionId}::uuid,
+        ${releaseUnitId}::uuid,2,'published','en','structured',30)`;
+      await assert.rejects(() => sql`
+        INSERT INTO interview_sessions(organization_id,application_id,interview_plan_id,status)
+        VALUES (${orgA}::uuid,${applicationId}::uuid,${laterPlanId}::uuid,'invited')
+      `, /application pinned job and rubric version/i);
+      const pinnedRubric=await sql`
+        SELECT rubric_version_id::text FROM applications
+        WHERE organization_id=${orgA}::uuid AND id=${applicationId}::uuid
+      `;
+      assert.equal(pinnedRubric[0]?.rubric_version_id,rubricVersionId);
       await sql`INSERT INTO interview_sessions(
         id,organization_id,application_id,interview_plan_id,status,remaining_seconds
       ) VALUES (${sessionId}::uuid,${orgA}::uuid,${applicationId}::uuid,
