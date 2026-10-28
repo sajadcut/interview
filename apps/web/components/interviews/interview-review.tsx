@@ -70,7 +70,7 @@ export function InterviewReview({sessionId}:{sessionId:string}){
     const plan=await api.GET("/v1/interviews/{sessionId}/adaptive-plan", {
       headers:tenantHeaders(current), params:{path:{sessionId}},
     });
-    setAdaptivePlan(plan.response.ok && plan.data ? plan.data as AdaptivePlan : null);
+    setAdaptivePlan(plan.response.ok && plan.data ? plan.data as unknown as AdaptivePlan : null);
   },[identity,sessionId]);
   useEffect(()=>{void load().catch(c=>setError(c instanceof Error?c.message:"نتیجه مصاحبه بارگذاری نشد"))},[load]);
   useEffect(()=>{if(!data||data.evaluations.some(x=>!x.evaluator_version.startsWith("human:")))return;const t=window.setInterval(()=>void load().catch(()=>undefined),5000);return()=>window.clearInterval(t)},[data,load]);
