@@ -17,7 +17,11 @@ test("skill requirements are tenant-scoped, append-only versions and claim revie
   const auth = { getOptional: () => ({ userId: actor }) } as unknown as AuthContextService;
   const skills = new SkillEvidenceService(database, tenant, auth);
   const orgA = randomUUID(), orgB = randomUUID(), candidateA = randomUUID();
-  const jobA = randomUUID(), fileId = randomUUID(), resumeId = randomUUID();
+  const jobA = randomUUID(), jobB = randomUUID(), fileId = randomUUID(), resumeId = randomUUID();
+  const appA = randomUUID(), appA2 = randomUUID(), appB = randomUUID();
+  const rubricA = randomUUID(), rubricB = randomUUID();
+  const rubricA1 = randomUUID(), rubricA2 = randomUUID(), rubricB1 = randomUUID();
+  const otherJobCriterion = randomUUID();
   const claimId = randomUUID(), evidenceId = randomUUID(), suffix = randomUUID();
 
   const redis = {
@@ -101,6 +105,58 @@ test("skill requirements are tenant-scoped, append-only versions and claim revie
     const evaluations = await sql`SELECT count(*)::int AS count FROM candidate_criterion_evaluations
       WHERE organization_id=${orgA}::uuid`;
     assert.equal(evaluations[0]?.count, 0);
+
+    // A candidate is organization-global, but applications and pinned rubrics
+    // are job-specific. Revisions in one job may not rewrite another job.
+    await sql`INSERT INTO jobs(id,organization_id,title) VALUES
+      (${jobB}::uuid,${orgA}::uuid,'Redis Operator')`;
+    await sql`INSERT INTO rubrics(id,organization_id,job_id,name,status) VALUES
+      (${rubricA}::uuid,${orgA}::uuid,${jobA}::uuid,'Engineering Rubric','published'),
+      (${rubricB}::uuid,${orgA}::uuid,${jobB}::uuid,'Operations Rubric','published')`;
+    await sql`INSERT INTO rubric_versions(id,organization_id,rubric_id,version,status,published_at)
+      VALUES
+      (${rubricA1}::uuid,${orgA}::uuid,${rubricA}::uuid,1,'published',now()),
+      (${rubricB1}::uuid,${orgA}::uuid,${rubricB}::uuid,1,'published',now())`;
+    await sql`INSERT INTO rubric_criteria(
+      id,organization_id,rubric_version_id,criterion_key,label,weight,required,display_order
+    ) VALUES (${otherJobCriterion}::uuid,${orgA}::uuid,${rubricB1}::uuid,
+      'redis_operations','Redis operations',1,true,0)`;
+    await sql`INSERT INTO applications(id,organization_id,job_id,candidate_id) VALUES
+      (${appA}::uuid,${orgA}::uuid,${jobA}::uuid,${candidateA}::uuid),
+      (${appB}::uuid,${orgA}::uuid,${jobB}::uuid,${candidateA}::uuid)`;
+
+    const jobBSkills = await tenant.run(orgA, () => skills.replaceJobSkills(jobB, [
+      { ...redis, requiredLevel: 2, minimumEvidenceCount: 1 },
+    ]));
+    assert.equal(jobBSkills[0]?.requirementVersion, 1);
+    assert.equal(jobBSkills[0]?.requiredLevel, 2);
+    await assert.rejects(() => tenant.run(orgA, () => skills.replaceJobSkills(jobA, [
+      { ...redis, requiredLevel: 5, rubricCriterionId: otherJobCriterion },
+    ])), /another job/i);
+    const afterConflict = await tenant.run(orgA, () => skills.listJobSkills(jobA));
+    assert.equal(afterConflict[0]?.requiredLevel, 4);
+    assert.equal(afterConflict[0]?.requirementVersion, 2);
+
+    await sql`INSERT INTO rubric_versions(id,organization_id,rubric_id,version,status,published_at)
+      VALUES (${rubricA2}::uuid,${orgA}::uuid,${rubricA}::uuid,2,'published',now())`;
+    await sql`INSERT INTO applications(id,organization_id,job_id,candidate_id)
+      VALUES (${appA2}::uuid,${orgA}::uuid,${jobA}::uuid,${candidateA}::uuid)`;
+    const pins=await sql`
+      SELECT id::text,rubric_version_id::text FROM applications
+      WHERE organization_id=${orgA}::uuid AND id IN (
+        ${appA}::uuid,${appA2}::uuid,${appB}::uuid
+      )
+    `;
+    const pinById=new Map(pins.map(row=>[String(row.id),String(row.rubric_version_id)]));
+    assert.equal(pinById.get(appA),rubricA1);
+    assert.equal(pinById.get(appA2),rubricA2);
+    assert.equal(pinById.get(appB),rubricB1);
+    const reviewedClaim=await sql`SELECT review_state,review_version
+      FROM resume_skill_claims WHERE organization_id=${orgA}::uuid AND id=${claimId}::uuid`;
+    assert.equal(reviewedClaim[0]?.review_state,"confirmed");
+    assert.equal(Number(reviewedClaim[0]?.review_version),1);
+    assert.equal((await sql`SELECT count(*)::int AS count FROM candidate_criterion_evaluations
+      WHERE organization_id=${orgA}::uuid`)[0]?.count,0);
 
     const active = await tenant.run(orgA, () => skills.replaceJobSkills(jobA, []));
     assert.equal(active.length, 0);
