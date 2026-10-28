@@ -299,3 +299,29 @@ test("Persian close paths remain Persian", () => {
   timedOut.state.remainingSeconds = 60;
   assertPersianSpeech(timedOut);
 });
+
+test("immutable per-criterion question budget ends assessment without inventing skill evidence", () => {
+  const input=baseInput();
+  input.criteria=[{...input.criteria[0]!,minimumEvidence:4,maxQuestions:3}];
+  input.state.currentCriterion="backend_depth";
+  input.state.questionCountByCriterion={backend_depth:3};
+  input.state.askedQuestionIds=["backend_depth:ask:1","backend_depth:probe:2","backend_depth:probe:3"];
+  input.state.evidenceCoverage={backend_depth:1};
+  const decision=decideInterviewTurn(input);
+  assert.equal(decision.turnKind,"candidate_question");
+  assert.equal(decision.turn.action,"escalate");
+  assert.equal(decision.nextState.evidenceCoverage.backend_depth,1);
+});
+
+test("adaptive plan allows its bounded third probe when quota remains", () => {
+  const input=baseInput();
+  input.criteria=[{...input.criteria[0]!,minimumEvidence:3,maxQuestions:4}];
+  input.state.currentCriterion="backend_depth";
+  input.state.questionCountByCriterion={backend_depth:2};
+  input.state.askedQuestionIds=["backend_depth:ask:1","backend_depth:probe:2"];
+  input.state.evidenceCoverage={backend_depth:1};
+  const decision=decideInterviewTurn(input);
+  assert.equal(decision.turn.criterion,"backend_depth");
+  assert.equal(decision.turn.action,"probe");
+  assert.equal(decision.turnKind,"adaptive_follow_up");
+});
