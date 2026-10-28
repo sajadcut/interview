@@ -8,7 +8,7 @@ ALTER TABLE interview_sessions
   ADD CONSTRAINT interview_sessions_question_selection_snapshot_fk
   FOREIGN KEY (organization_id,application_id,question_selection_snapshot_id)
   REFERENCES application_question_selection_snapshots(organization_id,application_id,id)
-  ON DELETE RESTRICT;
+  ON DELETE CASCADE;
 
 CREATE OR REPLACE FUNCTION pin_interview_session_question_selection()
 RETURNS trigger LANGUAGE plpgsql AS $$
