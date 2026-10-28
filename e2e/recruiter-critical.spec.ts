@@ -141,7 +141,7 @@ test.describe("critical recruiter flows", () => {
     });
 
     await expect(page.getByText(/رزومه پردازش شد: [۰-۹٬]+ بخش و [۰-۹٬]+ شاهد\./)).toBeVisible();
-    await expect(page.getByText("ali-rahimi-e2e-resume.txt")).toBeVisible();
+    await expect(page.getByText("ali-rahimi-e2e-resume.txt", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("تکمیل‌شده", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("مهارت‌ها و وضعیت تأیید")).toBeVisible();
   });
