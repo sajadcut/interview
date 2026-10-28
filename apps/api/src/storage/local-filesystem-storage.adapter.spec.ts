@@ -4,8 +4,7 @@ import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resetEnvCacheForTests } from "../config/env";
-import { LocalFilesystemStorageAdapter } from "./local-filesystem-storage.adapter";
-import { resolveLocalStoragePath } from "./local-filesystem-storage.adapter";
+import { LocalFilesystemStorageAdapter, resolveLocalStoragePath } from "./local-filesystem-storage.adapter";
 
 const root = path.resolve(".local-data/storage-test");
 
