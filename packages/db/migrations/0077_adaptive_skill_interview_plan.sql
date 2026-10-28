@@ -18,9 +18,9 @@ CREATE TABLE interview_session_adaptive_plans (
   FOREIGN KEY (organization_id, interview_session_id)
     REFERENCES interview_sessions(organization_id,id) ON DELETE CASCADE,
   FOREIGN KEY (organization_id, question_selection_snapshot_id)
-    REFERENCES application_question_selection_snapshots(organization_id,id) ON DELETE RESTRICT,
+    REFERENCES application_question_selection_snapshots(organization_id,id) ON DELETE CASCADE,
   FOREIGN KEY (organization_id, rubric_version_id)
-    REFERENCES rubric_versions(organization_id,id) ON DELETE RESTRICT
+    REFERENCES rubric_versions(organization_id,id) ON DELETE CASCADE
 );
 CREATE TRIGGER interview_skill_plan_immutable
   BEFORE UPDATE OR DELETE ON interview_session_adaptive_plans
