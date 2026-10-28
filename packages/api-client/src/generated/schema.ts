@@ -2516,6 +2516,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/question-bank/jobs/{jobId}/questions/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["QuestionProposalsController_generate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/assessments/{assessmentId}/sessions": {
         parameters: {
             query?: never;
@@ -4683,6 +4699,20 @@ export interface components {
             decision: string;
             /** Format: uuid */
             reviewerUserId: string;
+        };
+        GenerateBankQuestionProposalsDto: {
+            /** Format: uuid */
+            documentId: string;
+            /**
+             * @description Explicit confirmation to transmit up to 6000 characters of the selected document to the configured organization-approved LLM
+             * @enum {boolean}
+             */
+            consentToRemoteProcessing: true;
+        };
+        GenerateBankQuestionProposalsResponseDto: {
+            /** @enum {string} */
+            status: "ok" | "disabled" | "unavailable" | "no_job_skills" | "invalid_output";
+            persistedCount: number;
         };
         AssessmentSessionRequestDto: {
             applicationId: string;
@@ -11542,6 +11572,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BankQuestionReviewDto"];
+                };
+            };
+        };
+    };
+    QuestionProposalsController_generate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateBankQuestionProposalsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateBankQuestionProposalsResponseDto"];
                 };
             };
         };

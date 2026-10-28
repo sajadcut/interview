@@ -8713,6 +8713,46 @@
         ]
       }
     },
+    "/v1/question-bank/jobs/{jobId}/questions/propose": {
+      "post": {
+        "operationId": "QuestionProposalsController_generate",
+        "parameters": [
+          {
+            "name": "jobId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateBankQuestionProposalsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateBankQuestionProposalsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "question-bank"
+        ]
+      }
+    },
     "/v1/assessments/{assessmentId}/sessions": {
       "post": {
         "operationId": "AssessmentsController_createSession",
@@ -16679,6 +16719,48 @@
           "version",
           "decision",
           "reviewerUserId"
+        ]
+      },
+      "GenerateBankQuestionProposalsDto": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "consentToRemoteProcessing": {
+            "type": "boolean",
+            "description": "Explicit confirmation to transmit up to 6000 characters of the selected document to the configured organization-approved LLM",
+            "enum": [
+              true
+            ]
+          }
+        },
+        "required": [
+          "documentId",
+          "consentToRemoteProcessing"
+        ]
+      },
+      "GenerateBankQuestionProposalsResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "disabled",
+              "unavailable",
+              "no_job_skills",
+              "invalid_output"
+            ]
+          },
+          "persistedCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "persistedCount"
         ]
       },
       "AssessmentSessionRequestDto": {

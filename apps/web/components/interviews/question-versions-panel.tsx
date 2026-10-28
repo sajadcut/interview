@@ -25,11 +25,13 @@ export function QuestionVersionsPanel({ jobId, identity, documents }: {
   const [editingId, setEditingId] = useState("");
   const [reasonById, setReasonById] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [consentRemote, setConsentRemote] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     setDocumentId(documents[0]?.id ?? "");
+    setConsentRemote(false);
   }, [jobId, documents]);
 
   useEffect(() => {
@@ -81,6 +83,30 @@ export function QuestionVersionsPanel({ jobId, identity, documents }: {
     setQuestionText("");
     setSourceExcerpt("");
     setSkillKey("");
+  }
+
+  async function generateProposals() {
+    if (!identity || !jobId || !documentId || !access.can("job.edit") || !consentRemote) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await api.POST("/v1/question-bank/jobs/{jobId}/questions/propose", {
+        params: { path: { jobId } }, headers: tenantHeaders(identity),
+        body: { documentId, consentToRemoteProcessing: true },
+      });
+      if (result.error) throw new Error(apiErrorMessage(result, "پیشنهاد سؤال با مدل ناموفق بود"));
+      if (result.data?.status === "ok") {
+        await reload();
+        setNotice(`${formatFaNumber(result.data.persistedCount)} پیشنهاد جدید ثبت شد. تمام سؤال‌های مدل منتظر تأیید انسانی هستند و خودکار وارد مصاحبه نمی‌شوند.`);
+      } else if (result.data?.status === "no_job_skills") {
+        setError("ابتدا مهارت‌های مورد انتظار شغل را تعریف کنید.");
+      } else {
+        setError("مدل سازمانی آماده نیست یا خروجی معتبر نداد. سؤال‌های ثبت‌شده تغییری نکردند.");
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "خطای دریافت پیشنهاد سؤال");
+    } finally { setBusy(false); setConsentRemote(false); }
   }
 
   async function save() {
@@ -170,6 +196,18 @@ export function QuestionVersionsPanel({ jobId, identity, documents }: {
           {skills.map(item => <option key={item.skillKey} value={item.skillKey}>{item.nameEn}</option>)}
         </select>
       </label>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-950">
+        <label className="flex cursor-pointer items-start gap-2">
+          <input type="checkbox" checked={consentRemote} onChange={e => setConsentRemote(e.target.checked)}
+            className="mt-1" aria-label="اجازه ارسال متن سند به مدل سازمانی" />
+          <span>اجازه می‌دهم حداکثر ۶۰۰۰ نویسه از متن همین سند برای پیشنهاد سؤال به مدل پیکربندی‌شده سازمان ارسال شود. هیچ پیشنهادی بدون بازبینی و تأیید انسانی وارد مصاحبه نمی‌شود.</span>
+        </label>
+        <button type="button" disabled={busy || !consentRemote || !documentId}
+          onClick={() => void generateProposals()}
+          className="mt-2 rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold disabled:opacity-50">
+          {busy ? "در حال پردازش…" : "پیشنهاد سؤال با هوش مصنوعی"}
+        </button>
+      </div>
       <div className="flex gap-2">
         <button type="button" disabled={busy || questionText.trim().length < 12 || sourceExcerpt.trim().length < 12}
           onClick={() => void save()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs text-white disabled:opacity-50">
@@ -188,7 +226,9 @@ export function QuestionVersionsPanel({ jobId, identity, documents }: {
             item.reviewState === "rejected" ? "ردشده" : "در انتظار بررسی"}</span>
         </div>
         <blockquote className="mt-2 border-s-2 border-indigo-200 ps-3 text-xs text-slate-600">{item.sourceExcerpt}</blockquote>
-        <p className="mt-2 text-[11px] text-slate-500">{item.skillKey || "مهارت تعیین نشده"}</p>
+        <p className="mt-2 text-[11px] text-slate-500">
+          {item.skillKey || "مهارت تعیین نشده"} · {item.origin === "llm_proposed" ? "پیشنهاد بررسی‌نشده مدل" : "ثبت دستی"}
+        </p>
         {access.can("job.edit") ? <div className="mt-3 space-y-2">
           <button type="button" onClick={() => edit(item)} className="rounded-lg border px-3 py-1.5 text-xs">
             ویرایش و ایجاد نسخه جدید

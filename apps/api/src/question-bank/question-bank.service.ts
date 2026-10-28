@@ -196,7 +196,10 @@ export class QuestionBankService {
       const approved = await tx`
         SELECT q.id::text AS question_id,q.document_id::text,v.id::text AS version_id,
                v.version,v.question_text,v.source_excerpt,st.skill_key,
-               d.sha256 AS document_sha256
+               d.sha256 AS document_sha256,q.origin,
+               prov.source_text_sha256 AS model_source_sha256,
+               prov.start_char AS model_start_char,prov.end_char AS model_end_char,
+               prov.provider AS model_provider,prov.model AS model_name
         FROM application_question_documents selected
         JOIN question_bank_questions q
           ON q.organization_id=selected.organization_id
@@ -213,6 +216,8 @@ export class QuestionBankService {
          AND review.decision='approved'
         LEFT JOIN skill_taxonomy st
           ON st.organization_id=v.organization_id AND st.id=v.skill_id
+        LEFT JOIN question_bank_llm_provenance prov
+          ON prov.organization_id=v.organization_id AND prov.version_id=v.id
         WHERE selected.organization_id=${organizationId}::uuid
           AND selected.application_id=${applicationId}::uuid
           AND q.job_id=${String(applications[0].job_id)}::uuid
@@ -226,6 +231,12 @@ export class QuestionBankService {
         version: Number(row.version),
         questionText: String(row.question_text),
         sourceExcerpt: String(row.source_excerpt),
+        origin: String(row.origin),
+        ...(row.model_source_sha256 ? { modelProvenance: {
+          sourceTextSha256: String(row.model_source_sha256),
+          startChar: Number(row.model_start_char), endChar: Number(row.model_end_char),
+          provider: String(row.model_provider), model: String(row.model_name),
+        } } : {}),
         ...(row.skill_key ? { skillKey: String(row.skill_key) } : {}),
       }));
       const frozen = { documentIds: ids, approvedQuestionVersions: frozenQuestions };
