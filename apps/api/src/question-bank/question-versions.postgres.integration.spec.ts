@@ -10,6 +10,8 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { QuestionBankService } from "./question-bank.service";
 import { QuestionVersionsService } from "./question-versions.service";
 import { pinnedQuestionContext } from "../interviews/interview-question-snapshot";
+import { InterviewBrainService } from "../interviews/interview-brain.service";
+import type { LlmInterviewerService } from "../interviews/llm-interviewer.service";
 
 const url=process.env.AUTH_INTEGRATION_DATABASE_URL;
 
@@ -245,6 +247,52 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
       assert.deepEqual(other[0]?.common_question_version_ids,[first.versionId]);
       assert.deepEqual((other[0]?.skill_budgets as Array<Record<string,unknown>>)[0]?.questionVersionIds,[first.versionId]);
       assert.notEqual(other[0]?.question_selection_sha256,afterRevision[0]?.contentSha256);
+      // End-to-end within PostgreSQL: fresh Brain instances replay the same
+      // admission plan after process restart; reconnect never re-asks a version.
+      let liveModelCalls=0;
+      const llmStub={
+        generateTurn:async()=>{
+          liveModelCalls++;
+          throw new Error("Unapproved LLM must not rewrite the primary bank question");
+        },
+      } as unknown as LlmInterviewerService;
+      const liveBrain=new InterviewBrainService(db,tenant,llmStub);
+      const spoken=await tenant.run(orgA,()=>liveBrain.nextTurn(session2,{
+        candidateIntent:"ANSWER",latestCandidateText:"",
+      }));
+      assert.equal(spoken.brainMode,"approved_bank");
+      assert.equal(spoken.spokenText,question);
+      assert.equal(spoken.plannedQuestionVersionId,first.versionId);
+      assert.equal(liveModelCalls,0);
+      const stored=await sql`
+        SELECT planned_question_version_id::text,question_bank_question_version_ids,
+               interviewer_trace_reference
+        FROM interview_turns
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${session2}::uuid
+        ORDER BY sequence
+      `;
+      assert.equal(stored[0]?.planned_question_version_id,first.versionId);
+      assert.deepEqual(stored[0]?.question_bank_question_version_ids,[first.versionId]);
+      assert.match(String(stored[0]?.interviewer_trace_reference),/^approved_bank:/);
+      await assert.rejects(()=>tenant.run(orgB,()=>liveBrain.nextTurn(session2,{
+        candidateIntent:"ANSWER",latestCandidateText:"",
+      })),/Interview session not found/i);
+      const restarted=new InterviewBrainService(db,tenant,llmStub);
+      const recovered=await tenant.run(orgA,()=>restarted.nextTurn(session2,{
+        candidateIntent:"RECONNECT",latestCandidateText:"",
+      }));
+      assert.notEqual(recovered.plannedQuestionVersionId,first.versionId);
+      assert.equal(recovered.action,"clarify");
+      assert.equal(recovered.brainMode,"deterministic_fallback");
+      assert.equal(liveModelCalls,0);
+      const turns=await sql`
+        SELECT count(*)::int AS total,count(planned_question_version_id)::int AS bank_total
+        FROM interview_turns
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${session2}::uuid
+      `;
+      assert.equal(Number(turns[0]?.total),2);
+      assert.equal(Number(turns[0]?.bank_total),1);
+
 
 
       const count=await sql`SELECT count(*)::int AS count FROM scorecards
