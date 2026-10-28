@@ -13,6 +13,7 @@ import {
   GenerateInterviewPlanDto,
   InterviewPlanGeneratedDto,
   RecordEvaluatorCalibrationRunDto,
+  SessionAdaptivePlanDto,
 } from "./interview-orchestration.dto";
 import { InterviewOrchestrationService } from "./interview-orchestration.service";
 
@@ -37,6 +38,13 @@ export class InterviewOrchestrationController {
   @ApiOkResponse({ type: InterviewPlanGeneratedDto })
   publishPlan(@Param("planId") planId: string) {
     return this.orchestration.publishPlan(planId);
+  }
+
+  @Get("interviews/:sessionId/adaptive-plan")
+  @RequirePermissions(Permissions.InterviewEvaluate)
+  @ApiOkResponse({ type: SessionAdaptivePlanDto })
+  getSessionAdaptivePlan(@Param("sessionId") sessionId: string) {
+    return this.orchestration.getSessionAdaptivePlan(sessionId);
   }
 
   @Get("interviews/:sessionId/evaluator-input")
