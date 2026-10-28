@@ -371,7 +371,7 @@ test("unselected job documents are never sent to the LLM", async () => {
 test("admission-pinned approved common question is spoken verbatim and audited without contacting the model", async () => {
   const doc = { id: "6f2964d0-59ea-45a7-8537-2324b8871555",
     name: "approved.txt", text: "مبانی داده و خطا در سامانه پرداخت، این بخش یک مرجع دقیق است. ".repeat(5),
-    questions: ["در پرداخت‌های هم‌زمان، چگونه از تراکنش تکراری پیشگیری می‌کنید و تصمیم فنی شما چیست؟"] };
+    questions: ["در پرداخت‌های هم‌زمان، چگونه از تراکنش تکراری پیشگیری می‌کنید و چه تصمیم فنی می‌گیرید؟"] };
   const sample=harness({ useAdaptivePlan:true, selectedQuestionDocuments:[doc], priorTurns:[] });
   const result=await sample.service.nextTurn(sessionId,{ latestCandidateText:"",candidateIntent:"ANSWER" });
   assert.equal(result.brainMode,"approved_bank");
