@@ -8,7 +8,6 @@ import { MAX_QUESTION_PROPOSAL_SOURCE_CHARS, validateQuestionProposals } from ".
 import type { GenerateBankQuestionProposalsDto, GenerateBankQuestionProposalsResponseDto } from "./question-proposals.dto";
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
-type SkillRow = { id: string; skill_key: string };
 
 @Injectable()
 export class QuestionProposalsService {
@@ -77,7 +76,7 @@ export class QuestionProposalsService {
         throw new ConflictException("Source document changed; regenerate proposals");
 
       for (const item of accepted) {
-        const skill = skills.find((row: SkillRow) => row.skill_key === item.skillKey);
+        const skill = skills.find(row => String(row.skill_key) === item.skillKey);
         if (!skill) continue;
         const normalizedQuestion = item.questionText.trim();
         const questionSha = sha256(normalizedQuestion.toLocaleLowerCase());
