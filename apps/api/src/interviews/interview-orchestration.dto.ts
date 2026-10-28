@@ -72,6 +72,22 @@ export class GenerateInterviewPlanDto {
   forbiddenTopics?: string[];
 }
 
+
+/** Evidence quotas are planning targets, not technical skill grades. */
+export class SessionAdaptivePlanDto {
+  @ApiProperty() sessionId!: string;
+  @ApiProperty() contractVersion!: string;
+  @ApiProperty() sourcePlanVersion!: number;
+  @ApiProperty() status!: string;
+  @ApiPropertyOptional({nullable:true}) snapshotId!: string|null;
+  @ApiPropertyOptional({nullable:true}) snapshotSha256!: string|null;
+  @ApiProperty({type:[String]}) commonQuestionVersionIds!: string[];
+  @ApiProperty({type:Object}) adaptivePolicy!: Record<string,unknown>;
+  @ApiProperty({type:[Object]}) criteria!: Record<string,unknown>[];
+  @ApiProperty({type:[Object]}) skills!: Record<string,unknown>[];
+  @ApiProperty() createdAt!: string;
+}
+
 export class InterviewPlanGeneratedDto {
   @ApiProperty() id!: string;
   @ApiProperty() jobId!: string;
