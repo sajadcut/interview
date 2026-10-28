@@ -214,6 +214,12 @@ export class QuestionBankService {
         JOIN question_bank_question_reviews review
           ON review.organization_id=v.organization_id AND review.version_id=v.id
          AND review.decision='approved'
+        JOIN LATERAL (
+          SELECT r.is_active FROM job_skill_requirements r
+          WHERE r.organization_id=v.organization_id AND r.job_id=q.job_id
+            AND r.skill_id=v.skill_id
+          ORDER BY r.requirement_version DESC LIMIT 1
+        ) current_skill ON current_skill.is_active=true
         LEFT JOIN skill_taxonomy st
           ON st.organization_id=v.organization_id AND st.id=v.skill_id
         LEFT JOIN question_bank_llm_provenance prov
