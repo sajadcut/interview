@@ -18,6 +18,18 @@ BEGIN
   PERFORM 1 FROM applications
     WHERE organization_id=NEW.organization_id AND id=NEW.application_id
     FOR UPDATE;
+  -- A published plan for a different job or superseded rubric must not be
+  -- assigned to an application. The application's published rubric pin wins.
+  IF NOT EXISTS (
+    SELECT 1 FROM applications a
+    JOIN interview_plans p ON p.organization_id=a.organization_id
+      AND p.job_id=a.job_id AND p.rubric_version_id=a.rubric_version_id
+    WHERE a.organization_id=NEW.organization_id AND a.id=NEW.application_id
+      AND p.id=NEW.interview_plan_id
+  ) THEN
+    RAISE EXCEPTION 'Interview plan must match the application pinned job and rubric version'
+      USING ERRCODE='23514';
+  END IF;
   SELECT id INTO NEW.question_selection_snapshot_id
     FROM application_question_selection_snapshots
     WHERE organization_id=NEW.organization_id AND application_id=NEW.application_id
