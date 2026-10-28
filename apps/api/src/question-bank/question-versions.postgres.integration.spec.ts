@@ -9,6 +9,7 @@ import type { ResumeTextExtractor } from "../resumes/resume-text-extractor";
 import { TenantContextService } from "../tenant/tenant-context.service";
 import { QuestionBankService } from "./question-bank.service";
 import { QuestionVersionsService } from "./question-versions.service";
+import { pinnedQuestionContext } from "../interviews/interview-question-snapshot";
 
 const url=process.env.AUTH_INTEGRATION_DATABASE_URL;
 
@@ -115,6 +116,18 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
       assert.equal(items[0]?.versionId,first.versionId);
       assert.equal(items[0]?.skillKey,"dotnet");
       assert.equal(items[0]?.documentSha256,hash);
+      // Read PostgreSQL JSONB back (its object key order differs from the
+      // originally hashed JS object). Runtime must still reconstruct and
+      // authenticate the exact immutable content without losing approved IDs.
+      const databaseSnapshot=withApproved[0]!;
+      const liveContext=pinnedQuestionContext({
+        documentIds:databaseSnapshot.documentIds,
+        approvedQuestions:databaseSnapshot.approvedQuestionVersions,
+        contentSha256:databaseSnapshot.contentSha256,
+        snapshotVersion:databaseSnapshot.snapshotVersion,
+      },0);
+      assert.deepEqual(liveContext.questionVersionIds,[first.versionId]);
+      assert.deepEqual(liveContext.documentIds,[documentId]);
       assert.deepEqual(withApproved[1]?.approvedQuestionVersions,[]);
       assert.notEqual(withApproved[0]?.contentSha256,withApproved[1]?.contentSha256);
 
