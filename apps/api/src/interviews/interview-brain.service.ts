@@ -10,6 +10,7 @@ import {
 } from "./interview-brain";
 import { computeInterviewClock } from "./interview-clock";
 import { pinnedQuestionContext } from "./interview-question-snapshot";
+import { nextApprovedCommonQuestion, parseAdaptivePlan } from "./adaptive-skill-plan";
 import { normalizeInterviewSpokenLanguage } from "./interview-language";
 import {
   LlmInterviewerFailure,
@@ -219,7 +220,7 @@ function traceValue(value: string | undefined, maximum: number): string {
 }
 
 function traceReference(input: {
-  mode: "llm" | "deterministic_fallback";
+  mode: "llm" | "deterministic_fallback" | "approved_bank";
   provider?: string;
   promptId?: string;
   promptVersion?: string;
@@ -229,7 +230,9 @@ function traceReference(input: {
 }): string {
   const prefix = input.mode === "llm"
     ? `llm:${traceValue(input.provider ?? "unknown", 64)}:${traceValue(input.promptVersion ?? "unknown", 24)}:${traceValue(input.policyVersion, 80)}`
-    : `deterministic_fallback:${traceValue(input.fallbackReason ?? "llm_not_attempted", 120)}:${traceValue(input.policyVersion, 80)}`;
+    : input.mode === "approved_bank"
+      ? `approved_bank:immutable:v1:${traceValue(input.policyVersion, 80)}`
+      : `deterministic_fallback:${traceValue(input.fallbackReason ?? "llm_not_attempted", 120)}:${traceValue(input.policyVersion, 80)}`;
   const raw = [
     prefix,
     `promptId=${traceValue(input.promptId ?? LLM_INTERVIEWER_PROMPT_ID, 80)}`,
@@ -301,6 +304,10 @@ export class InterviewBrainService {
           qs.approved_question_versions AS frozen_approved_questions,
           qs.content_sha256 AS frozen_content_sha256,
           qs.snapshot_version AS frozen_snapshot_version,
+          ap.contract_version AS adaptive_contract_version,
+          ap.criterion_budgets AS adaptive_criterion_budgets,
+          ap.skill_budgets AS adaptive_skill_budgets,
+          ap.common_question_version_ids AS adaptive_common_versions,
           a.candidate_id,
           c.display_name AS candidate_name,
           p.job_id,
@@ -324,6 +331,8 @@ export class InterviewBrainService {
         LEFT JOIN application_question_selection_snapshots qs
           ON qs.organization_id = s.organization_id AND qs.application_id = s.application_id
          AND qs.id = s.question_selection_snapshot_id
+        LEFT JOIN interview_session_adaptive_plans ap
+          ON ap.organization_id=s.organization_id AND ap.interview_session_id=s.id
         JOIN applications a
           ON a.organization_id = s.organization_id AND a.id = s.application_id
         JOIN candidates c
@@ -387,6 +396,8 @@ export class InterviewBrainService {
         snapshotVersion: session?.frozen_snapshot_version,
       }, asStringArray(priorBrainCheckpoint.askedQuestionIds).length);
       const selectedQuestionDocuments = pinnedQuestions.selectedQuestionDocuments;
+      const adaptivePlan = parseAdaptivePlan(session?.adaptive_criterion_budgets, session?.adaptive_skill_budgets);
+      const budgetByCriterion = new Map(adaptivePlan.criteria.map(item => [item.criterionKey, item]));
       const questionStrategy = asRecord(session?.question_strategy);
       const requiredKeys = new Set(asStringArray(questionStrategy.requiredCriteria));
       const criteria: InterviewBrainCriterion[] = criterionRows
@@ -394,6 +405,7 @@ export class InterviewBrainService {
           const key = String(row.criterion_key);
           const strategy = strategyForCriterion(questionStrategy, key);
           const evidencePolicy = asRecord(row.evidence_policy);
+          const adaptiveBudget = budgetByCriterion.get(key);
           const label = String(row.label);
           const description = String(row.description ?? "").trim();
           const expectedEvidence = asStringArray(strategy.expectedEvidence);
@@ -413,7 +425,9 @@ export class InterviewBrainService {
               expectedEvidence.length > 0
                 ? expectedEvidence
                 : [description || `Concrete job-relevant evidence for ${label}`],
-            minimumEvidence: positiveInteger(evidencePolicy.minimumEvidence, 1),
+            minimumEvidence: adaptiveBudget?.minimumEvidence ??
+              positiveInteger(evidencePolicy.minimumEvidence, 1),
+            maxQuestions: adaptiveBudget?.maxQuestions ?? 2,
             required: requiredKeys.size > 0
               ? requiredKeys.has(key) || Boolean(row.required)
               : Boolean(row.required),
@@ -477,7 +491,8 @@ export class InterviewBrainService {
 
       const priorTurnRows = await transaction`
         SELECT sequence, criterion_key, action, objective, spoken_text,
-               turn_kind, question_source, resume_claim_id::text
+               turn_kind, question_source, resume_claim_id::text,
+               planned_question_version_id::text
         FROM interview_turns
         WHERE organization_id = ${organizationId}::uuid
           AND interview_session_id = ${sessionId}::uuid
@@ -552,8 +567,36 @@ export class InterviewBrainService {
         ...(session?.job_seniority ? { seniority: String(session.job_seniority) } : {}),
       };
 
+      // Only the immutable session-admission skill map can authorize a common
+      // bank question. The model may NEVER rewrite its exact spoken wording.
+      const approvedCommon = deterministic.turnKind === "planned_criterion" &&
+        deterministic.turn.action === "ask" && deterministic.turn.criterion &&
+        pinnedQuestions.snapshotSha256 &&
+        session?.adaptive_contract_version === "adaptive-skill-plan.v1"
+        ? nextApprovedCommonQuestion({
+            frozenApproved: session?.frozen_approved_questions,
+            validatedContextVersionIds: pinnedQuestions.validatedApprovedVersionIds,
+            skillBudgets: adaptivePlan.skills,
+            allowedCommonVersionIds: asStringArray(session?.adaptive_common_versions),
+            criterionKey: deterministic.turn.criterion,
+            alreadySpokenVersionIds: priorTurnRows
+              .filter(row => row.planned_question_version_id)
+              .map(row => String(row.planned_question_version_id)),
+          })
+        : null;
       let selectedTurn = deterministic.turn;
-      let brainMode: "llm" | "deterministic_fallback" = "deterministic_fallback";
+      let spokenBankQuestion = null as typeof approvedCommon;
+      let brainMode: "llm" | "deterministic_fallback" | "approved_bank" = "deterministic_fallback";
+      if (approvedCommon) {
+        const bankPolicy = enforceInterviewTurnPolicy({
+          ...deterministic.turn, spokenText: approvedCommon.questionText,
+        }, policyContext);
+        if (bankPolicy.decision === "accepted") {
+          selectedTurn = bankPolicy.turn;
+          spokenBankQuestion = approvedCommon;
+          brainMode = "approved_bank";
+        }
+      }
       let llmTrace: ConversationalInterviewerTrace | null = null;
       let fallbackReason = candidateIntent && candidateIntent !== "ANSWER"
         ? `deterministic_operational_intent:${candidateIntent}`
@@ -567,7 +610,8 @@ export class InterviewBrainService {
         conversationalIntent &&
         criteria.length > 0 &&
         ["ask", "probe", "clarify", "transition", "close"].includes(deterministic.turn.action) &&
-        deterministic.questionSource !== "lifecycle";
+        deterministic.questionSource !== "lifecycle" &&
+        !spokenBankQuestion;
       if (llmEligible) {
         const historyLimit = boundedInteger(
           process.env.AI_INTERVIEWER_HISTORY_TURNS,
@@ -687,6 +731,14 @@ export class InterviewBrainService {
             promptVersion: llmTrace.promptVersion,
             reason: llmTrace.reason,
           }
+        : brainMode === "approved_bank" && spokenBankQuestion
+          ? {
+              mode: "approved_bank" as const,
+              provider: "human_approved_question_bank",
+              promptId: "question-bank.approved_primary",
+              promptVersion: "v1",
+              reason: "verbatim_human_approved_common_question",
+            }
         : {
             mode: "deterministic_fallback" as const,
             provider: "none",
@@ -696,13 +748,27 @@ export class InterviewBrainService {
             fallbackReason: fallbackReason || "deterministic_fallback",
           };
 
+      const authoritativeSource = spokenBankQuestion ? "question_bank" : deterministic.questionSource;
+      const promptDocumentIds = spokenBankQuestion ? [spokenBankQuestion.documentId]
+        : brainMode === "llm" ? pinnedQuestions.documentIds : [];
+      const promptQuestionVersionIds = spokenBankQuestion ? [spokenBankQuestion.versionId]
+        : brainMode === "llm" ? pinnedQuestions.questionVersionIds : [];
+      const skillQuotaStates = adaptivePlan.skills.map(skill => {
+        const evidence = skill.criterionKey ? Math.max(0, evidenceCoverage[skill.criterionKey] ?? 0) : 0;
+        return {
+          skillKey: skill.skillKey, criterionKey: skill.criterionKey,
+          evidenceCount: evidence, minimumEvidence: skill.minimumEvidence,
+          quotaState: !skill.criterionKey ? "unmapped"
+            : evidence >= skill.minimumEvidence ? "quota_met" : "evidence_gap",
+        };
+      });
       const inserted = await transaction`
         INSERT INTO interview_turns (
           organization_id, interview_session_id, sequence, candidate_intent, action,
           criterion_key, objective, spoken_text, expected_evidence,
           interviewer_trace_reference, finalized,
           turn_kind, question_source, resume_claim_id, question_bank_document_ids,
-          question_bank_question_version_ids
+          question_bank_question_version_ids, planned_question_version_id
         ) VALUES (
           ${organizationId}::uuid, ${sessionId}::uuid, ${sequence}, ${candidateIntent},
           ${turn.action}, ${turn.criterion}, ${turn.objective},
@@ -718,10 +784,11 @@ export class InterviewBrainService {
             policyVersion: finalPolicy.policyVersion,
           })}, true,
           ${deterministic.turnKind},
-          ${deterministic.questionSource},
+          ${authoritativeSource},
           ${deterministic.resumeClaimId}::uuid,
-          ${this.database.sql.json((brainMode === "llm" ? pinnedQuestions.documentIds : []) as never)},
-          ${this.database.sql.json((brainMode === "llm" ? pinnedQuestions.questionVersionIds : []) as never)}
+          ${this.database.sql.json(promptDocumentIds as never)},
+          ${this.database.sql.json(promptQuestionVersionIds as never)},
+          ${spokenBankQuestion?.versionId ?? null}::uuid
         )
         RETURNING id, created_at
       `;
@@ -742,10 +809,13 @@ export class InterviewBrainService {
           askedQuestionIds: [...state.askedQuestionIds, questionId],
           evidenceCoverage,
           turnKind: deterministic.turnKind,
-          questionSource: deterministic.questionSource,
+          questionSource: authoritativeSource,
+          plannedQuestionVersionId: spokenBankQuestion?.versionId ?? null,
+          adaptivePlanContractVersion: session?.adaptive_contract_version ?? null,
+          skillQuotaStates,
           resumeClaimId: deterministic.resumeClaimId,
-          selectedQuestionDocumentIds: brainMode === "llm" ? pinnedQuestions.documentIds : [],
-          selectedQuestionVersionIds: brainMode === "llm" ? pinnedQuestions.questionVersionIds : [],
+          selectedQuestionDocumentIds: promptDocumentIds,
+          selectedQuestionVersionIds: promptQuestionVersionIds,
           pinnedQuestionSnapshotVersion: pinnedQuestions.snapshotVersion,
           pinnedQuestionSnapshotSha256: pinnedQuestions.snapshotSha256,
         },
@@ -807,7 +877,10 @@ export class InterviewBrainService {
         },
         evidenceCoverage,
         turnKind: deterministic.turnKind,
-        questionSource: deterministic.questionSource,
+        questionSource: authoritativeSource,
+        plannedQuestionVersionId: spokenBankQuestion?.versionId ?? null,
+        adaptivePlanContractVersion: session?.adaptive_contract_version ?? null,
+        skillQuotaStates,
         resumeClaimId: deterministic.resumeClaimId,
         releaseMode: release.mode,
         policyVersion: finalPolicy.policyVersion,
