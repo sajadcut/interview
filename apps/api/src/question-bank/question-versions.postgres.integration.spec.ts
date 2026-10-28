@@ -88,6 +88,16 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         decision:"approved",expectedVersion:2,reason:"Stale question version requested"
       })),/changed or already reviewed/);
 
+      // A canonical taxonomy entry alone does not authorize using a question in
+      // an interview for this particular job.
+      await assert.rejects(()=>tenant.run(orgA,()=>service.review(jobId,first.id,{
+        decision:"approved",expectedVersion:1,
+        reason:"Must not approve a question outside job skill requirements"
+      })),/active job skill requirement/i);
+      await sql`INSERT INTO job_skill_requirements(
+        organization_id,job_id,skill_id,required_level,weight,required,minimum_evidence_count
+      ) SELECT ${orgA}::uuid,${jobId}::uuid,id,3,1,true,1 FROM skill_taxonomy
+        WHERE organization_id=${orgA}::uuid AND skill_key='dotnet'`;
       const approved=await tenant.run(orgA,()=>service.review(jobId,first.id,{
         decision:"approved",expectedVersion:1,
         reason:"Reviewed against job skill taxonomy and source excerpt"
