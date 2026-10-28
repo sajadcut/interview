@@ -25,6 +25,8 @@ function harness(options: {
   forbiddenTopics?: string[];
   evidenceCount?: number;
   selectedQuestionDocuments?: Array<{ id: string; name: string; text: string; questions: string[] }>;
+  useAdaptivePlan?: boolean;
+  priorTurns?: Array<Record<string, unknown>>;
 } = {}): HarnessResult {
   let inserted: { query: string; values: unknown[] } | null = null;
   let checkpoint: Record<string, unknown> | null = null;
@@ -56,6 +58,13 @@ function harness(options: {
         frozen_approved_questions: fixtureDocs.length ? approvedQuestions : null,
         frozen_content_sha256: fixtureDocs.length ? digest : null,
         frozen_snapshot_version: fixtureDocs.length ? 2 : null,
+        adaptive_contract_version: options.useAdaptivePlan ? "adaptive-skill-plan.v1" : null,
+        adaptive_criterion_budgets: options.useAdaptivePlan
+          ? [{ criterionKey: "backend_depth", minimumEvidence: 2, maxQuestions: 3, skillKeys: ["dotnet"] }] : null,
+        adaptive_skill_budgets: options.useAdaptivePlan
+          ? [{ skillKey: "dotnet", criterionKey: "backend_depth", minimumEvidence: 2, required: true,
+               questionVersionIds: approvedQuestions.map(q => q.versionId) }] : null,
+        adaptive_common_versions: options.useAdaptivePlan ? approvedQuestions.map(q => q.versionId) : null,
         job_id: jobId,
         rubric_version_id: rubricVersionId,
         plan_version: 3,
@@ -98,6 +107,7 @@ function harness(options: {
         : [];
     }
     if (query.includes("FROM interview_turns")) {
+      if (options.priorTurns) return options.priorTurns;
       return [{
         sequence: 0,
         criterion_key: "backend_depth",
@@ -356,4 +366,42 @@ test("unselected job documents are never sent to the LLM", async () => {
   const context = sample.getLlmContext();
   assert.ok(context);
   assert.equal(context.selectedQuestionDocuments, undefined);
+});
+
+test("admission-pinned approved common question is spoken verbatim and audited without contacting the model", async () => {
+  const doc = { id: "6f2964d0-59ea-45a7-8537-2324b8871555",
+    name: "approved.txt", text: "مبانی داده و خطا در سامانه پرداخت، این بخش یک مرجع دقیق است. ".repeat(5),
+    questions: ["در پرداخت‌های هم‌زمان، چگونه از تراکنش تکراری پیشگیری می‌کنید و تصمیم فنی شما چیست؟"] };
+  const sample=harness({ useAdaptivePlan:true, selectedQuestionDocuments:[doc], priorTurns:[] });
+  const result=await sample.service.nextTurn(sessionId,{ latestCandidateText:"",candidateIntent:"ANSWER" });
+  assert.equal(result.brainMode,"approved_bank");
+  assert.equal(result.questionSource,"question_bank");
+  assert.equal(result.spokenText,doc.questions[0]);
+  assert.equal(result.plannedQuestionVersionId,"22222222-2222-4222-8222-000000000001");
+  assert.equal(sample.getLlmContext(),null);
+  const inserted=sample.getInsert();
+  assert.ok(inserted?.query.includes("planned_question_version_id"));
+  assert.ok(inserted?.values.includes("22222222-2222-4222-8222-000000000001"));
+  const checkpoint=sample.getCheckpoint();
+  assert.equal((checkpoint?.brain as Record<string,unknown>)?.adaptivePlanContractVersion,"adaptive-skill-plan.v1");
+  const quotas=(checkpoint?.brain as Record<string,unknown>)?.skillQuotaStates as Array<Record<string,unknown>>;
+  assert.equal(quotas[0]?.quotaState,"evidence_gap");
+});
+
+test("restart reconstructs used approved version from persisted turns and never repeats it", async () => {
+  const doc = { id: "6f2964d0-59ea-45a7-8537-2324b8871555",
+    name: "approved.txt", text: "منبع معتبر برای طرح سؤال درباره retry و پایگاه داده. ".repeat(7),
+    questions: ["چگونه از دوباره‌پرداخت در تراکنش‌های هم‌زمان جلوگیری می‌کنید و تصمیم شما چیست؟"] };
+  const previous = [{
+    sequence:0,criterion_key:"backend_depth",action:"ask",objective:"validate production backend depth",
+    spoken_text:doc.questions[0],turn_kind:"planned_criterion",question_source:"question_bank",
+    planned_question_version_id:"22222222-2222-4222-8222-000000000001",
+  }];
+  const restored=harness({ useAdaptivePlan:true, selectedQuestionDocuments:[doc], priorTurns:previous });
+  const result=await restored.service.nextTurn(sessionId,{
+    latestCandidateText:"برای افزایش سرعت از Redis استفاده کردیم",candidateIntent:"ANSWER"
+  });
+  assert.notEqual(result.brainMode,"approved_bank");
+  assert.notEqual(result.plannedQuestionVersionId,"22222222-2222-4222-8222-000000000001");
+  assert.equal(restored.getCheckpoint()?.brain && typeof restored.getCheckpoint()?.brain,"object");
 });
