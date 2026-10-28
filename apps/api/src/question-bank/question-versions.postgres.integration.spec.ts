@@ -10,6 +10,8 @@ import { TenantContextService } from "../tenant/tenant-context.service";
 import { QuestionBankService } from "./question-bank.service";
 import { QuestionVersionsService } from "./question-versions.service";
 import { pinnedQuestionContext } from "../interviews/interview-question-snapshot";
+import { InterviewBrainService } from "../interviews/interview-brain.service";
+import type { LlmInterviewerService } from "../interviews/llm-interviewer.service";
 
 const url=process.env.AUTH_INTEGRATION_DATABASE_URL;
 
@@ -20,6 +22,7 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
     const tenant=new TenantContextService();
     const actor=randomUUID(),orgA=randomUUID(),orgB=randomUUID(),jobId=randomUUID();
     const candidateId=randomUUID(),applicationId=randomUUID(),fileId=randomUUID(),documentId=randomUUID();
+    const candidate2=randomUUID(),application2=randomUUID(),session2=randomUUID();
     const rubricId=randomUUID(),rubricVersionId=randomUUID(),criterionId=randomUUID();
     const releaseUnitId=randomUUID(),planId=randomUUID(),sessionId=randomUUID();
     const laterRubricVersionId=randomUUID(),laterPlanId=randomUUID();
@@ -96,8 +99,8 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         reason:"Must not approve a question outside job skill requirements"
       })),/active job skill requirement/i);
       await sql`INSERT INTO job_skill_requirements(
-        organization_id,job_id,skill_id,required_level,weight,required,minimum_evidence_count
-      ) SELECT ${orgA}::uuid,${jobId}::uuid,id,3,1,true,1 FROM skill_taxonomy
+        organization_id,job_id,skill_id,required_level,weight,required,minimum_evidence_count,rubric_criterion_id
+      ) SELECT ${orgA}::uuid,${jobId}::uuid,id,3,1,true,2,${criterionId}::uuid FROM skill_taxonomy
         WHERE organization_id=${orgA}::uuid AND skill_key='dotnet'`;
       const approved=await tenant.run(orgA,()=>service.review(jobId,first.id,{
         decision:"approved",expectedVersion:1,
@@ -130,6 +133,14 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
       assert.deepEqual(liveContext.documentIds,[documentId]);
       assert.deepEqual(withApproved[1]?.approvedQuestionVersions,[]);
       assert.notEqual(withApproved[0]?.contentSha256,withApproved[1]?.contentSha256);
+      // A second application freezes the approved version independently before
+      // the reviewer publishes a new pending question version for application 1.
+      await sql`INSERT INTO candidates(id,organization_id,display_name)
+        VALUES (${candidate2}::uuid,${orgA}::uuid,'Other Question Candidate')`;
+      await sql`INSERT INTO applications(id,organization_id,job_id,candidate_id)
+        VALUES (${application2}::uuid,${orgA}::uuid,${jobId}::uuid,${candidate2}::uuid)`;
+      await tenant.run(orgA,()=>bank.saveSelection(application2,[documentId]));
+
 
       await assert.rejects(()=>tenant.run(orgA,()=>service.revise(jobId,first.id,{
         expectedVersion:0,questionText:revised,sourceExcerpt:question,skillKey:"dotnet"
@@ -206,6 +217,83 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
         FROM interview_sessions WHERE organization_id=${orgA}::uuid AND id=${sessionId}::uuid
       `;
       assert.equal(pinnedAfter[0]?.snapshot_id,pinned[0]?.snapshot_id);
+      const adaptive=await sql`
+        SELECT contract_version,source_plan_version,criterion_budgets,skill_budgets,
+               common_question_version_ids FROM interview_session_adaptive_plans
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${sessionId}::uuid
+      `;
+      assert.equal(adaptive[0]?.contract_version,"adaptive-skill-plan.v1");
+      const rubricBudgets=adaptive[0]?.criterion_budgets as Array<Record<string,unknown>>;
+      assert.equal(rubricBudgets[0]?.criterionKey,"idempotency");
+      assert.equal(rubricBudgets[0]?.minimumEvidence,2);
+      assert.ok(Number(rubricBudgets[0]?.maxQuestions)>=2);
+      const skillBudgets=adaptive[0]?.skill_budgets as Array<Record<string,unknown>>;
+      assert.equal(skillBudgets[0]?.criterionKey,"idempotency");
+      assert.equal(skillBudgets[0]?.skillKey,"dotnet");
+      assert.deepEqual(adaptive[0]?.common_question_version_ids,[]);
+      await assert.rejects(()=>sql`UPDATE interview_session_adaptive_plans
+        SET criterion_budgets='[]'::jsonb WHERE organization_id=${orgA}::uuid
+          AND interview_session_id=${sessionId}::uuid`,/immutable/i);
+
+      await sql`INSERT INTO interview_sessions(
+        id,organization_id,application_id,interview_plan_id,status,remaining_seconds
+      ) VALUES (${session2}::uuid,${orgA}::uuid,${application2}::uuid,
+        ${planId}::uuid,'in_progress',1800)`;
+      const other=await sql`
+        SELECT common_question_version_ids,question_selection_sha256,skill_budgets
+        FROM interview_session_adaptive_plans
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${session2}::uuid
+      `;
+      assert.deepEqual(other[0]?.common_question_version_ids,[first.versionId]);
+      assert.deepEqual((other[0]?.skill_budgets as Array<Record<string,unknown>>)[0]?.questionVersionIds,[first.versionId]);
+      assert.notEqual(other[0]?.question_selection_sha256,afterRevision[0]?.contentSha256);
+      // End-to-end within PostgreSQL: fresh Brain instances replay the same
+      // admission plan after process restart; reconnect never re-asks a version.
+      let liveModelCalls=0;
+      const llmStub={
+        generateTurn:async()=>{
+          liveModelCalls++;
+          throw new Error("Unapproved LLM must not rewrite the primary bank question");
+        },
+      } as unknown as LlmInterviewerService;
+      const liveBrain=new InterviewBrainService(db,tenant,llmStub);
+      const spoken=await tenant.run(orgA,()=>liveBrain.nextTurn(session2,{
+        candidateIntent:"ANSWER",latestCandidateText:"",
+      }));
+      assert.equal(spoken.brainMode,"approved_bank");
+      assert.equal(spoken.spokenText,question);
+      assert.equal(spoken.plannedQuestionVersionId,first.versionId);
+      assert.equal(liveModelCalls,0);
+      const stored=await sql`
+        SELECT planned_question_version_id::text,question_bank_question_version_ids,
+               interviewer_trace_reference
+        FROM interview_turns
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${session2}::uuid
+        ORDER BY sequence
+      `;
+      assert.equal(stored[0]?.planned_question_version_id,first.versionId);
+      assert.deepEqual(stored[0]?.question_bank_question_version_ids,[first.versionId]);
+      assert.match(String(stored[0]?.interviewer_trace_reference),/^approved_bank:/);
+      await assert.rejects(()=>tenant.run(orgB,()=>liveBrain.nextTurn(session2,{
+        candidateIntent:"ANSWER",latestCandidateText:"",
+      })),/Interview session not found/i);
+      const restarted=new InterviewBrainService(db,tenant,llmStub);
+      const recovered=await tenant.run(orgA,()=>restarted.nextTurn(session2,{
+        candidateIntent:"RECONNECT",latestCandidateText:"",
+      }));
+      assert.notEqual(recovered.plannedQuestionVersionId,first.versionId);
+      assert.equal(recovered.action,"clarify");
+      assert.equal(recovered.brainMode,"deterministic_fallback");
+      assert.equal(liveModelCalls,0);
+      const turns=await sql`
+        SELECT count(*)::int AS total,count(planned_question_version_id)::int AS bank_total
+        FROM interview_turns
+        WHERE organization_id=${orgA}::uuid AND interview_session_id=${session2}::uuid
+      `;
+      assert.equal(Number(turns[0]?.total),2);
+      assert.equal(Number(turns[0]?.bank_total),1);
+
+
 
       const count=await sql`SELECT count(*)::int AS count FROM scorecards
         WHERE organization_id=${orgA}::uuid`;
@@ -214,7 +302,7 @@ test("versioned bank questions are source-scoped, reviewed and frozen per applic
       // Existing file attachments have RESTRICT FKs. Clean the application and
       // job-bound document first; cascading source deletion then clears nested
       // immutable question versions and snapshots without editing them in place.
-      await sql`DELETE FROM applications WHERE organization_id=${orgA}::uuid AND id=${applicationId}::uuid`;
+      await sql`DELETE FROM applications WHERE organization_id=${orgA}::uuid AND id IN (${applicationId}::uuid,${application2}::uuid)`;
       await sql`DELETE FROM question_bank_documents
         WHERE organization_id=${orgA}::uuid AND id=${documentId}::uuid`;
       await sql`DELETE FROM files WHERE organization_id=${orgA}::uuid AND id=${fileId}::uuid`;

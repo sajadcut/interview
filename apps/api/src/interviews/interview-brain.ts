@@ -13,6 +13,7 @@ export type InterviewQuestionSource =
   | "lifecycle"
   | "rubric"
   | "job_requirement"
+  | "question_bank"
   | "resume_claim"
   | "adaptive_follow_up";
 
@@ -32,6 +33,7 @@ export interface InterviewBrainCriterion {
   objective: string;
   expectedEvidence: string[];
   minimumEvidence: number;
+  maxQuestions?: number;
   required?: boolean;
   weight?: number;
   priority?: number;
@@ -119,6 +121,7 @@ function normalizeCriterion(criterion: InterviewBrainCriterion): InterviewBrainC
       ? expectedEvidence
       : [`Concrete job-relevant evidence for ${criterion.label.trim()}`],
     minimumEvidence: Math.max(1, Math.trunc(criterion.minimumEvidence || 1)),
+    maxQuestions: Math.max(2, Math.min(20, Math.trunc(criterion.maxQuestions ?? 2))),
     required: criterion.required !== false,
     weight: Number.isFinite(criterion.weight) ? Math.max(0, Number(criterion.weight)) : 1,
     priority: Number.isFinite(criterion.priority) ? Number(criterion.priority) : 0,
@@ -239,19 +242,20 @@ function selectIncompleteCriterion(
   afterKey?: string | null,
 ): InterviewBrainCriterion | null {
   const endingSoon = remainingSeconds <= 300;
+  const questionCount = state.questionCountByCriterion ?? {};
   const candidates = criteria.filter((criterion) => {
+    if ((questionCount[criterion.key] ?? 0) >= (criterion.maxQuestions ?? 2)) return false;
     if (isCovered(state, criterion)) return false;
     if (endingSoon && criterion.required === false) return false;
     return true;
   });
   if (candidates.length === 0) return null;
 
-  const questionCount = state.questionCountByCriterion ?? {};
   const current = candidates.find((criterion) => criterion.key === state.currentCriterion);
   if (
     current &&
     !endingSoon &&
-    (questionCount[current.key] ?? 0) < 2 &&
+    (questionCount[current.key] ?? 0) < (current.maxQuestions ?? 2) &&
     (!afterKey || afterKey !== current.key)
   ) {
     return current;
@@ -469,6 +473,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
   const activeCriterion = criteria.find(
     (criterion) =>
       criterion.key === input.state.currentCriterion &&
+      currentQuestionCount < (criterion.maxQuestions ?? 2) &&
       !(remainingSeconds <= 300 && criterion.required === false),
   ) ?? null;
   const probeFocus =
@@ -485,6 +490,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
           (criterion) =>
             criterion.key === input.state.currentCriterion &&
             !isCovered(input.state, criterion) &&
+            (input.state.questionCountByCriterion?.[criterion.key] ?? 0) < (criterion.maxQuestions ?? 2) &&
             !(remainingSeconds <= 300 && criterion.required === false),
         ) ?? selectIncompleteCriterion(criteria, input.state, remainingSeconds);
 
@@ -640,7 +646,7 @@ export function decideInterviewTurn(rawInput: InterviewBrainInput): InterviewBra
       { turnKind: "adaptive_follow_up", questionSource: "adaptive_follow_up" },
     );
   }
-  if (questionCount >= 2) {
+  if (questionCount >= (current.maxQuestions ?? 2)) {
     const next = selectIncompleteCriterion(criteria, input.state, remainingSeconds, current.key);
     if (next && next.key !== current.key) {
       const nextLabel = criterionSpokenLabel(language, next);

@@ -5199,6 +5199,76 @@
         ]
       }
     },
+    "/v1/interviews/{sessionId}/adaptive-plan": {
+      "get": {
+        "operationId": "InterviewOrchestrationController_getSessionAdaptivePlan",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionAdaptivePlanDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "interviews"
+        ]
+      }
+    },
     "/v1/interviews/{sessionId}/evaluator-input": {
       "get": {
         "operationId": "InterviewOrchestrationController_evaluatorInput",
@@ -13657,6 +13727,66 @@
           "interviewType",
           "timeBudgetMinutes",
           "questionStrategy"
+        ]
+      },
+      "SessionAdaptivePlanDto": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "type": "string"
+          },
+          "sourcePlanVersion": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "snapshotId": {
+            "type": "object",
+            "nullable": true
+          },
+          "snapshotSha256": {
+            "type": "object",
+            "nullable": true
+          },
+          "commonQuestionVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "adaptivePolicy": {
+            "type": "object"
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "contractVersion",
+          "sourcePlanVersion",
+          "status",
+          "commonQuestionVersionIds",
+          "adaptivePolicy",
+          "criteria",
+          "skills",
+          "createdAt"
         ]
       },
       "InterviewEvaluatorInputDto": {

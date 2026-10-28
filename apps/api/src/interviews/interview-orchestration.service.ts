@@ -214,6 +214,74 @@ export class InterviewOrchestrationService {
     };
   }
 
+  /** Read-only, tenant-scoped plan and observed *evidence counts*, never a skill score. */
+  async getSessionAdaptivePlan(sessionId: string) {
+    const organizationId=this.tenantContext.require().organizationId;
+    const rows=await this.database.sql`
+      SELECT ap.contract_version,ap.source_plan_version,ap.question_selection_snapshot_id::text,
+             ap.question_selection_sha256,ap.criterion_budgets,ap.skill_budgets,
+             ap.common_question_version_ids,ap.adaptive_policy,s.status,
+             ap.created_at
+      FROM interview_session_adaptive_plans ap
+      JOIN interview_sessions s ON s.organization_id=ap.organization_id
+        AND s.id=ap.interview_session_id
+      WHERE ap.organization_id=${organizationId}::uuid
+        AND ap.interview_session_id=${sessionId}::uuid
+    `;
+    if (!rows[0]) throw new NotFoundException("Session adaptive plan not found");
+    const turns=await this.database.sql`
+      SELECT criterion_key,count(*)::int AS count
+      FROM interview_turns
+      WHERE organization_id=${organizationId}::uuid
+        AND interview_session_id=${sessionId}::uuid
+        AND action IN ('ask','probe') AND criterion_key IS NOT NULL
+      GROUP BY criterion_key
+    `;
+    const evidence=await this.database.sql`
+      SELECT rc.criterion_key,count(*)::int AS count
+      FROM interview_evidence ie
+      JOIN rubric_criteria rc ON rc.organization_id=ie.organization_id
+        AND rc.id=ie.criterion_id
+      WHERE ie.organization_id=${organizationId}::uuid
+        AND ie.interview_session_id=${sessionId}::uuid
+      GROUP BY rc.criterion_key
+    `;
+    const byTurns=new Map(turns.map(row=>[String(row.criterion_key),Number(row.count)]));
+    const byEvidence=new Map(evidence.map(row=>[String(row.criterion_key),Number(row.count)]));
+    const p=rows[0];
+    const criteria=Array.isArray(p.criterion_budgets) ? p.criterion_budgets as Array<Record<string,unknown>> : [];
+    const skills=Array.isArray(p.skill_budgets) ? p.skill_budgets as Array<Record<string,unknown>> : [];
+    return {
+      sessionId, contractVersion:String(p.contract_version),
+      sourcePlanVersion:Number(p.source_plan_version),
+      status:String(p.status),
+      snapshotId:p.question_selection_snapshot_id?String(p.question_selection_snapshot_id):null,
+      snapshotSha256:p.question_selection_sha256?String(p.question_selection_sha256):null,
+      commonQuestionVersionIds:p.common_question_version_ids as string[],
+      adaptivePolicy:p.adaptive_policy as Record<string,unknown>,
+      criteria:criteria.map(item=>({
+        criterionKey:String(item.criterionKey),
+        required:item.required===true,
+        minimumEvidence:Number(item.minimumEvidence),
+        maxQuestions:Number(item.maxQuestions),
+        questionCount:byTurns.get(String(item.criterionKey))??0,
+        evidenceCount:byEvidence.get(String(item.criterionKey))??0,
+      })),
+      skills:skills.map(item=>{
+        const key=item.criterionKey?String(item.criterionKey):null;
+        const count=key?byEvidence.get(key)??0:0;
+        const needed=Number(item.minimumEvidence);
+        return {
+          skillKey:String(item.skillKey),criterionKey:key,
+          required:item.required===true,minimumEvidence:needed,evidenceCount:count,
+          quotaState:!key?"unmapped":count>=needed?"quota_met":"evidence_gap",
+          questionVersionIds:Array.isArray(item.questionVersionIds)?item.questionVersionIds as string[]:[],
+        };
+      }),
+      createdAt:new Date(String(p.created_at)).toISOString(),
+    };
+  }
+
   async evaluatorInput(sessionId: string) {
     const organizationId = this.tenantContext.require().organizationId;
     const sessions = await this.database.sql`

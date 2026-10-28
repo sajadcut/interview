@@ -10,6 +10,7 @@ export interface PinnedQuestionContext {
     suggestedQuestions: string[];
   }>;
   questionVersionIds: string[];
+  validatedApprovedVersionIds: string[];
   documentIds: string[];
   snapshotVersion: number;
   snapshotSha256: string | null;
@@ -30,7 +31,7 @@ export function pinnedQuestionContext(
   ordinal: number,
 ): PinnedQuestionContext {
   const empty: PinnedQuestionContext = {
-    selectedQuestionDocuments: [], questionVersionIds: [], documentIds: [],
+    selectedQuestionDocuments: [], questionVersionIds: [], validatedApprovedVersionIds: [], documentIds: [],
     snapshotVersion: 0, snapshotSha256: null,
   };
   if (!Array.isArray(snapshot.documentIds) || !Array.isArray(snapshot.approvedQuestions) ||
@@ -107,6 +108,7 @@ export function pinnedQuestionContext(
     if (selected.length === 3) break;
   }
   return { selectedQuestionDocuments: selected, questionVersionIds: versions,
+    validatedApprovedVersionIds: reconstructed.map(q => String(q.versionId)),
     documentIds: docIds, snapshotVersion: Number(snapshot.snapshotVersion ?? 0),
     snapshotSha256: String(snapshot.contentSha256) };
 }
