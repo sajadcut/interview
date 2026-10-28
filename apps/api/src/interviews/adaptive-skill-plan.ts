@@ -78,8 +78,8 @@ export function nextApprovedCommonQuestion(input: {
     if (!q || typeof q.versionId !== "string" || typeof q.documentId !== "string" ||
         typeof q.questionText !== "string" || typeof q.skillKey !== "string") continue;
     // Human approval cannot override the mandatory live-turn instruction boundary.
-    if (/<\\/?\\s*(?:system|developer|assistant|user|tool)\\b[^>]*>/i.test(q.questionText) ||
-        /\\b(?:ignore (?:all |the )?(?:previous|prior) instructions|system prompt)\\b/i.test(q.questionText)) continue;
+    if (/<\/?\s*(?:system|developer|assistant|user|tool)\b[^>]*>/i.test(q.questionText) ||
+        /\b(?:ignore (?:all |the )?(?:previous|prior) instructions|system prompt)\b/i.test(q.questionText)) continue;
     if (!uuid.test(q.versionId) || !uuid.test(q.documentId) ||
         q.questionText.length < 12 || q.questionText.length > 600) continue;
     if (!allowed.has(q.versionId) || !common.has(q.versionId) || spoken.has(q.versionId)) continue;
